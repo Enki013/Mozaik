@@ -79,10 +79,14 @@ func renderHome(data pageData) string {
     .compact-form { display: grid; gap: 8px; }
     .button-row { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
     .inline { display: grid; grid-template-columns: minmax(180px, 1fr) minmax(140px, 190px) auto; align-items: center; gap: 10px; }
+    .management { margin-top: 16px; }
+    .management summary { cursor: pointer; font-weight: 750; font-size: 16px; }
+    .management-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin-top: 14px; }
+    .management-card { border: 1px solid #e2e7e1; border-radius: 7px; padding: 14px; background: #fafbf9; display: grid; gap: 12px; align-content: start; min-width: 0; }
     .table-wrap { overflow-x: auto; }
     .empty { color: #64726d; padding: 14px 0; }
-    @media (max-width: 980px) { .summary-grid, .stat-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } .layout { grid-template-columns: 1fr; } }
-    @media (max-width: 640px) { main { padding: 20px 14px 44px; } header { align-items: flex-start; flex-direction: column; } .summary-grid, .stat-grid, .button-row, .inline { grid-template-columns: 1fr; } .metric .value { font-size: 24px; } }
+    @media (max-width: 980px) { .summary-grid, .stat-grid, .management-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } .layout { grid-template-columns: 1fr; } }
+    @media (max-width: 640px) { main { padding: 20px 14px 44px; } header { align-items: flex-start; flex-direction: column; } .summary-grid, .stat-grid, .button-row, .inline, .management-grid { grid-template-columns: 1fr; } .metric .value { font-size: 24px; } }
   </style>
 </head>
 <body>
@@ -103,6 +107,7 @@ func renderHome(data pageData) string {
 	b.WriteString(renderGoodreadsDashboard(data))
 	b.WriteString(renderLetterboxdDashboard(data))
 	b.WriteString(`</div></div>`)
+	b.WriteString(renderDataManagement(data))
 	b.WriteString(`
   </main>
 </body>
@@ -126,24 +131,18 @@ func metricCard(label, value, note string) string {
 
 func renderConnections(data pageData) string {
 	var b strings.Builder
-	b.WriteString(`<aside class="panel"><div class="section-head"><div class="section-title"><h2>Baglantilar</h2><div class="muted">Hesap, RSS ve sync ayarlari</div></div></div><div class="connection-list">`)
+	b.WriteString(`<aside class="panel"><div class="section-head"><div class="section-title"><h2>Baglantilar</h2><div class="muted">Hesap durumu ve anlik sync</div></div></div><div class="connection-list">`)
 	b.WriteString(fmt.Sprintf(`<div class="connection"><div class="connection-top"><h3>FatSecret</h3>%s</div><div class="sync-line">%s</div><div class="button-row"><a class="button secondary" href="/fatsecret/connect">Hesabi bagla</a><form method="post" action="/fatsecret/sync"><input type="hidden" name="days" value="1"><button>Bugunu sync et</button></form></div><form method="post" action="/fatsecret/sync"><input type="hidden" name="days" value="30"><button class="secondary">Son 30 gunu sync et</button></form></div>`,
 		statusBadge(data.FatSecretConnected && data.OAuthReady),
 		syncRunText(data.Dashboard.LastSync["fatsecret"]),
 	))
-	b.WriteString(fmt.Sprintf(`<div class="connection"><div class="connection-top"><h3>Goodreads RSS</h3>%s</div><div class="sync-line">%s</div><form class="compact-form" method="post" action="/goodreads/settings"><label><span>Feed URL</span><input type="text" name="feed_url" value="%s" placeholder="https://www.goodreads.com/review/list_rss/..."></label><label><span>Aralik dakika</span><input type="number" name="interval_minutes" min="15" value="%d"></label><label style="display:flex; align-items:center; gap:8px;"><input type="checkbox" name="enabled" %s> Otomatik calissin</label><button>Ayar kaydet</button></form><form method="post" action="/goodreads/sync"><button class="secondary">Simdi sync et</button></form></div>`,
+	b.WriteString(fmt.Sprintf(`<div class="connection"><div class="connection-top"><h3>Goodreads RSS</h3>%s</div><div class="sync-line">%s</div><form method="post" action="/goodreads/sync"><button>Simdi sync et</button></form><div class="muted">Feed ayarlari alttaki veri yonetimi bolumunde.</div></div>`,
 		statusBadge(data.GoodreadsSettings.FeedURL != ""),
 		syncRunText(data.Dashboard.LastSync["goodreads"]),
-		esc(data.GoodreadsSettings.FeedURL),
-		data.GoodreadsSettings.IntervalMinutes,
-		checked(data.GoodreadsSettings.Enabled),
 	))
-	b.WriteString(fmt.Sprintf(`<div class="connection"><div class="connection-top"><h3>Letterboxd RSS</h3>%s</div><div class="sync-line">%s</div><form class="compact-form" method="post" action="/letterboxd/settings"><label><span>Feed URL</span><input type="text" name="feed_url" value="%s" placeholder="https://letterboxd.com/kullanici/rss/"></label><label><span>Aralik dakika</span><input type="number" name="interval_minutes" min="15" value="%d"></label><label style="display:flex; align-items:center; gap:8px;"><input type="checkbox" name="enabled" %s> Otomatik calissin</label><button>Ayar kaydet</button></form><form method="post" action="/letterboxd/sync"><button class="secondary">Simdi sync et</button></form></div>`,
+	b.WriteString(fmt.Sprintf(`<div class="connection"><div class="connection-top"><h3>Letterboxd RSS</h3>%s</div><div class="sync-line">%s</div><form method="post" action="/letterboxd/sync"><button>Simdi sync et</button></form><div class="muted">Feed ayarlari alttaki veri yonetimi bolumunde.</div></div>`,
 		statusBadge(data.LetterboxdSettings.FeedURL != ""),
 		syncRunText(data.Dashboard.LastSync["letterboxd"]),
-		esc(data.LetterboxdSettings.FeedURL),
-		data.LetterboxdSettings.IntervalMinutes,
-		checked(data.LetterboxdSettings.Enabled),
 	))
 	b.WriteString(`</div></aside>`)
 	return b.String()
@@ -167,7 +166,7 @@ func renderFatSecretDashboard(data pageData) string {
 
 func renderGoodreadsDashboard(data pageData) string {
 	stats := data.Overview.Goodreads
-	return fmt.Sprintf(`<section class="panel section"><div class="section-head"><div class="section-title"><h2>Goodreads</h2><div class="muted">Kutuphane, raf ve puan istatistikleri</div></div><a class="button secondary" href="/goodreads/export">JSON disa aktar</a></div><div class="stat-grid">%s%s%s%s%s%s%s%s</div><form class="compact-form" method="post" action="/goodreads/import" enctype="multipart/form-data"><input type="file" name="file" accept=".csv,text/csv" required><button>CSV import et</button></form><div class="section"><h3>Kutuphanede ara</h3><form class="inline" method="get" action="/"><input type="text" name="q" value="%s" placeholder="Kitap veya yazar ara"><select name="shelf">%s</select><button>Filtrele</button></form>%s</div></section>`,
+	return fmt.Sprintf(`<section class="panel section"><div class="section-head"><div class="section-title"><h2>Goodreads</h2><div class="muted">Kutuphane, raf ve puan istatistikleri</div></div></div><div class="stat-grid">%s%s%s%s%s%s%s%s</div><div class="section"><h3>Kutuphanede ara</h3><form class="inline" method="get" action="/"><input type="text" name="q" value="%s" placeholder="Kitap veya yazar ara"><select name="shelf">%s</select><button>Filtrele</button></form>%s</div></section>`,
 		statBlock("Toplam", number(stats.Total), "kitap"),
 		statBlock("Okundu", number(stats.Read), "read"),
 		statBlock("Okunacak", number(stats.ToRead), "to-read"),
@@ -188,7 +187,7 @@ func renderLetterboxdDashboard(data pageData) string {
 	if stats.OldestYear > 0 || stats.NewestYear > 0 {
 		yearRange = fmt.Sprintf("%s-%s", number(stats.OldestYear), number(stats.NewestYear))
 	}
-	return fmt.Sprintf(`<section class="panel section"><div class="section-head"><div class="section-title"><h2>Letterboxd</h2><div class="muted">Film, puan ve kaynak ozeti</div></div></div><div class="stat-grid">%s%s%s%s%s%s</div><form class="compact-form" method="post" action="/letterboxd/import" enctype="multipart/form-data"><input type="file" name="file" accept=".csv,text/csv" required><button>CSV import et</button></form><div class="section"><h3>Son filmler</h3>%s</div></section>`,
+	return fmt.Sprintf(`<section class="panel section"><div class="section-head"><div class="section-title"><h2>Letterboxd</h2><div class="muted">Film, puan ve kaynak ozeti</div></div></div><div class="stat-grid">%s%s%s%s%s%s</div><div class="section"><h3>Son filmler</h3>%s</div></section>`,
 		statBlock("Toplam", number(stats.Total), "film"),
 		statBlock("Puanli", number(stats.Rated), fmt.Sprintf("ort. %s", rating(stats.AverageRating))),
 		statBlock("Yil araligi", emptyDash(yearRange), "film yili"),
@@ -196,6 +195,19 @@ func renderLetterboxdDashboard(data pageData) string {
 		statBlock("CSV", number(stats.CSVCount), "manuel import"),
 		statBlock("Son izleme", emptyDash(stats.LastWatched), "feed/import"),
 		renderFilms(data.LetterboxdFilms),
+	)
+}
+
+func renderDataManagement(data pageData) string {
+	return fmt.Sprintf(`<details class="panel management"><summary>Veri yonetimi ve ayarlar</summary><div class="management-grid"><div class="management-card"><h3>Goodreads import/export</h3><form method="post" action="/goodreads/import" enctype="multipart/form-data"><input type="file" name="file" accept=".csv,text/csv" required><button>CSV import et</button></form><a class="button secondary" href="/goodreads/export">JSON disa aktar</a></div><div class="management-card"><h3>Goodreads RSS ayarlari</h3><form class="compact-form" method="post" action="/goodreads/settings"><label><span>Feed URL</span><input type="text" name="feed_url" value="%s" placeholder="https://www.goodreads.com/review/list_rss/..."></label><label><span>Aralik dakika</span><input type="number" name="interval_minutes" min="15" value="%d"></label><label style="display:flex; align-items:center; gap:8px;"><input type="checkbox" name="enabled" %s> Otomatik calissin</label><button>Ayar kaydet</button></form></div><div class="management-card"><h3>Letterboxd import</h3><form method="post" action="/letterboxd/import" enctype="multipart/form-data"><input type="file" name="file" accept=".csv,text/csv" required><button>CSV import et</button></form></div><div class="management-card"><h3>Letterboxd RSS ayarlari</h3><form class="compact-form" method="post" action="/letterboxd/settings"><label><span>Feed URL</span><input type="text" name="feed_url" value="%s" placeholder="https://letterboxd.com/kullanici/rss/"></label><label><span>Aralik dakika</span><input type="number" name="interval_minutes" min="15" value="%d"></label><label style="display:flex; align-items:center; gap:8px;"><input type="checkbox" name="enabled" %s> Otomatik calissin</label><button>Ayar kaydet</button></form></div><div class="management-card"><h3>FatSecret hesap</h3><div class="sync-line">Hesap: %s · OAuth1: %s</div><a class="button secondary" href="/fatsecret/connect">FatSecret hesabi bagla</a></div></div></details>`,
+		esc(data.GoodreadsSettings.FeedURL),
+		data.GoodreadsSettings.IntervalMinutes,
+		checked(data.GoodreadsSettings.Enabled),
+		esc(data.LetterboxdSettings.FeedURL),
+		data.LetterboxdSettings.IntervalMinutes,
+		checked(data.LetterboxdSettings.Enabled),
+		connected(data.FatSecretConnected),
+		ready(data.OAuthReady),
 	)
 }
 
