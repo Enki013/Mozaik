@@ -187,13 +187,11 @@ func renderLetterboxdDashboard(data pageData) string {
 	if stats.OldestYear > 0 || stats.NewestYear > 0 {
 		yearRange = fmt.Sprintf("%s-%s", number(stats.OldestYear), number(stats.NewestYear))
 	}
-	return fmt.Sprintf(`<section class="panel section"><div class="section-head"><div class="section-title"><h2>Letterboxd</h2><div class="muted">Film, puan ve kaynak ozeti</div></div></div><div class="stat-grid">%s%s%s%s%s%s</div><div class="section"><h3>Son filmler</h3>%s</div></section>`,
+	return fmt.Sprintf(`<section class="panel section"><div class="section-head"><div class="section-title"><h2>Letterboxd</h2><div class="muted">Film, puan ve kaynak ozeti</div></div></div><div class="stat-grid">%s%s%s%s</div><div class="section"><h3>Son filmler</h3>%s</div></section>`,
 		statBlock("Toplam", number(stats.Total), "film"),
 		statBlock("Puanli", number(stats.Rated), fmt.Sprintf("ort. %s", rating(stats.AverageRating))),
 		statBlock("Yil araligi", emptyDash(yearRange), "film yili"),
 		statBlock("RSS", number(stats.RSSCount), "otomatik"),
-		statBlock("CSV", number(stats.CSVCount), "manuel import"),
-		statBlock("Son izleme", emptyDash(stats.LastWatched), "feed/import"),
 		renderFilms(data.LetterboxdFilms),
 	)
 }
