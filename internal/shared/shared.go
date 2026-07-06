@@ -31,17 +31,22 @@ func Float(value string) float64 {
 }
 
 func TodayDateInt() int {
-	start := time.Date(1970, 1, 1, 0, 0, 0, 0, time.Local)
 	now := time.Now()
-	today := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, time.Local)
-	return int(today.Sub(start).Hours() / 24)
+	return DateInt(now)
+}
+
+func DateInt(day time.Time) int {
+	epoch := time.Date(1970, 1, 1, 0, 0, 0, 0, time.UTC)
+	local := day.In(time.Local)
+	today := time.Date(local.Year(), local.Month(), local.Day(), 0, 0, 0, 0, time.UTC)
+	return int(today.Sub(epoch).Hours() / 24)
 }
 
 func DateIntToISO(value int) string {
 	if value <= 0 {
 		return ""
 	}
-	return time.Date(1970, 1, 1, 0, 0, 0, 0, time.Local).AddDate(0, 0, value).Format("2006-01-02")
+	return time.Date(1970, 1, 1, 0, 0, 0, 0, time.UTC).AddDate(0, 0, value).Format("2006-01-02")
 }
 
 func CleanHTML(value string) string {
