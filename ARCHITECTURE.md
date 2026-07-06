@@ -35,5 +35,4 @@ The current app runs with:
 go run ./cmd/personal-records
 ```
 
-The previous Python implementation is still present as a reference while the Go
-server becomes the active runtime.
+The repository is Go-only.

@@ -64,5 +64,4 @@ Uygulama Go'ya tasindi ve clean architecture katmanlari `internal/` altinda:
 - `internal/presentation/http`: HTML ve JSON API handler'lari
 - `internal/config`: `.env`, port ve path ayarlari
 
-Eski Python dosyalari referans olarak duruyor; aktif local server Go entrypoint'i
-olan `go run ./cmd/personal-records` ile calisir.
+Aktif local server Go entrypoint'i olan `go run ./cmd/personal-records` ile calisir.
