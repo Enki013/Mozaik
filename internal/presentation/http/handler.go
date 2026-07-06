@@ -82,6 +82,7 @@ func (h *Handler) home(w http.ResponseWriter, r *http.Request) {
 	foodSummary, _ := h.services.FatSecretDailySummary(ctx, 14)
 	foodEntries, _ := h.services.FoodEntries(ctx, 30)
 	dashboard, _ := h.services.Dashboard(ctx)
+	overview, _ := h.services.OverviewStats(ctx)
 
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	_, _ = io.WriteString(w, renderHome(pageData{
@@ -99,6 +100,7 @@ func (h *Handler) home(w http.ResponseWriter, r *http.Request) {
 		FoodEntries:        foodEntries,
 		FatSecretConnected: h.services.FatSecretConnected(ctx),
 		OAuthReady:         config.Env("FATSECRET_CONSUMER_KEY") != "" && config.Env("FATSECRET_CONSUMER_SECRET") != "",
+		Overview:           overview,
 	}))
 }
 

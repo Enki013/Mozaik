@@ -13,6 +13,7 @@ type pageData struct {
 	DBName             string
 	Counts             map[string]int
 	Dashboard          application.Dashboard
+	Overview           application.OverviewStats
 	Books              []sqlite.GoodreadsBook
 	Shelves            []string
 	SelectedShelf      string
@@ -27,7 +28,8 @@ type pageData struct {
 }
 
 func renderHome(data pageData) string {
-	return fmt.Sprintf(`<!doctype html>
+	var b strings.Builder
+	b.WriteString(fmt.Sprintf(`<!doctype html>
 <html lang="tr">
 <head>
   <meta charset="utf-8">
@@ -35,33 +37,52 @@ func renderHome(data pageData) string {
   <title>Kisisel Kayitlar</title>
   <style>
     :root { color-scheme: light; font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
-    body { margin: 0; background: #f6f7f4; color: #1d2522; }
-    main { max-width: 1080px; margin: 0 auto; padding: 32px 20px 56px; }
-    header { display: flex; justify-content: space-between; align-items: end; gap: 16px; margin-bottom: 28px; }
-    h1 { font-size: 32px; margin: 0; letter-spacing: 0; }
-    h2 { font-size: 18px; margin: 0 0 14px; }
-    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; }
-    .card { background: #fff; border: 1px solid #d9ded6; border-radius: 8px; padding: 18px; box-shadow: 0 1px 2px rgba(18, 29, 25, .05); }
-    .wide { grid-column: 1 / -1; }
-    .stat { font-size: 28px; font-weight: 700; }
-    .stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin-top: 14px; }
-    .mini { background: #f3f6f2; border: 1px solid #dfe5dc; border-radius: 6px; padding: 10px; }
-    .mini div:first-child { font-size: 20px; font-weight: 750; }
-    .muted { color: #62706b; font-size: 14px; }
-    form { display: grid; gap: 10px; margin-top: 10px; }
-    .inline { grid-template-columns: minmax(160px, 1fr) minmax(140px, 180px) auto; align-items: center; }
-    input[type="text"], input[type="file"], select, input[type="number"] { border: 1px solid #c8d0ca; border-radius: 6px; padding: 10px; font: inherit; background: #fff; min-width: 0; }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: #f5f6f3; color: #1f2925; }
+    main { max-width: 1240px; margin: 0 auto; padding: 28px 20px 56px; }
+    header { display: flex; justify-content: space-between; align-items: flex-end; gap: 18px; margin-bottom: 22px; }
+    h1 { font-size: 30px; margin: 0; letter-spacing: 0; }
+    h2 { font-size: 18px; margin: 0; letter-spacing: 0; }
+    h3 { font-size: 14px; margin: 0; color: #44524d; letter-spacing: 0; }
+    form { display: grid; gap: 10px; }
     label { display: grid; gap: 6px; color: #53615c; font-size: 13px; }
     label span { font-weight: 650; }
-    button, .button { border: 0; border-radius: 6px; padding: 10px 12px; background: #236c5d; color: white; font-weight: 650; cursor: pointer; text-decoration: none; display: inline-flex; justify-content: center; }
-    button.secondary, .button.secondary { background: #33423d; }
-    .actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+    input[type="text"], input[type="file"], select, input[type="number"] { width: 100%%; border: 1px solid #c8d0ca; border-radius: 6px; padding: 10px; font: inherit; background: #fff; min-width: 0; }
+    button, .button { border: 0; border-radius: 6px; padding: 10px 12px; background: #236c5d; color: white; font-weight: 650; cursor: pointer; text-decoration: none; display: inline-flex; justify-content: center; align-items: center; min-height: 40px; }
+    button.secondary, .button.secondary { background: #34433f; }
     table { width: 100%%; border-collapse: collapse; font-size: 14px; }
-    th, td { text-align: left; padding: 9px 8px; border-bottom: 1px solid #e5e9e4; vertical-align: top; }
+    th, td { text-align: left; padding: 10px 8px; border-bottom: 1px solid #e5e9e4; vertical-align: top; }
     th { color: #53615c; font-size: 12px; text-transform: uppercase; letter-spacing: .04em; }
-    .status { display: inline-block; border-radius: 999px; padding: 4px 8px; background: #e8eee9; color: #2d453d; font-size: 12px; }
-    .empty { color: #62706b; padding: 14px 0; }
-    @media (max-width: 700px) { .inline { grid-template-columns: 1fr; } .stats { grid-template-columns: 1fr; } }
+    .muted { color: #64726d; font-size: 14px; }
+    .status { display: inline-flex; align-items: center; border-radius: 999px; padding: 4px 8px; background: #e6ece8; color: #2d453d; font-size: 12px; white-space: nowrap; }
+    .status.ok { background: #dfeee7; color: #155d43; }
+    .status.warn { background: #f3ead6; color: #72531a; }
+    .summary-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin-bottom: 18px; }
+    .metric { background: #fff; border: 1px solid #d9ded6; border-radius: 8px; padding: 16px; min-width: 0; }
+    .metric .label { color: #66736e; font-size: 13px; font-weight: 650; }
+    .metric .value { font-size: 28px; line-height: 1.15; font-weight: 780; margin-top: 6px; overflow-wrap: anywhere; }
+    .metric .note { color: #66736e; font-size: 13px; margin-top: 4px; }
+    .layout { display: grid; grid-template-columns: minmax(280px, 340px) 1fr; gap: 16px; align-items: start; }
+    .panel { background: #fff; border: 1px solid #d9ded6; border-radius: 8px; padding: 18px; box-shadow: 0 1px 2px rgba(18, 29, 25, .05); min-width: 0; }
+    .section { margin-top: 16px; }
+    .section-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; margin-bottom: 14px; }
+    .section-title { display: grid; gap: 4px; }
+    .stat-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; margin-bottom: 12px; }
+    .stat { border: 1px solid #e2e7e1; border-radius: 7px; padding: 11px; background: #fafbf9; min-width: 0; }
+    .stat b { display: block; font-size: 19px; margin-bottom: 3px; overflow-wrap: anywhere; }
+    .stat span { color: #66736e; font-size: 12px; }
+    .connection-list { display: grid; gap: 12px; }
+    .connection { border-bottom: 1px solid #e8ece7; padding-bottom: 12px; display: grid; gap: 8px; }
+    .connection:last-child { border-bottom: 0; padding-bottom: 0; }
+    .connection-top { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+    .sync-line { color: #66736e; font-size: 13px; line-height: 1.35; }
+    .compact-form { display: grid; gap: 8px; }
+    .button-row { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+    .inline { display: grid; grid-template-columns: minmax(180px, 1fr) minmax(140px, 190px) auto; align-items: center; gap: 10px; }
+    .table-wrap { overflow-x: auto; }
+    .empty { color: #64726d; padding: 14px 0; }
+    @media (max-width: 980px) { .summary-grid, .stat-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } .layout { grid-template-columns: 1fr; } }
+    @media (max-width: 640px) { main { padding: 20px 14px 44px; } header { align-items: flex-start; flex-direction: column; } .summary-grid, .stat-grid, .button-row, .inline { grid-template-columns: 1fr; } .metric .value { font-size: 24px; } }
   </style>
 </head>
 <body>
@@ -73,85 +94,132 @@ func renderHome(data pageData) string {
       </div>
       <span class="status">SQLite: %s</span>
     </header>
-    <section class="grid">
-      <div class="card">
-        <h2>Goodreads</h2>
-        <div class="stat">%d</div>
-        <div class="muted">kitap kaydi</div>
-        <div class="stats">
-          <div class="mini"><div>%d</div><span class="muted">okundu</span></div>
-          <div class="mini"><div>%d</div><span class="muted">okunacak</span></div>
-          <div class="mini"><div>%d</div><span class="muted">puanli</span></div>
-        </div>
-        <form method="post" action="/goodreads/import" enctype="multipart/form-data">
-          <input type="file" name="file" accept=".csv,text/csv" required>
-          <button>CSV import et</button>
-        </form>
-        <div class="actions"><a class="button secondary" href="/goodreads/export">JSON disa aktar</a></div>
-      </div>
-      <div class="card">
-        <h2>Goodreads otomatik sync</h2>
-        <form method="post" action="/goodreads/settings">
-          <label><span>Goodreads RSS/feed URL</span><input type="text" name="feed_url" value="%s" placeholder="https://www.goodreads.com/review/list_rss/..."></label>
-          <label><span>Aralik dakika</span><input type="number" name="interval_minutes" min="15" value="%d"></label>
-          <label style="display:flex; align-items:center; gap:8px;"><input type="checkbox" name="enabled" %s> Otomatik calissin</label>
-          <button>Ayar kaydet</button>
-        </form>
-        <form method="post" action="/goodreads/sync"><button class="secondary">Simdi sync et</button></form>
-      </div>
-      <div class="card">
-        <h2>FatSecret yemek gunlugu</h2>
-        <div class="muted">Hesap: %s · OAuth1: %s</div>
-        <a class="button secondary" href="/fatsecret/connect">FatSecret bagla</a>
-        <form method="post" action="/fatsecret/sync"><input type="hidden" name="days" value="1"><button>Bugunu sync et</button></form>
-        <form method="post" action="/fatsecret/sync"><input type="hidden" name="days" value="30"><button class="secondary">Son 30 gunu sync et</button></form>
-      </div>
-      <div class="card">
-        <h2>Letterboxd</h2>
-        <div class="stat">%d</div>
-        <div class="muted">film kaydi · %d puanli</div>
-        <form method="post" action="/letterboxd/import" enctype="multipart/form-data">
-          <input type="file" name="file" accept=".csv,text/csv" required>
-          <button>CSV import et</button>
-        </form>
-      </div>
-      <div class="card">
-        <h2>Letterboxd otomatik sync</h2>
-        <form method="post" action="/letterboxd/settings">
-          <label><span>Letterboxd RSS URL</span><input type="text" name="feed_url" value="%s" placeholder="https://letterboxd.com/kullanici/rss/"></label>
-          <label><span>Aralik dakika</span><input type="number" name="interval_minutes" min="15" value="%d"></label>
-          <label style="display:flex; align-items:center; gap:8px;"><input type="checkbox" name="enabled" %s> Otomatik calissin</label>
-          <button>Ayar kaydet</button>
-        </form>
-        <form method="post" action="/letterboxd/sync"><button class="secondary">Simdi sync et</button></form>
-      </div>
-    </section>
-    <section class="card wide" style="margin-top:16px"><h2>FatSecret kalori ozeti</h2>%s</section>
-    <section class="card wide" style="margin-top:16px"><h2>FatSecret ogun kayitlari</h2>%s</section>
-    <section class="card wide" style="margin-top:16px">
-      <h2>Goodreads kutuphanesi</h2>
-      <form class="inline" method="get" action="/">
-        <input type="text" name="q" value="%s" placeholder="Kitap veya yazar ara">
-        <select name="shelf">%s</select>
-        <button>Filtrele</button>
-      </form>
-      %s
-    </section>
-    <section class="card wide" style="margin-top:16px"><h2>Letterboxd filmleri</h2>%s</section>
+`, esc(data.DBName)))
+	b.WriteString(renderSummaryGrid(data))
+	b.WriteString(`<div class="layout">`)
+	b.WriteString(renderConnections(data))
+	b.WriteString(`<div>`)
+	b.WriteString(renderFatSecretDashboard(data))
+	b.WriteString(renderGoodreadsDashboard(data))
+	b.WriteString(renderLetterboxdDashboard(data))
+	b.WriteString(`</div></div>`)
+	b.WriteString(`
   </main>
 </body>
-</html>`,
-		esc(data.DBName),
-		data.Counts["goodreads_books"], data.Counts["read_count"], data.Counts["to_read_count"], data.Counts["rated_count"],
-		esc(data.GoodreadsSettings.FeedURL), data.GoodreadsSettings.IntervalMinutes, checked(data.GoodreadsSettings.Enabled),
-		connected(data.FatSecretConnected), ready(data.OAuthReady),
-		data.Counts["letterboxd_films"], data.Counts["letterboxd_rated_count"],
-		esc(data.LetterboxdSettings.FeedURL), data.LetterboxdSettings.IntervalMinutes, checked(data.LetterboxdSettings.Enabled),
+</html>`)
+	return b.String()
+}
+
+func renderSummaryGrid(data pageData) string {
+	todayDate := fmt.Sprint(data.Dashboard.Today["date"])
+	return `<section class="summary-grid">` +
+		metricCard("Bugun kalori", ratingZero(data.Overview.FatSecret.TodayCalories), fmt.Sprintf("%d yemek · %s", data.Overview.FatSecret.TodayEntries, todayDate)) +
+		metricCard("Kitap", number(data.Overview.Goodreads.Total), fmt.Sprintf("%d okundu · %d okunacak", data.Overview.Goodreads.Read, data.Overview.Goodreads.ToRead)) +
+		metricCard("Film", number(data.Overview.Letterboxd.Total), fmt.Sprintf("%d puanli · ort. %s", data.Overview.Letterboxd.Rated, rating(data.Overview.Letterboxd.AverageRating))) +
+		metricCard("Yemek gunlugu", number(data.Overview.FatSecret.Entries), fmt.Sprintf("%d gun · ort. %s kalori", data.Overview.FatSecret.LoggedDays, rating(data.Overview.FatSecret.AverageCalories))) +
+		`</section>`
+}
+
+func metricCard(label, value, note string) string {
+	return fmt.Sprintf(`<div class="metric"><div class="label">%s</div><div class="value">%s</div><div class="note">%s</div></div>`, esc(label), emptyDash(value), esc(note))
+}
+
+func renderConnections(data pageData) string {
+	var b strings.Builder
+	b.WriteString(`<aside class="panel"><div class="section-head"><div class="section-title"><h2>Baglantilar</h2><div class="muted">Hesap, RSS ve sync ayarlari</div></div></div><div class="connection-list">`)
+	b.WriteString(fmt.Sprintf(`<div class="connection"><div class="connection-top"><h3>FatSecret</h3>%s</div><div class="sync-line">%s</div><div class="button-row"><a class="button secondary" href="/fatsecret/connect">Hesabi bagla</a><form method="post" action="/fatsecret/sync"><input type="hidden" name="days" value="1"><button>Bugunu sync et</button></form></div><form method="post" action="/fatsecret/sync"><input type="hidden" name="days" value="30"><button class="secondary">Son 30 gunu sync et</button></form></div>`,
+		statusBadge(data.FatSecretConnected && data.OAuthReady),
+		syncRunText(data.Dashboard.LastSync["fatsecret"]),
+	))
+	b.WriteString(fmt.Sprintf(`<div class="connection"><div class="connection-top"><h3>Goodreads RSS</h3>%s</div><div class="sync-line">%s</div><form class="compact-form" method="post" action="/goodreads/settings"><label><span>Feed URL</span><input type="text" name="feed_url" value="%s" placeholder="https://www.goodreads.com/review/list_rss/..."></label><label><span>Aralik dakika</span><input type="number" name="interval_minutes" min="15" value="%d"></label><label style="display:flex; align-items:center; gap:8px;"><input type="checkbox" name="enabled" %s> Otomatik calissin</label><button>Ayar kaydet</button></form><form method="post" action="/goodreads/sync"><button class="secondary">Simdi sync et</button></form></div>`,
+		statusBadge(data.GoodreadsSettings.FeedURL != ""),
+		syncRunText(data.Dashboard.LastSync["goodreads"]),
+		esc(data.GoodreadsSettings.FeedURL),
+		data.GoodreadsSettings.IntervalMinutes,
+		checked(data.GoodreadsSettings.Enabled),
+	))
+	b.WriteString(fmt.Sprintf(`<div class="connection"><div class="connection-top"><h3>Letterboxd RSS</h3>%s</div><div class="sync-line">%s</div><form class="compact-form" method="post" action="/letterboxd/settings"><label><span>Feed URL</span><input type="text" name="feed_url" value="%s" placeholder="https://letterboxd.com/kullanici/rss/"></label><label><span>Aralik dakika</span><input type="number" name="interval_minutes" min="15" value="%d"></label><label style="display:flex; align-items:center; gap:8px;"><input type="checkbox" name="enabled" %s> Otomatik calissin</label><button>Ayar kaydet</button></form><form method="post" action="/letterboxd/sync"><button class="secondary">Simdi sync et</button></form></div>`,
+		statusBadge(data.LetterboxdSettings.FeedURL != ""),
+		syncRunText(data.Dashboard.LastSync["letterboxd"]),
+		esc(data.LetterboxdSettings.FeedURL),
+		data.LetterboxdSettings.IntervalMinutes,
+		checked(data.LetterboxdSettings.Enabled),
+	))
+	b.WriteString(`</div></aside>`)
+	return b.String()
+}
+
+func renderFatSecretDashboard(data pageData) string {
+	stats := data.Overview.FatSecret
+	return fmt.Sprintf(`<section class="panel"><div class="section-head"><div class="section-title"><h2>FatSecret</h2><div class="muted">Kalori, makro ve gunluk yemek ozeti</div></div><form method="post" action="/fatsecret/sync"><input type="hidden" name="days" value="1"><button>Bugunu sync et</button></form></div><div class="stat-grid">%s%s%s%s%s%s%s%s</div><div class="section"><h3>Gunluk kalori ozeti</h3>%s</div><div class="section"><h3>Son ogun kayitlari</h3>%s</div></section>`,
+		statBlock("Bugun", fmt.Sprintf("%s kalori", ratingZero(stats.TodayCalories)), fmt.Sprintf("%d kayit", stats.TodayEntries)),
+		statBlock("Toplam kalori", rating(stats.TotalCalories), fmt.Sprintf("%d gun", stats.LoggedDays)),
+		statBlock("Gun ortalamasi", rating(stats.AverageCalories), "kalori"),
+		statBlock("Son kayit", emptyDash(stats.LastLoggedDate), "FatSecret"),
+		statBlock("Karbonhidrat", rating(stats.TotalCarbohydrate), "toplam g"),
+		statBlock("Protein", rating(stats.TotalProtein), "toplam g"),
+		statBlock("Yag", rating(stats.TotalFat), "toplam g"),
+		statBlock("Yemek kaydi", number(stats.Entries), "tum zamanlar"),
 		renderFoodSummary(data.FoodSummary),
 		renderFoodEntries(data.FoodEntries),
-		esc(data.Search), renderShelfOptions(data.Shelves, data.SelectedShelf), renderBooks(data.Books),
+	)
+}
+
+func renderGoodreadsDashboard(data pageData) string {
+	stats := data.Overview.Goodreads
+	return fmt.Sprintf(`<section class="panel section"><div class="section-head"><div class="section-title"><h2>Goodreads</h2><div class="muted">Kutuphane, raf ve puan istatistikleri</div></div><a class="button secondary" href="/goodreads/export">JSON disa aktar</a></div><div class="stat-grid">%s%s%s%s%s%s%s%s</div><form class="compact-form" method="post" action="/goodreads/import" enctype="multipart/form-data"><input type="file" name="file" accept=".csv,text/csv" required><button>CSV import et</button></form><div class="section"><h3>Kutuphanede ara</h3><form class="inline" method="get" action="/"><input type="text" name="q" value="%s" placeholder="Kitap veya yazar ara"><select name="shelf">%s</select><button>Filtrele</button></form>%s</div></section>`,
+		statBlock("Toplam", number(stats.Total), "kitap"),
+		statBlock("Okundu", number(stats.Read), "read"),
+		statBlock("Okunacak", number(stats.ToRead), "to-read"),
+		statBlock("Okunuyor", number(stats.CurrentlyReading), "currently-reading"),
+		statBlock("Puanli", number(stats.Rated), fmt.Sprintf("ort. %s", rating(stats.AverageMyRating))),
+		statBlock("Yazar", number(stats.Authors), "benzersiz"),
+		statBlock("Sayfa", number(stats.TotalPages), "toplam"),
+		statBlock("Son okuma", emptyDash(stats.LastRead), fmt.Sprintf("eklenen %s", emptyDash(stats.LastAdded))),
+		esc(data.Search),
+		renderShelfOptions(data.Shelves, data.SelectedShelf),
+		renderBooks(data.Books),
+	)
+}
+
+func renderLetterboxdDashboard(data pageData) string {
+	stats := data.Overview.Letterboxd
+	yearRange := ""
+	if stats.OldestYear > 0 || stats.NewestYear > 0 {
+		yearRange = fmt.Sprintf("%s-%s", number(stats.OldestYear), number(stats.NewestYear))
+	}
+	return fmt.Sprintf(`<section class="panel section"><div class="section-head"><div class="section-title"><h2>Letterboxd</h2><div class="muted">Film, puan ve kaynak ozeti</div></div></div><div class="stat-grid">%s%s%s%s%s%s</div><form class="compact-form" method="post" action="/letterboxd/import" enctype="multipart/form-data"><input type="file" name="file" accept=".csv,text/csv" required><button>CSV import et</button></form><div class="section"><h3>Son filmler</h3>%s</div></section>`,
+		statBlock("Toplam", number(stats.Total), "film"),
+		statBlock("Puanli", number(stats.Rated), fmt.Sprintf("ort. %s", rating(stats.AverageRating))),
+		statBlock("Yil araligi", emptyDash(yearRange), "film yili"),
+		statBlock("RSS", number(stats.RSSCount), "otomatik"),
+		statBlock("CSV", number(stats.CSVCount), "manuel import"),
+		statBlock("Son izleme", emptyDash(stats.LastWatched), "feed/import"),
 		renderFilms(data.LetterboxdFilms),
 	)
+}
+
+func statBlock(label, value, note string) string {
+	return fmt.Sprintf(`<div class="stat"><b>%s</b><span>%s</span><div class="muted">%s</div></div>`, esc(emptyDash(value)), esc(label), esc(note))
+}
+
+func statusBadge(ok bool) string {
+	if ok {
+		return `<span class="status ok">Bagli</span>`
+	}
+	return `<span class="status warn">Eksik</span>`
+}
+
+func syncRunText(value any) string {
+	run, ok := value.(*sqlite.SyncRun)
+	if !ok || run == nil {
+		return "Henuz sync kaydi yok."
+	}
+	detail := fmt.Sprintf("%s · %s · %d yeni, %d guncel", run.RanAt, run.Status, run.Inserted, run.Updated)
+	if run.Message != "" {
+		detail += " · " + run.Message
+	}
+	return esc(detail)
 }
 
 func renderShelfOptions(shelves []string, selected string) string {
@@ -254,10 +322,21 @@ func number(value int) string {
 	return fmt.Sprint(value)
 }
 
+func emptyDash(value string) string {
+	if strings.TrimSpace(value) == "" {
+		return "-"
+	}
+	return value
+}
+
 func rating(value float64) string {
 	if value == 0 {
 		return ""
 	}
+	return ratingZero(value)
+}
+
+func ratingZero(value float64) string {
 	if value == float64(int(value)) {
 		return fmt.Sprintf("%.0f", value)
 	}

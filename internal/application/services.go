@@ -37,6 +37,12 @@ type Dashboard struct {
 	LastSync    map[string]any `json:"last_sync"`
 }
 
+type OverviewStats struct {
+	Goodreads  sqlite.GoodreadsStats  `json:"goodreads"`
+	Letterboxd sqlite.LetterboxdStats `json:"letterboxd"`
+	FatSecret  sqlite.FatSecretStats  `json:"fatsecret"`
+}
+
 func NewServices(store *sqlite.Store, fatsecret *fatsecret.Client) *Services {
 	return &Services{store: store, fatsecret: fatsecret}
 }
@@ -87,6 +93,26 @@ func (s *Services) Dashboard(ctx context.Context) (Dashboard, error) {
 
 func (s *Services) Counts(ctx context.Context) (map[string]int, error) {
 	return s.store.Counts(ctx)
+}
+
+func (s *Services) OverviewStats(ctx context.Context) (OverviewStats, error) {
+	goodreads, err := s.store.GoodreadsStats(ctx)
+	if err != nil {
+		return OverviewStats{}, err
+	}
+	letterboxd, err := s.store.LetterboxdStats(ctx)
+	if err != nil {
+		return OverviewStats{}, err
+	}
+	fatsecret, err := s.store.FatSecretStats(ctx, shared.TodayDateInt())
+	if err != nil {
+		return OverviewStats{}, err
+	}
+	return OverviewStats{
+		Goodreads:  goodreads,
+		Letterboxd: letterboxd,
+		FatSecret:  fatsecret,
+	}, nil
 }
 
 func (s *Services) GoodreadsBooks(ctx context.Context, search, shelf string, limit int) ([]sqlite.GoodreadsBook, error) {

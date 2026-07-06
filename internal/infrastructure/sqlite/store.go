@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
+	"time"
 
 	_ "github.com/mattn/go-sqlite3"
 )
@@ -83,6 +84,44 @@ type DailySummary struct {
 	Date       string  `json:"date"`
 	EntryCount int     `json:"entry_count"`
 	Calories   float64 `json:"calories"`
+}
+
+type GoodreadsStats struct {
+	Total             int     `json:"total"`
+	Read              int     `json:"read"`
+	ToRead            int     `json:"to_read"`
+	CurrentlyReading  int     `json:"currently_reading"`
+	Rated             int     `json:"rated"`
+	Authors           int     `json:"authors"`
+	TotalPages        int     `json:"total_pages"`
+	AverageMyRating   float64 `json:"average_my_rating"`
+	AverageBookRating float64 `json:"average_book_rating"`
+	LastRead          string  `json:"last_read"`
+	LastAdded         string  `json:"last_added"`
+}
+
+type LetterboxdStats struct {
+	Total         int     `json:"total"`
+	Rated         int     `json:"rated"`
+	AverageRating float64 `json:"average_rating"`
+	OldestYear    int     `json:"oldest_year"`
+	NewestYear    int     `json:"newest_year"`
+	RSSCount      int     `json:"rss_count"`
+	CSVCount      int     `json:"csv_count"`
+	LastWatched   string  `json:"last_watched"`
+}
+
+type FatSecretStats struct {
+	Entries           int     `json:"entries"`
+	LoggedDays        int     `json:"logged_days"`
+	TotalCalories     float64 `json:"total_calories"`
+	AverageCalories   float64 `json:"average_calories"`
+	TodayEntries      int     `json:"today_entries"`
+	TodayCalories     float64 `json:"today_calories"`
+	TotalCarbohydrate float64 `json:"total_carbohydrate"`
+	TotalProtein      float64 `json:"total_protein"`
+	TotalFat          float64 `json:"total_fat"`
+	LastLoggedDate    string  `json:"last_logged_date"`
 }
 
 type SyncRun struct {
@@ -163,6 +202,13 @@ func scanFloat(value sql.NullFloat64) float64 {
 	return 0
 }
 
+func scanDateInt(value sql.NullInt64) string {
+	if !value.Valid || value.Int64 <= 0 {
+		return ""
+	}
+	return time.Date(1970, 1, 1, 0, 0, 0, 0, time.UTC).AddDate(0, 0, int(value.Int64)).Format("2006-01-02")
+}
+
 func (s *Store) GoodreadsShelves(ctx context.Context) ([]string, error) {
 	rows, err := s.db.QueryContext(ctx, "select distinct exclusive_shelf from goodreads_books where coalesce(exclusive_shelf, '') <> '' order by exclusive_shelf")
 	if err != nil {
@@ -178,6 +224,107 @@ func (s *Store) GoodreadsShelves(ctx context.Context) ([]string, error) {
 		shelves = append(shelves, shelf)
 	}
 	return shelves, rows.Err()
+}
+
+func (s *Store) GoodreadsStats(ctx context.Context) (GoodreadsStats, error) {
+	var stats GoodreadsStats
+	var averageMyRating, averageBookRating sql.NullFloat64
+	var lastRead, lastAdded sql.NullString
+	err := s.db.QueryRowContext(ctx, `
+select
+  count(*),
+  sum(case when exclusive_shelf = 'read' then 1 else 0 end),
+  sum(case when exclusive_shelf = 'to-read' then 1 else 0 end),
+  sum(case when exclusive_shelf = 'currently-reading' then 1 else 0 end),
+  sum(case when coalesce(my_rating, 0) > 0 then 1 else 0 end),
+  count(distinct nullif(author, '')),
+  coalesce(sum(coalesce(number_of_pages, 0)), 0),
+  avg(case when coalesce(my_rating, 0) > 0 then my_rating end),
+  avg(case when coalesce(average_rating, 0) > 0 then average_rating end),
+  max(nullif(date_read, '')),
+  max(nullif(date_added, ''))
+from goodreads_books`).Scan(
+		&stats.Total,
+		&stats.Read,
+		&stats.ToRead,
+		&stats.CurrentlyReading,
+		&stats.Rated,
+		&stats.Authors,
+		&stats.TotalPages,
+		&averageMyRating,
+		&averageBookRating,
+		&lastRead,
+		&lastAdded,
+	)
+	stats.AverageMyRating = scanFloat(averageMyRating)
+	stats.AverageBookRating = scanFloat(averageBookRating)
+	stats.LastRead = scanString(lastRead)
+	stats.LastAdded = scanString(lastAdded)
+	return stats, err
+}
+
+func (s *Store) LetterboxdStats(ctx context.Context) (LetterboxdStats, error) {
+	var stats LetterboxdStats
+	var averageRating sql.NullFloat64
+	var oldestYear, newestYear sql.NullInt64
+	var lastWatched sql.NullString
+	err := s.db.QueryRowContext(ctx, `
+select
+  count(*),
+  sum(case when coalesce(rating, 0) > 0 then 1 else 0 end),
+  avg(case when coalesce(rating, 0) > 0 then rating end),
+  min(case when coalesce(year, 0) > 0 then year end),
+  max(case when coalesce(year, 0) > 0 then year end),
+  sum(case when source = 'rss' then 1 else 0 end),
+  sum(case when source = 'csv' then 1 else 0 end),
+  max(nullif(coalesce(watched_date, diary_date), ''))
+from letterboxd_films`).Scan(
+		&stats.Total,
+		&stats.Rated,
+		&averageRating,
+		&oldestYear,
+		&newestYear,
+		&stats.RSSCount,
+		&stats.CSVCount,
+		&lastWatched,
+	)
+	stats.AverageRating = scanFloat(averageRating)
+	stats.OldestYear = scanInt(oldestYear)
+	stats.NewestYear = scanInt(newestYear)
+	stats.LastWatched = scanString(lastWatched)
+	return stats, err
+}
+
+func (s *Store) FatSecretStats(ctx context.Context, today int) (FatSecretStats, error) {
+	var stats FatSecretStats
+	var lastLogged sql.NullInt64
+	err := s.db.QueryRowContext(ctx, `
+select
+  count(*),
+  count(distinct date_int),
+  coalesce(sum(calories), 0),
+  coalesce(sum(carbohydrate), 0),
+  coalesce(sum(protein), 0),
+  coalesce(sum(fat), 0),
+  max(date_int)
+from fatsecret_food_entries`).Scan(
+		&stats.Entries,
+		&stats.LoggedDays,
+		&stats.TotalCalories,
+		&stats.TotalCarbohydrate,
+		&stats.TotalProtein,
+		&stats.TotalFat,
+		&lastLogged,
+	)
+	if err != nil {
+		return stats, err
+	}
+	if stats.LoggedDays > 0 {
+		stats.AverageCalories = stats.TotalCalories / float64(stats.LoggedDays)
+	}
+	stats.LastLoggedDate = scanDateInt(lastLogged)
+	stats.TodayEntries, stats.TodayCalories, err = s.TodayFood(ctx, today)
+	return stats, err
 }
 
 func (s *Store) QueryGoodreadsBooks(ctx context.Context, search, shelf string, limit int) ([]GoodreadsBook, error) {
