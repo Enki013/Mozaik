@@ -1,0 +1,23 @@
+{
+  "name": "personal-records-worker",
+  "version": "1.0.0",
+  "description": "Cloudflare Worker and D1 backend for Personal Records",
+  "main": "src/index.ts",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "db:init:local": "wrangler d1 execute personal-records-db --local --file=schema.sql",
+    "db:init:remote": "wrangler d1 execute personal-records-db --remote --file=schema.sql",
+    "db:migrate:local": "bash scripts/migrate_sqlite_to_d1.sh local",
+    "db:migrate:remote": "bash scripts/migrate_sqlite_to_d1.sh remote"
+  },
+  "dependencies": {
+    "hono": "^4.7.2"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^5.20260918.1",
+    "@types/node": "^26.6.1",
+    "typescript": "^5.7.3",
+    "wrangler": "^4.135.0"
+  }
+}

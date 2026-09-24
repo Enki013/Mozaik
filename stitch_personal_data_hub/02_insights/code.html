@@ -1,0 +1,454 @@
+<!DOCTYPE html>
+
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Insights &amp; Analytics - Personal Data Hub</title>
+<!-- Google Fonts: Manrope & Hanken Grotesk -->
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700&amp;family=Manrope:wght@600;700;800&amp;display=swap" rel="stylesheet"/>
+<!-- Material Symbols Outlined -->
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Tailwind CSS -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          "colors": {
+            "outline": "#767586",
+            "on-error": "#ffffff",
+            "on-surface-variant": "#464554",
+            "secondary-fixed-dim": "#89ceff",
+            "on-secondary-fixed": "#001e2f",
+            "secondary": "#006591",
+            "primary-fixed": "#e1e0ff",
+            "on-surface": "#131b2e",
+            "primary-fixed-dim": "#c0c1ff",
+            "on-secondary": "#ffffff",
+            "inverse-primary": "#c0c1ff",
+            "tertiary-container": "#00885d",
+            "on-error-container": "#93000a",
+            "inverse-on-surface": "#eef0ff",
+            "on-secondary-container": "#004666",
+            "on-tertiary-fixed-variant": "#005236",
+            "error-container": "#ffdad6",
+            "primary": "#4648d4",
+            "background": "#faf8ff",
+            "surface": "#faf8ff",
+            "error": "#ba1a1a",
+            "surface-variant": "#dae2fd",
+            "tertiary-fixed": "#6ffbbe",
+            "on-tertiary": "#ffffff",
+            "surface-tint": "#494bd6",
+            "on-secondary-fixed-variant": "#004c6e",
+            "surface-container-low": "#f2f3ff",
+            "on-tertiary-container": "#000703",
+            "tertiary-fixed-dim": "#4edea3",
+            "surface-container-high": "#e2e7ff",
+            "inverse-surface": "#283044",
+            "on-tertiary-fixed": "#002113",
+            "on-primary-container": "#fffbff",
+            "secondary-container": "#39b8fd",
+            "on-primary-fixed-variant": "#2f2ebe",
+            "on-background": "#131b2e",
+            "surface-container": "#eaedff",
+            "secondary-fixed": "#c9e6ff",
+            "on-primary-fixed": "#07006c",
+            "surface-bright": "#faf8ff",
+            "surface-dim": "#d2d9f4",
+            "surface-container-highest": "#dae2fd",
+            "on-primary": "#ffffff",
+            "primary-container": "#6063ee",
+            "outline-variant": "#c7c4d7",
+            "surface-container-lowest": "#ffffff",
+            "tertiary": "#006c49"
+          },
+          "borderRadius": {
+            "DEFAULT": "0.25rem",
+            "lg": "0.5rem",
+            "xl": "0.75rem",
+            "full": "9999px"
+          },
+          "spacing": {
+            "space-md": "1rem",
+            "space-xxs": "0.125rem",
+            "margin": "1rem",
+            "gutter-desktop": "2rem",
+            "space-lg": "1.5rem",
+            "space-2xl": "3rem",
+            "space-xl": "2rem",
+            "space-sm": "0.5rem",
+            "margin-desktop": "3rem",
+            "margin-tablet": "1.5rem",
+            "gutter-tablet": "1.5rem",
+            "gutter": "1rem",
+            "space-xs": "0.25rem"
+          },
+          "fontFamily": {
+            "label-lg": ["Hanken Grotesk"],
+            "body-sm": ["Hanken Grotesk"],
+            "label-md": ["Hanken Grotesk"],
+            "headline-lg-mobile": ["Manrope"],
+            "label-sm": ["Hanken Grotesk"],
+            "body-md": ["Hanken Grotesk"],
+            "title-lg": ["Manrope"],
+            "title-md": ["Hanken Grotesk"],
+            "headline-lg": ["Manrope"],
+            "body-lg": ["Hanken Grotesk"],
+            "headline-md": ["Manrope"],
+            "headline-sm": ["Manrope"],
+            "display-lg": ["Manrope"]
+          },
+          "fontSize": {
+            "label-lg": ["14px", { "lineHeight": "20px", "letterSpacing": "0.01em", "fontWeight": "600" }],
+            "body-sm": ["12px", { "lineHeight": "16px", "letterSpacing": "0.01em", "fontWeight": "400" }],
+            "label-md": ["12px", { "lineHeight": "16px", "letterSpacing": "0.02em", "fontWeight": "600" }],
+            "headline-lg-mobile": ["26px", { "lineHeight": "34px", "letterSpacing": "-0.015em", "fontWeight": "700" }],
+            "label-sm": ["11px", { "lineHeight": "14px", "letterSpacing": "0.03em", "fontWeight": "600" }],
+            "body-md": ["14px", { "lineHeight": "20px", "letterSpacing": "0.01em", "fontWeight": "400" }],
+            "title-lg": ["18px", { "lineHeight": "24px", "letterSpacing": "0em", "fontWeight": "600" }],
+            "title-md": ["16px", { "lineHeight": "22px", "letterSpacing": "0.005em", "fontWeight": "600" }],
+            "headline-lg": ["32px", { "lineHeight": "40px", "letterSpacing": "-0.02em", "fontWeight": "700" }],
+            "body-lg": ["16px", { "lineHeight": "24px", "letterSpacing": "0em", "fontWeight": "400" }],
+            "headline-md": ["24px", { "lineHeight": "32px", "letterSpacing": "-0.01em", "fontWeight": "600" }],
+            "headline-sm": ["20px", { "lineHeight": "28px", "letterSpacing": "0em", "fontWeight": "600" }],
+            "display-lg": ["40px", { "lineHeight": "48px", "letterSpacing": "-0.02em", "fontWeight": "700" }]
+          }
+        }
+      }
+    }
+  </script>
+<style>
+    .material-symbols-outlined {
+      font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+      display: inline-block;
+      vertical-align: middle;
+      line-height: 1;
+    }
+  </style>
+</head>
+<body class="bg-background text-on-background min-h-screen flex flex-col font-body-md antialiased pb-28">
+<!-- TopAppBar -->
+<header class="bg-surface dark:bg-inverse-surface shadow-sm sticky top-0 z-40">
+<div class="flex justify-between items-center w-full px-margin h-16 max-w-7xl mx-auto">
+<div class="flex items-center gap-space-sm">
+<div class="w-10 h-10 rounded-full bg-surface-container-high flex items-center justify-center text-primary font-bold overflow-hidden shadow-sm ring-2 ring-primary/10">
+<span class="material-symbols-outlined text-primary text-[22px]">account_circle</span>
+</div>
+<h1 class="text-headline-sm font-headline-sm font-bold text-on-surface dark:text-inverse-on-surface tracking-tight">
+          Insights &amp; Analytics
+        </h1>
+</div>
+<!-- Trailing Action Icons -->
+<div class="flex items-center gap-space-xs">
+<button aria-label="Export Data" class="p-2 rounded-full hover:bg-surface-container text-on-surface-variant transition-colors duration-150 active:scale-95" type="button">
+<span class="material-symbols-outlined text-[20px]">file_download</span>
+</button>
+<button aria-label="Share Insights" class="p-2 rounded-full hover:bg-surface-container text-on-surface-variant transition-colors duration-150 active:scale-95" type="button">
+<span class="material-symbols-outlined text-[20px]">share</span>
+</button>
+</div>
+</div>
+</header>
+<!-- Main Content Canvas -->
+<main class="w-full max-w-3xl mx-auto px-margin pt-space-md space-y-space-md flex-1">
+<!-- 1. Material 3 SegmentedButton for Time Range -->
+<section aria-label="Time range selector">
+<div class="bg-surface-container p-1 rounded-xl flex items-center justify-between gap-1 shadow-sm">
+<button class="flex-1 py-1.5 px-3 rounded-lg bg-surface-container-lowest text-on-surface font-label-md text-label-md shadow-sm transition-all text-center" type="button">
+          7 Days
+        </button>
+<button class="flex-1 py-1.5 px-3 rounded-lg text-on-surface-variant hover:text-on-surface font-label-md text-label-md transition-colors text-center" type="button">
+          30 Days
+        </button>
+<button class="flex-1 py-1.5 px-3 rounded-lg text-on-surface-variant hover:text-on-surface font-label-md text-label-md transition-colors text-center" type="button">
+          3 Months
+        </button>
+<button class="flex-1 py-1.5 px-3 rounded-lg text-on-surface-variant hover:text-on-surface font-label-md text-label-md transition-colors text-center" type="button">
+          1 Year
+        </button>
+</div>
+</section>
+<!-- 2. Category Tab / Filter Chips -->
+<section aria-label="Category Filters" class="overflow-x-auto no-scrollbar py-0.5">
+<div class="flex items-center gap-space-sm whitespace-nowrap">
+<!-- Selected: Nutrition (FatSecret) -->
+<button class="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-primary-fixed text-on-primary-fixed-variant border border-primary font-label-md text-label-md shadow-sm transition-transform active:scale-95" type="button">
+<span class="material-symbols-outlined text-[16px] text-primary" style="font-variation-settings: 'FILL' 1;">check</span>
+<span>Nutrition (FatSecret)</span>
+</button>
+<!-- Unselected: Reading (Goodreads) -->
+<button class="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-surface-container-lowest text-on-surface-variant border border-outline-variant/50 hover:bg-surface-container-low font-label-md text-label-md transition-transform active:scale-95" type="button">
+<span class="material-symbols-outlined text-[16px] text-secondary">menu_book</span>
+<span>Reading (Goodreads)</span>
+</button>
+<!-- Unselected: Movies (Letterboxd) -->
+<button class="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-surface-container-lowest text-on-surface-variant border border-outline-variant/50 hover:bg-surface-container-low font-label-md text-label-md transition-transform active:scale-95" type="button">
+<span class="material-symbols-outlined text-[16px] text-on-surface-variant">movie</span>
+<span>Movies (Letterboxd)</span>
+</button>
+</div>
+</section>
+<!-- 3. Main Analytics Section (Nutrition focused as primary) -->
+<section aria-label="Nutrition Analytics" class="space-y-space-md">
+<!-- Calorie Intake Trend Card -->
+<article class="bg-surface-container-lowest rounded-2xl p-space-md border border-outline-variant/30 shadow-sm space-y-space-md">
+<div class="flex items-start justify-between">
+<div>
+<div class="flex items-center gap-2 mb-1">
+<span class="px-2 py-0.5 rounded-full bg-surface-container text-primary font-label-sm text-label-sm">FatSecret Sync</span>
+<span class="text-body-sm font-body-sm text-on-surface-variant">Last updated: 14m ago</span>
+</div>
+<h2 class="text-title-lg font-title-lg text-on-surface">Calorie Intake Trend</h2>
+<p class="text-body-sm font-body-sm text-on-surface-variant mt-0.5">
+              Average: <strong class="text-on-surface font-title-md text-title-md">1,940 kcal/day</strong>
+<span class="text-tertiary font-label-sm text-label-sm bg-tertiary-container/10 px-1.5 py-0.5 rounded-md ml-1 font-medium">(97% on target)</span>
+</p>
+</div>
+<div class="flex items-center gap-1 text-primary bg-primary-fixed/40 px-2.5 py-1 rounded-lg">
+<span class="material-symbols-outlined text-[18px]">verified</span>
+<span class="text-label-sm font-label-sm font-bold">Optimal</span>
+</div>
+</div>
+<!-- Material 3 Bar Chart Representation with target guide line -->
+<div class="pt-3 pb-1">
+<!-- Target indicator bar -->
+<div class="flex items-center justify-between text-body-sm font-body-sm text-outline mb-1.5 px-1">
+<div class="flex items-center gap-1.5">
+<span class="w-3 h-0.5 bg-primary border-t border-dashed border-primary"></span>
+<span class="text-label-sm font-label-sm">Daily Target: 2,000 kcal</span>
+</div>
+<span class="text-label-sm font-label-sm">Goal: Maintenance</span>
+</div>
+<!-- Chart Area -->
+<div class="relative h-44 w-full flex items-end justify-between gap-2.5 px-2 pt-6 bg-surface-container-low/50 rounded-xl border border-outline-variant/20">
+<!-- Target dashed horizontal line across chart at 85% height -->
+<div class="absolute inset-x-2 bottom-[75%] border-b border-dashed border-primary/40 pointer-events-none z-10 flex justify-end">
+<span class="text-[10px] text-primary/70 -mt-3.5 bg-surface-container-low px-1 rounded font-mono">2,000</span>
+</div>
+<!-- Mon: 1,890 kcal (71%) -->
+<div class="flex-1 flex flex-col items-center gap-1.5 h-full justify-end z-20">
+<span class="text-[11px] font-label-sm text-on-surface-variant">1,890</span>
+<div class="w-full max-w-[28px] bg-primary-fixed-dim rounded-t-lg transition-all duration-300 hover:bg-primary" style="height: 71%;"></div>
+<span class="text-label-sm font-label-sm text-on-surface-variant mt-1">Mon</span>
+</div>
+<!-- Tue: 2,040 kcal (77%) -->
+<div class="flex-1 flex flex-col items-center gap-1.5 h-full justify-end z-20">
+<span class="text-[11px] font-label-sm text-on-surface-variant">2,040</span>
+<div class="w-full max-w-[28px] bg-primary rounded-t-lg transition-all duration-300 hover:opacity-90" style="height: 77%;"></div>
+<span class="text-label-sm font-label-sm text-on-surface-variant mt-1">Tue</span>
+</div>
+<!-- Wed: 1,910 kcal (72%) -->
+<div class="flex-1 flex flex-col items-center gap-1.5 h-full justify-end z-20">
+<span class="text-[11px] font-label-sm text-on-surface-variant">1,910</span>
+<div class="w-full max-w-[28px] bg-primary-fixed-dim rounded-t-lg transition-all duration-300 hover:bg-primary" style="height: 72%;"></div>
+<span class="text-label-sm font-label-sm text-on-surface-variant mt-1">Wed</span>
+</div>
+<!-- Thu: 1,980 kcal (75%) -->
+<div class="flex-1 flex flex-col items-center gap-1.5 h-full justify-end z-20">
+<span class="text-[11px] font-label-sm text-on-surface-variant">1,980</span>
+<div class="w-full max-w-[28px] bg-primary rounded-t-lg transition-all duration-300 hover:opacity-90" style="height: 75%;"></div>
+<span class="text-label-sm font-label-sm text-on-surface-variant mt-1">Thu</span>
+</div>
+<!-- Fri: 2,120 kcal (80%) -->
+<div class="flex-1 flex flex-col items-center gap-1.5 h-full justify-end z-20">
+<span class="text-[11px] font-label-sm text-on-surface-variant">2,120</span>
+<div class="w-full max-w-[28px] bg-secondary rounded-t-lg transition-all duration-300 hover:opacity-90" style="height: 80%;"></div>
+<span class="text-label-sm font-label-sm text-on-surface-variant mt-1">Fri</span>
+</div>
+<!-- Sat: 1,840 kcal (69%) -->
+<div class="flex-1 flex flex-col items-center gap-1.5 h-full justify-end z-20">
+<span class="text-[11px] font-label-sm text-on-surface-variant">1,840</span>
+<div class="w-full max-w-[28px] bg-primary-fixed-dim rounded-t-lg transition-all duration-300 hover:bg-primary" style="height: 69%;"></div>
+<span class="text-label-sm font-label-sm text-on-surface-variant mt-1">Sat</span>
+</div>
+<!-- Sun (Today): 1,800 kcal (68%) -->
+<div class="flex-1 flex flex-col items-center gap-1.5 h-full justify-end z-20">
+<span class="text-[11px] font-label-sm text-primary font-bold">1,800</span>
+<div class="w-full max-w-[28px] bg-primary-container rounded-t-lg ring-2 ring-primary ring-offset-1 transition-all duration-300" style="height: 68%;"></div>
+<span class="text-label-sm font-label-sm font-bold text-primary mt-1">Sun</span>
+</div>
+</div>
+</div>
+<div class="flex items-center justify-between pt-1 border-t border-outline-variant/20 text-body-sm font-body-sm text-on-surface-variant">
+<span>Target compliance: 6 of 7 days within ±5%</span>
+<span class="text-primary font-label-sm text-label-sm font-semibold flex items-center cursor-pointer hover:underline">
+            Detailed log
+            <span class="material-symbols-outlined text-[16px] ml-0.5">chevron_right</span>
+</span>
+</div>
+</article>
+<!-- Macro Breakdown Card: 3-column metric cards -->
+<article class="bg-surface-container-lowest rounded-2xl p-space-md border border-outline-variant/30 shadow-sm space-y-3">
+<div class="flex items-center justify-between">
+<h3 class="text-title-md font-title-md text-on-surface">Macronutrient Distribution</h3>
+<span class="text-body-sm font-body-sm text-on-surface-variant">7-day daily mean</span>
+</div>
+<div class="grid grid-cols-3 gap-space-sm">
+<!-- Protein Metric Card -->
+<div class="bg-surface-container-low rounded-xl p-3 border border-outline-variant/20 flex flex-col justify-between">
+<div>
+<div class="flex items-center justify-between text-label-sm font-label-sm text-on-surface-variant mb-1">
+<span>Protein</span>
+<span class="w-2 h-2 rounded-full bg-primary"></span>
+</div>
+<div class="text-title-lg font-title-lg font-bold text-on-surface">143 <span class="text-label-sm font-label-sm font-normal text-on-surface-variant">g/day</span></div>
+</div>
+<div class="mt-2.5 flex items-center text-tertiary font-label-sm text-label-sm">
+<span class="material-symbols-outlined text-[14px] mr-0.5">trending_up</span>
+<span>↑ 8% vs LW</span>
+</div>
+</div>
+<!-- Carbs Metric Card -->
+<div class="bg-surface-container-low rounded-xl p-3 border border-outline-variant/20 flex flex-col justify-between">
+<div>
+<div class="flex items-center justify-between text-label-sm font-label-sm text-on-surface-variant mb-1">
+<span>Carbs</span>
+<span class="w-2 h-2 rounded-full bg-secondary"></span>
+</div>
+<div class="text-title-lg font-title-lg font-bold text-on-surface">182 <span class="text-label-sm font-label-sm font-normal text-on-surface-variant">g/day</span></div>
+</div>
+<div class="mt-2.5 flex items-center text-on-surface-variant font-label-sm text-label-sm">
+<span class="material-symbols-outlined text-[14px] mr-0.5">horizontal_rule</span>
+<span>Normal</span>
+</div>
+</div>
+<!-- Fat Metric Card -->
+<div class="bg-surface-container-low rounded-xl p-3 border border-outline-variant/20 flex flex-col justify-between">
+<div>
+<div class="flex items-center justify-between text-label-sm font-label-sm text-on-surface-variant mb-1">
+<span>Fat</span>
+<span class="w-2 h-2 rounded-full bg-tertiary-fixed-dim"></span>
+</div>
+<div class="text-title-lg font-title-lg font-bold text-on-surface">61 <span class="text-label-sm font-label-sm font-normal text-on-surface-variant">g/day</span></div>
+</div>
+<div class="mt-2.5 flex items-center text-primary font-label-sm text-label-sm">
+<span class="material-symbols-outlined text-[14px] mr-0.5">check_circle</span>
+<span>Optimal</span>
+</div>
+</div>
+</div>
+<!-- Linear Progress Ratio Split -->
+<div class="pt-1">
+<div class="h-2 w-full bg-surface-container-high rounded-full overflow-hidden flex">
+<div class="h-full bg-primary" style="width: 30%;" title="Protein 30%"></div>
+<div class="h-full bg-secondary" style="width: 45%;" title="Carbs 45%"></div>
+<div class="h-full bg-tertiary-container" style="width: 25%;" title="Fat 25%"></div>
+</div>
+<div class="flex justify-between items-center text-[11px] font-label-sm text-on-surface-variant mt-1.5 px-0.5">
+<span>30% Caloric ratio</span>
+<span>45% Caloric ratio</span>
+<span>25% Caloric ratio</span>
+</div>
+</div>
+</article>
+</section>
+<!-- 4. Cross-Domain Highlights & Insights Engine -->
+<section aria-label="Cross-Domain Insights" class="space-y-space-sm">
+<div class="flex items-center justify-between px-0.5">
+<div class="flex items-center gap-1.5">
+<span class="material-symbols-outlined text-primary text-[20px]" style="font-variation-settings: 'FILL' 1;">auto_awesome</span>
+<h3 class="text-title-md font-title-md text-on-surface">Cross-Domain Intelligence</h3>
+</div>
+<span class="px-2 py-0.5 rounded-full bg-primary-fixed text-on-primary-fixed-variant font-label-sm text-label-sm font-semibold">2 New</span>
+</div>
+<!-- Insight Card 1: Nutrition & Reading -->
+<article class="bg-surface-container-lowest border border-outline-variant/30 rounded-2xl p-space-md shadow-sm relative overflow-hidden transition-all hover:border-primary/40">
+<div class="absolute left-0 top-0 bottom-0 w-1.5 bg-primary"></div>
+<div class="pl-2 flex items-start gap-3">
+<div class="w-10 h-10 rounded-xl bg-primary-fixed flex items-center justify-center shrink-0 text-primary">
+<span class="material-symbols-outlined text-[20px]">psychology</span>
+</div>
+<div class="space-y-1">
+<div class="flex items-center gap-2">
+<span class="text-label-sm font-label-sm font-semibold text-primary">Correlation Detected</span>
+<span class="text-body-sm font-body-sm text-outline">• 94% Confidence</span>
+</div>
+<p class="text-body-md font-body-md text-on-surface leading-snug">
+              💡 <strong class="font-title-md text-title-md">Nutrition &amp; Reading:</strong> Your calorie adherence is highest on days you read &gt;30 minutes.
+            </p>
+<p class="text-body-sm font-body-sm text-on-surface-variant pt-0.5">
+              Consistent evening reading corresponds with a 42% reduction in late-night snacking.
+            </p>
+</div>
+</div>
+</article>
+<!-- Insight Card 2: Media Consumption -->
+<article class="bg-surface-container-lowest border border-outline-variant/30 rounded-2xl p-space-md shadow-sm relative overflow-hidden transition-all hover:border-secondary/40">
+<div class="absolute left-0 top-0 bottom-0 w-1.5 bg-secondary"></div>
+<div class="pl-2 flex items-start gap-3">
+<div class="w-10 h-10 rounded-xl bg-secondary-fixed flex items-center justify-center shrink-0 text-secondary">
+<span class="material-symbols-outlined text-[20px]">theaters</span>
+</div>
+<div class="space-y-1">
+<div class="flex items-center gap-2">
+<span class="text-label-sm font-label-sm font-semibold text-secondary">Behavioral Log</span>
+<span class="text-body-sm font-body-sm text-outline">• Letterboxd</span>
+</div>
+<p class="text-body-md font-body-md text-on-surface leading-snug">
+              🎬 <strong class="font-title-md text-title-md">Media Consumption:</strong> You watched 3 movies this weekend, averaging 2h 15m screen time.
+            </p>
+<p class="text-body-sm font-body-sm text-on-surface-variant pt-0.5">
+              Screen activity peaked on Sunday evening with <em>Dune: Part Two</em>.
+            </p>
+</div>
+</div>
+</article>
+</section>
+<!-- 5. Reading Speed & Goal Progress Mini-Card -->
+<section aria-label="Reading Speed and Goals">
+<article class="bg-surface-container-lowest border border-outline-variant/30 rounded-2xl p-space-md shadow-sm flex items-center justify-between gap-space-md">
+<div class="flex items-center gap-3">
+<div class="w-12 h-12 rounded-xl bg-surface-container-high flex items-center justify-center text-primary shrink-0">
+<span class="material-symbols-outlined text-[26px]">menu_book</span>
+</div>
+<div>
+<div class="flex items-center gap-2">
+<span class="text-label-sm font-label-sm font-semibold text-secondary-fixed-dim bg-on-secondary-fixed px-2 py-0.5 rounded-full">Goodreads</span>
+<span class="text-body-sm font-body-sm text-outline">Annual Challenge</span>
+</div>
+<h4 class="text-title-md font-title-md text-on-surface mt-0.5">
+              1.4 books/month pace
+            </h4>
+<span class="text-body-sm font-body-sm text-tertiary font-medium">
+              (+18% vs last month)
+            </span>
+</div>
+</div>
+<!-- Progress dial / stat badge -->
+<div class="text-right shrink-0">
+<div class="text-headline-sm font-headline-sm font-bold text-primary">12 / 18</div>
+<div class="text-label-sm font-label-sm text-on-surface-variant">Books completed</div>
+</div>
+</article>
+</section>
+</main>
+<!-- BottomNavBar (Shared Component Anchor) -->
+<!-- Second tab "Insights" is strictly set as Active per requirement and logic -->
+<nav aria-label="Bottom Navigation" class="fixed bottom-0 left-0 w-full z-50 flex justify-around items-center h-20 px-space-sm pb-safe bg-surface-container-lowest dark:bg-inverse-surface shadow-sm">
+<!-- Tab 1: Dashboard (Inactive) -->
+<a class="flex flex-col items-center justify-center text-on-surface-variant dark:text-outline-variant px-5 py-1 transition-all duration-200 hover:bg-surface-container dark:hover:bg-surface-container-high rounded-full active:scale-95" href="#">
+<span class="material-symbols-outlined text-[24px]">dashboard</span>
+<span class="text-label-sm font-label-sm mt-1">Dashboard</span>
+</a>
+<!-- Tab 2: Insights (Active per instruction) -->
+<a class="flex flex-col items-center justify-center bg-primary-fixed dark:bg-primary-container text-on-primary-fixed-variant dark:text-on-primary-container rounded-full px-5 py-1 transition-all duration-200 active:scale-95" href="#">
+<span class="material-symbols-outlined text-[24px]" style="font-variation-settings: 'FILL' 1;">monitoring</span>
+<span class="text-label-sm font-label-sm font-bold mt-1">Insights</span>
+</a>
+<!-- Tab 3: Activity (Inactive) -->
+<a class="flex flex-col items-center justify-center text-on-surface-variant dark:text-outline-variant px-5 py-1 transition-all duration-200 hover:bg-surface-container dark:hover:bg-surface-container-high rounded-full active:scale-95" href="#">
+<span class="material-symbols-outlined text-[24px]">timeline</span>
+<span class="text-label-sm font-label-sm mt-1">Activity</span>
+</a>
+<!-- Tab 4: Plugins (Inactive) -->
+<a class="flex flex-col items-center justify-center text-on-surface-variant dark:text-outline-variant px-5 py-1 transition-all duration-200 hover:bg-surface-container dark:hover:bg-surface-container-high rounded-full active:scale-95" href="#">
+<span class="material-symbols-outlined text-[24px]">extension</span>
+<span class="text-label-sm font-label-sm mt-1">Plugins</span>
+</a>
+</nav>
+</body></html>

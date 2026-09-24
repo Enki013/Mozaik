@@ -9,6 +9,8 @@ import (
 	"net/http"
 	"net/url"
 	"regexp"
+	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -19,6 +21,10 @@ import (
 )
 
 type FatSecretClient interface {
+	SetCredentials(key, secret string)
+	HasCredentials() bool
+	ConsumerKey() string
+	ConsumerSecret() string
 	PublicSearch(query string) (map[string]any, error)
 	RequestToken(callback string) (url.Values, error)
 	AccessToken(oauthToken, verifier, tokenSecret string) (url.Values, error)
@@ -30,11 +36,41 @@ type Services struct {
 	fatsecret FatSecretClient
 }
 
+type ActivityItem struct {
+	ID        string         `json:"id"`
+	Source    string         `json:"source"` // "fatsecret" | "goodreads" | "letterboxd"
+	Type      string         `json:"type"`   // "meal" | "book" | "film"
+	Date      string         `json:"date"`   // YYYY-MM-DD
+	Time      string         `json:"time,omitempty"`
+	Timestamp string         `json:"timestamp,omitempty"`
+	Title     string         `json:"title"`
+	Subtitle  string         `json:"subtitle"`
+	ImageURL  string         `json:"image_url,omitempty"`
+	Rewatch   bool           `json:"rewatch,omitempty"`
+	Details   map[string]any `json:"details"`
+}
+
+type ActivityDayGroup struct {
+	Date      string         `json:"date"`
+	Label     string         `json:"label"`
+	ItemCount int            `json:"item_count"`
+	Summary   map[string]any `json:"summary"`
+	Items     []ActivityItem `json:"items"`
+}
+
+type ActivityResponse struct {
+	Days   int                `json:"days"`
+	Total  int                `json:"total"`
+	Items  []ActivityItem     `json:"items"`
+	Groups []ActivityDayGroup `json:"groups"`
+}
+
 type Dashboard struct {
-	Counts      map[string]int `json:"counts"`
-	Today       map[string]any `json:"today"`
-	Connections map[string]any `json:"connections"`
-	LastSync    map[string]any `json:"last_sync"`
+	Counts        map[string]int `json:"counts"`
+	Today         map[string]any `json:"today"`
+	Connections   map[string]any `json:"connections"`
+	LastSync      map[string]any `json:"last_sync"`
+	CalorieTarget int            `json:"calorie_target"`
 }
 
 type OverviewStats struct {
@@ -88,6 +124,7 @@ func (s *Services) Dashboard(ctx context.Context) (Dashboard, error) {
 			"goodreads":  goodreadsRun,
 			"letterboxd": letterboxdRun,
 		},
+		CalorieTarget: s.GetCalorieTarget(ctx),
 	}, nil
 }
 
@@ -112,6 +149,263 @@ func (s *Services) OverviewStats(ctx context.Context) (OverviewStats, error) {
 		Goodreads:  goodreads,
 		Letterboxd: letterboxd,
 		FatSecret:  fatsecret,
+	}, nil
+}
+
+func (s *Services) ActivityTimeline(ctx context.Context, days int, limit int) (ActivityResponse, error) {
+	return s.ActivityTimelineRange(ctx, "", "", days, limit)
+}
+
+func (s *Services) ActivityTimelineRange(ctx context.Context, fromDate, toDate string, days int, limit int) (ActivityResponse, error) {
+	if limit <= 0 {
+		limit = 50
+	}
+	if limit > 1000 {
+		limit = 1000
+	}
+
+	todayInt := shared.TodayDateInt()
+	minDateInt := 0
+	maxDateInt := 0
+	minDateISO := strings.TrimSpace(fromDate)
+	maxDateISO := strings.TrimSpace(toDate)
+
+	if minDateISO != "" || maxDateISO != "" {
+		if minDateISO != "" {
+			minDateInt = shared.ISODateToDateInt(minDateISO)
+		}
+		if maxDateISO != "" {
+			maxDateInt = shared.ISODateToDateInt(maxDateISO)
+		}
+	} else {
+		if days < 0 {
+			days = 7
+		}
+		if days > 3650 {
+			days = 3650
+		}
+		if days > 0 {
+			minDateInt = todayInt - days + 1
+			minDateISO = shared.DateIntToISO(minDateInt)
+		}
+	}
+	todayISO := shared.DateIntToISO(todayInt)
+	yesterdayISO := shared.DateIntToISO(todayInt - 1)
+
+	allItems := make([]ActivityItem, 0)
+
+	// 1. FatSecret Food Entries
+	var foodEntries []sqlite.FoodEntry
+	var err error
+	if minDateInt > 0 && maxDateInt > 0 {
+		foodEntries, err = s.store.FoodEntriesBetween(ctx, minDateInt, maxDateInt, limit*3)
+	} else if minDateInt > 0 {
+		foodEntries, err = s.store.FoodEntriesSince(ctx, minDateInt, limit*3)
+	} else {
+		foodEntries, err = s.store.FoodEntries(ctx, limit*3)
+	}
+	if err == nil {
+		for _, entry := range foodEntries {
+			dateISO := shared.DateIntToISO(entry.DateInt)
+			if minDateISO != "" && dateISO < minDateISO {
+				continue
+			}
+			if maxDateISO != "" && dateISO > maxDateISO {
+				continue
+			}
+			_, timePart := shared.NormalizeDate(entry.SyncedAt)
+			item := ActivityItem{
+				ID:        "fs_" + entry.FoodEntryID,
+				Source:    "fatsecret",
+				Type:      "meal",
+				Date:      dateISO,
+				Time:      timePart,
+				Timestamp: entry.SyncedAt,
+				Title:     entry.FoodEntryName,
+				Subtitle:  entry.Meal,
+				Details: map[string]any{
+					"food_entry_id": entry.FoodEntryID,
+					"meal":          entry.Meal,
+					"description":   entry.FoodEntryDescription,
+					"calories":      entry.Calories,
+					"carbohydrate":  entry.Carbohydrate,
+					"protein":       entry.Protein,
+					"fat":           entry.Fat,
+				},
+			}
+			allItems = append(allItems, item)
+		}
+	}
+
+	// 2. Goodreads Books
+	books, err := s.store.QueryGoodreadsBooks(ctx, "", "", limit*3)
+	if err == nil {
+		for _, book := range books {
+			rawDate := book.DateRead
+			if rawDate == "" {
+				rawDate = book.DateAdded
+			}
+			dateISO, timePart := shared.NormalizeDate(rawDate)
+			if dateISO == "" {
+				dateISO, timePart = shared.NormalizeDate(book.ImportedAt)
+			}
+			if dateISO == "" || (minDateISO != "" && dateISO < minDateISO) || (maxDateISO != "" && dateISO > maxDateISO) {
+				continue
+			}
+			item := ActivityItem{
+				ID:        "gr_" + book.BookID,
+				Source:    "goodreads",
+				Type:      "book",
+				Date:      dateISO,
+				Time:      timePart,
+				Timestamp: rawDate,
+				Title:     book.Title,
+				Subtitle:  book.Author,
+				ImageURL:  book.ImageURL,
+				Details: map[string]any{
+					"book_id":         book.BookID,
+					"author":          book.Author,
+					"my_rating":       book.MyRating,
+					"average_rating":  book.AverageRating,
+					"exclusive_shelf": book.ExclusiveShelf,
+					"bookshelves":     book.Bookshelves,
+					"date_read":       book.DateRead,
+					"date_added":      book.DateAdded,
+					"year_published":  book.YearPublished,
+					"image_url":       book.ImageURL,
+					"my_review":       book.MyReview,
+				},
+			}
+			allItems = append(allItems, item)
+		}
+	}
+
+	// 3. Letterboxd Films
+	films, err := s.store.QueryLetterboxdFilms(ctx, limit*3)
+	if err == nil {
+		for _, film := range films {
+			rawDate := film.WatchedDate
+			if rawDate == "" {
+				rawDate = film.DiaryDate
+			}
+			dateISO, timePart := shared.NormalizeDate(rawDate)
+			if dateISO == "" {
+				dateISO, timePart = shared.NormalizeDate(film.ImportedAt)
+			}
+			if dateISO == "" || (minDateISO != "" && dateISO < minDateISO) || (maxDateISO != "" && dateISO > maxDateISO) {
+				continue
+			}
+			subtitle := ""
+			if film.Year > 0 {
+				subtitle = fmt.Sprintf("%d", film.Year)
+			}
+			isRewatch := strings.EqualFold(film.Rewatch, "yes") || strings.EqualFold(film.Rewatch, "true")
+			item := ActivityItem{
+				ID:        "lb_" + film.FilmKey,
+				Source:    "letterboxd",
+				Type:      "film",
+				Date:      dateISO,
+				Time:      timePart,
+				Timestamp: rawDate,
+				Title:     film.Name,
+				Subtitle:  subtitle,
+				ImageURL:  film.ImageURL,
+				Rewatch:   isRewatch,
+				Details: map[string]any{
+					"film_key":       film.FilmKey,
+					"name":           film.Name,
+					"year":           film.Year,
+					"rating":         film.Rating,
+					"watched_date":   film.WatchedDate,
+					"diary_date":     film.DiaryDate,
+					"letterboxd_uri": film.LetterboxdURI,
+					"image_url":      film.ImageURL,
+					"review":         film.Review,
+					"rewatch":        film.Rewatch,
+				},
+			}
+			allItems = append(allItems, item)
+		}
+	}
+
+	// Sort descending by Date, then Time, then Source, then ID
+	sort.Slice(allItems, func(i, j int) bool {
+		if allItems[i].Date != allItems[j].Date {
+			return allItems[i].Date > allItems[j].Date
+		}
+		if allItems[i].Time != allItems[j].Time {
+			return allItems[i].Time > allItems[j].Time
+		}
+		if allItems[i].Source != allItems[j].Source {
+			return allItems[i].Source < allItems[j].Source
+		}
+		return allItems[i].ID > allItems[j].ID
+	})
+
+	if len(allItems) > limit {
+		allItems = allItems[:limit]
+	}
+
+	// Group by date
+	groupsMap := make(map[string]*ActivityDayGroup)
+	var groupOrder []string
+
+	for _, item := range allItems {
+		g, exists := groupsMap[item.Date]
+		if !exists {
+			label := shared.FormatDateLabel(item.Date, todayISO, yesterdayISO)
+			g = &ActivityDayGroup{
+				Date:      item.Date,
+				Label:     label,
+				Summary:   map[string]any{
+					"total_calories": 0.0,
+					"total_protein":  0.0,
+					"total_carbs":    0.0,
+					"total_fat":      0.0,
+					"meals_count":    0,
+					"books_count":    0,
+					"films_count":    0,
+				},
+				Items:     nil,
+			}
+			groupsMap[item.Date] = g
+			groupOrder = append(groupOrder, item.Date)
+		}
+		g.Items = append(g.Items, item)
+		g.ItemCount++
+
+		switch item.Type {
+		case "meal":
+			if cal, ok := item.Details["calories"].(float64); ok {
+				g.Summary["total_calories"] = g.Summary["total_calories"].(float64) + cal
+			}
+			if p, ok := item.Details["protein"].(float64); ok {
+				g.Summary["total_protein"] = g.Summary["total_protein"].(float64) + p
+			}
+			if c, ok := item.Details["carbohydrate"].(float64); ok {
+				g.Summary["total_carbs"] = g.Summary["total_carbs"].(float64) + c
+			}
+			if f, ok := item.Details["fat"].(float64); ok {
+				g.Summary["total_fat"] = g.Summary["total_fat"].(float64) + f
+			}
+			g.Summary["meals_count"] = g.Summary["meals_count"].(int) + 1
+		case "book":
+			g.Summary["books_count"] = g.Summary["books_count"].(int) + 1
+		case "film":
+			g.Summary["films_count"] = g.Summary["films_count"].(int) + 1
+		}
+	}
+
+	groups := make([]ActivityDayGroup, 0, len(groupOrder))
+	for _, d := range groupOrder {
+		groups = append(groups, *groupsMap[d])
+	}
+
+	return ActivityResponse{
+		Days:   days,
+		Total:  len(allItems),
+		Items:  allItems,
+		Groups: groups,
 	}, nil
 }
 
@@ -165,7 +459,19 @@ func (s *Services) GoodreadsSettings(ctx context.Context) (sqlite.SyncSettings, 
 }
 
 func (s *Services) SaveGoodreadsSettings(ctx context.Context, settings sqlite.SyncSettings) error {
+	settings.FeedURL = CleanGoodreadsFeedURL(settings.FeedURL)
 	return s.store.SaveSettings(ctx, "goodreads_sync_settings", settings)
+}
+
+func CleanGoodreadsFeedURL(value string) string {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return ""
+	}
+	re := regexp.MustCompile(`/:\s*(\d+)`)
+	value = re.ReplaceAllString(value, "/$1")
+	value = strings.ReplaceAll(value, " ", "")
+	return value
 }
 
 func (s *Services) RunConfiguredGoodreadsSync(ctx context.Context) (sqlite.SyncResult, error) {
@@ -186,20 +492,20 @@ func (s *Services) RunConfiguredGoodreadsSync(ctx context.Context) (sqlite.SyncR
 }
 
 func (s *Services) SyncGoodreadsFeed(ctx context.Context, feedURL string) (sqlite.SyncResult, error) {
+	feedURL = CleanGoodreadsFeedURL(feedURL)
 	shelf := shelfFromFeedURL(feedURL)
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, feedURL, nil)
 	if err != nil {
 		return sqlite.SyncResult{}, err
 	}
-	req.Header.Set("User-Agent", "PersonalRecords/0.1")
+	req.Header.Set("User-Agent", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36")
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return sqlite.SyncResult{}, err
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode >= 400 {
-		body, _ := io.ReadAll(resp.Body)
-		return sqlite.SyncResult{}, fmt.Errorf("Goodreads HTTP %d: %s", resp.StatusCode, string(body))
+		return sqlite.SyncResult{}, fmt.Errorf("Goodreads HTTP %d: %s", resp.StatusCode, http.StatusText(resp.StatusCode))
 	}
 	data, err := io.ReadAll(resp.Body)
 	if err != nil {
@@ -207,7 +513,10 @@ func (s *Services) SyncGoodreadsFeed(ctx context.Context, feedURL string) (sqlit
 	}
 	books, err := parseGoodreadsFeed(data, shelf)
 	if err != nil {
-		return sqlite.SyncResult{}, err
+		if strings.Contains(string(data), "<html") {
+			return sqlite.SyncResult{}, fmt.Errorf("Goodreads XML yerine HTML döndürdü (URL veya profil erişimi geçersiz)")
+		}
+		return sqlite.SyncResult{}, fmt.Errorf("Goodreads XML okunamadı: %v", err)
 	}
 	result := sqlite.SyncResult{}
 	for _, book := range books {
@@ -299,8 +608,7 @@ func (s *Services) SyncLetterboxdFeed(ctx context.Context, feedURL string) (sqli
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode >= 400 {
-		body, _ := io.ReadAll(resp.Body)
-		return sqlite.SyncResult{}, fmt.Errorf("Letterboxd HTTP %d: %s", resp.StatusCode, string(body))
+		return sqlite.SyncResult{}, fmt.Errorf("Letterboxd HTTP %d: %s", resp.StatusCode, http.StatusText(resp.StatusCode))
 	}
 	data, err := io.ReadAll(resp.Body)
 	if err != nil {
@@ -308,6 +616,9 @@ func (s *Services) SyncLetterboxdFeed(ctx context.Context, feedURL string) (sqli
 	}
 	films, err := parseLetterboxdFeed(data)
 	if err != nil {
+		if strings.Contains(string(data), "<html") {
+			return sqlite.SyncResult{}, fmt.Errorf("Letterboxd XML yerine HTML döndürdü (kullanıcı adı veya URL geçersiz)")
+		}
 		return sqlite.SyncResult{}, err
 	}
 	result := sqlite.SyncResult{}
@@ -338,16 +649,85 @@ func (s *Services) upsertLetterboxdFilm(ctx context.Context, film sqlite.Letterb
 	return s.store.UpsertLetterboxdFilm(ctx, film)
 }
 
+func (s *Services) ensureFatSecretCredentials(ctx context.Context) {
+	if s.fatsecret == nil {
+		return
+	}
+	key, _ := s.store.GetUserSetting(ctx, "fatsecret_consumer_key", "")
+	sec, _ := s.store.GetUserSetting(ctx, "fatsecret_consumer_secret", "")
+	if key != "" && sec != "" {
+		s.fatsecret.SetCredentials(key, sec)
+	}
+}
+
+func (s *Services) FatSecretSettings(ctx context.Context) (map[string]any, error) {
+	s.ensureFatSecretCredentials(ctx)
+	key, _ := s.store.GetUserSetting(ctx, "fatsecret_consumer_key", "")
+	sec, _ := s.store.GetUserSetting(ctx, "fatsecret_consumer_secret", "")
+	if key == "" && s.fatsecret != nil {
+		key = s.fatsecret.ConsumerKey()
+	}
+	if sec == "" && s.fatsecret != nil {
+		sec = s.fatsecret.ConsumerSecret()
+	}
+	hasKeys := key != "" && sec != ""
+	isConnected := s.FatSecretConnected(ctx)
+
+	maskedKey := ""
+	if len(key) > 8 {
+		maskedKey = key[:4] + "..." + key[len(key)-4:]
+	} else if len(key) > 0 {
+		maskedKey = "****"
+	}
+
+	return map[string]any{
+		"has_keys":         hasKeys,
+		"is_connected":     isConnected,
+		"consumer_key":     maskedKey,
+		"raw_consumer_key": key,
+	}, nil
+}
+
+func (s *Services) SaveFatSecretCredentials(ctx context.Context, key, secret string) error {
+	key = strings.TrimSpace(key)
+	secret = strings.TrimSpace(secret)
+	if err := s.store.SetUserSetting(ctx, "fatsecret_consumer_key", key); err != nil {
+		return err
+	}
+	if err := s.store.SetUserSetting(ctx, "fatsecret_consumer_secret", secret); err != nil {
+		return err
+	}
+	if s.fatsecret != nil {
+		s.fatsecret.SetCredentials(key, secret)
+	}
+	return nil
+}
+
 func (s *Services) FatSecretConnected(ctx context.Context) bool {
 	token, _ := s.store.FatSecretAccessToken(ctx)
 	return token != nil
 }
 
 func (s *Services) FatSecretPublicSearch(query string) (map[string]any, error) {
+	if s.fatsecret == nil {
+		return nil, fmt.Errorf("FatSecret istemcisi yapilandirilmadi")
+	}
+	s.ensureFatSecretCredentials(ctxFallback())
 	return s.fatsecret.PublicSearch(query)
 }
 
+func ctxFallback() context.Context {
+	return context.Background()
+}
+
 func (s *Services) StartFatSecretConnect(ctx context.Context, callback string) (string, error) {
+	if s.fatsecret == nil {
+		return "", fmt.Errorf("FatSecret istemcisi yapilandirilmadi")
+	}
+	s.ensureFatSecretCredentials(ctx)
+	if !s.fatsecret.HasCredentials() {
+		return "", fmt.Errorf("FatSecret Consumer Key ve Secret tanimlanmamis")
+	}
 	values, err := s.fatsecret.RequestToken(callback)
 	if err != nil {
 		return "", err
@@ -364,6 +744,10 @@ func (s *Services) StartFatSecretConnect(ctx context.Context, callback string) (
 }
 
 func (s *Services) FinishFatSecretConnect(ctx context.Context, oauthToken, verifier string) error {
+	if s.fatsecret == nil {
+		return fmt.Errorf("FatSecret istemcisi yapilandirilmadi")
+	}
+	s.ensureFatSecretCredentials(ctx)
 	secret, err := s.store.TempOAuthSecret(ctx, oauthToken)
 	if err != nil {
 		return fmt.Errorf("Gecici OAuth token bulunamadi")
@@ -381,24 +765,66 @@ func (s *Services) FinishFatSecretConnect(ctx context.Context, oauthToken, verif
 }
 
 func (s *Services) SyncFatSecretFoodEntries(ctx context.Context, days int) (sqlite.SyncResult, error) {
-	if days < 1 {
-		days = 1
+	if s.fatsecret == nil {
+		return sqlite.SyncResult{}, fmt.Errorf("FatSecret istemcisi yapilandirilmadi")
 	}
-	if days > 366 {
-		days = 366
+	s.ensureFatSecretCredentials(ctx)
+	if days <= 0 {
+		days = 1095 // Default to 3 years (~all-time)
 	}
-	start := shared.TodayDateInt() - days + 1
+	if days > 1825 {
+		days = 1825 // Cap at 5 years
+	}
+	today := shared.TodayDateInt()
+	start := today - days + 1
 	total := sqlite.SyncResult{}
+
+	scannedDays, _ := s.store.FatSecretScannedDays(ctx)
+	if scannedDays == nil {
+		scannedDays = make(map[int]bool)
+	}
+
+	scannedCount := 0
+	skippedCount := 0
+
 	for i := 0; i < days; i++ {
-		result, err := s.syncFatSecretDate(ctx, start+i)
+		dateInt := start + i
+		isRecent := dateInt >= today-1 // Today and yesterday can change, always sync them
+
+		// If this past day was already scanned previously, skip it to save time and API quota
+		if !isRecent && scannedDays[dateInt] {
+			skippedCount++
+			continue
+		}
+
+		result, err := s.syncFatSecretDate(ctx, dateInt)
 		if err != nil {
-			_ = s.store.RecordSyncRun(ctx, "fatsecret_sync_runs", fmt.Sprintf("food_entries:%dd", days), "error", 0, 0, err.Error())
+			sourceName := fmt.Sprintf("food_entries:%dd", days)
+			_ = s.store.RecordSyncRun(ctx, "fatsecret_sync_runs", sourceName, "error", total.Inserted, total.Updated, err.Error())
 			return total, err
 		}
+
+		// Mark day as scanned in database
+		_ = s.store.MarkFatSecretDayScanned(ctx, dateInt)
+		scannedDays[dateInt] = true
+		scannedCount++
+
 		total.Inserted += result.Inserted
 		total.Updated += result.Updated
+
+		// If bulk syncing multiple unscanned days, throttle slightly (50ms) to avoid rate limits
+		if days > 5 && i < days-1 {
+			time.Sleep(50 * time.Millisecond)
+		}
 	}
-	_ = s.store.RecordSyncRun(ctx, "fatsecret_sync_runs", fmt.Sprintf("food_entries:%dd", days), "ok", total.Inserted, total.Updated, "")
+
+	sourceName := fmt.Sprintf("food_entries:%dd", days)
+	msg := ""
+	if skippedCount > 0 {
+		msg = fmt.Sprintf("%d gun tarandi (%d kayitli gun atlandi)", scannedCount, skippedCount)
+	}
+	total.Message = msg
+	_ = s.store.RecordSyncRun(ctx, "fatsecret_sync_runs", sourceName, "ok", total.Inserted, total.Updated, msg)
 	return total, nil
 }
 
@@ -477,6 +903,7 @@ func goodreadsBookFromRow(row map[string]string) sqlite.GoodreadsBook {
 		Bookshelves:             shared.String(row, "Bookshelves"),
 		ExclusiveShelf:          shared.String(row, "Exclusive Shelf"),
 		MyReview:                shared.String(row, "My Review"),
+		ImageURL:                shared.String(row, "Image URL", "image_url", "Book Large Image URL", "Book Image URL"),
 		RawJSON:                 sqlite.RawJSON(row),
 	}
 	if book.BookID == "" {
@@ -490,22 +917,25 @@ type goodreadsRSS struct {
 }
 
 type goodreadsItem struct {
-	Title         string `xml:"title"`
-	BookTitle     string `xml:"book_title"`
-	Link          string `xml:"link"`
-	Description   string `xml:"description"`
-	UserReview    string `xml:"user_review"`
-	AuthorName    string `xml:"author_name"`
-	UserShelves   string `xml:"user_shelves"`
-	UserRating    string `xml:"user_rating"`
-	UserReadAt    string `xml:"user_read_at"`
-	BookID        string `xml:"book_id"`
-	ISBN          string `xml:"isbn"`
-	ISBN13        string `xml:"isbn13"`
-	Average       string `xml:"average_rating"`
-	Published     string `xml:"book_published"`
-	UserDateAdded string `xml:"user_date_added"`
-	PubDate       string `xml:"pubDate"`
+	Title             string `xml:"title"`
+	BookTitle         string `xml:"book_title"`
+	Link              string `xml:"link"`
+	Description       string `xml:"description"`
+	UserReview        string `xml:"user_review"`
+	AuthorName        string `xml:"author_name"`
+	UserShelves       string `xml:"user_shelves"`
+	UserRating        string `xml:"user_rating"`
+	UserReadAt        string `xml:"user_read_at"`
+	BookID            string `xml:"book_id"`
+	ISBN              string `xml:"isbn"`
+	ISBN13            string `xml:"isbn13"`
+	Average           string `xml:"average_rating"`
+	Published         string `xml:"book_published"`
+	UserDateAdded     string `xml:"user_date_added"`
+	PubDate           string `xml:"pubDate"`
+	BookLargeImageURL string `xml:"book_large_image_url"`
+	BookImageURL      string `xml:"book_image_url"`
+	BookSmallImageURL string `xml:"book_small_image_url"`
 }
 
 func parseGoodreadsFeed(data []byte, defaultShelf string) ([]sqlite.GoodreadsBook, error) {
@@ -530,6 +960,13 @@ func parseGoodreadsFeed(data []byte, defaultShelf string) ([]sqlite.GoodreadsBoo
 		if bookshelves == "" {
 			bookshelves = fallback
 		}
+		img := first(item.BookLargeImageURL, item.BookImageURL, item.BookSmallImageURL)
+		if img == "" {
+			imgMatch := regexp.MustCompile(`<img[^>]+src="([^">]+)"`).FindStringSubmatch(item.Description)
+			if len(imgMatch) > 1 {
+				img = imgMatch[1]
+			}
+		}
 		row := map[string]string{
 			"Book Id":                   first(item.BookID, bookIDFromLink(item.Link)),
 			"Title":                     strings.TrimSpace(title),
@@ -545,6 +982,7 @@ func parseGoodreadsFeed(data []byte, defaultShelf string) ([]sqlite.GoodreadsBoo
 			"Bookshelves":               bookshelves,
 			"Exclusive Shelf":           exclusiveShelf(bookshelves, defaultShelf, item.UserRating, item.UserReadAt),
 			"My Review":                 shared.CleanHTML(first(item.UserReview, item.Description)),
+			"Image URL":                 img,
 			"Source":                    item.Link,
 		}
 		books = append(books, goodreadsBookFromRow(row))
@@ -617,6 +1055,7 @@ func letterboxdFilmFromRow(row map[string]string, source string) sqlite.Letterbo
 		Rewatch:       shared.String(row, "Rewatch"),
 		Tags:          shared.String(row, "Tags"),
 		Review:        shared.String(row, "Review", "Description"),
+		ImageURL:      shared.String(row, "Image URL", "image_url"),
 		Source:        source,
 		RawJSON:       sqlite.RawJSON(row),
 	}
@@ -636,10 +1075,15 @@ type letterboxdRSS struct {
 }
 
 type letterboxdItem struct {
-	Title       string `xml:"title"`
-	Link        string `xml:"link"`
-	Description string `xml:"description"`
-	PubDate     string `xml:"pubDate"`
+	Title        string `xml:"title"`
+	Link         string `xml:"link"`
+	Description  string `xml:"description"`
+	PubDate      string `xml:"pubDate"`
+	WatchedDate  string `xml:"watchedDate"`
+	Rewatch      string `xml:"rewatch"`
+	FilmTitle    string `xml:"filmTitle"`
+	FilmYear     string `xml:"filmYear"`
+	MemberRating string `xml:"memberRating"`
 }
 
 func parseLetterboxdFeed(data []byte) ([]sqlite.LetterboxdFilm, error) {
@@ -650,12 +1094,27 @@ func parseLetterboxdFeed(data []byte) ([]sqlite.LetterboxdFilm, error) {
 	films := make([]sqlite.LetterboxdFilm, 0, len(feed.Items))
 	for _, item := range feed.Items {
 		name, year := letterboxdTitleParts(item.Title)
+		if item.FilmTitle != "" {
+			name = item.FilmTitle
+		}
+		if item.FilmYear != "" {
+			year = item.FilmYear
+		}
+		var img string
+		imgMatch := regexp.MustCompile(`<img[^>]+src="([^">]+)"`).FindStringSubmatch(item.Description)
+		if len(imgMatch) > 1 {
+			img = imgMatch[1]
+		}
 		row := map[string]string{
 			"Name":           name,
 			"Year":           year,
+			"Rating":         item.MemberRating,
+			"Watched Date":   item.WatchedDate,
 			"Date":           item.PubDate,
+			"Rewatch":        item.Rewatch,
 			"Letterboxd URI": item.Link,
 			"Review":         shared.CleanHTML(item.Description),
+			"Image URL":      img,
 			"Source":         item.Link,
 		}
 		films = append(films, letterboxdFilmFromRow(row, "rss"))
@@ -770,4 +1229,34 @@ func countStatus(result *sqlite.SyncResult, status string) {
 
 func sharedNowUnix() int64 {
 	return time.Now().Unix()
+}
+
+func (s *Services) GetCalorieTarget(ctx context.Context) int {
+	val, err := s.store.GetUserSetting(ctx, "daily_calorie_target", "2200")
+	if err != nil || val == "" {
+		return 2200
+	}
+	target := shared.Int(val)
+	if target <= 0 {
+		return 2200
+	}
+	return target
+}
+
+func (s *Services) SetCalorieTarget(ctx context.Context, target int) error {
+	if target < 500 {
+		target = 500
+	}
+	if target > 10000 {
+		target = 10000
+	}
+	return s.store.SetUserSetting(ctx, "daily_calorie_target", strconv.Itoa(target))
+}
+
+func (s *Services) RecentSyncRuns(ctx context.Context, limit int) ([]sqlite.SyncRun, error) {
+	return s.store.RecentSyncRuns(ctx, limit)
+}
+
+func (s *Services) AllDataExport(ctx context.Context) (map[string]any, error) {
+	return s.store.AllDataExport(ctx)
 }

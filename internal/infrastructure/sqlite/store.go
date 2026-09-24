@@ -16,8 +16,9 @@ type Store struct {
 }
 
 type SyncResult struct {
-	Inserted int `json:"inserted"`
-	Updated  int `json:"updated"`
+	Inserted int    `json:"inserted"`
+	Updated  int    `json:"updated"`
+	Message  string `json:"message,omitempty"`
 }
 
 type SyncSettings struct {
@@ -44,6 +45,7 @@ type GoodreadsBook struct {
 	Bookshelves             string  `json:"bookshelves"`
 	ExclusiveShelf          string  `json:"exclusive_shelf"`
 	MyReview                string  `json:"my_review,omitempty"`
+	ImageURL                string  `json:"image_url,omitempty"`
 	RawJSON                 string  `json:"raw_json,omitempty"`
 	ImportedAt              string  `json:"imported_at,omitempty"`
 }
@@ -59,6 +61,7 @@ type LetterboxdFilm struct {
 	Rewatch       string  `json:"rewatch"`
 	Tags          string  `json:"tags"`
 	Review        string  `json:"review"`
+	ImageURL      string  `json:"image_url,omitempty"`
 	Source        string  `json:"source"`
 	RawJSON       string  `json:"raw_json,omitempty"`
 	ImportedAt    string  `json:"imported_at,omitempty"`
@@ -152,8 +155,15 @@ func (s *Store) Close() error {
 }
 
 func (s *Store) Init(ctx context.Context) error {
-	_, err := s.db.ExecContext(ctx, schema)
-	return err
+	if _, err := s.db.ExecContext(ctx, schema); err != nil {
+		return err
+	}
+	_, _ = s.db.ExecContext(ctx, "insert or ignore into fatsecret_scanned_days (date_int) select distinct date_int from fatsecret_food_entries")
+	_, _ = s.db.ExecContext(ctx, "alter table goodreads_books add column image_url text")
+	_, _ = s.db.ExecContext(ctx, "alter table letterboxd_films add column image_url text")
+	_, _ = s.db.ExecContext(ctx, "create table if not exists user_settings (key text primary key, value text not null, updated_at text not null default current_timestamp)")
+	_, _ = s.db.ExecContext(ctx, "insert or ignore into user_settings (key, value) values ('daily_calorie_target', '2200')")
+	return nil
 }
 
 func (s *Store) RawDB() *sql.DB {
@@ -331,7 +341,7 @@ func (s *Store) QueryGoodreadsBooks(ctx context.Context, search, shelf string, l
 	if limit <= 0 || limit > 1000 {
 		limit = 100
 	}
-	query := `select book_id, title, author, my_rating, average_rating, exclusive_shelf, bookshelves, date_read, date_added, year_published
+	query := `select book_id, title, author, my_rating, average_rating, exclusive_shelf, bookshelves, date_read, date_added, year_published, coalesce(image_url, '')
 from goodreads_books where 1 = 1`
 	args := []any{}
 	if search != "" {
@@ -354,10 +364,10 @@ from goodreads_books where 1 = 1`
 	var books []GoodreadsBook
 	for rows.Next() {
 		var b GoodreadsBook
-		var author, shelfValue, shelves, dateRead, dateAdded sql.NullString
+		var author, shelfValue, shelves, dateRead, dateAdded, img sql.NullString
 		var myRating, year sql.NullInt64
 		var avg sql.NullFloat64
-		if err := rows.Scan(&b.BookID, &b.Title, &author, &myRating, &avg, &shelfValue, &shelves, &dateRead, &dateAdded, &year); err != nil {
+		if err := rows.Scan(&b.BookID, &b.Title, &author, &myRating, &avg, &shelfValue, &shelves, &dateRead, &dateAdded, &year, &img); err != nil {
 			return nil, err
 		}
 		b.Author = scanString(author)
@@ -368,6 +378,7 @@ from goodreads_books where 1 = 1`
 		b.DateRead = scanString(dateRead)
 		b.DateAdded = scanString(dateAdded)
 		b.YearPublished = scanInt(year)
+		b.ImageURL = scanString(img)
 		books = append(books, b)
 	}
 	return books, rows.Err()
@@ -383,8 +394,8 @@ func (s *Store) UpsertGoodreadsBook(ctx context.Context, b GoodreadsBook) (strin
 insert into goodreads_books (
   book_id, title, author, isbn, isbn13, my_rating, average_rating, publisher, binding,
   number_of_pages, year_published, original_publication_year, date_read, date_added,
-  bookshelves, exclusive_shelf, my_review, raw_json
-) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  bookshelves, exclusive_shelf, my_review, raw_json, image_url
+) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 on conflict(book_id) do update set
   title=excluded.title,
   author=excluded.author,
@@ -402,11 +413,12 @@ on conflict(book_id) do update set
   bookshelves=coalesce(nullif(excluded.bookshelves, ''), goodreads_books.bookshelves),
   exclusive_shelf=coalesce(nullif(excluded.exclusive_shelf, ''), goodreads_books.exclusive_shelf),
   my_review=coalesce(nullif(excluded.my_review, ''), goodreads_books.my_review),
+  image_url=coalesce(nullif(excluded.image_url, ''), goodreads_books.image_url),
   raw_json=excluded.raw_json,
   imported_at=current_timestamp`,
 		b.BookID, b.Title, b.Author, b.ISBN, b.ISBN13, nullInt(b.MyRating), nullFloat(b.AverageRating),
 		b.Publisher, b.Binding, nullInt(b.NumberOfPages), nullInt(b.YearPublished), nullInt(b.OriginalPublicationYear),
-		b.DateRead, b.DateAdded, b.Bookshelves, b.ExclusiveShelf, b.MyReview, b.RawJSON)
+		b.DateRead, b.DateAdded, b.Bookshelves, b.ExclusiveShelf, b.MyReview, b.RawJSON, b.ImageURL)
 	if err != nil {
 		return "", err
 	}
@@ -481,7 +493,7 @@ func (s *Store) QueryLetterboxdFilms(ctx context.Context, limit int) ([]Letterbo
 		limit = 100
 	}
 	rows, err := s.db.QueryContext(ctx, `select film_key, letterboxd_uri, name, year, rating, watched_date,
-diary_date, rewatch, tags, review, source, raw_json, imported_at
+diary_date, rewatch, tags, review, source, raw_json, imported_at, coalesce(image_url, '')
 from letterboxd_films
 order by coalesce(watched_date, diary_date, imported_at) desc, name
 limit ?`, limit)
@@ -492,10 +504,10 @@ limit ?`, limit)
 	var films []LetterboxdFilm
 	for rows.Next() {
 		var f LetterboxdFilm
-		var uri, watched, diary, rewatch, tags, review, raw, imported sql.NullString
+		var uri, watched, diary, rewatch, tags, review, raw, imported, img sql.NullString
 		var year sql.NullInt64
 		var rating sql.NullFloat64
-		if err := rows.Scan(&f.FilmKey, &uri, &f.Name, &year, &rating, &watched, &diary, &rewatch, &tags, &review, &f.Source, &raw, &imported); err != nil {
+		if err := rows.Scan(&f.FilmKey, &uri, &f.Name, &year, &rating, &watched, &diary, &rewatch, &tags, &review, &f.Source, &raw, &imported, &img); err != nil {
 			return nil, err
 		}
 		f.LetterboxdURI = scanString(uri)
@@ -506,6 +518,7 @@ limit ?`, limit)
 		f.Rewatch = scanString(rewatch)
 		f.Tags = scanString(tags)
 		f.Review = scanString(review)
+		f.ImageURL = scanString(img)
 		f.RawJSON = scanString(raw)
 		f.ImportedAt = scanString(imported)
 		films = append(films, f)
@@ -514,18 +527,46 @@ limit ?`, limit)
 }
 
 func (s *Store) MatchingLetterboxdFilmKey(ctx context.Context, f LetterboxdFilm) (string, error) {
+	// First try: match by Letterboxd URI film slug (most precise)
+	// e.g. /film/inception/ from both /enes/film/inception/ and /enes/film/inception/1/
+	if f.LetterboxdURI != "" {
+		slug := letterboxdFilmSlug(f.LetterboxdURI)
+		if slug != "" {
+			var key string
+			err := s.db.QueryRowContext(ctx, `select film_key
+from letterboxd_films
+where letterboxd_uri like '%/film/' || ? || '/%'
+limit 1`, slug).Scan(&key)
+			if err == nil && key != "" {
+				return key, nil
+			}
+		}
+	}
+
+	// Second try: match by name + year (ignoring dates, which change when rating)
 	var key string
 	err := s.db.QueryRowContext(ctx, `select film_key
 from letterboxd_films
 where lower(trim(name)) = lower(trim(?))
   and coalesce(year, -1) = coalesce(?, -1)
-  and coalesce(watched_date, '') = coalesce(?, '')
-  and coalesce(diary_date, '') = coalesce(?, '')
-limit 1`, f.Name, nullInt(f.Year), f.WatchedDate, f.DiaryDate).Scan(&key)
+limit 1`, f.Name, nullInt(f.Year)).Scan(&key)
 	if err == sql.ErrNoRows {
 		return "", nil
 	}
 	return key, err
+}
+
+// letterboxdFilmSlug extracts the film slug from a Letterboxd URL.
+// e.g. "https://letterboxd.com/enes/film/inception/" -> "inception"
+//      "https://letterboxd.com/enes/film/inception/1/" -> "inception"
+func letterboxdFilmSlug(uri string) string {
+	parts := strings.Split(strings.Trim(uri, "/"), "/")
+	for i, p := range parts {
+		if p == "film" && i+1 < len(parts) {
+			return parts[i+1]
+		}
+	}
+	return ""
 }
 
 func (s *Store) UpsertLetterboxdFilm(ctx context.Context, f LetterboxdFilm) (string, error) {
@@ -537,8 +578,8 @@ func (s *Store) UpsertLetterboxdFilm(ctx context.Context, f LetterboxdFilm) (str
 	_, err := s.db.ExecContext(ctx, `
 insert into letterboxd_films (
   film_key, letterboxd_uri, name, year, rating, watched_date, diary_date,
-  rewatch, tags, review, source, raw_json
-) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  rewatch, tags, review, source, raw_json, image_url
+) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 on conflict(film_key) do update set
   letterboxd_uri=coalesce(nullif(excluded.letterboxd_uri, ''), letterboxd_films.letterboxd_uri),
   name=excluded.name,
@@ -549,11 +590,12 @@ on conflict(film_key) do update set
   rewatch=coalesce(nullif(excluded.rewatch, ''), letterboxd_films.rewatch),
   tags=coalesce(nullif(excluded.tags, ''), letterboxd_films.tags),
   review=coalesce(nullif(excluded.review, ''), letterboxd_films.review),
+  image_url=coalesce(nullif(excluded.image_url, ''), letterboxd_films.image_url),
   source=excluded.source,
   raw_json=excluded.raw_json,
   imported_at=current_timestamp`,
 		f.FilmKey, f.LetterboxdURI, f.Name, nullInt(f.Year), nullFloat(f.Rating), f.WatchedDate, f.DiaryDate,
-		f.Rewatch, f.Tags, f.Review, f.Source, f.RawJSON)
+		f.Rewatch, f.Tags, f.Review, f.Source, f.RawJSON, f.ImageURL)
 	if err != nil {
 		return "", err
 	}
@@ -632,6 +674,103 @@ calories, carbohydrate, protein, fat, raw_json, synced_at
 from fatsecret_food_entries
 order by date_int desc, synced_at desc
 limit ?`, limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var entries []FoodEntry
+	for rows.Next() {
+		var e FoodEntry
+		var meal, name, description, raw, synced sql.NullString
+		var dateInt sql.NullInt64
+		var calories, carb, protein, fat sql.NullFloat64
+		if err := rows.Scan(&e.FoodEntryID, &dateInt, &meal, &name, &description, &calories, &carb, &protein, &fat, &raw, &synced); err != nil {
+			return nil, err
+		}
+		e.DateInt = scanInt(dateInt)
+		e.Meal = scanString(meal)
+		e.FoodEntryName = scanString(name)
+		e.FoodEntryDescription = scanString(description)
+		e.Calories = scanFloat(calories)
+		e.Carbohydrate = scanFloat(carb)
+		e.Protein = scanFloat(protein)
+		e.Fat = scanFloat(fat)
+		e.RawJSON = scanString(raw)
+		e.SyncedAt = scanString(synced)
+		entries = append(entries, e)
+	}
+	return entries, rows.Err()
+}
+
+func (s *Store) FatSecretScannedDays(ctx context.Context) (map[int]bool, error) {
+	rows, err := s.db.QueryContext(ctx, "select date_int from fatsecret_scanned_days")
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	result := make(map[int]bool)
+	for rows.Next() {
+		var d int
+		if err := rows.Scan(&d); err == nil {
+			result[d] = true
+		}
+	}
+	return result, nil
+}
+
+func (s *Store) MarkFatSecretDayScanned(ctx context.Context, dateInt int) error {
+	_, err := s.db.ExecContext(ctx, "insert or replace into fatsecret_scanned_days (date_int, scanned_at) values (?, current_timestamp)", dateInt)
+	return err
+}
+
+func (s *Store) FoodEntriesSince(ctx context.Context, minDateInt int, limit int) ([]FoodEntry, error) {
+	if limit <= 0 || limit > 1000 {
+		limit = 100
+	}
+	rows, err := s.db.QueryContext(ctx, `select food_entry_id, date_int, meal, food_entry_name, food_entry_description,
+calories, carbohydrate, protein, fat, raw_json, synced_at
+from fatsecret_food_entries
+where date_int >= ?
+order by date_int desc, synced_at desc
+limit ?`, minDateInt, limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var entries []FoodEntry
+	for rows.Next() {
+		var e FoodEntry
+		var meal, name, description, raw, synced sql.NullString
+		var dateInt sql.NullInt64
+		var calories, carb, protein, fat sql.NullFloat64
+		if err := rows.Scan(&e.FoodEntryID, &dateInt, &meal, &name, &description, &calories, &carb, &protein, &fat, &raw, &synced); err != nil {
+			return nil, err
+		}
+		e.DateInt = scanInt(dateInt)
+		e.Meal = scanString(meal)
+		e.FoodEntryName = scanString(name)
+		e.FoodEntryDescription = scanString(description)
+		e.Calories = scanFloat(calories)
+		e.Carbohydrate = scanFloat(carb)
+		e.Protein = scanFloat(protein)
+		e.Fat = scanFloat(fat)
+		e.RawJSON = scanString(raw)
+		e.SyncedAt = scanString(synced)
+		entries = append(entries, e)
+	}
+	return entries, rows.Err()
+}
+
+func (s *Store) FoodEntriesBetween(ctx context.Context, minDateInt, maxDateInt int, limit int) ([]FoodEntry, error) {
+	if limit <= 0 || limit > 1000 {
+		limit = 100
+	}
+	rows, err := s.db.QueryContext(ctx, `select food_entry_id, date_int, meal, food_entry_name, food_entry_description,
+calories, carbohydrate, protein, fat, raw_json, synced_at
+from fatsecret_food_entries
+where date_int >= ? and date_int <= ?
+order by date_int desc, synced_at desc
+limit ?`, minDateInt, maxDateInt, limit)
 	if err != nil {
 		return nil, err
 	}
@@ -754,6 +893,84 @@ func (s *Store) LastSyncRun(ctx context.Context, table string) (*SyncRun, error)
 	return &run, err
 }
 
+func (s *Store) GetUserSetting(ctx context.Context, key, defaultValue string) (string, error) {
+	var val string
+	err := s.db.QueryRowContext(ctx, "select value from user_settings where key = ?", key).Scan(&val)
+	if err == sql.ErrNoRows {
+		return defaultValue, nil
+	}
+	if err != nil {
+		return defaultValue, err
+	}
+	return val, nil
+}
+
+func (s *Store) SetUserSetting(ctx context.Context, key, value string) error {
+	_, err := s.db.ExecContext(ctx, `insert into user_settings (key, value, updated_at) values (?, ?, current_timestamp)
+on conflict(key) do update set value=excluded.value, updated_at=current_timestamp`, key, value)
+	return err
+}
+
+func (s *Store) RecentSyncRuns(ctx context.Context, limit int) ([]SyncRun, error) {
+	if limit <= 0 || limit > 100 {
+		limit = 10
+	}
+	query := `
+select id, source, status, inserted, updated, coalesce(message, ''), ran_at
+from (
+  select id, 'FatSecret (' || source || ')' as source, status, inserted, updated, message, ran_at from fatsecret_sync_runs
+  union all
+  select id, 'Goodreads (' || source || ')' as source, status, inserted, updated, message, ran_at from goodreads_sync_runs
+  union all
+  select id, 'Letterboxd (' || source || ')' as source, status, inserted, updated, message, ran_at from letterboxd_sync_runs
+)
+order by ran_at desc
+limit ?`
+	rows, err := s.db.QueryContext(ctx, query, limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var runs []SyncRun
+	for rows.Next() {
+		var r SyncRun
+		if err := rows.Scan(&r.ID, &r.Source, &r.Status, &r.Inserted, &r.Updated, &r.Message, &r.RanAt); err != nil {
+			return nil, err
+		}
+		runs = append(runs, r)
+	}
+	return runs, rows.Err()
+}
+
+func (s *Store) AllDataExport(ctx context.Context) (map[string]any, error) {
+	books, err := s.QueryGoodreadsBooks(ctx, "", "", 10000)
+	if err != nil {
+		return nil, err
+	}
+	films, err := s.QueryLetterboxdFilms(ctx, 10000)
+	if err != nil {
+		return nil, err
+	}
+	foods, err := s.FoodEntries(ctx, 10000)
+	if err != nil {
+		return nil, err
+	}
+	summary, err := s.FatSecretDailySummary(ctx, 365)
+	if err != nil {
+		return nil, err
+	}
+	export := map[string]any{
+		"version":         "1.0",
+		"app":             "Personal Data Hub",
+		"exported_at":     time.Now().UTC().Format(time.RFC3339),
+		"goodreads_books": books,
+		"letterboxd_films": films,
+		"fatsecret_foods": foods,
+		"daily_summary":   summary,
+	}
+	return export, nil
+}
+
 func nullInt(value int) any {
 	if value == 0 {
 		return nil
@@ -792,6 +1009,7 @@ create table if not exists goodreads_books (
   bookshelves text,
   exclusive_shelf text,
   my_review text,
+  image_url text,
   raw_json text not null,
   imported_at text not null default current_timestamp
 );
@@ -822,6 +1040,10 @@ create table if not exists fatsecret_sync_runs (
   updated integer not null default 0,
   message text,
   ran_at text not null default current_timestamp
+);
+create table if not exists fatsecret_scanned_days (
+  date_int integer primary key,
+  scanned_at text not null default current_timestamp
 );
 create table if not exists oauth_temp_tokens (
   oauth_token text primary key,
@@ -855,6 +1077,7 @@ create table if not exists letterboxd_films (
   rewatch text,
   tags text,
   review text,
+  image_url text,
   source text not null,
   raw_json text not null,
   imported_at text not null default current_timestamp
@@ -874,4 +1097,9 @@ create table if not exists letterboxd_sync_runs (
   updated integer not null default 0,
   message text,
   ran_at text not null default current_timestamp
+);
+create table if not exists user_settings (
+  key text primary key,
+  value text not null,
+  updated_at text not null default current_timestamp
 );`

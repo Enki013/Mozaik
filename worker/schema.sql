@@ -1,0 +1,127 @@
+-- Cloudflare D1 Database Schema for Personal Records
+
+CREATE TABLE IF NOT EXISTS goodreads_books (
+  book_id TEXT PRIMARY KEY,
+  title TEXT NOT NULL,
+  author TEXT,
+  isbn TEXT,
+  isbn13 TEXT,
+  my_rating INTEGER,
+  average_rating REAL,
+  publisher TEXT,
+  binding TEXT,
+  number_of_pages INTEGER,
+  year_published INTEGER,
+  original_publication_year INTEGER,
+  date_read TEXT,
+  date_added TEXT,
+  bookshelves TEXT,
+  exclusive_shelf TEXT,
+  my_review TEXT,
+  image_url TEXT,
+  raw_json TEXT NOT NULL,
+  imported_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS fatsecret_tokens (
+  id INTEGER PRIMARY KEY CHECK (id = 1),
+  oauth_token TEXT NOT NULL,
+  oauth_token_secret TEXT NOT NULL,
+  updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS fatsecret_food_entries (
+  food_entry_id TEXT PRIMARY KEY,
+  date_int INTEGER,
+  meal TEXT,
+  food_entry_name TEXT,
+  food_entry_description TEXT,
+  calories REAL,
+  carbohydrate REAL,
+  protein REAL,
+  fat REAL,
+  raw_json TEXT NOT NULL,
+  synced_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS fatsecret_sync_runs (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  source TEXT NOT NULL,
+  status TEXT NOT NULL,
+  inserted INTEGER NOT NULL DEFAULT 0,
+  updated INTEGER NOT NULL DEFAULT 0,
+  message TEXT,
+  ran_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS fatsecret_scanned_days (
+  date_int INTEGER PRIMARY KEY,
+  scanned_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS oauth_temp_tokens (
+  oauth_token TEXT PRIMARY KEY,
+  oauth_token_secret TEXT NOT NULL,
+  created_at INTEGER NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS goodreads_sync_settings (
+  id INTEGER PRIMARY KEY CHECK (id = 1),
+  feed_url TEXT,
+  interval_minutes INTEGER NOT NULL DEFAULT 360,
+  enabled INTEGER NOT NULL DEFAULT 0,
+  updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS goodreads_sync_runs (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  source TEXT NOT NULL,
+  status TEXT NOT NULL,
+  inserted INTEGER NOT NULL DEFAULT 0,
+  updated INTEGER NOT NULL DEFAULT 0,
+  message TEXT,
+  ran_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS letterboxd_films (
+  film_key TEXT PRIMARY KEY,
+  letterboxd_uri TEXT,
+  name TEXT NOT NULL,
+  year INTEGER,
+  rating REAL,
+  watched_date TEXT,
+  diary_date TEXT,
+  rewatch TEXT,
+  tags TEXT,
+  review TEXT,
+  image_url TEXT,
+  source TEXT NOT NULL,
+  raw_json TEXT NOT NULL,
+  imported_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS letterboxd_sync_settings (
+  id INTEGER PRIMARY KEY CHECK (id = 1),
+  feed_url TEXT,
+  interval_minutes INTEGER NOT NULL DEFAULT 360,
+  enabled INTEGER NOT NULL DEFAULT 0,
+  updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS letterboxd_sync_runs (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  source TEXT NOT NULL,
+  status TEXT NOT NULL,
+  inserted INTEGER NOT NULL DEFAULT 0,
+  updated INTEGER NOT NULL DEFAULT 0,
+  message TEXT,
+  ran_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS user_settings (
+  key TEXT PRIMARY KEY,
+  value TEXT NOT NULL,
+  updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+INSERT OR IGNORE INTO user_settings (key, value) VALUES ('daily_calorie_target', '2200');

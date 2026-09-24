@@ -1,0 +1,395 @@
+<!DOCTYPE html>
+
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Activity Timeline - Personal Data Hub</title>
+<!-- Google Fonts: Manrope & Hanken Grotesk -->
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700&amp;family=Manrope:wght@600;700;800&amp;display=swap" rel="stylesheet"/>
+<!-- Material Symbols Outlined -->
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Tailwind CSS -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          "colors": {
+            "outline": "#767586",
+            "on-error": "#ffffff",
+            "on-surface-variant": "#464554",
+            "secondary-fixed-dim": "#89ceff",
+            "on-secondary-fixed": "#001e2f",
+            "secondary": "#006591",
+            "primary-fixed": "#e1e0ff",
+            "on-surface": "#131b2e",
+            "primary-fixed-dim": "#c0c1ff",
+            "on-secondary": "#ffffff",
+            "inverse-primary": "#c0c1ff",
+            "tertiary-container": "#00885d",
+            "on-error-container": "#93000a",
+            "inverse-on-surface": "#eef0ff",
+            "on-secondary-container": "#004666",
+            "on-tertiary-fixed-variant": "#005236",
+            "error-container": "#ffdad6",
+            "primary": "#4648d4",
+            "background": "#faf8ff",
+            "surface": "#faf8ff",
+            "error": "#ba1a1a",
+            "surface-variant": "#dae2fd",
+            "tertiary-fixed": "#6ffbbe",
+            "on-tertiary": "#ffffff",
+            "surface-tint": "#494bd6",
+            "on-secondary-fixed-variant": "#004c6e",
+            "surface-container-low": "#f2f3ff",
+            "on-tertiary-container": "#000703",
+            "tertiary-fixed-dim": "#4edea3",
+            "surface-container-high": "#e2e7ff",
+            "inverse-surface": "#283044",
+            "on-tertiary-fixed": "#002113",
+            "on-primary-container": "#fffbff",
+            "secondary-container": "#39b8fd",
+            "on-primary-fixed-variant": "#2f2ebe",
+            "on-background": "#131b2e",
+            "surface-container": "#eaedff",
+            "secondary-fixed": "#c9e6ff",
+            "on-primary-fixed": "#07006c",
+            "surface-bright": "#faf8ff",
+            "surface-dim": "#d2d9f4",
+            "surface-container-highest": "#dae2fd",
+            "on-primary": "#ffffff",
+            "primary-container": "#6063ee",
+            "outline-variant": "#c7c4d7",
+            "surface-container-lowest": "#ffffff",
+            "tertiary": "#006c49"
+          },
+          "borderRadius": {
+            "DEFAULT": "0.25rem",
+            "lg": "0.5rem",
+            "xl": "0.75rem",
+            "full": "9999px"
+          },
+          "spacing": {
+            "space-md": "1rem",
+            "space-xxs": "0.125rem",
+            "margin": "1rem",
+            "gutter-desktop": "2rem",
+            "space-lg": "1.5rem",
+            "space-2xl": "3rem",
+            "space-xl": "2rem",
+            "space-sm": "0.5rem",
+            "margin-desktop": "3rem",
+            "margin-tablet": "1.5rem",
+            "gutter-tablet": "1.5rem",
+            "gutter": "1rem",
+            "space-xs": "0.25rem"
+          },
+          "fontFamily": {
+            "label-lg": ["Hanken Grotesk"],
+            "body-sm": ["Hanken Grotesk"],
+            "label-md": ["Hanken Grotesk"],
+            "headline-lg-mobile": ["Manrope"],
+            "label-sm": ["Hanken Grotesk"],
+            "body-md": ["Hanken Grotesk"],
+            "title-lg": ["Manrope"],
+            "title-md": ["Hanken Grotesk"],
+            "headline-lg": ["Manrope"],
+            "body-lg": ["Hanken Grotesk"],
+            "headline-md": ["Manrope"],
+            "headline-sm": ["Manrope"],
+            "display-lg": ["Manrope"]
+          },
+          "fontSize": {
+            "label-lg": ["14px", { "lineHeight": "20px", "letterSpacing": "0.01em", "fontWeight": "600" }],
+            "body-sm": ["12px", { "lineHeight": "16px", "letterSpacing": "0.01em", "fontWeight": "400" }],
+            "label-md": ["12px", { "lineHeight": "16px", "letterSpacing": "0.02em", "fontWeight": "600" }],
+            "headline-lg-mobile": ["26px", { "lineHeight": "34px", "letterSpacing": "-0.015em", "fontWeight": "700" }],
+            "label-sm": ["11px", { "lineHeight": "14px", "letterSpacing": "0.03em", "fontWeight": "600" }],
+            "body-md": ["14px", { "lineHeight": "20px", "letterSpacing": "0.01em", "fontWeight": "400" }],
+            "title-lg": ["18px", { "lineHeight": "24px", "letterSpacing": "0em", "fontWeight": "600" }],
+            "title-md": ["16px", { "lineHeight": "22px", "letterSpacing": "0.005em", "fontWeight": "600" }],
+            "headline-lg": ["32px", { "lineHeight": "40px", "letterSpacing": "-0.02em", "fontWeight": "700" }],
+            "body-lg": ["16px", { "lineHeight": "24px", "letterSpacing": "0em", "fontWeight": "400" }],
+            "headline-md": ["24px", { "lineHeight": "32px", "letterSpacing": "-0.01em", "fontWeight": "600" }],
+            "headline-sm": ["20px", { "lineHeight": "28px", "letterSpacing": "0em", "fontWeight": "600" }],
+            "display-lg": ["40px", { "lineHeight": "48px", "letterSpacing": "-0.02em", "fontWeight": "700" }]
+          }
+        },
+      },
+    }
+  </script>
+</head>
+<body class="bg-background text-on-surface antialiased min-h-screen flex justify-center selection:bg-primary-fixed selection:text-on-primary-fixed-variant">
+<!-- Mobile Frame Container -->
+<div class="w-full max-w-md bg-surface min-h-screen flex flex-col relative pb-28 shadow-xl">
+<!-- TopAppBar -->
+<header class="sticky top-0 z-40 bg-surface/95 backdrop-blur-md shadow-sm">
+<div class="flex justify-between items-center w-full px-margin h-16">
+<div class="flex items-center gap-3">
+<!-- Leading Executive Avatar -->
+<div class="w-9 h-9 rounded-full overflow-hidden ring-2 ring-primary/20 bg-surface-container flex items-center justify-center">
+<img class="w-full h-full object-cover" data-alt="Close up professional portrait of an executive leader in sleek modern attire with bright neutral lighting, crisp high-end camera clarity and minimalist executive presence." src="https://lh3.googleusercontent.com/aida-public/AB6AXuCBc-LMRIn64N2KZfuGHojUx1jUZGFrrzUfbo_Y7vlQ7PYzZ04bC9mN5vRFw6JBAmWE8BFLN0JC4oh1TfJAG-XQBpFa73AcxjI--_UNKqOjartQ7_BixM7yB2rhr9dM37yg6HGjx0nxxThnQx_9fdTPWUdBSWVe14xyuFa5Jh5iQSg-QOAe3rbPhM0XJA35UTxw_2lhasEVVKH9K4IxyrsZiS0q3jO7oE5Zr3k2L83rE924mjcm-1O0hg"/>
+</div>
+<div>
+<h1 class="font-headline-sm text-headline-sm font-bold text-on-surface tracking-tight">Activity Timeline</h1>
+<p class="font-body-sm text-body-sm text-on-surface-variant leading-none">Personal Data Hub</p>
+</div>
+</div>
+<!-- Trailing Actions: Date Picker & Filter -->
+<div class="flex items-center gap-1">
+<button aria-label="Select Date" class="w-10 h-10 rounded-full flex items-center justify-center text-on-surface-variant hover:bg-surface-container active:scale-95 transition-all">
+<span class="material-symbols-outlined" data-icon="calendar_today">calendar_today</span>
+</button>
+<button aria-label="Filter Feeds" class="w-10 h-10 rounded-full flex items-center justify-center text-on-surface-variant hover:bg-surface-container active:scale-95 transition-all">
+<span class="material-symbols-outlined" data-icon="tune">tune</span>
+</button>
+</div>
+</div>
+<!-- Filter Chips Horizontal Bar -->
+<div class="px-margin pb-3 pt-1 flex items-center gap-2 overflow-x-auto no-scrollbar">
+<!-- Selected FilterChip -->
+<button class="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-primary-fixed text-on-primary-fixed-variant font-label-md text-label-md shrink-0 shadow-sm border border-primary/20 active:scale-95 transition-transform">
+<span class="material-symbols-outlined text-[16px]" data-icon="check" style="font-variation-settings: 'FILL' 1;">check</span>
+          All Sources
+        </button>
+<!-- Unselected FilterChips -->
+<button class="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-surface-container-lowest text-on-surface-variant font-label-md text-label-md border border-outline-variant/60 shrink-0 hover:bg-surface-container active:scale-95 transition-all">
+<span class="text-sm leading-none">🥗</span>
+          Nutrition
+        </button>
+<button class="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-surface-container-lowest text-on-surface-variant font-label-md text-label-md border border-outline-variant/60 shrink-0 hover:bg-surface-container active:scale-95 transition-all">
+<span class="text-sm leading-none">📚</span>
+          Books
+        </button>
+<button class="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-surface-container-lowest text-on-surface-variant font-label-md text-label-md border border-outline-variant/60 shrink-0 hover:bg-surface-container active:scale-95 transition-all">
+<span class="text-sm leading-none">🎬</span>
+          Movies
+        </button>
+</div>
+</header>
+<!-- Main Chronological Timeline Canvas -->
+<main class="flex-1 px-margin pt-4">
+<!-- SECTION 1: TODAY -->
+<section class="mb-6">
+<!-- Date Header -->
+<div class="flex items-center gap-2 mb-4 sticky top-28 z-20 py-1 bg-surface/90 backdrop-blur-sm">
+<span class="w-2 h-2 rounded-full bg-primary ring-4 ring-primary-fixed"></span>
+<h2 class="font-title-lg text-title-lg text-on-surface font-bold tracking-tight">Today <span class="font-body-md text-body-md text-on-surface-variant font-normal">— September 16</span></h2>
+</div>
+<!-- Timeline Connector Container -->
+<div class="relative pl-6 space-y-4">
+<!-- Continuous Vertical Spine -->
+<div class="absolute left-2.5 top-2 bottom-2 w-0.5 bg-outline-variant/40"></div>
+<!-- CARD 1: Nutrition -->
+<div class="relative group">
+<!-- Timeline Node Indicator -->
+<div class="absolute -left-6 top-4 w-5 h-5 rounded-full bg-surface-container-lowest border-2 border-tertiary flex items-center justify-center z-10 shadow-sm">
+<div class="w-2 h-2 rounded-full bg-tertiary"></div>
+</div>
+<!-- Card Body -->
+<div class="bg-surface-container-lowest border border-outline-variant/40 rounded-xl p-space-md shadow-sm hover:border-primary/40 transition-colors">
+<div class="flex justify-between items-start mb-2">
+<div class="flex items-center gap-2">
+<span class="px-2 py-0.5 rounded-full bg-emerald-50 text-tertiary font-label-sm text-label-sm font-semibold flex items-center gap-1">
+<span>🥗</span> FatSecret
+                  </span>
+<span class="font-body-sm text-body-sm text-on-surface-variant">12:30 PM</span>
+</div>
+<button aria-label="More options" class="text-outline hover:text-on-surface transition-colors">
+<span class="material-symbols-outlined text-[18px]" data-icon="more_horiz">more_horiz</span>
+</button>
+</div>
+<h3 class="font-title-md text-title-md text-on-surface font-semibold mb-2">Lunch: Chicken Breast &amp; Quinoa Bowl</h3>
+<!-- Nutrition Metric Badges -->
+<div class="flex flex-wrap gap-2 pt-1 border-t border-outline-variant/20">
+<span class="font-label-md text-label-md text-on-surface bg-surface-container-low px-2.5 py-1 rounded-lg">
+                  🔥 <strong class="font-bold">450</strong> kcal
+                </span>
+<span class="font-label-md text-label-md text-tertiary bg-emerald-50 px-2.5 py-1 rounded-lg">
+                  🥩 <strong class="font-bold">42g</strong> Protein
+                </span>
+<span class="font-label-md text-label-md text-on-surface-variant bg-surface-container-low px-2.5 py-1 rounded-lg">
+                  🌾 38g Carbs
+                </span>
+</div>
+</div>
+</div>
+<!-- CARD 2: Books -->
+<div class="relative group">
+<!-- Timeline Node Indicator -->
+<div class="absolute -left-6 top-4 w-5 h-5 rounded-full bg-surface-container-lowest border-2 border-primary flex items-center justify-center z-10 shadow-sm">
+<div class="w-2 h-2 rounded-full bg-primary"></div>
+</div>
+<!-- Card Body -->
+<div class="bg-surface-container-lowest border border-outline-variant/40 rounded-xl p-space-md shadow-sm hover:border-primary/40 transition-colors">
+<div class="flex justify-between items-start mb-2">
+<div class="flex items-center gap-2">
+<span class="px-2 py-0.5 rounded-full bg-amber-50 text-amber-900 font-label-sm text-label-sm font-semibold flex items-center gap-1">
+<span>📚</span> Goodreads
+                  </span>
+<span class="font-body-sm text-body-sm text-on-surface-variant">14:20 PM</span>
+</div>
+<span class="px-2 py-0.5 rounded-full bg-primary-fixed text-on-primary-fixed-variant font-label-sm text-label-sm">
+                  Completed
+                </span>
+</div>
+<h3 class="font-title-md text-title-md text-on-surface font-semibold">Finished Book: Dune</h3>
+<p class="font-body-sm text-body-sm text-on-surface-variant mb-2.5">by Frank Herbert · Science Fiction Epic</p>
+<div class="flex items-center justify-between pt-1 border-t border-outline-variant/20">
+<span class="font-label-md text-label-md text-on-surface-variant">Marked as Read</span>
+<!-- Star Rating Badge -->
+<div class="flex items-center text-amber-500 bg-amber-50 px-2 py-0.5 rounded-md">
+<span class="material-symbols-outlined text-[16px]" data-icon="star" style="font-variation-settings: 'FILL' 1;">star</span>
+<span class="material-symbols-outlined text-[16px]" data-icon="star" style="font-variation-settings: 'FILL' 1;">star</span>
+<span class="material-symbols-outlined text-[16px]" data-icon="star" style="font-variation-settings: 'FILL' 1;">star</span>
+<span class="material-symbols-outlined text-[16px]" data-icon="star" style="font-variation-settings: 'FILL' 1;">star</span>
+<span class="material-symbols-outlined text-[16px]" data-icon="star" style="font-variation-settings: 'FILL' 1;">star</span>
+</div>
+</div>
+</div>
+</div>
+<!-- CARD 3: Activity / Walk -->
+<div class="relative group">
+<!-- Timeline Node Indicator -->
+<div class="absolute -left-6 top-4 w-5 h-5 rounded-full bg-surface-container-lowest border-2 border-secondary flex items-center justify-center z-10 shadow-sm">
+<div class="w-2 h-2 rounded-full bg-secondary"></div>
+</div>
+<!-- Card Body -->
+<div class="bg-surface-container-lowest border border-outline-variant/40 rounded-xl p-space-md shadow-sm hover:border-primary/40 transition-colors">
+<div class="flex justify-between items-start mb-2">
+<div class="flex items-center gap-2">
+<span class="px-2 py-0.5 rounded-full bg-sky-50 text-secondary font-label-sm text-label-sm font-semibold flex items-center gap-1">
+<span>🏃</span> Apple Health
+                  </span>
+<span class="font-body-sm text-body-sm text-on-surface-variant">08:15 AM</span>
+</div>
+<span class="font-label-sm text-label-sm text-on-surface-variant font-medium">32 mins</span>
+</div>
+<h3 class="font-title-md text-title-md text-on-surface font-semibold mb-2">Morning Walk</h3>
+<div class="grid grid-cols-2 gap-2 pt-1 border-t border-outline-variant/20">
+<div class="bg-surface-container-low p-2 rounded-lg flex items-center gap-2">
+<span class="material-symbols-outlined text-secondary text-[20px]" data-icon="footprint">footprint</span>
+<div>
+<div class="font-title-md text-title-md font-bold text-on-surface leading-tight">4,120</div>
+<div class="font-label-sm text-label-sm text-on-surface-variant">steps</div>
+</div>
+</div>
+<div class="bg-surface-container-low p-2 rounded-lg flex items-center gap-2">
+<span class="material-symbols-outlined text-tertiary text-[20px]" data-icon="local_fire_department">local_fire_department</span>
+<div>
+<div class="font-title-md text-title-md font-bold text-on-surface leading-tight">185</div>
+<div class="font-label-sm text-label-sm text-on-surface-variant">kcal burned</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- SECTION 2: YESTERDAY -->
+<section class="mb-4">
+<!-- Date Header -->
+<div class="flex items-center gap-2 mb-4 sticky top-28 z-20 py-1 bg-surface/90 backdrop-blur-sm">
+<span class="w-2 h-2 rounded-full bg-outline ring-4 ring-surface-container"></span>
+<h2 class="font-title-lg text-title-lg text-on-surface font-bold tracking-tight">Yesterday <span class="font-body-md text-body-md text-on-surface-variant font-normal">— September 15</span></h2>
+</div>
+<!-- Timeline Connector Container -->
+<div class="relative pl-6 space-y-4">
+<!-- Continuous Vertical Spine -->
+<div class="absolute left-2.5 top-2 bottom-2 w-0.5 bg-outline-variant/40"></div>
+<!-- CARD 4: Movies -->
+<div class="relative group">
+<!-- Timeline Node Indicator -->
+<div class="absolute -left-6 top-4 w-5 h-5 rounded-full bg-surface-container-lowest border-2 border-primary-container flex items-center justify-center z-10 shadow-sm">
+<div class="w-2 h-2 rounded-full bg-primary-container"></div>
+</div>
+<!-- Card Body -->
+<div class="bg-surface-container-lowest border border-outline-variant/40 rounded-xl p-space-md shadow-sm hover:border-primary/40 transition-colors">
+<div class="flex justify-between items-start mb-2">
+<div class="flex items-center gap-2">
+<span class="px-2 py-0.5 rounded-full bg-purple-50 text-primary-container font-label-sm text-label-sm font-semibold flex items-center gap-1">
+<span>🎬</span> Letterboxd
+                  </span>
+<span class="font-body-sm text-body-sm text-on-surface-variant">21:40 PM</span>
+</div>
+<!-- Rating badge -->
+<div class="flex items-center text-amber-500 bg-amber-50 px-2 py-0.5 rounded-md">
+<span class="material-symbols-outlined text-[16px]" data-icon="star" style="font-variation-settings: 'FILL' 1;">star</span>
+<span class="material-symbols-outlined text-[16px]" data-icon="star" style="font-variation-settings: 'FILL' 1;">star</span>
+<span class="material-symbols-outlined text-[16px]" data-icon="star" style="font-variation-settings: 'FILL' 1;">star</span>
+<span class="material-symbols-outlined text-[16px]" data-icon="star" style="font-variation-settings: 'FILL' 1;">star</span>
+<span class="material-symbols-outlined text-[16px]" data-icon="star" style="font-variation-settings: 'FILL' 1;">star</span>
+</div>
+</div>
+<h3 class="font-title-md text-title-md text-on-surface font-semibold">Watched &amp; Rated: Interstellar (2014)</h3>
+<p class="font-body-sm text-body-sm text-on-surface-variant mt-1 italic bg-surface-container-low/70 p-2.5 rounded-lg border-l-2 border-primary">
+                “A masterpiece in cinema. Emotional crescendo and visual physics perfection.”
+              </p>
+</div>
+</div>
+<!-- CARD 5: Nutrition Dinner -->
+<div class="relative group">
+<!-- Timeline Node Indicator -->
+<div class="absolute -left-6 top-4 w-5 h-5 rounded-full bg-surface-container-lowest border-2 border-tertiary flex items-center justify-center z-10 shadow-sm">
+<div class="w-2 h-2 rounded-full bg-tertiary"></div>
+</div>
+<!-- Card Body -->
+<div class="bg-surface-container-lowest border border-outline-variant/40 rounded-xl p-space-md shadow-sm hover:border-primary/40 transition-colors">
+<div class="flex justify-between items-start mb-2">
+<div class="flex items-center gap-2">
+<span class="px-2 py-0.5 rounded-full bg-emerald-50 text-tertiary font-label-sm text-label-sm font-semibold flex items-center gap-1">
+<span>🥗</span> FatSecret
+                  </span>
+<span class="font-body-sm text-body-sm text-on-surface-variant">19:15 PM</span>
+</div>
+<button aria-label="More options" class="text-outline hover:text-on-surface transition-colors">
+<span class="material-symbols-outlined text-[18px]" data-icon="more_horiz">more_horiz</span>
+</button>
+</div>
+<h3 class="font-title-md text-title-md text-on-surface font-semibold mb-2">Dinner: Grilled Salmon &amp; Asparagus</h3>
+<!-- Nutrition Metric Badges -->
+<div class="flex flex-wrap gap-2 pt-1 border-t border-outline-variant/20">
+<span class="font-label-md text-label-md text-on-surface bg-surface-container-low px-2.5 py-1 rounded-lg">
+                  🔥 <strong class="font-bold">520</strong> kcal
+                </span>
+<span class="font-label-md text-label-md text-tertiary bg-emerald-50 px-2.5 py-1 rounded-lg">
+                  🥩 <strong class="font-bold">38g</strong> Protein
+                </span>
+<span class="font-label-md text-label-md text-on-surface-variant bg-surface-container-low px-2.5 py-1 rounded-lg">
+                  🥑 Healthy Fats
+                </span>
+</div>
+</div>
+</div>
+</div>
+</section>
+</main>
+<!-- BottomNavBar (Shared Component JSON Blueprint - 3rd item 'Activity' active) -->
+<nav class="fixed bottom-0 left-0 w-full z-50 flex justify-around items-center h-20 px-space-sm pb-safe bg-surface-container-lowest dark:bg-inverse-surface shadow-sm">
+<!-- Destination 1: Dashboard -->
+<button class="flex flex-col items-center justify-center text-on-surface-variant dark:text-outline-variant px-5 py-1 transition-all duration-200 hover:bg-surface-container dark:hover:bg-surface-container-high rounded-full active:scale-95">
+<span class="material-symbols-outlined" data-icon="dashboard">dashboard</span>
+<span class="font-label-sm text-label-sm mt-0.5">Dashboard</span>
+</button>
+<!-- Destination 2: Insights -->
+<button class="flex flex-col items-center justify-center text-on-surface-variant dark:text-outline-variant px-5 py-1 transition-all duration-200 hover:bg-surface-container dark:hover:bg-surface-container-high rounded-full active:scale-95">
+<span class="material-symbols-outlined" data-icon="monitoring">monitoring</span>
+<span class="font-label-sm text-label-sm mt-0.5">Insights</span>
+</button>
+<!-- Destination 3: Activity (ACTIVE STATE) -->
+<button class="flex flex-col items-center justify-center bg-primary-fixed dark:bg-primary-container text-on-primary-fixed-variant dark:text-on-primary-container rounded-full px-5 py-1 transition-all duration-200 active:scale-95">
+<span class="material-symbols-outlined" data-icon="timeline" style="font-variation-settings: 'FILL' 1;">timeline</span>
+<span class="font-label-sm text-label-sm font-bold mt-0.5">Activity</span>
+</button>
+<!-- Destination 4: Plugins -->
+<button class="flex flex-col items-center justify-center text-on-surface-variant dark:text-outline-variant px-5 py-1 transition-all duration-200 hover:bg-surface-container dark:hover:bg-surface-container-high rounded-full active:scale-95">
+<span class="material-symbols-outlined" data-icon="extension">extension</span>
+<span class="font-label-sm text-label-sm mt-0.5">Plugins</span>
+</button>
+</nav>
+</div>
+</body></html>

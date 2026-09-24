@@ -7,12 +7,15 @@ import (
 	"html"
 	"io"
 	"net/http"
+	"os"
 	"strconv"
 	"strings"
+	"time"
 
 	"personal-records/internal/application"
 	"personal-records/internal/config"
 	"personal-records/internal/infrastructure/sqlite"
+	"personal-records/internal/shared"
 )
 
 type Handler struct {
@@ -42,6 +45,7 @@ func (h *Handler) routes() {
 	h.mux.HandleFunc("/", h.home)
 	h.mux.HandleFunc("/api/health", h.health)
 	h.mux.HandleFunc("/api/dashboard", h.dashboard)
+	h.mux.HandleFunc("/api/activity", h.activity)
 	h.mux.HandleFunc("/api/sync/status", h.syncStatus)
 	h.mux.HandleFunc("/api/fatsecret/food-entries", h.fatsecretEntries)
 	h.mux.HandleFunc("/api/fatsecret/daily-summary", h.fatsecretSummary)
@@ -50,17 +54,25 @@ func (h *Handler) routes() {
 	h.mux.HandleFunc("/api/sync/fatsecret", h.apiSyncFatSecret)
 	h.mux.HandleFunc("/api/sync/goodreads", h.apiSyncGoodreads)
 	h.mux.HandleFunc("/api/sync/letterboxd", h.apiSyncLetterboxd)
+	h.mux.HandleFunc("/api/export/all", h.exportAll)
+	h.mux.HandleFunc("/api/export/db", h.exportDB)
 	h.mux.HandleFunc("/goodreads/export", h.goodreadsExport)
 	h.mux.HandleFunc("/goodreads/import", h.goodreadsImport)
 	h.mux.HandleFunc("/goodreads/settings", h.goodreadsSettings)
 	h.mux.HandleFunc("/goodreads/sync", h.goodreadsSync)
+	h.mux.HandleFunc("/letterboxd/export", h.letterboxdExport)
 	h.mux.HandleFunc("/letterboxd/import", h.letterboxdImport)
 	h.mux.HandleFunc("/letterboxd/settings", h.letterboxdSettings)
 	h.mux.HandleFunc("/letterboxd/sync", h.letterboxdSync)
+	h.mux.HandleFunc("/fatsecret/export", h.fatsecretExport)
 	h.mux.HandleFunc("/fatsecret/search", h.fatsecretSearch)
 	h.mux.HandleFunc("/fatsecret/connect", h.fatsecretConnect)
 	h.mux.HandleFunc("/fatsecret/callback", h.fatsecretCallback)
 	h.mux.HandleFunc("/fatsecret/sync", h.fatsecretSync)
+	h.mux.HandleFunc("/settings/calorie-target", h.updateCalorieTarget)
+	h.mux.HandleFunc("/api/settings/calorie-target", h.updateCalorieTarget)
+	h.mux.HandleFunc("/api/settings/fatsecret", h.fatsecretSettings)
+	h.mux.HandleFunc("/settings/fatsecret", h.fatsecretSettings)
 }
 
 func (h *Handler) home(w http.ResponseWriter, r *http.Request) {
@@ -74,21 +86,41 @@ func (h *Handler) home(w http.ResponseWriter, r *http.Request) {
 		h.htmlError(w, err)
 		return
 	}
-	books, _ := h.services.GoodreadsBooks(ctx, r.URL.Query().Get("q"), r.URL.Query().Get("shelf"), 100)
+	activityDays := 30
+	if d := r.URL.Query().Get("days"); d != "" {
+		if val := shared.Int(d); val > 0 {
+			activityDays = val
+		}
+	}
+	fromDate := strings.TrimSpace(r.URL.Query().Get("from"))
+	toDate := strings.TrimSpace(r.URL.Query().Get("to"))
+	if singleDate := strings.TrimSpace(r.URL.Query().Get("date")); singleDate != "" {
+		fromDate = singleDate
+		toDate = singleDate
+	}
+
+	books, _ := h.services.GoodreadsBooks(ctx, r.URL.Query().Get("q"), r.URL.Query().Get("shelf"), 250)
 	shelves, _ := h.services.GoodreadsShelves(ctx)
 	goodreadsSettings, _ := h.services.GoodreadsSettings(ctx)
 	letterboxdSettings, _ := h.services.LetterboxdSettings(ctx)
-	letterboxd, _ := h.services.LetterboxdFilms(ctx, 80)
-	foodSummary, _ := h.services.FatSecretDailySummary(ctx, 14)
-	foodEntries, _ := h.services.FoodEntries(ctx, 30)
+	letterboxd, _ := h.services.LetterboxdFilms(ctx, 250)
+	foodSummary, _ := h.services.FatSecretDailySummary(ctx, 30)
+	foodEntries, _ := h.services.FoodEntries(ctx, 500)
 	dashboard, _ := h.services.Dashboard(ctx)
 	overview, _ := h.services.OverviewStats(ctx)
+	activity, _ := h.services.ActivityTimelineRange(ctx, fromDate, toDate, activityDays, 250)
+	calorieTarget := h.services.GetCalorieTarget(ctx)
+	recentSyncRuns, _ := h.services.RecentSyncRuns(ctx, 10)
 
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	_, _ = io.WriteString(w, renderHome(pageData{
 		DBName:             "personal_records.sqlite3",
 		Counts:             counts,
 		Dashboard:          dashboard,
+		Activity:           activity,
+		ActivityDays:       activityDays,
+		ActivityFromDate:   fromDate,
+		ActivityToDate:     toDate,
 		Books:              books,
 		Shelves:            shelves,
 		SelectedShelf:      r.URL.Query().Get("shelf"),
@@ -101,6 +133,8 @@ func (h *Handler) home(w http.ResponseWriter, r *http.Request) {
 		FatSecretConnected: h.services.FatSecretConnected(ctx),
 		OAuthReady:         config.Env("FATSECRET_CONSUMER_KEY") != "" && config.Env("FATSECRET_CONSUMER_SECRET") != "",
 		Overview:           overview,
+		CalorieTarget:      calorieTarget,
+		RecentSyncRuns:     recentSyncRuns,
 	}))
 }
 
@@ -110,6 +144,22 @@ func (h *Handler) health(w http.ResponseWriter, r *http.Request) {
 
 func (h *Handler) dashboard(w http.ResponseWriter, r *http.Request) {
 	payload, err := h.services.Dashboard(r.Context())
+	h.jsonOrError(w, payload, err)
+}
+
+func (h *Handler) activity(w http.ResponseWriter, r *http.Request) {
+	days := 7
+	if r.URL.Query().Has("days") {
+		days = queryInt(r, "days", 0)
+	}
+	fromDate := strings.TrimSpace(r.URL.Query().Get("from"))
+	toDate := strings.TrimSpace(r.URL.Query().Get("to"))
+	if singleDate := strings.TrimSpace(r.URL.Query().Get("date")); singleDate != "" {
+		fromDate = singleDate
+		toDate = singleDate
+	}
+	limit := queryInt(r, "limit", 50)
+	payload, err := h.services.ActivityTimelineRange(r.Context(), fromDate, toDate, days, limit)
 	h.jsonOrError(w, payload, err)
 }
 
@@ -178,6 +228,99 @@ func (h *Handler) goodreadsExport(w http.ResponseWriter, r *http.Request) {
 	h.jsonOrError(w, books, err)
 }
 
+func (h *Handler) exportAll(w http.ResponseWriter, r *http.Request) {
+	data, err := h.services.AllDataExport(r.Context())
+	if err != nil {
+		h.jsonOrError(w, nil, err)
+		return
+	}
+	filename := fmt.Sprintf("personal_records_backup_%s.json", time.Now().Format("2006-01-02"))
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=%q", filename))
+	_ = json.NewEncoder(w).Encode(data)
+}
+
+func (h *Handler) exportDB(w http.ResponseWriter, r *http.Request) {
+	dbPath := "personal_records.sqlite3"
+	f, err := os.Open(dbPath)
+	if err != nil {
+		http.Error(w, "Veritabanı dosyası bulunamadı: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+	defer f.Close()
+	w.Header().Set("Content-Type", "application/octet-stream")
+	w.Header().Set("Content-Disposition", "attachment; filename=\"personal_records.sqlite3\"")
+	_, _ = io.Copy(w, f)
+}
+
+func (h *Handler) letterboxdExport(w http.ResponseWriter, r *http.Request) {
+	films, err := h.services.LetterboxdFilms(r.Context(), 10000)
+	if err != nil {
+		h.jsonOrError(w, nil, err)
+		return
+	}
+	filename := fmt.Sprintf("letterboxd_films_%s.json", time.Now().Format("2006-01-02"))
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=%q", filename))
+	_ = json.NewEncoder(w).Encode(films)
+}
+
+func (h *Handler) fatsecretExport(w http.ResponseWriter, r *http.Request) {
+	foods, err := h.services.FoodEntries(r.Context(), 10000)
+	if err != nil {
+		h.jsonOrError(w, nil, err)
+		return
+	}
+	filename := fmt.Sprintf("fatsecret_foods_%s.json", time.Now().Format("2006-01-02"))
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=%q", filename))
+	_ = json.NewEncoder(w).Encode(foods)
+}
+
+func (h *Handler) updateCalorieTarget(w http.ResponseWriter, r *http.Request) {
+	if r.Method == http.MethodGet {
+		target := h.services.GetCalorieTarget(r.Context())
+		h.writeJSON(w, http.StatusOK, map[string]any{
+			"success":        true,
+			"target":         target,
+			"calorie_target": target,
+		})
+		return
+	}
+	if r.Method != http.MethodPost {
+		http.NotFound(w, r)
+		return
+	}
+	_ = r.ParseForm()
+	target := shared.Int(r.FormValue("target"))
+	if target <= 0 {
+		var body struct {
+			Target int `json:"target"`
+		}
+		if json.NewDecoder(r.Body).Decode(&body) == nil && body.Target > 0 {
+			target = body.Target
+		}
+	}
+	if target <= 0 {
+		target = 2200
+	}
+	err := h.services.SetCalorieTarget(r.Context(), target)
+	if strings.HasPrefix(r.URL.Path, "/api/") || isJSONRequest(r) {
+		if err != nil {
+			h.writeJSON(w, http.StatusInternalServerError, map[string]any{"success": false, "error": err.Error()})
+		} else {
+			h.writeJSON(w, http.StatusOK, map[string]any{
+				"success":        true,
+				"message":        fmt.Sprintf("Günlük kalori hedefi %d kcal olarak güncellendi.", target),
+				"target":         target,
+				"calorie_target": target,
+			})
+		}
+		return
+	}
+	http.Redirect(w, r, "/#overview", http.StatusSeeOther)
+}
+
 func (h *Handler) goodreadsImport(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		http.NotFound(w, r)
@@ -189,11 +332,7 @@ func (h *Handler) goodreadsImport(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	result, err := h.services.ImportGoodreadsCSV(r.Context(), text)
-	if err != nil {
-		h.htmlError(w, err)
-		return
-	}
-	h.message(w, fmt.Sprintf("Goodreads import tamam: %d yeni, %d guncel.", result.Inserted, result.Updated))
+	h.importMessage(w, r, "Goodreads", result, err)
 }
 
 func (h *Handler) goodreadsSettings(w http.ResponseWriter, r *http.Request) {
@@ -216,7 +355,7 @@ func (h *Handler) goodreadsSettings(w http.ResponseWriter, r *http.Request) {
 
 func (h *Handler) goodreadsSync(w http.ResponseWriter, r *http.Request) {
 	result, err := h.services.RunConfiguredGoodreadsSync(r.Context())
-	h.syncMessage(w, "Goodreads", result, err)
+	h.syncMessage(w, r, "Goodreads", result, err)
 }
 
 func (h *Handler) letterboxdImport(w http.ResponseWriter, r *http.Request) {
@@ -226,15 +365,11 @@ func (h *Handler) letterboxdImport(w http.ResponseWriter, r *http.Request) {
 	}
 	text, err := uploadedText(r)
 	if err != nil {
-		h.htmlError(w, err)
+		h.importMessage(w, r, "Letterboxd", sqlite.SyncResult{}, err)
 		return
 	}
 	result, err := h.services.ImportLetterboxdCSV(r.Context(), text)
-	if err != nil {
-		h.htmlError(w, err)
-		return
-	}
-	h.message(w, fmt.Sprintf("Letterboxd import tamam: %d yeni, %d guncel.", result.Inserted, result.Updated))
+	h.importMessage(w, r, "Letterboxd", result, err)
 }
 
 func (h *Handler) letterboxdSettings(w http.ResponseWriter, r *http.Request) {
@@ -257,7 +392,7 @@ func (h *Handler) letterboxdSettings(w http.ResponseWriter, r *http.Request) {
 
 func (h *Handler) letterboxdSync(w http.ResponseWriter, r *http.Request) {
 	result, err := h.services.RunConfiguredLetterboxdSync(r.Context())
-	h.syncMessage(w, "Letterboxd", result, err)
+	h.syncMessage(w, r, "Letterboxd", result, err)
 }
 
 func (h *Handler) fatsecretSearch(w http.ResponseWriter, r *http.Request) {
@@ -269,10 +404,65 @@ func (h *Handler) fatsecretSearch(w http.ResponseWriter, r *http.Request) {
 	h.writeJSON(w, http.StatusOK, result)
 }
 
+func (h *Handler) fatsecretSettings(w http.ResponseWriter, r *http.Request) {
+	if r.Method == http.MethodGet {
+		settings, err := h.services.FatSecretSettings(r.Context())
+		if err != nil {
+			h.writeJSON(w, http.StatusInternalServerError, map[string]any{"success": false, "error": err.Error()})
+			return
+		}
+		h.writeJSON(w, http.StatusOK, settings)
+		return
+	}
+	if r.Method != http.MethodPost {
+		http.NotFound(w, r)
+		return
+	}
+	var req struct {
+		ConsumerKey    string `json:"consumer_key"`
+		ConsumerSecret string `json:"consumer_secret"`
+	}
+	_ = r.ParseForm()
+	req.ConsumerKey = r.FormValue("consumer_key")
+	req.ConsumerSecret = r.FormValue("consumer_secret")
+	if req.ConsumerKey == "" || req.ConsumerSecret == "" {
+		_ = json.NewDecoder(r.Body).Decode(&req)
+	}
+	if req.ConsumerKey == "" || req.ConsumerSecret == "" {
+		h.writeJSON(w, http.StatusBadRequest, map[string]any{
+			"success": false,
+			"error":   "consumer_key ve consumer_secret zorunludur",
+		})
+		return
+	}
+	if err := h.services.SaveFatSecretCredentials(r.Context(), req.ConsumerKey, req.ConsumerSecret); err != nil {
+		h.writeJSON(w, http.StatusInternalServerError, map[string]any{"success": false, "error": err.Error()})
+		return
+	}
+	h.writeJSON(w, http.StatusOK, map[string]any{
+		"success": true,
+		"message": "FatSecret anahtarları başarıyla kaydedildi.",
+	})
+}
+
 func (h *Handler) fatsecretConnect(w http.ResponseWriter, r *http.Request) {
+	settings, err := h.services.FatSecretSettings(r.Context())
+	if err != nil || !settings["has_keys"].(bool) {
+		h.htmlError(w, fmt.Errorf("FatSecret API anahtarları eksik. Lütfen Ayarlar sayfasından veya .env dosyasından FATSECRET_CONSUMER_KEY ve FATSECRET_CONSUMER_SECRET alanlarını doldurun."))
+		return
+	}
 	base := config.Env("APP_BASE_URL")
 	if base == "" {
-		base = "http://localhost:" + h.cfg.Port
+		host := r.Host
+		proto := "http"
+		if r.TLS != nil || r.Header.Get("X-Forwarded-Proto") == "https" {
+			proto = "https"
+		}
+		if host != "" {
+			base = proto + "://" + host
+		} else {
+			base = "http://localhost:" + h.cfg.Port
+		}
 	}
 	redirectURL, err := h.services.StartFatSecretConnect(r.Context(), strings.TrimRight(base, "/")+"/fatsecret/callback")
 	if err != nil {
@@ -293,7 +483,31 @@ func (h *Handler) fatsecretCallback(w http.ResponseWriter, r *http.Request) {
 		h.htmlError(w, err)
 		return
 	}
-	h.message(w, "FatSecret baglandi.")
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	_, _ = fmt.Fprint(w, `<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FatSecret Bağlantısı Başarılı</title>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #0b0f19; color: #f3f4f6; display: flex; align-items: center; justify-content: center; min-height: 100vh; margin: 0; padding: 20px; }
+    .card { background: #161e2e; border: 1px solid #2e384d; border-radius: 16px; padding: 32px; max-width: 440px; text-align: center; box-shadow: 0 10px 25px rgba(0,0,0,0.5); }
+    .icon { font-size: 54px; margin-bottom: 16px; }
+    h1 { font-size: 22px; margin-bottom: 12px; color: #10b981; }
+    p { color: #9ca3af; font-size: 15px; line-height: 1.5; margin-bottom: 24px; }
+    .btn { display: inline-block; background: #3b82f6; color: white; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: 600; cursor: pointer; border: none; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="icon">🎉</div>
+    <h1>FatSecret Başarıyla Bağlandı!</h1>
+    <p>Kişisel kayıtlar sisteminiz FatSecret hesabınızla başarıyla eşleştirildi. Bu pencereyi kapatıp uygulamaya dönebilirsiniz.</p>
+    <button class="btn" onclick="window.close()">Pencereyi Kapat</button>
+  </div>
+</body>
+</html>`)
 }
 
 func (h *Handler) fatsecretSync(w http.ResponseWriter, r *http.Request) {
@@ -303,15 +517,72 @@ func (h *Handler) fatsecretSync(w http.ResponseWriter, r *http.Request) {
 	}
 	_ = r.ParseForm()
 	result, err := h.services.SyncFatSecretFoodEntries(r.Context(), formInt(r, "days", 1))
-	h.syncMessage(w, "FatSecret yemek gunlugu", result, err)
+	h.syncMessage(w, r, "FatSecret yemek gunlugu", result, err)
 }
 
-func (h *Handler) syncMessage(w http.ResponseWriter, name string, result sqlite.SyncResult, err error) {
+func (h *Handler) syncMessage(w http.ResponseWriter, r *http.Request, name string, result sqlite.SyncResult, err error) {
+	if isJSONRequest(r) {
+		if err != nil {
+			h.writeJSON(w, http.StatusOK, map[string]any{
+				"success": false,
+				"name":    name,
+				"error":   err.Error(),
+			})
+			return
+		}
+		msg := fmt.Sprintf("%s sync tamam: %d yeni, %d guncel.", name, result.Inserted, result.Updated)
+		if result.Message != "" {
+			msg = fmt.Sprintf("%s sync tamam: %s · %d yeni, %d guncel.", name, result.Message, result.Inserted, result.Updated)
+		}
+		h.writeJSON(w, http.StatusOK, map[string]any{
+			"success":  true,
+			"name":     name,
+			"inserted": result.Inserted,
+			"updated":  result.Updated,
+			"message":  msg,
+		})
+		return
+	}
 	if err != nil {
 		h.htmlError(w, err)
 		return
 	}
-	h.message(w, fmt.Sprintf("%s sync tamam: %d yeni, %d guncel.", name, result.Inserted, result.Updated))
+	msg := fmt.Sprintf("%s sync tamam: %d yeni, %d guncel.", name, result.Inserted, result.Updated)
+	if result.Message != "" {
+		msg = fmt.Sprintf("%s sync tamam: %s · %d yeni, %d guncel.", name, result.Message, result.Inserted, result.Updated)
+	}
+	h.message(w, msg)
+}
+
+func (h *Handler) importMessage(w http.ResponseWriter, r *http.Request, name string, result sqlite.SyncResult, err error) {
+	if isJSONRequest(r) {
+		if err != nil {
+			h.writeJSON(w, http.StatusOK, map[string]any{
+				"success": false,
+				"name":    name,
+				"error":   err.Error(),
+			})
+			return
+		}
+		h.writeJSON(w, http.StatusOK, map[string]any{
+			"success":  true,
+			"name":     name,
+			"inserted": result.Inserted,
+			"updated":  result.Updated,
+			"message":  fmt.Sprintf("%s import tamam: %d yeni, %d guncel.", name, result.Inserted, result.Updated),
+		})
+		return
+	}
+	if err != nil {
+		h.htmlError(w, err)
+		return
+	}
+	h.message(w, fmt.Sprintf("%s import tamam: %d yeni, %d guncel.", name, result.Inserted, result.Updated))
+}
+
+func isJSONRequest(r *http.Request) bool {
+	accept := r.Header.Get("Accept")
+	return strings.Contains(accept, "application/json") || r.Header.Get("X-Requested-With") == "XMLHttpRequest"
 }
 
 func (h *Handler) jsonOrError(w http.ResponseWriter, payload any, err error) {

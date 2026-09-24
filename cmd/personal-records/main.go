@@ -34,8 +34,8 @@ func main() {
 	go syncLoop(context.Background(), services)
 
 	handler := httpserver.NewHandler(cfg, services)
-	addr := "127.0.0.1:" + cfg.Port
-	fmt.Printf("Running at http://localhost:%s\n", cfg.Port)
+	addr := cfg.Host + ":" + cfg.Port
+	fmt.Printf("Running at http://%s:%s (local: http://localhost:%s)\n", cfg.Host, cfg.Port, cfg.Port)
 	log.Fatal(http.ListenAndServe(addr, handler))
 }
 
@@ -50,6 +50,9 @@ func syncLoop(ctx context.Context, services *application.Services) {
 		}
 		if letterboxd.Enabled && letterboxd.FeedURL != "" {
 			_, _ = services.RunConfiguredLetterboxdSync(ctx)
+		}
+		if services.FatSecretConnected(ctx) {
+			_, _ = services.SyncFatSecretFoodEntries(ctx, 3)
 		}
 
 		timer := time.NewTimer(time.Duration(interval) * time.Minute)

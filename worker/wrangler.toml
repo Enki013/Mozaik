@@ -1,0 +1,12 @@
+name = "personal-records-api"
+main = "src/index.ts"
+compatibility_date = "2024-09-23"
+compatibility_flags = ["nodejs_compat"]
+
+[[d1_databases]]
+binding = "DB"
+database_name = "personal-records-db"
+database_id = "b406e475-038f-436a-8e3a-730dbf7098de"
+
+[triggers]
+crons = ["0 */6 * * *"]

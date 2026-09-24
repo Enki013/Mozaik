@@ -19,6 +19,7 @@ type Config struct {
 	Root   string
 	DBPath string
 	Port   string
+	Host   string
 }
 
 func Load() Config {
@@ -30,10 +31,15 @@ func Load() Config {
 	if port == "" {
 		port = "8787"
 	}
+	host := strings.TrimSpace(os.Getenv("HOST"))
+	if host == "" {
+		host = "0.0.0.0"
+	}
 	return Config{
 		Root:   root,
 		DBPath: filepath.Join(root, "personal_records.sqlite3"),
 		Port:   port,
+		Host:   host,
 	}
 }
 

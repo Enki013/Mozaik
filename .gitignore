@@ -1,5 +1,44 @@
+# Environment & Secrets
 .env
+.dev.vars
+*.pem
+*.key
+
+# OS
 .DS_Store
+Thumbs.db
+
+# Databases & Backups
 *.sqlite3
+*.sqlite
+*.db
+*.db-shm
+*.db-wal
+migration_data.sql
+
+# Go
 .gocache/
 /personal-records
+*.exe
+*.test
+
+# Node & Cloudflare Worker
+node_modules/
+.wrangler/
+dist/
+
+# Android & Gradle
+.gradle/
+build/
+app/build/
+android/build/
+android/app/build/
+*/build/
+local.properties
+.idea/
+*.iml
+.cxx/
+*.apk
+*.aab
+*.jks
+*.keystore

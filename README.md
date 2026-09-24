@@ -1,8 +1,16 @@
-# Kisisel Kayitlar
+# Kişisel Kayıtlar (Personal Records)
 
-FatSecret ve Goodreads veri alma prototipi.
+Kişisel beslenme (FatSecret), film günlüğü (Letterboxd) ve kitap okuma (Goodreads) kayıtlarınızı tek bir yerde toplayan, veri egemenliğinizi koruyan açık kaynaklı kişisel takip platformu.
 
-## Calistirma
+> 📖 **Hızlı Başlangıç & Kurulum Rehberi:** Sıfırdan ücretsiz Cloudflare D1 veya yerel Go kurulumu ve Android uygulaması yapılandırması için **[Kurulum ve Kullanım Kılavuzu (SETUP_GUIDE.md)](SETUP_GUIDE.md)** belgesine göz atın.
+
+## Mimariler
+
+1. **Cloudflare Worker + D1 (Bulut & Sıfır Maliyet):** `worker/` dizininde yer alan, 7/24 ücretsiz çalışan serverless API.
+2. **Go Backend + SQLite (Yerel / Kendi Sunucun):** `cmd/personal-records` ile çalışan Clean Architecture Go uygulaması.
+3. **Android Jetpack Compose Mobil Uygulama:** `android/` dizininde, her iki backend ile de dinamik olarak çalışan yerel mobil uygulama.
+
+## Hızlı Çalıştırma (Go Yerel Sunucu)
 
 ```bash
 cp .env.example .env

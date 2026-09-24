@@ -19,8 +19,10 @@ import (
 )
 
 type Client struct {
-	cfg  config.Config
-	http *http.Client
+	cfg            config.Config
+	http           *http.Client
+	consumerKey    string
+	consumerSecret string
 }
 
 func NewClient(cfg config.Config) *Client {
@@ -28,6 +30,55 @@ func NewClient(cfg config.Config) *Client {
 		cfg:  cfg,
 		http: &http.Client{Timeout: 30 * time.Second},
 	}
+}
+
+func (c *Client) SetCredentials(key, secret string) {
+	if c == nil {
+		return
+	}
+	c.consumerKey = strings.TrimSpace(key)
+	c.consumerSecret = strings.TrimSpace(secret)
+}
+
+func (c *Client) HasCredentials() bool {
+	if c == nil {
+		return false
+	}
+	return c.getConsumerKey() != "" && c.getConsumerSecret() != ""
+}
+
+func (c *Client) ConsumerKey() string {
+	if c == nil {
+		return ""
+	}
+	return c.getConsumerKey()
+}
+
+func (c *Client) ConsumerSecret() string {
+	if c == nil {
+		return ""
+	}
+	return c.getConsumerSecret()
+}
+
+func (c *Client) getConsumerKey() string {
+	if c == nil {
+		return config.Env("FATSECRET_CONSUMER_KEY")
+	}
+	if c.consumerKey != "" {
+		return c.consumerKey
+	}
+	return config.Env("FATSECRET_CONSUMER_KEY")
+}
+
+func (c *Client) getConsumerSecret() string {
+	if c == nil {
+		return config.Env("FATSECRET_CONSUMER_SECRET")
+	}
+	if c.consumerSecret != "" {
+		return c.consumerSecret
+	}
+	return config.Env("FATSECRET_CONSUMER_SECRET")
 }
 
 func (c *Client) PublicSearch(query string) (map[string]any, error) {
@@ -39,7 +90,15 @@ func (c *Client) PublicSearch(query string) (map[string]any, error) {
 		return nil, err
 	}
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-	req.SetBasicAuth(config.Env("FATSECRET_CLIENT_ID"), config.Env("FATSECRET_CLIENT_SECRET"))
+	clientID := config.Env("FATSECRET_CLIENT_ID")
+	if clientID == "" {
+		clientID = c.getConsumerKey()
+	}
+	clientSecret := config.Env("FATSECRET_CLIENT_SECRET")
+	if clientSecret == "" {
+		clientSecret = c.getConsumerSecret()
+	}
+	req.SetBasicAuth(clientID, clientSecret)
 	resp, err := c.http.Do(req)
 	if err != nil {
 		return nil, err
@@ -145,7 +204,7 @@ func (c *Client) formRequest(method, endpoint string, form map[string]string) (u
 
 func (c *Client) oauth1Parameters(method, endpoint string, params map[string]string, tokenSecret string) map[string]string {
 	oauth := map[string]string{
-		"oauth_consumer_key":     config.Env("FATSECRET_CONSUMER_KEY"),
+		"oauth_consumer_key":     c.getConsumerKey(),
 		"oauth_nonce":            nonce(),
 		"oauth_signature_method": "HMAC-SHA1",
 		"oauth_timestamp":        fmt.Sprintf("%d", time.Now().Unix()),
@@ -170,7 +229,7 @@ func (c *Client) oauth1Parameters(method, endpoint string, params map[string]str
 		parts = append(parts, percent(key)+"="+percent(all[key]))
 	}
 	base := strings.Join([]string{strings.ToUpper(method), percent(endpoint), percent(strings.Join(parts, "&"))}, "&")
-	signingKey := percent(config.Env("FATSECRET_CONSUMER_SECRET")) + "&" + percent(tokenSecret)
+	signingKey := percent(c.getConsumerSecret()) + "&" + percent(tokenSecret)
 	mac := hmac.New(sha1.New, []byte(signingKey))
 	_, _ = mac.Write([]byte(base))
 	oauth["oauth_signature"] = base64.StdEncoding.EncodeToString(mac.Sum(nil))
