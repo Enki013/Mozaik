@@ -67,4 +67,10 @@ interface ApiService {
     suspend fun saveFatSecretKeys(
         @Body request: SaveFatSecretKeysRequest
     ): SaveFatSecretKeysResponse
+
+    @GET("api/notifications")
+    suspend fun getNotifications(
+        @Query("limit") limit: Int = 100,
+        @Query("package") packageName: String? = null
+    ): NotificationsResponse
 }

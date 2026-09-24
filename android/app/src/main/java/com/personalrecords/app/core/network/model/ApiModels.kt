@@ -247,3 +247,41 @@ data class SaveFatSecretKeysResponse(
     val error: String? = null
 )
 
+@Serializable
+data class NotificationDto(
+    val id: String = "",
+    val package_name: String = "",
+    val app_name: String = "",
+    val title: String = "",
+    val text: String = "",
+    val sub_text: String = "",
+    val big_text: String = "",
+    val category: String = "",
+    val post_time: String = "",
+    val notification_key: String = "",
+    val is_ongoing: Int = 0,
+    val created_at: String = ""
+) {
+    val displayTitle: String
+        get() = if (title.isNotBlank()) title else (if (app_name.isNotBlank()) app_name else package_name)
+
+    val displayBody: String
+        get() = if (text.isNotBlank()) text else (if (big_text.isNotBlank()) big_text else sub_text)
+
+    val displayAppName: String
+        get() = if (app_name.isNotBlank()) app_name else package_name.substringAfterLast('.').replaceFirstChar { it.uppercase() }
+
+    val formattedTime: String
+        get() = if (post_time.length >= 16) post_time.substring(11, 16) else ""
+
+    val formattedDate: String
+        get() = if (post_time.length >= 10) post_time.substring(0, 10) else ""
+}
+
+@Serializable
+data class NotificationsResponse(
+    val count: Int = 0,
+    val items: List<NotificationDto> = emptyList()
+)
+
+

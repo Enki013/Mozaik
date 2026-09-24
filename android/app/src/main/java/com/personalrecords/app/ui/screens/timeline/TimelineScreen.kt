@@ -33,7 +33,8 @@ import java.util.TimeZone
 @Composable
 fun TimelineScreen(
     viewModel: TimelineViewModel,
-    onNavigateToSettings: () -> Unit = {}
+    onNavigateToSettings: () -> Unit = {},
+    onNavigateToNotifications: () -> Unit = {}
 ) {
     val state by viewModel.uiState.collectAsState()
     var showDatePicker by remember { mutableStateOf(false) }
@@ -69,7 +70,37 @@ fun TimelineScreen(
     }
 
     Scaffold(
-        modifier = Modifier.fillMaxSize()
+        modifier = Modifier.fillMaxSize(),
+        topBar = {
+            TopAppBar(
+                title = {
+                    Text(
+                        text = "Zaman Çizelgesi",
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold
+                    )
+                },
+                actions = {
+                    IconButton(onClick = onNavigateToNotifications) {
+                        Icon(
+                            imageVector = Icons.Default.Notifications,
+                            contentDescription = "Bildirimler",
+                            tint = MaterialTheme.colorScheme.onSurface
+                        )
+                    }
+                    IconButton(onClick = onNavigateToSettings) {
+                        Icon(
+                            imageVector = Icons.Default.Settings,
+                            contentDescription = "Ayarlar",
+                            tint = MaterialTheme.colorScheme.onSurface
+                        )
+                    }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.surface
+                )
+            )
+        }
     ) { innerPadding ->
         androidx.compose.material3.pulltorefresh.PullToRefreshBox(
             isRefreshing = state.isLoading && state.dayGroups.isNotEmpty(),
@@ -223,7 +254,8 @@ fun TimelineScreen(
                                 Triple("all", "Tümü", null),
                                 Triple("fatsecret", "Beslenme", Icons.Default.Restaurant),
                                 Triple("goodreads", "Kitaplar", Icons.AutoMirrored.Filled.MenuBook),
-                                Triple("letterboxd", "Filmler", Icons.Default.Movie)
+                                Triple("letterboxd", "Filmler", Icons.Default.Movie),
+                                Triple("notification", "Bildirimler", Icons.Default.Notifications)
                             ).forEach { (key, label, icon) ->
                                 val isSelected = state.selectedSource == key
                                 FilterChip(
@@ -382,6 +414,7 @@ fun TimelineItemCard(item: ActivityItemDto) {
         "fatsecret" -> Icons.Default.Restaurant
         "goodreads" -> Icons.AutoMirrored.Filled.MenuBook
         "letterboxd" -> Icons.Default.Movie
+        "notification" -> Icons.Default.Notifications
         else -> Icons.Default.Bookmark
     }
 

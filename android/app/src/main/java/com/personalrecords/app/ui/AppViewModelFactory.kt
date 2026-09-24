@@ -37,6 +37,9 @@ class AppViewModelFactory : ViewModelProvider.Factory {
             modelClass.isAssignableFrom(SettingsViewModel::class.java) -> {
                 SettingsViewModel(repository, preferences) as T
             }
+            modelClass.isAssignableFrom(com.personalrecords.app.ui.screens.notifications.NotificationsViewModel::class.java) -> {
+                com.personalrecords.app.ui.screens.notifications.NotificationsViewModel(repository) as T
+            }
             else -> throw IllegalArgumentException("Unknown ViewModel class: ${modelClass.name}")
         }
     }

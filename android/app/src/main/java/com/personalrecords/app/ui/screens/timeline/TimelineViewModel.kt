@@ -18,7 +18,7 @@ data class TimelineUiState(
     val selectedDate: String? = null,
     val fromDate: String? = null,
     val toDate: String? = null,
-    val selectedSource: String = "all", // "all", "fatsecret", "goodreads", "letterboxd"
+    val selectedSource: String = "all", // "all", "fatsecret", "goodreads", "letterboxd", "notification"
     val searchQuery: String = "",
     val dayGroups: List<ActivityDayGroupDto> = emptyList(),
     val error: String? = null

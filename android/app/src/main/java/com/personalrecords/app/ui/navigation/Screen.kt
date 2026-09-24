@@ -16,6 +16,7 @@ sealed class Screen(
     object Nutrition : Screen("nutrition", "Beslenme", Icons.Default.Restaurant, "Beslenme")
     object Books : Screen("books", "Kitaplar", Icons.AutoMirrored.Filled.MenuBook, "Kitaplar")
     object Movies : Screen("movies", "Filmler", Icons.Default.Movie, "Filmler")
+    object Notifications : Screen("notifications", "Bildirimler", Icons.Default.Notifications, "Bildirimler")
     object Settings : Screen("settings", "Ayarlar", Icons.Default.Settings, "Ayarlar")
 }
 

@@ -288,4 +288,13 @@ class PersonalRecordsRepository(
             Resource.Error(e.localizedMessage ?: "FatSecret anahtarları kaydedilemedi", e)
         }
     }
+
+    suspend fun getNotifications(limit: Int = 100, packageName: String? = null): Resource<List<NotificationDto>> {
+        return try {
+            val response = api.getNotifications(limit, packageName)
+            Resource.Success(response.items)
+        } catch (e: Exception) {
+            Resource.Error(e.localizedMessage ?: "Bildirimler alınamadı", e)
+        }
+    }
 }
