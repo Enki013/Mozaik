@@ -3,6 +3,7 @@ package application
 import (
 	"context"
 	"encoding/csv"
+	"encoding/json"
 	"encoding/xml"
 	"fmt"
 	"io"
@@ -322,6 +323,50 @@ func (s *Services) ActivityTimelineRange(ctx context.Context, fromDate, toDate s
 					"image_url":      film.ImageURL,
 					"review":         film.Review,
 					"rewatch":        film.Rewatch,
+				},
+			}
+			allItems = append(allItems, item)
+		}
+	}
+
+	// 4. Notifications
+	notifs, err := s.store.QueryNotifications(ctx, limit*3, "")
+	if err == nil {
+		for _, n := range notifs {
+			dateISO, timePart := shared.NormalizeDate(n.PostTime)
+			if dateISO == "" || (minDateISO != "" && dateISO < minDateISO) || (maxDateISO != "" && dateISO > maxDateISO) {
+				continue
+			}
+			title := n.Title
+			if n.AppName != "" {
+				if title != "" {
+					title = n.AppName + ": " + title
+				} else {
+					title = n.AppName
+				}
+			}
+			subtitle := n.Text
+			if subtitle == "" {
+				subtitle = n.BigText
+			}
+			item := ActivityItem{
+				ID:        n.ID,
+				Source:    "notification",
+				Type:      "notification",
+				Date:      dateISO,
+				Time:      timePart,
+				Timestamp: n.PostTime,
+				Title:     title,
+				Subtitle:  subtitle,
+				Details: map[string]any{
+					"id":               n.ID,
+					"package_name":     n.PackageName,
+					"app_name":         n.AppName,
+					"category":         n.Category,
+					"sub_text":         n.SubText,
+					"big_text":         n.BigText,
+					"notification_key": n.NotificationKey,
+					"is_ongoing":       n.IsOngoing,
 				},
 			}
 			allItems = append(allItems, item)
@@ -1260,3 +1305,107 @@ func (s *Services) RecentSyncRuns(ctx context.Context, limit int) ([]sqlite.Sync
 func (s *Services) AllDataExport(ctx context.Context) (map[string]any, error) {
 	return s.store.AllDataExport(ctx)
 }
+
+type NotificationWebhookItem struct {
+	Package         string `json:"package"`
+	PackageName     string `json:"packageName"`
+	App             string `json:"app"`
+	AppName         string `json:"appName"`
+	Title           string `json:"title"`
+	Text            string `json:"text"`
+	SubText         string `json:"sub_text"`
+	SubTextCamel    string `json:"subText"`
+	BigText         string `json:"big_text"`
+	BigTextCamel    string `json:"bigText"`
+	Category        string `json:"category"`
+	PostTime        string `json:"post_time"`
+	PostedAt        string `json:"postedAt"`
+	Key             string `json:"key"`
+	NotificationKey string `json:"notificationKey"`
+	Ongoing         bool   `json:"ongoing"`
+}
+
+func (s *Services) SaveNotificationWebhook(ctx context.Context, payload []byte) (int, int, error) {
+	var items []NotificationWebhookItem
+	if err := json.Unmarshal(payload, &items); err != nil {
+		var single NotificationWebhookItem
+		if err2 := json.Unmarshal(payload, &single); err2 != nil {
+			return 0, 0, fmt.Errorf("gecersiz json: %w", err)
+		}
+		items = []NotificationWebhookItem{single}
+	}
+
+	inserted, updated := 0, 0
+	for _, item := range items {
+		pkg := item.Package
+		if pkg == "" {
+			pkg = item.PackageName
+		}
+		if pkg == "" {
+			pkg = "unknown"
+		}
+		appName := item.App
+		if appName == "" {
+			appName = item.AppName
+		}
+		if appName == "" {
+			appName = pkg
+		}
+		subText := item.SubText
+		if subText == "" {
+			subText = item.SubTextCamel
+		}
+		bigText := item.BigText
+		if bigText == "" {
+			bigText = item.BigTextCamel
+		}
+		postTime := item.PostTime
+		if postTime == "" {
+			postTime = item.PostedAt
+		}
+		if postTime == "" {
+			postTime = time.Now().UTC().Format(time.RFC3339)
+		}
+		key := item.Key
+		if key == "" {
+			key = item.NotificationKey
+		}
+
+		basis := key
+		if basis == "" {
+			basis = pkg + "|" + item.Title + "|" + item.Text + "|" + postTime
+		}
+		id := "notif_" + shared.Hash("notif:", basis, 24)
+
+		n := sqlite.Notification{
+			ID:              id,
+			PackageName:     pkg,
+			AppName:         appName,
+			Title:           item.Title,
+			Text:            item.Text,
+			SubText:         subText,
+			BigText:         bigText,
+			Category:        item.Category,
+			PostTime:        postTime,
+			NotificationKey: key,
+			IsOngoing:       item.Ongoing,
+			RawJSON:         string(payload),
+		}
+
+		status, err := s.store.UpsertNotification(ctx, n)
+		if err != nil {
+			return inserted, updated, err
+		}
+		if status == "updated" {
+			updated++
+		} else if status == "inserted" {
+			inserted++
+		}
+	}
+	return inserted, updated, nil
+}
+
+func (s *Services) Notifications(ctx context.Context, limit int, pkg string) ([]sqlite.Notification, error) {
+	return s.store.QueryNotifications(ctx, limit, pkg)
+}
+

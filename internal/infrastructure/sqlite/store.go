@@ -50,6 +50,22 @@ type GoodreadsBook struct {
 	ImportedAt              string  `json:"imported_at,omitempty"`
 }
 
+type Notification struct {
+	ID              string `json:"id"`
+	PackageName     string `json:"package_name"`
+	AppName         string `json:"app_name"`
+	Title           string `json:"title"`
+	Text            string `json:"text"`
+	SubText         string `json:"sub_text"`
+	BigText         string `json:"big_text"`
+	Category        string `json:"category"`
+	PostTime        string `json:"post_time"`
+	NotificationKey string `json:"notification_key"`
+	IsOngoing       bool   `json:"is_ongoing"`
+	RawJSON         string `json:"raw_json,omitempty"`
+	CreatedAt       string `json:"created_at,omitempty"`
+}
+
 type LetterboxdFilm struct {
 	FilmKey       string  `json:"film_key"`
 	LetterboxdURI string  `json:"letterboxd_uri"`
@@ -163,6 +179,23 @@ func (s *Store) Init(ctx context.Context) error {
 	_, _ = s.db.ExecContext(ctx, "alter table letterboxd_films add column image_url text")
 	_, _ = s.db.ExecContext(ctx, "create table if not exists user_settings (key text primary key, value text not null, updated_at text not null default current_timestamp)")
 	_, _ = s.db.ExecContext(ctx, "insert or ignore into user_settings (key, value) values ('daily_calorie_target', '2200')")
+	_, _ = s.db.ExecContext(ctx, `create table if not exists notifications (
+  id text primary key,
+  package_name text not null,
+  app_name text,
+  title text,
+  text text,
+  sub_text text,
+  big_text text,
+  category text,
+  post_time text not null,
+  notification_key text,
+  is_ongoing integer default 0,
+  raw_json text not null,
+  created_at text not null default current_timestamp
+);
+create index if not exists idx_notifications_post_time on notifications(post_time desc);
+create index if not exists idx_notifications_package on notifications(package_name);`)
 	return nil
 }
 
@@ -175,6 +208,7 @@ func (s *Store) Counts(ctx context.Context) (map[string]int, error) {
 		"goodreads_books":        "select count(*) from goodreads_books",
 		"letterboxd_films":       "select count(*) from letterboxd_films",
 		"fatsecret_food_entries": "select count(*) from fatsecret_food_entries",
+		"notifications":          "select count(*) from notifications",
 		"read_count":             "select count(*) from goodreads_books where exclusive_shelf = 'read'",
 		"to_read_count":          "select count(*) from goodreads_books where exclusive_shelf = 'to-read'",
 		"rated_count":            "select count(*) from goodreads_books where coalesce(my_rating, 0) > 0",
@@ -603,6 +637,65 @@ on conflict(film_key) do update set
 		return "updated", nil
 	}
 	return "inserted", nil
+}
+
+func (s *Store) UpsertNotification(ctx context.Context, n Notification) (string, error) {
+	if n.ID == "" {
+		return "skipped", nil
+	}
+	var exists int
+	_ = s.db.QueryRowContext(ctx, "select 1 from notifications where id = ?", n.ID).Scan(&exists)
+	_, err := s.db.ExecContext(ctx, `
+insert into notifications (
+  id, package_name, app_name, title, text, sub_text, big_text,
+  category, post_time, notification_key, is_ongoing, raw_json, created_at
+) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, current_timestamp)
+on conflict(id) do update set
+  text=excluded.text,
+  sub_text=excluded.sub_text,
+  big_text=excluded.big_text,
+  raw_json=excluded.raw_json`,
+		n.ID, n.PackageName, n.AppName, n.Title, n.Text, n.SubText, n.BigText,
+		n.Category, n.PostTime, n.NotificationKey, n.IsOngoing, n.RawJSON)
+	if err != nil {
+		return "", err
+	}
+	if exists == 1 {
+		return "updated", nil
+	}
+	return "inserted", nil
+}
+
+func (s *Store) QueryNotifications(ctx context.Context, limit int, pkg string) ([]Notification, error) {
+	if limit <= 0 {
+		limit = 50
+	}
+	query := "select id, package_name, coalesce(app_name, ''), coalesce(title, ''), coalesce(text, ''), coalesce(sub_text, ''), coalesce(big_text, ''), coalesce(category, ''), post_time, coalesce(notification_key, ''), is_ongoing, raw_json, created_at from notifications"
+	var rows *sql.Rows
+	var err error
+	if pkg != "" {
+		query += " where package_name = ? order by post_time desc limit ?"
+		rows, err = s.db.QueryContext(ctx, query, pkg, limit)
+	} else {
+		query += " order by post_time desc limit ?"
+		rows, err = s.db.QueryContext(ctx, query, limit)
+	}
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var notifs []Notification
+	for rows.Next() {
+		var n Notification
+		var isOngoing int
+		if err := rows.Scan(&n.ID, &n.PackageName, &n.AppName, &n.Title, &n.Text, &n.SubText, &n.BigText, &n.Category, &n.PostTime, &n.NotificationKey, &isOngoing, &n.RawJSON, &n.CreatedAt); err != nil {
+			return nil, err
+		}
+		n.IsOngoing = isOngoing == 1
+		notifs = append(notifs, n)
+	}
+	return notifs, rows.Err()
 }
 
 func (s *Store) FatSecretAccessToken(ctx context.Context) (*OAuthToken, error) {

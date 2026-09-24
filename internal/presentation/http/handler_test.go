@@ -289,6 +289,86 @@ func TestFatSecretSettingsEndpoints(t *testing.T) {
 	}
 }
 
+func TestNotificationWebhookAndAPI(t *testing.T) {
+	_, _, handler := setupTestServer(t)
+
+	// 1. Post notification
+	payload := `{
+		"package": "com.whatsapp",
+		"appName": "WhatsApp",
+		"title": "Ahmet",
+		"text": "Toplantı saat 15:00",
+		"category": "msg",
+		"post_time": "2026-09-25T15:00:00Z",
+		"key": "msg_key_123"
+	}`
+	req := httptest.NewRequest(http.MethodPost, "/api/webhooks/notification", strings.NewReader(payload))
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200 on webhook post, got %d: %s", rec.Code, rec.Body.String())
+	}
+	var res map[string]any
+	_ = json.NewDecoder(rec.Body).Decode(&res)
+	if res["success"] != true {
+		t.Errorf("expected success true, got %v", res["success"])
+	}
+	if res["inserted"] != float64(1) {
+		t.Errorf("expected 1 inserted, got %v", res["inserted"])
+	}
+
+	// 2. Post same notification again - should update, not duplicate
+	req2 := httptest.NewRequest(http.MethodPost, "/api/webhooks/notification", strings.NewReader(payload))
+	req2.Header.Set("Content-Type", "application/json")
+	rec2 := httptest.NewRecorder()
+	handler.ServeHTTP(rec2, req2)
+
+	if rec2.Code != http.StatusOK {
+		t.Fatalf("expected 200 on second post, got %d: %s", rec2.Code, rec2.Body.String())
+	}
+	var res2 map[string]any
+	_ = json.NewDecoder(rec2.Body).Decode(&res2)
+	if res2["updated"] != float64(1) {
+		t.Errorf("expected 1 updated, got %v", res2["updated"])
+	}
+
+	// 3. GET /api/notifications
+	reqGet := httptest.NewRequest(http.MethodGet, "/api/notifications", nil)
+	recGet := httptest.NewRecorder()
+	handler.ServeHTTP(recGet, reqGet)
+
+	if recGet.Code != http.StatusOK {
+		t.Fatalf("expected 200 on get notifications, got %d: %s", recGet.Code, recGet.Body.String())
+	}
+	var notifList map[string]any
+	_ = json.NewDecoder(recGet.Body).Decode(&notifList)
+	if notifList["count"] != float64(1) {
+		t.Errorf("expected count 1, got %v", notifList["count"])
+	}
+
+	// 4. GET /api/activity
+	reqAct := httptest.NewRequest(http.MethodGet, "/api/activity", nil)
+	recAct := httptest.NewRecorder()
+	handler.ServeHTTP(recAct, reqAct)
+
+	if recAct.Code != http.StatusOK {
+		t.Fatalf("expected 200 on activity, got %d: %s", recAct.Code, recAct.Body.String())
+	}
+	var actRes application.ActivityResponse
+	_ = json.NewDecoder(recAct.Body).Decode(&actRes)
+	if len(actRes.Items) != 1 {
+		t.Fatalf("expected 1 activity item, got %d", len(actRes.Items))
+	}
+	if actRes.Items[0].Source != "notification" {
+		t.Errorf("expected item source 'notification', got %s", actRes.Items[0].Source)
+	}
+	if actRes.Items[0].Title != "WhatsApp: Ahmet" {
+		t.Errorf("expected title 'WhatsApp: Ahmet', got %s", actRes.Items[0].Title)
+	}
+}
+
 func init() {
 	_ = time.Local
 }

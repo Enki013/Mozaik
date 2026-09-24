@@ -125,3 +125,22 @@ CREATE TABLE IF NOT EXISTS user_settings (
 );
 
 INSERT OR IGNORE INTO user_settings (key, value) VALUES ('daily_calorie_target', '2200');
+
+CREATE TABLE IF NOT EXISTS notifications (
+  id TEXT PRIMARY KEY,
+  package_name TEXT NOT NULL,
+  app_name TEXT,
+  title TEXT,
+  text TEXT,
+  sub_text TEXT,
+  big_text TEXT,
+  category TEXT,
+  post_time TEXT NOT NULL,
+  notification_key TEXT,
+  is_ongoing INTEGER DEFAULT 0,
+  raw_json TEXT NOT NULL,
+  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS idx_notifications_post_time ON notifications(post_time DESC);
+CREATE INDEX IF NOT EXISTS idx_notifications_package ON notifications(package_name);
+

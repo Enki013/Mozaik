@@ -73,6 +73,9 @@ func (h *Handler) routes() {
 	h.mux.HandleFunc("/api/settings/calorie-target", h.updateCalorieTarget)
 	h.mux.HandleFunc("/api/settings/fatsecret", h.fatsecretSettings)
 	h.mux.HandleFunc("/settings/fatsecret", h.fatsecretSettings)
+	h.mux.HandleFunc("/api/webhooks/notification", h.notificationWebhook)
+	h.mux.HandleFunc("/api/webhooks/notifications", h.notificationWebhook)
+	h.mux.HandleFunc("/api/notifications", h.notificationsAPI)
 }
 
 func (h *Handler) home(w http.ResponseWriter, r *http.Request) {
@@ -518,6 +521,82 @@ func (h *Handler) fatsecretSync(w http.ResponseWriter, r *http.Request) {
 	_ = r.ParseForm()
 	result, err := h.services.SyncFatSecretFoodEntries(r.Context(), formInt(r, "days", 1))
 	h.syncMessage(w, r, "FatSecret yemek gunlugu", result, err)
+}
+
+func (h *Handler) notificationWebhook(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	expectedSecret := config.Env("WEBHOOK_SECRET")
+	if expectedSecret != "" {
+		clientSecret := r.Header.Get("X-Webhook-Secret")
+		if clientSecret == "" {
+			authHeader := r.Header.Get("Authorization")
+			if strings.HasPrefix(strings.ToLower(authHeader), "bearer ") {
+				clientSecret = strings.TrimSpace(authHeader[7:])
+			}
+		}
+		if clientSecret != expectedSecret {
+			h.writeJSON(w, http.StatusUnauthorized, map[string]any{
+				"success": false,
+				"error":   "Yetkisiz istek: Webhook Secret gecersiz",
+			})
+			return
+		}
+	}
+
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
+		h.writeJSON(w, http.StatusBadRequest, map[string]any{
+			"success": false,
+			"error":   "Govde okunamadi",
+		})
+		return
+	}
+
+	inserted, updated, err := h.services.SaveNotificationWebhook(r.Context(), body)
+	if err != nil {
+		h.writeJSON(w, http.StatusBadRequest, map[string]any{
+			"success": false,
+			"error":   err.Error(),
+		})
+		return
+	}
+
+	h.writeJSON(w, http.StatusOK, map[string]any{
+		"success":  true,
+		"inserted": inserted,
+		"updated":  updated,
+		"message":  fmt.Sprintf("%d bildirim basariyla islendi (%d yeni, %d guncellendi).", inserted+updated, inserted, updated),
+	})
+}
+
+func (h *Handler) notificationsAPI(w http.ResponseWriter, r *http.Request) {
+	limit := 50
+	if l := r.URL.Query().Get("limit"); l != "" {
+		if parsed, err := strconv.Atoi(l); err == nil && parsed > 0 {
+			limit = parsed
+		}
+	}
+	if limit > 200 {
+		limit = 200
+	}
+	pkg := r.URL.Query().Get("package")
+
+	notifs, err := h.services.Notifications(r.Context(), limit, pkg)
+	if err != nil {
+		h.writeJSON(w, http.StatusInternalServerError, map[string]any{
+			"error": err.Error(),
+		})
+		return
+	}
+
+	h.writeJSON(w, http.StatusOK, map[string]any{
+		"count": len(notifs),
+		"items": notifs,
+	})
 }
 
 func (h *Handler) syncMessage(w http.ResponseWriter, r *http.Request, name string, result sqlite.SyncResult, err error) {

@@ -139,8 +139,27 @@ Kendi bilgisayarınızda veya ev sunucunuzda çalıştırmak isterseniz:
 
 ---
 
+## 🔔 5. Adım: Android Bildirimlerini İletme (Notification Relay Webhook)
+
+Telefonunuza gelen bildirimleri (örneğin WhatsApp, banka harcamaları, kargo takipleri, sağlık uygulaması uyarıları) otomatik olarak kişisel günlüğünüze kaydetmek için:
+
+1. Telefonunuza açık kaynaklı **[Notification Relay Webhook](https://github.com/cobanov/notification-relay-webhook)** uygulamasını indirin:
+   - [GitHub Releases](https://github.com/cobanov/notification-relay-webhook/releases) sayfasından en son `.apk` dosyasını indirin veya Obtainium ile kurun.
+2. Uygulamayı açın ve istendiğinde **Bildirim Erişimi (Notification Access)** iznini açın.
+3. **Webhooks** sekmesine gidin ve `+` butonuna basarak yeni bir Webhook ekleyin:
+   - **URL:** `https://personal-records-api.enessalman1300.workers.dev/api/webhooks/notification`
+     *(Veya yerel Go sunucunuz için `http://192.168.1.xxx:8787/api/webhooks/notification`)*
+   - **Headers (İsteğe bağlı):** Eğer sunucunuzda `WEBHOOK_SECRET` tanımladıysanız `X-Webhook-Secret: gizli_sifreniz` ekleyebilirsiniz.
+4. **Test** butonuna basın. Başarılı olduğunu belirten yeşil bildirim çıktığında bağlantı tamamlanmıştır!
+5. **Filtreleme Ayarları:**
+   - Hangi uygulamaların bildirimlerinin kaydedileceğini seçebilirsiniz (örneğin sadece bankacılık, sağlık veya tüm uygulamalar).
+6. **Sonuç:** Bildirimleriniz anında veritabanınıza kaydedilir ve Kişisel Kayıtlar uygulamasının **Zaman Çizelgesi (Timeline)** akışında otomatik olarak görünür.
+
+---
+
 ## 🛡️ Veri Egemenliği ve Yedekleme
 
 Verileriniz tamamen size aittir:
-- **JSON Dışa Aktar:** Ayarlar ekranındaki "JSON İndir" butonuna tıklayarak beslenme, film ve kitap verilerinizi tek bir JSON dosyasında cihazınızın `Downloads` klasörüne indirebilirsiniz.
+- **JSON Dışa Aktar:** Ayarlar ekranındaki "JSON İndir" butonuna tıklayarak beslenme, film, kitap ve bildirim verilerinizi tek bir JSON dosyasında cihazınızın `Downloads` klasörüne indirebilirsiniz.
 - **SQLite (.db) İndir:** "SQLite (.db) İndir" butonuna tıklayarak doğrudan ham veritabanınızı alıp istediğiniz yerde saklayabilirsiniz.
+

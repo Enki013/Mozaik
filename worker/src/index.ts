@@ -59,10 +59,11 @@ app.get("/api/health", async (c) => {
 app.get("/api/dashboard", async (c) => {
   const db = c.env.DB;
 
-  const [booksCount, filmsCount, foodsCount] = await Promise.all([
+  const [booksCount, filmsCount, foodsCount, notifCount] = await Promise.all([
     db.prepare("SELECT count(*) as c FROM goodreads_books").first<any>(),
     db.prepare("SELECT count(*) as c FROM letterboxd_films").first<any>(),
     db.prepare("SELECT count(*) as c FROM fatsecret_food_entries").first<any>(),
+    db.prepare("SELECT count(*) as c FROM notifications").first<any>(),
   ]);
 
   const today = todayDateInt();
@@ -91,6 +92,7 @@ app.get("/api/dashboard", async (c) => {
       goodreads_books: booksCount?.c || 0,
       letterboxd_films: filmsCount?.c || 0,
       fatsecret_food_entries: foodsCount?.c || 0,
+      notifications: notifCount?.c || 0,
     },
     today: {
       date: dateIntToISO(today),
@@ -252,6 +254,40 @@ app.get("/api/activity", async (c) => {
         review: flm.review,
         image_url: flm.image_url,
         letterboxd_uri: flm.letterboxd_uri,
+      },
+    });
+  }
+
+  // Notifications
+  const notifs = await db
+    .prepare("SELECT * FROM notifications ORDER BY post_time DESC LIMIT ?")
+    .bind(limit)
+    .all<any>();
+
+  for (const n of notifs.results) {
+    const dISO = n.post_time ? n.post_time.substring(0, 10) : "";
+    if (!dISO) continue;
+    if (minDateISO && dISO < minDateISO) continue;
+    if (maxDateISO && dISO > maxDateISO) continue;
+
+    allItems.push({
+      id: n.id,
+      source: "notification",
+      type: "notification",
+      date: dISO,
+      time: n.post_time.length >= 16 ? n.post_time.substring(11, 16) : "",
+      timestamp: n.post_time,
+      title: n.title ? `${n.app_name ? n.app_name + ": " : ""}${n.title}` : (n.app_name || n.package_name),
+      subtitle: n.text || n.big_text || n.sub_text || "",
+      details: {
+        id: n.id,
+        package_name: n.package_name,
+        app_name: n.app_name,
+        category: n.category,
+        sub_text: n.sub_text,
+        big_text: n.big_text,
+        notification_key: n.notification_key,
+        is_ongoing: n.is_ongoing === 1,
       },
     });
   }
@@ -1089,6 +1125,114 @@ const exportSqlHandler = async (c: any) => {
 
 app.get("/api/export/sql", exportSqlHandler);
 app.get("/api/export/db", exportSqlHandler);
+
+// 13. Notification Relay Webhook (cobanov/notification-relay-webhook)
+const handleNotificationWebhook = async (c: any) => {
+  // Optional Secret Header Validation
+  const expectedSecret = (c.env as any).WEBHOOK_SECRET;
+  if (expectedSecret) {
+    const clientSecret = c.req.header("X-Webhook-Secret") || c.req.header("Authorization")?.replace(/^Bearer\s+/i, "");
+    if (clientSecret !== expectedSecret) {
+      return c.json({ success: false, error: "Yetkisiz istek: Webhook Secret geçersiz" }, 401);
+    }
+  }
+
+  let body: any;
+  try {
+    body = await c.req.json();
+  } catch (e: any) {
+    return c.json({ success: false, error: "Geçersiz JSON gövdesi: " + e.message }, 400);
+  }
+
+  const items = Array.isArray(body) ? body : [body];
+  let inserted = 0;
+  let updated = 0;
+
+  for (const item of items) {
+    const packageName = item.package || item.packageName || "unknown";
+    const appName = item.app || item.appName || packageName;
+    const title = item.title || "";
+    const text = item.text || "";
+    const subText = item.sub_text || item.subText || "";
+    const bigText = item.big_text || item.bigText || "";
+    const category = item.category || "";
+    const postTime = item.post_time || item.postedAt || new Date().toISOString();
+    const notifKey = item.key || item.notificationKey || "";
+    const isOngoing = item.ongoing ? 1 : 0;
+
+    // Deterministic ID for idempotency & deduplication
+    const idBasis = notifKey || (packageName + "|" + title + "|" + text + "|" + postTime);
+    const id = "notif_" + hashStr(idBasis);
+
+    const existing = await c.env.DB
+      .prepare("SELECT id FROM notifications WHERE id = ?")
+      .bind(id)
+      .first<any>();
+
+    await c.env.DB.prepare(`
+      INSERT INTO notifications (
+        id, package_name, app_name, title, text, sub_text, big_text,
+        category, post_time, notification_key, is_ongoing, raw_json, created_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+      ON CONFLICT(id) DO UPDATE SET
+        text=excluded.text,
+        sub_text=excluded.sub_text,
+        big_text=excluded.big_text,
+        raw_json=excluded.raw_json
+    `).bind(
+      id,
+      packageName,
+      appName,
+      title,
+      text,
+      subText,
+      bigText,
+      category,
+      postTime,
+      notifKey,
+      isOngoing,
+      JSON.stringify(item)
+    ).run();
+
+    if (existing) updated++;
+    else inserted++;
+  }
+
+  return c.json({
+    success: true,
+    inserted,
+    updated,
+    total: items.length,
+    message: `${items.length} bildirim başarıyla işlendi (${inserted} yeni, ${updated} güncellendi).`
+  });
+};
+
+app.post("/api/webhooks/notification", handleNotificationWebhook);
+app.post("/api/webhooks/notifications", handleNotificationWebhook);
+
+// 14. Query Notifications API
+app.get("/api/notifications", async (c) => {
+  const limit = Math.min(parseInt(c.req.query("limit") || "50", 10), 200);
+  const pkg = c.req.query("package");
+
+  let query = "SELECT * FROM notifications";
+  const params: any[] = [];
+  if (pkg) {
+    query += " WHERE package_name = ?";
+    params.push(pkg);
+  }
+  query += " ORDER BY post_time DESC LIMIT ?";
+  params.push(limit);
+
+  const stmt = c.env.DB.prepare(query);
+  const result = params.length === 2 ? await stmt.bind(params[0], params[1]).all<any>() : await stmt.bind(params[0]).all<any>();
+
+  return c.json({
+    count: result.results.length,
+    items: result.results,
+  });
+});
+
 
 // Simple Tag Extractor helper
 function extractTag(xml: string, tag: string): string {

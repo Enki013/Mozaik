@@ -100,7 +100,7 @@ Birleşik zaman çizelgesi (Activity Timeline) için Kotlin istemcisinin kullana
   ```
 
 
-## Sync endpoints
+## Sync & Webhook endpoints
 
 ```text
 POST /api/sync/fatsecret
@@ -114,9 +114,33 @@ POST /api/sync/goodreads
 POST /api/sync/letterboxd
 ```
 
+### Notification Webhooks
+
+Android bildirimlerini yakalamak için (`cobanov/notification-relay-webhook` ile uyumlu):
+
+```text
+POST /api/webhooks/notification
+Content-Type: application/json
+Optional Header: X-Webhook-Secret: <secret>
+
+{
+  "package": "com.whatsapp",
+  "appName": "WhatsApp",
+  "title": "Ahmet",
+  "text": "Toplantı saat 15:00",
+  "category": "msg",
+  "post_time": "2026-09-25T15:00:00Z",
+  "key": "msg_123"
+}
+```
+
+Kayıtlı bildirimleri listeleme:
+```text
+GET /api/notifications?limit=50&package=com.whatsapp
+```
+
 ## Notes
 
-- Secrets stay on the backend. Mobile clients should never store FatSecret keys.
-- CSV import remains in the web UI for now.
-- This is the first API layer. The next migration step is moving this surface to
-  FastAPI with the same JSON contracts.
+- Secrets stay on the backend or are entered once via app settings (BYOK).
+- CSV imports are available via web UI and `/letterboxd/import`.
+
