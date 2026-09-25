@@ -36,7 +36,7 @@ import java.time.LocalDate
 @Composable
 fun NotificationsScreen(
     viewModel: NotificationsViewModel,
-    onNavigateBack: () -> Unit = {},
+    onNavigateBack: (() -> Unit)? = null,
     onNavigateToSettings: () -> Unit = {}
 ) {
     val state by viewModel.uiState.collectAsState()
@@ -55,11 +55,13 @@ fun NotificationsScreen(
                     )
                 },
                 navigationIcon = {
-                    IconButton(onClick = onNavigateBack) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Geri"
-                        )
+                    if (onNavigateBack != null) {
+                        IconButton(onClick = onNavigateBack) {
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                                contentDescription = "Geri"
+                            )
+                        }
                     }
                 },
                 actions = {

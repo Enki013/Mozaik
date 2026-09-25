@@ -33,8 +33,7 @@ import java.util.TimeZone
 @Composable
 fun TimelineScreen(
     viewModel: TimelineViewModel,
-    onNavigateToSettings: () -> Unit = {},
-    onNavigateToNotifications: () -> Unit = {}
+    onNavigateToSettings: () -> Unit = {}
 ) {
     val state by viewModel.uiState.collectAsState()
     var showDatePicker by remember { mutableStateOf(false) }
@@ -81,13 +80,6 @@ fun TimelineScreen(
                     )
                 },
                 actions = {
-                    IconButton(onClick = onNavigateToNotifications) {
-                        Icon(
-                            imageVector = Icons.Default.Notifications,
-                            contentDescription = "Bildirimler",
-                            tint = MaterialTheme.colorScheme.onSurface
-                        )
-                    }
                     IconButton(onClick = onNavigateToSettings) {
                         Icon(
                             imageVector = Icons.Default.Settings,

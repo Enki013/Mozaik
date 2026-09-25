@@ -57,7 +57,7 @@ fun MainAppHost() {
                             Icon(
                                 screen.icon,
                                 contentDescription = screen.title,
-                                modifier = Modifier.size(22.dp)
+                                modifier = Modifier.size(20.dp)
                             )
                         },
                         label = {
@@ -100,12 +100,6 @@ fun MainAppHost() {
             }
         }
 
-        val onNavigateToNotifications: () -> Unit = {
-            navController.navigate(Screen.Notifications.route) {
-                launchSingleTop = true
-            }
-        }
-
         NavHost(
             navController = navController,
             startDestination = Screen.Overview.route,
@@ -142,8 +136,7 @@ fun MainAppHost() {
                             restoreState = true
                         }
                     },
-                    onNavigateToSettings = onNavigateToSettings,
-                    onNavigateToNotifications = onNavigateToNotifications
+                    onNavigateToSettings = onNavigateToSettings
                 )
             }
 
@@ -151,8 +144,7 @@ fun MainAppHost() {
                 val vm: TimelineViewModel = viewModel(factory = AppViewModelFactory())
                 TimelineScreen(
                     viewModel = vm,
-                    onNavigateToSettings = onNavigateToSettings,
-                    onNavigateToNotifications = onNavigateToNotifications
+                    onNavigateToSettings = onNavigateToSettings
                 )
             }
 
@@ -183,7 +175,7 @@ fun MainAppHost() {
                 val vm: com.personalrecords.app.ui.screens.notifications.NotificationsViewModel = viewModel(factory = AppViewModelFactory())
                 com.personalrecords.app.ui.screens.notifications.NotificationsScreen(
                     viewModel = vm,
-                    onNavigateBack = { navController.popBackStack() },
+                    onNavigateBack = null,
                     onNavigateToSettings = onNavigateToSettings
                 )
             }

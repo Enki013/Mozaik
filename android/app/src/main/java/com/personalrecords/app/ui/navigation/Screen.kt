@@ -16,7 +16,7 @@ sealed class Screen(
     object Nutrition : Screen("nutrition", "Beslenme", Icons.Default.Restaurant, "Beslenme")
     object Books : Screen("books", "Kitaplar", Icons.AutoMirrored.Filled.MenuBook, "Kitaplar")
     object Movies : Screen("movies", "Filmler", Icons.Default.Movie, "Filmler")
-    object Notifications : Screen("notifications", "Bildirimler", Icons.Default.Notifications, "Bildirimler")
+    object Notifications : Screen("notifications", "Bildirimler", Icons.Default.Notifications, "Bildirim")
     object Settings : Screen("settings", "Ayarlar", Icons.Default.Settings, "Ayarlar")
 }
 
@@ -25,5 +25,6 @@ val bottomNavScreens = listOf(
     Screen.Timeline,
     Screen.Nutrition,
     Screen.Books,
-    Screen.Movies
+    Screen.Movies,
+    Screen.Notifications
 )
