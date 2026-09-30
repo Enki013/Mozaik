@@ -354,6 +354,8 @@ fun DayGroupCard(group: ActivityDayGroupDto) {
 
     val totalCal = group.summary["total_calories"]?.toString()?.replace("\"", "")
     val hasMultipleSections = sections.size > 1
+    val singleSource = sections.keys.firstOrNull()
+    val isOnlyFood = !hasMultipleSections && singleSource == "fatsecret"
 
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -385,9 +387,11 @@ fun DayGroupCard(group: ActivityDayGroupDto) {
                     )
                 }
 
-                // If only food exists in this day, show calorie badge in the header.
-                // If multiple sections exist, show overall activity count here, and calories in the Beslenme section header!
-                if (!hasMultipleSections && totalCal != null && totalCal != "0") {
+                // Header Badges:
+                // Calories are ONLY shown if this day only contains food.
+                // Mixed days show overall activity count.
+                // Specific single domains (notifications, books, movies) show their own specific count badges.
+                if (isOnlyFood && totalCal != null && totalCal != "0") {
                     Surface(
                         shape = CircleShape,
                         color = domainNutritionContainer()
@@ -408,6 +412,41 @@ fun DayGroupCard(group: ActivityDayGroupDto) {
                         Text(
                             text = "${group.items.size} aktivite",
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            style = MaterialTheme.typography.labelSmall,
+                            fontWeight = FontWeight.Medium,
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
+                        )
+                    }
+                } else if (singleSource != null && singleSource != "fatsecret") {
+                    val (badgeText, badgeBg, badgeFg) = when (singleSource) {
+                        "notification" -> Triple(
+                            "${group.items.size} bildirim",
+                            MaterialTheme.colorScheme.secondaryContainer,
+                            MaterialTheme.colorScheme.onSecondaryContainer
+                        )
+                        "letterboxd" -> Triple(
+                            "${group.items.size} film",
+                            CinemaAccentContainer,
+                            CinemaAccentOnContainer
+                        )
+                        "goodreads" -> Triple(
+                            "${group.items.size} kitap",
+                            MaterialTheme.colorScheme.tertiaryContainer,
+                            MaterialTheme.colorScheme.onTertiaryContainer
+                        )
+                        else -> Triple(
+                            "${group.items.size} kayıt",
+                            MaterialTheme.colorScheme.surfaceContainerHigh,
+                            MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    Surface(
+                        shape = CircleShape,
+                        color = badgeBg
+                    ) {
+                        Text(
+                            text = badgeText,
+                            color = badgeFg,
                             style = MaterialTheme.typography.labelSmall,
                             fontWeight = FontWeight.Medium,
                             modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
@@ -486,6 +525,32 @@ fun DayGroupCard(group: ActivityDayGroupDto) {
                                 Text(
                                     text = "${items.size} bildirim",
                                     color = MaterialTheme.colorScheme.onSecondaryContainer,
+                                    style = MaterialTheme.typography.labelSmall,
+                                    fontWeight = FontWeight.Medium,
+                                    modifier = Modifier.padding(horizontal = 7.dp, vertical = 2.dp)
+                                )
+                            }
+                        } else if (source == "letterboxd") {
+                            Surface(
+                                shape = CircleShape,
+                                color = CinemaAccentContainer
+                            ) {
+                                Text(
+                                    text = "${items.size} film",
+                                    color = CinemaAccentOnContainer,
+                                    style = MaterialTheme.typography.labelSmall,
+                                    fontWeight = FontWeight.Medium,
+                                    modifier = Modifier.padding(horizontal = 7.dp, vertical = 2.dp)
+                                )
+                            }
+                        } else if (source == "goodreads") {
+                            Surface(
+                                shape = CircleShape,
+                                color = MaterialTheme.colorScheme.tertiaryContainer
+                            ) {
+                                Text(
+                                    text = "${items.size} kitap",
+                                    color = MaterialTheme.colorScheme.onTertiaryContainer,
                                     style = MaterialTheme.typography.labelSmall,
                                     fontWeight = FontWeight.Medium,
                                     modifier = Modifier.padding(horizontal = 7.dp, vertical = 2.dp)
@@ -627,7 +692,7 @@ fun TimelineItemCard(item: ActivityItemDto) {
                 }
             }
             val cal = item.details["calories"]?.toString()?.replace("\"", "")
-            if (cal != null && cal != "0" && cal != "null") {
+            if (item.source == "fatsecret" && cal != null && cal != "0" && cal != "null") {
                 Text(
                     text = "$cal kcal",
                     style = MaterialTheme.typography.labelSmall,
