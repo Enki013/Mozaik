@@ -85,9 +85,17 @@ fun TimelineScreen(
             )
         }
     ) { innerPadding ->
+        var isRefreshing by remember { mutableStateOf(false) }
+        LaunchedEffect(state.isLoading) {
+            if (!state.isLoading) isRefreshing = false
+        }
+
         androidx.compose.material3.pulltorefresh.PullToRefreshBox(
-            isRefreshing = state.isLoading && state.dayGroups.isNotEmpty(),
-            onRefresh = { viewModel.loadData() },
+            isRefreshing = isRefreshing,
+            onRefresh = {
+                isRefreshing = true
+                viewModel.loadData()
+            },
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
@@ -110,7 +118,7 @@ fun TimelineScreen(
                     .fillMaxSize()
                     .padding(horizontal = 12.dp),
                 contentPadding = PaddingValues(top = 10.dp, bottom = 12.dp),
-                verticalArrangement = Arrangement.spacedBy(6.dp)
+                verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 // MD3 Search Bar (scrollable)
                 item {
@@ -293,15 +301,18 @@ fun TimelineScreen(
                     }
                 }
 
-                if (state.isLoading && state.dayGroups.isEmpty()) {
+                if (state.isLoading && !isRefreshing) {
                     item {
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .height(200.dp),
+                                .height(240.dp),
                             contentAlignment = Alignment.Center
                         ) {
-                            CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
+                            CircularProgressIndicator(
+                                color = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(36.dp)
+                            )
                         }
                     }
                 } else if (filteredGroups.isEmpty()) {
