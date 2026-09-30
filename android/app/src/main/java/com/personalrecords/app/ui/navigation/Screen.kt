@@ -11,20 +11,21 @@ sealed class Screen(
     val icon: ImageVector,
     val navLabel: String = title
 ) {
-    object Overview : Screen("overview", "Genel Bakış", Icons.Default.Dashboard, "Genel")
+    object Overview : Screen("overview", "Genel Bakış", Icons.Default.Dashboard, "Özet")
     object Timeline : Screen("timeline", "Zaman Çizelgesi", Icons.Default.Timeline, "Zaman")
+    object Records : Screen("records", "Kayıtlar", Icons.Default.Folder, "Kayıtlar")
+    object Settings : Screen("settings", "Ayarlar", Icons.Default.Settings, "Ayarlar")
+
+    // Domain Detail Screens
     object Nutrition : Screen("nutrition", "Beslenme", Icons.Default.Restaurant, "Beslenme")
     object Books : Screen("books", "Kitaplar", Icons.AutoMirrored.Filled.MenuBook, "Kitaplar")
     object Movies : Screen("movies", "Filmler", Icons.Default.Movie, "Filmler")
-    object Notifications : Screen("notifications", "Bildirimler", Icons.Default.Notifications, "Bildirim")
-    object Settings : Screen("settings", "Ayarlar", Icons.Default.Settings, "Ayarlar")
+    object Notifications : Screen("notifications", "Bildirimler", Icons.Default.Notifications, "Bildirimler")
 }
 
 val bottomNavScreens = listOf(
     Screen.Overview,
     Screen.Timeline,
-    Screen.Nutrition,
-    Screen.Books,
-    Screen.Movies,
-    Screen.Notifications
+    Screen.Records,
+    Screen.Settings
 )

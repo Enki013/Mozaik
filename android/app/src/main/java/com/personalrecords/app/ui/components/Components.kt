@@ -2,6 +2,7 @@ package com.personalrecords.app.ui.components
 
 import android.annotation.SuppressLint
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.*
@@ -36,10 +37,16 @@ fun MetricCard(
     valueIcon: ImageVector? = null,
     valueIconTint: Color = MaterialTheme.colorScheme.primary,
     noteIcon: ImageVector? = null,
-    noteIconTint: Color? = null
+    noteIconTint: Color? = null,
+    onClick: (() -> Unit)? = null
 ) {
+    val cardModifier = if (onClick != null) {
+        modifier.fillMaxWidth().clickable(onClick = onClick)
+    } else {
+        modifier.fillMaxWidth()
+    }
     Card(
-        modifier = modifier.fillMaxWidth(),
+        modifier = cardModifier,
         shape = MaterialTheme.shapes.medium,
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surfaceContainerLow

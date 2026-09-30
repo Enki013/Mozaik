@@ -21,8 +21,10 @@ import com.personalrecords.app.ui.navigation.Screen
 import com.personalrecords.app.ui.navigation.bottomNavScreens
 import com.personalrecords.app.ui.screens.books.*
 import com.personalrecords.app.ui.screens.movies.*
+import com.personalrecords.app.ui.screens.notifications.*
 import com.personalrecords.app.ui.screens.nutrition.*
 import com.personalrecords.app.ui.screens.overview.*
+import com.personalrecords.app.ui.screens.records.*
 import com.personalrecords.app.ui.screens.settings.*
 import com.personalrecords.app.ui.screens.timeline.*
 
@@ -136,6 +138,10 @@ fun MainAppHost() {
                             restoreState = true
                         }
                     },
+                    onNavigateToNutrition = { navController.navigate(Screen.Nutrition.route) },
+                    onNavigateToBooks = { navController.navigate(Screen.Books.route) },
+                    onNavigateToMovies = { navController.navigate(Screen.Movies.route) },
+                    onNavigateToNotifications = { navController.navigate(Screen.Notifications.route) },
                     onNavigateToSettings = onNavigateToSettings
                 )
             }
@@ -148,10 +154,24 @@ fun MainAppHost() {
                 )
             }
 
+            composable(Screen.Records.route) {
+                val vm: RecordsViewModel = viewModel(factory = AppViewModelFactory())
+                RecordsScreen(
+                    viewModel = vm,
+                    onNavigateToNutrition = { navController.navigate(Screen.Nutrition.route) },
+                    onNavigateToBooks = { navController.navigate(Screen.Books.route) },
+                    onNavigateToMovies = { navController.navigate(Screen.Movies.route) },
+                    onNavigateToNotifications = { navController.navigate(Screen.Notifications.route) },
+                    onNavigateToSettings = onNavigateToSettings
+                )
+            }
+
             composable(Screen.Nutrition.route) {
                 val vm: NutritionViewModel = viewModel(factory = AppViewModelFactory())
                 NutritionScreen(
-                    viewModel = vm
+                    viewModel = vm,
+                    onNavigateBack = { navController.popBackStack() },
+                    onNavigateToSettings = onNavigateToSettings
                 )
             }
 
@@ -159,6 +179,7 @@ fun MainAppHost() {
                 val vm: BooksViewModel = viewModel(factory = AppViewModelFactory())
                 BooksScreen(
                     viewModel = vm,
+                    onNavigateBack = { navController.popBackStack() },
                     onNavigateToSettings = onNavigateToSettings
                 )
             }
@@ -167,15 +188,16 @@ fun MainAppHost() {
                 val vm: MoviesViewModel = viewModel(factory = AppViewModelFactory())
                 MoviesScreen(
                     viewModel = vm,
+                    onNavigateBack = { navController.popBackStack() },
                     onNavigateToSettings = onNavigateToSettings
                 )
             }
 
             composable(Screen.Notifications.route) {
-                val vm: com.personalrecords.app.ui.screens.notifications.NotificationsViewModel = viewModel(factory = AppViewModelFactory())
-                com.personalrecords.app.ui.screens.notifications.NotificationsScreen(
+                val vm: NotificationsViewModel = viewModel(factory = AppViewModelFactory())
+                NotificationsScreen(
                     viewModel = vm,
-                    onNavigateBack = null,
+                    onNavigateBack = { navController.popBackStack() },
                     onNavigateToSettings = onNavigateToSettings
                 )
             }

@@ -28,6 +28,10 @@ import com.personalrecords.app.ui.components.*
 fun OverviewScreen(
     viewModel: OverviewViewModel,
     onNavigateToTimeline: () -> Unit,
+    onNavigateToNutrition: () -> Unit = {},
+    onNavigateToBooks: () -> Unit = {},
+    onNavigateToMovies: () -> Unit = {},
+    onNavigateToNotifications: () -> Unit = {},
     onNavigateToSettings: () -> Unit = {}
 ) {
     val state by viewModel.uiState.collectAsState()
@@ -53,6 +57,13 @@ fun OverviewScreen(
                     )
                 },
                 actions = {
+                    IconButton(onClick = onNavigateToNotifications) {
+                        Icon(
+                            imageVector = Icons.Default.Notifications,
+                            contentDescription = "Bildirimler",
+                            tint = MaterialTheme.colorScheme.onSurface
+                        )
+                    }
                     IconButton(onClick = onNavigateToSettings) {
                         Icon(
                             imageVector = Icons.Default.Settings,
@@ -131,7 +142,8 @@ fun OverviewScreen(
                                 note = "$todayEntries öğün kaydı",
                                 modifier = Modifier.weight(1f),
                                 badgeBg = domainNutritionContainer(),
-                                badgeColor = domainNutritionOnContainer()
+                                badgeColor = domainNutritionOnContainer(),
+                                onClick = onNavigateToNutrition
                             )
                             MetricCard(
                                 title = "Kütüphane",
@@ -140,7 +152,8 @@ fun OverviewScreen(
                                 note = "Toplam kayıtlı",
                                 modifier = Modifier.weight(1f),
                                 badgeBg = domainBooksContainer(),
-                                badgeColor = domainBooksOnContainer()
+                                badgeColor = domainBooksOnContainer(),
+                                onClick = onNavigateToBooks
                             )
                         }
                         Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -151,7 +164,8 @@ fun OverviewScreen(
                                 note = "Toplam film",
                                 modifier = Modifier.weight(1f),
                                 badgeBg = domainCinemaContainer(),
-                                badgeColor = domainCinemaOnContainer()
+                                badgeColor = domainCinemaOnContainer(),
+                                onClick = onNavigateToMovies
                             )
                             MetricCard(
                                 title = "Yemek Günlüğü",
@@ -160,7 +174,8 @@ fun OverviewScreen(
                                 note = "Tüm öğünler",
                                 modifier = Modifier.weight(1f),
                                 badgeBg = domainNutritionContainer(),
-                                badgeColor = domainNutritionOnContainer()
+                                badgeColor = domainNutritionOnContainer(),
+                                onClick = onNavigateToNutrition
                             )
                         }
                     }
