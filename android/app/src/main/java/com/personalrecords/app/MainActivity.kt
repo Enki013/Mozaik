@@ -190,8 +190,7 @@ fun MainAppHost() {
             composable(Screen.Settings.route) {
                 val vm: SettingsViewModel = viewModel(factory = AppViewModelFactory())
                 SettingsScreen(
-                    viewModel = vm,
-                    onNavigateBack = { navController.popBackStack() }
+                    viewModel = vm
                 )
             }
         }
