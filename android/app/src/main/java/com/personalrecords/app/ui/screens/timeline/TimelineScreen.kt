@@ -344,6 +344,17 @@ fun TimelineScreen(
 
 @Composable
 fun DayGroupCard(group: ActivityDayGroupDto) {
+    val sections = remember(group.items) {
+        val map = LinkedHashMap<String, MutableList<ActivityItemDto>>()
+        group.items.forEach { item ->
+            map.getOrPut(item.source) { mutableListOf() }.add(item)
+        }
+        map
+    }
+
+    val totalCal = group.summary["total_calories"]?.toString()?.replace("\"", "")
+    val hasMultipleSections = sections.size > 1
+
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = MaterialTheme.shapes.medium,
@@ -353,7 +364,7 @@ fun DayGroupCard(group: ActivityDayGroupDto) {
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
         border = null
     ) {
-        Column(modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp)) {
+        Column(modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp)) {
             // Day Header
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -373,29 +384,123 @@ fun DayGroupCard(group: ActivityDayGroupDto) {
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
-                // Summary Badges
-                val cal = group.summary["total_calories"]?.toString()?.replace("\"", "")
-                if (cal != null && cal != "0") {
+
+                // If only food exists in this day, show calorie badge in the header.
+                // If multiple sections exist, show overall activity count here, and calories in the Beslenme section header!
+                if (!hasMultipleSections && totalCal != null && totalCal != "0") {
                     Surface(
                         shape = CircleShape,
                         color = domainNutritionContainer()
                     ) {
                         Text(
-                            text = "$cal kcal",
+                            text = "$totalCal kcal",
                             color = domainNutritionOnContainer(),
                             style = MaterialTheme.typography.labelSmall,
                             fontWeight = FontWeight.SemiBold,
-                            modifier = Modifier.padding(horizontal = 7.dp, vertical = 2.dp)
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
+                        )
+                    }
+                } else if (hasMultipleSections) {
+                    Surface(
+                        shape = CircleShape,
+                        color = MaterialTheme.colorScheme.surfaceContainerHigh
+                    ) {
+                        Text(
+                            text = "${group.items.size} aktivite",
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            style = MaterialTheme.typography.labelSmall,
+                            fontWeight = FontWeight.Medium,
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
                         )
                     }
                 }
             }
-            Spacer(modifier = Modifier.height(6.dp))
 
-            // Items
-            Column(verticalArrangement = Arrangement.spacedBy(5.dp)) {
-                group.items.forEach { item ->
-                    TimelineItemCard(item = item)
+            Spacer(modifier = Modifier.height(8.dp))
+
+            // Sub-sections by domain
+            var isFirstSection = true
+            sections.forEach { (source, items) ->
+                if (!isFirstSection) {
+                    HorizontalDivider(
+                        color = MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.5f),
+                        modifier = Modifier.padding(vertical = 8.dp)
+                    )
+                }
+                isFirstSection = false
+
+                // Sub-section Header (shown when there are multiple domains on the same day)
+                if (hasMultipleSections) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 4.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        val (icon, title, color) = when (source) {
+                            "fatsecret" -> Triple(Icons.Default.Restaurant, "Beslenme", MaterialTheme.colorScheme.primary)
+                            "notification" -> Triple(Icons.Default.Notifications, "Bildirimler", MaterialTheme.colorScheme.secondary)
+                            "letterboxd" -> Triple(Icons.Default.Movie, "Filmler", CinemaAccent)
+                            "goodreads" -> Triple(Icons.AutoMirrored.Filled.MenuBook, "Kitaplar", BooksAccent)
+                            else -> Triple(Icons.Default.Bookmark, "Diğer", MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            Icon(
+                                imageVector = icon,
+                                contentDescription = null,
+                                tint = color,
+                                modifier = Modifier.size(15.dp)
+                            )
+                            Text(
+                                text = title,
+                                style = MaterialTheme.typography.labelMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = color
+                            )
+                        }
+
+                        // Category specific summary badge
+                        if (source == "fatsecret" && totalCal != null && totalCal != "0") {
+                            Surface(
+                                shape = CircleShape,
+                                color = domainNutritionContainer()
+                            ) {
+                                Text(
+                                    text = "$totalCal kcal",
+                                    color = domainNutritionOnContainer(),
+                                    style = MaterialTheme.typography.labelSmall,
+                                    fontWeight = FontWeight.SemiBold,
+                                    modifier = Modifier.padding(horizontal = 7.dp, vertical = 2.dp)
+                                )
+                            }
+                        } else if (source == "notification") {
+                            Surface(
+                                shape = CircleShape,
+                                color = MaterialTheme.colorScheme.secondaryContainer
+                            ) {
+                                Text(
+                                    text = "${items.size} bildirim",
+                                    color = MaterialTheme.colorScheme.onSecondaryContainer,
+                                    style = MaterialTheme.typography.labelSmall,
+                                    fontWeight = FontWeight.Medium,
+                                    modifier = Modifier.padding(horizontal = 7.dp, vertical = 2.dp)
+                                )
+                            }
+                        }
+                    }
+                    Spacer(modifier = Modifier.height(4.dp))
+                }
+
+                // Section Items
+                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    items.forEach { item ->
+                        TimelineItemCard(item = item)
+                    }
                 }
             }
         }
@@ -420,13 +525,51 @@ fun TimelineItemCard(item: ActivityItemDto) {
             .padding(horizontal = 8.dp, vertical = 6.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        PosterThumbnail(
-            imageUrl = item.image_url,
-            fallbackIcon = fallbackIcon,
-            width = 32,
-            height = 46
-        )
-        Spacer(modifier = Modifier.width(8.dp))
+        // Leading Icon / Thumbnail
+        when (item.source) {
+            "notification" -> {
+                Box(
+                    modifier = Modifier
+                        .size(36.dp)
+                        .clip(CircleShape)
+                        .background(MaterialTheme.colorScheme.secondaryContainer),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Notifications,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSecondaryContainer,
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
+            }
+            "fatsecret" -> {
+                Box(
+                    modifier = Modifier
+                        .size(36.dp)
+                        .clip(MaterialTheme.shapes.small)
+                        .background(domainNutritionContainer()),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Restaurant,
+                        contentDescription = null,
+                        tint = domainNutritionOnContainer(),
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
+            }
+            else -> {
+                PosterThumbnail(
+                    imageUrl = item.image_url,
+                    fallbackIcon = fallbackIcon,
+                    width = 32,
+                    height = 46
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.width(10.dp))
 
         Column(modifier = Modifier.weight(1f)) {
             Text(
@@ -449,7 +592,7 @@ fun TimelineItemCard(item: ActivityItemDto) {
 
         Spacer(modifier = Modifier.width(6.dp))
 
-        // Right details (rating, rewatch, meal badge, calorie)
+        // Right details (rating, rewatch, meal badge, calorie, time)
         Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(3.dp)) {
             val rating = item.details["rating"]?.toString()?.toDoubleOrNull()
                 ?: item.details["my_rating"]?.toString()?.toDoubleOrNull()
@@ -464,7 +607,7 @@ fun TimelineItemCard(item: ActivityItemDto) {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(3.dp),
-                        modifier = Modifier.padding(horizontal = 5.dp, vertical = 1.5.dp)
+                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
                     ) {
                         Icon(
                             imageVector = Icons.Default.Repeat,
@@ -488,11 +631,26 @@ fun TimelineItemCard(item: ActivityItemDto) {
                 Text(
                     text = "$cal kcal",
                     style = MaterialTheme.typography.labelSmall,
-                    fontWeight = FontWeight.Medium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.primary,
                     maxLines = 1,
                     softWrap = false
                 )
+            }
+            // For notification, show post time if available
+            if (item.source == "notification") {
+                val timeStr = item.time ?: item.details["post_time"]?.toString()?.replace("\"", "")?.let {
+                    if (it.length >= 16) it.substring(11, 16) else null
+                }
+                if (!timeStr.isNullOrBlank()) {
+                    Text(
+                        text = timeStr,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        softWrap = false
+                    )
+                }
             }
         }
     }
