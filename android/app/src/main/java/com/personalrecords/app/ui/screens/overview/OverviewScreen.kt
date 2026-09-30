@@ -31,7 +31,6 @@ fun OverviewScreen(
     onNavigateToNutrition: () -> Unit = {},
     onNavigateToBooks: () -> Unit = {},
     onNavigateToMovies: () -> Unit = {},
-    onNavigateToNotifications: () -> Unit = {},
     onNavigateToSettings: () -> Unit = {}
 ) {
     val state by viewModel.uiState.collectAsState()
@@ -57,13 +56,6 @@ fun OverviewScreen(
                     )
                 },
                 actions = {
-                    IconButton(onClick = onNavigateToNotifications) {
-                        Icon(
-                            imageVector = Icons.Default.Notifications,
-                            contentDescription = "Bildirimler",
-                            tint = MaterialTheme.colorScheme.onSurface
-                        )
-                    }
                     IconButton(onClick = onNavigateToSettings) {
                         Icon(
                             imageVector = Icons.Default.Settings,
