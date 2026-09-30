@@ -159,9 +159,14 @@ fun NutritionScreen(
             }
         }
 
+        var isRefreshing by remember { mutableStateOf(false) }
+        LaunchedEffect(state.isLoading) {
+            if (!state.isLoading) isRefreshing = false
+        }
+
         androidx.compose.material3.pulltorefresh.PullToRefreshBox(
-            isRefreshing = state.isLoading && state.foodEntries.isNotEmpty(),
-            onRefresh = { viewModel.loadData() },
+            isRefreshing = isRefreshing,
+            onRefresh = { isRefreshing = true; viewModel.loadData() },
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)

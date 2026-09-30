@@ -89,9 +89,14 @@ fun OverviewScreen(
             }
         }
 
+        var isRefreshing by remember { mutableStateOf(false) }
+        LaunchedEffect(state.isLoading) {
+            if (!state.isLoading) isRefreshing = false
+        }
+
         androidx.compose.material3.pulltorefresh.PullToRefreshBox(
-            isRefreshing = state.isLoading && state.dashboard != null,
-            onRefresh = { viewModel.loadData() },
+            isRefreshing = isRefreshing,
+            onRefresh = { isRefreshing = true; viewModel.loadData() },
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
