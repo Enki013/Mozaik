@@ -35,8 +35,7 @@ import java.util.TimeZone
 @Composable
 fun NutritionScreen(
     viewModel: NutritionViewModel,
-    onNavigateBack: (() -> Unit)? = null,
-    onNavigateToSettings: () -> Unit = {}
+    onNavigateBack: (() -> Unit)? = null
 ) {
     val state by viewModel.uiState.collectAsState()
     var showTargetDialog by remember { mutableStateOf(false) }
@@ -133,14 +132,7 @@ fun NutritionScreen(
                         }
                     }
                 },
-                actions = {
-                    IconButton(onClick = onNavigateToSettings) {
-                        Icon(
-                            imageVector = Icons.Default.Settings,
-                            contentDescription = "Ayarlar"
-                        )
-                    }
-                },
+                actions = {},
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.surface
                 )
@@ -596,7 +588,7 @@ fun FoodEntryCard(item: FoodEntryDto) {
                     ) {
                         Text(
                             text = formatMealName(item.meal),
-                            style = MaterialTheme.typography.labelSmall.copy(fontSize = 9.5.sp),
+                            style = MaterialTheme.typography.labelSmall,
                             modifier = Modifier.padding(horizontal = 5.dp, vertical = 1.5.dp),
                             color = MaterialTheme.colorScheme.onSecondaryContainer,
                             maxLines = 1,

@@ -32,8 +32,7 @@ import java.util.TimeZone
 @OptIn(ExperimentalMaterial3Api::class, androidx.compose.foundation.ExperimentalFoundationApi::class)
 @Composable
 fun TimelineScreen(
-    viewModel: TimelineViewModel,
-    onNavigateToSettings: () -> Unit = {}
+    viewModel: TimelineViewModel
 ) {
     val state by viewModel.uiState.collectAsState()
     var showDatePicker by remember { mutableStateOf(false) }
@@ -79,15 +78,7 @@ fun TimelineScreen(
                         fontWeight = FontWeight.Bold
                     )
                 },
-                actions = {
-                    IconButton(onClick = onNavigateToSettings) {
-                        Icon(
-                            imageVector = Icons.Default.Settings,
-                            contentDescription = "Ayarlar",
-                            tint = MaterialTheme.colorScheme.onSurface
-                        )
-                    }
-                },
+                actions = {},
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.surface
                 )

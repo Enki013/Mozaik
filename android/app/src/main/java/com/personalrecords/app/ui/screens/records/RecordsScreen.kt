@@ -31,8 +31,7 @@ fun RecordsScreen(
     onNavigateToNutrition: () -> Unit = {},
     onNavigateToBooks: () -> Unit = {},
     onNavigateToMovies: () -> Unit = {},
-    onNavigateToNotifications: () -> Unit = {},
-    onNavigateToSettings: () -> Unit = {}
+    onNavigateToNotifications: () -> Unit = {}
 ) {
     val state by viewModel.uiState.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
@@ -55,12 +54,6 @@ fun RecordsScreen(
                         Icon(
                             imageVector = Icons.Default.Refresh,
                             contentDescription = "Yenile"
-                        )
-                    }
-                    IconButton(onClick = onNavigateToSettings) {
-                        Icon(
-                            imageVector = Icons.Default.Settings,
-                            contentDescription = "Ayarlar"
                         )
                     }
                 },
@@ -93,7 +86,7 @@ fun RecordsScreen(
                     .fillMaxSize()
                     .padding(horizontal = 12.dp),
                 contentPadding = PaddingValues(top = 8.dp, bottom = 20.dp),
-                verticalArrangement = Arrangement.spacedBy(10.dp)
+                verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 // Top Metrics Row
                 item {
@@ -234,28 +227,14 @@ fun RecordsScreen(
                         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
                         border = null
                     ) {
-                        Column {
-                            RecordItemRow(
-                                icon = Icons.Default.Notifications,
-                                iconBg = MaterialTheme.colorScheme.secondaryContainer,
-                                iconTint = MaterialTheme.colorScheme.onSecondaryContainer,
-                                title = "Bildirim Günlüğü",
-                                subtitle = "Webhook Relay · $notifsCount bildirim",
-                                onClick = onNavigateToNotifications
-                            )
-                            HorizontalDivider(
-                                color = MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.5f),
-                                modifier = Modifier.padding(horizontal = 12.dp)
-                            )
-                            RecordItemRow(
-                                icon = Icons.Default.Tune,
-                                iconBg = MaterialTheme.colorScheme.surfaceContainerHighest,
-                                iconTint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                title = "Entegrasyon Ayarları",
-                                subtitle = "API anahtarları, sunucu durumu ve yedekleme",
-                                onClick = onNavigateToSettings
-                            )
-                        }
+                        RecordItemRow(
+                            icon = Icons.Default.Notifications,
+                            iconBg = MaterialTheme.colorScheme.secondaryContainer,
+                            iconTint = MaterialTheme.colorScheme.onSecondaryContainer,
+                            title = "Bildirim Günlüğü",
+                            subtitle = "Webhook Relay · $notifsCount bildirim",
+                            onClick = onNavigateToNotifications
+                        )
                     }
                 }
 
@@ -341,7 +320,7 @@ private fun RecordItemRow(
             ) {
                 Text(
                     text = badgeText,
-                    style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
+                    style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.5.dp),
                     fontWeight = FontWeight.Medium

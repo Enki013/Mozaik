@@ -63,8 +63,7 @@ fun MetricCard(
                 Text(
                     text = title,
                     style = MaterialTheme.typography.labelSmall.copy(
-                        fontWeight = FontWeight.SemiBold,
-                        fontSize = 10.5.sp
+                        fontWeight = FontWeight.SemiBold
                     ),
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 1,
@@ -80,7 +79,7 @@ fun MetricCard(
                         Text(
                             text = badgeText,
                             modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp),
-                            style = MaterialTheme.typography.labelSmall.copy(fontSize = 9.sp),
+                            style = MaterialTheme.typography.labelSmall,
                             fontWeight = FontWeight.Medium,
                             color = badgeColor,
                             maxLines = 1,
@@ -114,7 +113,7 @@ fun MetricCard(
             Spacer(modifier = Modifier.height(2.dp))
             Row(
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(3.dp)
+                horizontalArrangement = Arrangement.spacedBy(4.dp)
             ) {
                 if (noteIcon != null) {
                     Icon(
@@ -206,8 +205,8 @@ fun RatingBadge(
         ) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(3.dp),
-                modifier = Modifier.padding(horizontal = 6.dp, vertical = 1.5.dp)
+                horizontalArrangement = Arrangement.spacedBy(4.dp),
+                modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
             ) {
                 Icon(
                     imageVector = Icons.Filled.Star,

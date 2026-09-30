@@ -57,7 +57,7 @@ fun MainAppHost() {
                     NavigationBarItem(
                         icon = {
                             Icon(
-                                screen.icon,
+                                if (selected) screen.selectedIcon else screen.icon,
                                 contentDescription = screen.title,
                                 modifier = Modifier.size(20.dp)
                             )
@@ -94,13 +94,6 @@ fun MainAppHost() {
             }
         }
     ) { innerPadding ->
-        val onNavigateToSettings: () -> Unit = {
-            navController.navigate(Screen.Settings.route) {
-                popUpTo(navController.graph.findStartDestination().id) { saveState = true }
-                launchSingleTop = true
-                restoreState = true
-            }
-        }
 
         NavHost(
             navController = navController,
@@ -140,16 +133,14 @@ fun MainAppHost() {
                     },
                     onNavigateToNutrition = { navController.navigate(Screen.Nutrition.route) },
                     onNavigateToBooks = { navController.navigate(Screen.Books.route) },
-                    onNavigateToMovies = { navController.navigate(Screen.Movies.route) },
-                    onNavigateToSettings = onNavigateToSettings
+                    onNavigateToMovies = { navController.navigate(Screen.Movies.route) }
                 )
             }
 
             composable(Screen.Timeline.route) {
                 val vm: TimelineViewModel = viewModel(factory = AppViewModelFactory())
                 TimelineScreen(
-                    viewModel = vm,
-                    onNavigateToSettings = onNavigateToSettings
+                    viewModel = vm
                 )
             }
 
@@ -160,8 +151,7 @@ fun MainAppHost() {
                     onNavigateToNutrition = { navController.navigate(Screen.Nutrition.route) },
                     onNavigateToBooks = { navController.navigate(Screen.Books.route) },
                     onNavigateToMovies = { navController.navigate(Screen.Movies.route) },
-                    onNavigateToNotifications = { navController.navigate(Screen.Notifications.route) },
-                    onNavigateToSettings = onNavigateToSettings
+                    onNavigateToNotifications = { navController.navigate(Screen.Notifications.route) }
                 )
             }
 
@@ -169,8 +159,7 @@ fun MainAppHost() {
                 val vm: NutritionViewModel = viewModel(factory = AppViewModelFactory())
                 NutritionScreen(
                     viewModel = vm,
-                    onNavigateBack = { navController.popBackStack() },
-                    onNavigateToSettings = onNavigateToSettings
+                    onNavigateBack = { navController.popBackStack() }
                 )
             }
 
@@ -178,8 +167,7 @@ fun MainAppHost() {
                 val vm: BooksViewModel = viewModel(factory = AppViewModelFactory())
                 BooksScreen(
                     viewModel = vm,
-                    onNavigateBack = { navController.popBackStack() },
-                    onNavigateToSettings = onNavigateToSettings
+                    onNavigateBack = { navController.popBackStack() }
                 )
             }
 
@@ -187,8 +175,7 @@ fun MainAppHost() {
                 val vm: MoviesViewModel = viewModel(factory = AppViewModelFactory())
                 MoviesScreen(
                     viewModel = vm,
-                    onNavigateBack = { navController.popBackStack() },
-                    onNavigateToSettings = onNavigateToSettings
+                    onNavigateBack = { navController.popBackStack() }
                 )
             }
 
@@ -196,8 +183,7 @@ fun MainAppHost() {
                 val vm: NotificationsViewModel = viewModel(factory = AppViewModelFactory())
                 NotificationsScreen(
                     viewModel = vm,
-                    onNavigateBack = { navController.popBackStack() },
-                    onNavigateToSettings = onNavigateToSettings
+                    onNavigateBack = { navController.popBackStack() }
                 )
             }
 

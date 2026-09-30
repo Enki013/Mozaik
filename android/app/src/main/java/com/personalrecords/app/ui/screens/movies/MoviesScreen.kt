@@ -26,8 +26,7 @@ import com.personalrecords.app.ui.components.*
 @Composable
 fun MoviesScreen(
     viewModel: MoviesViewModel,
-    onNavigateBack: (() -> Unit)? = null,
-    onNavigateToSettings: () -> Unit = {}
+    onNavigateBack: (() -> Unit)? = null
 ) {
     val state by viewModel.uiState.collectAsState()
 
@@ -52,14 +51,7 @@ fun MoviesScreen(
                         }
                     }
                 },
-                actions = {
-                    IconButton(onClick = onNavigateToSettings) {
-                        Icon(
-                            imageVector = Icons.Default.Settings,
-                            contentDescription = "Ayarlar"
-                        )
-                    }
-                },
+                actions = {},
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.surface
                 )
@@ -102,7 +94,7 @@ fun MoviesScreen(
                     .fillMaxSize()
                     .padding(horizontal = 12.dp),
                 contentPadding = PaddingValues(top = 10.dp, bottom = 12.dp),
-                verticalArrangement = Arrangement.spacedBy(6.dp)
+                verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
 
                 // Stats Row

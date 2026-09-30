@@ -36,8 +36,7 @@ import java.time.LocalDate
 @Composable
 fun NotificationsScreen(
     viewModel: NotificationsViewModel,
-    onNavigateBack: (() -> Unit)? = null,
-    onNavigateToSettings: () -> Unit = {}
+    onNavigateBack: (() -> Unit)? = null
 ) {
     val state by viewModel.uiState.collectAsState()
     val context = LocalContext.current
@@ -64,14 +63,7 @@ fun NotificationsScreen(
                         }
                     }
                 },
-                actions = {
-                    IconButton(onClick = onNavigateToSettings) {
-                        Icon(
-                            imageVector = Icons.Default.Settings,
-                            contentDescription = "Ayarlar"
-                        )
-                    }
-                },
+                actions = {},
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.surface
                 )
@@ -504,7 +496,7 @@ fun NotificationCard(
                         ) {
                             Text(
                                 text = notification.category,
-                                style = MaterialTheme.typography.labelSmall.copy(fontSize = 9.sp),
+                                style = MaterialTheme.typography.labelSmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 modifier = Modifier.padding(horizontal = 5.dp, vertical = 1.dp),
                                 maxLines = 1,

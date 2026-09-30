@@ -30,8 +30,7 @@ fun OverviewScreen(
     onNavigateToTimeline: () -> Unit,
     onNavigateToNutrition: () -> Unit = {},
     onNavigateToBooks: () -> Unit = {},
-    onNavigateToMovies: () -> Unit = {},
-    onNavigateToSettings: () -> Unit = {}
+    onNavigateToMovies: () -> Unit = {}
 ) {
     val state by viewModel.uiState.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
@@ -55,15 +54,7 @@ fun OverviewScreen(
                         fontWeight = FontWeight.Bold
                     )
                 },
-                actions = {
-                    IconButton(onClick = onNavigateToSettings) {
-                        Icon(
-                            imageVector = Icons.Default.Settings,
-                            contentDescription = "Ayarlar",
-                            tint = MaterialTheme.colorScheme.onSurface
-                        )
-                    }
-                },
+                actions = {},
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.surface,
                     scrolledContainerColor = MaterialTheme.colorScheme.surface
@@ -115,7 +106,7 @@ fun OverviewScreen(
                         .fillMaxSize()
                         .nestedScroll(stickyReleaseLock)
                         .padding(horizontal = 12.dp),
-                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                 // Top 4 Metrics Grid
                 item {
