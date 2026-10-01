@@ -164,128 +164,123 @@ fun MoviesScreen(
                     }
                 }
 
-                // Search Bar & Filter Header (Sticky)
-                stickyHeader {
-                    Surface(
-                        color = MaterialTheme.colorScheme.surface,
-                        modifier = Modifier.fillMaxWidth()
+                // Search Bar & Filter Header
+                item {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 4.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        Column(
+                        OutlinedTextField(
+                            value = state.searchQuery,
+                            onValueChange = { viewModel.setSearchQuery(it) },
+                            modifier = Modifier.fillMaxWidth(),
+                            placeholder = {
+                                Text(
+                                    text = "Film adı ara...",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            },
+                            leadingIcon = {
+                                Icon(
+                                    Icons.Default.Search,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            },
+                            trailingIcon = {
+                                if (state.searchQuery.isNotEmpty()) {
+                                    IconButton(onClick = { viewModel.setSearchQuery("") }) {
+                                        Icon(
+                                            Icons.Default.Clear,
+                                            contentDescription = "Temizle",
+                                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            modifier = Modifier.size(18.dp)
+                                        )
+                                    }
+                                }
+                            },
+                            shape = CircleShape,
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                                unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+                                focusedBorderColor = MaterialTheme.colorScheme.primary,
+                                unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant
+                            ),
+                            singleLine = true
+                        )
+
+                        val rewatchFilms = state.films.count { it.rewatch }
+                        Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(vertical = 2.dp),
-                            verticalArrangement = Arrangement.spacedBy(6.dp)
+                                .horizontalScroll(rememberScrollState()),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
-                            OutlinedTextField(
-                                value = state.searchQuery,
-                                onValueChange = { viewModel.setSearchQuery(it) },
-                                modifier = Modifier.fillMaxWidth(),
-                                placeholder = {
+                            FilterChip(
+                                selected = state.onlyRewatches,
+                                onClick = { viewModel.toggleRewatches() },
+                                label = {
                                     Text(
-                                        text = "Film adı ara...",
-                                        style = MaterialTheme.typography.bodyMedium,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        text = "Tekrar İzlenenler ($rewatchFilms)",
+                                        style = MaterialTheme.typography.labelMedium
                                     )
                                 },
                                 leadingIcon = {
                                     Icon(
-                                        Icons.Default.Search,
+                                        imageVector = Icons.Default.Repeat,
                                         contentDescription = null,
-                                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                        modifier = Modifier.size(20.dp)
+                                        modifier = Modifier.size(FilterChipDefaults.IconSize)
                                     )
                                 },
-                                trailingIcon = {
-                                    if (state.searchQuery.isNotEmpty()) {
-                                        IconButton(onClick = { viewModel.setSearchQuery("") }) {
-                                            Icon(
-                                                Icons.Default.Clear,
-                                                contentDescription = "Temizle",
-                                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                                modifier = Modifier.size(18.dp)
-                                            )
-                                        }
-                                    }
-                                },
-                                shape = CircleShape,
-                                colors = OutlinedTextFieldDefaults.colors(
-                                    focusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-                                    unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainerLow,
-                                    focusedBorderColor = MaterialTheme.colorScheme.primary,
-                                    unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant
-                                ),
-                                singleLine = true
+                                shape = MaterialTheme.shapes.small,
+                                border = null,
+                                colors = borderlessFilterChipColors()
                             )
 
-                            val rewatchFilms = state.films.count { it.rewatch }
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .horizontalScroll(rememberScrollState()),
-                                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                FilterChip(
-                                    selected = state.onlyRewatches,
-                                    onClick = { viewModel.toggleRewatches() },
-                                    label = {
-                                        Text(
-                                            text = "Tekrar İzlenenler ($rewatchFilms)",
-                                            style = MaterialTheme.typography.labelMedium
-                                        )
-                                    },
-                                    leadingIcon = {
-                                        Icon(
-                                            imageVector = Icons.Default.Repeat,
-                                            contentDescription = null,
-                                            modifier = Modifier.size(FilterChipDefaults.IconSize)
-                                        )
-                                    },
-                                    shape = MaterialTheme.shapes.small,
-                                    border = null,
-                                    colors = borderlessFilterChipColors()
-                                )
-
-                                val (sortLabel, sortIcon) = when (state.sortBy) {
-                                    "rating_desc" -> "Puan (Azalan)" to Icons.Default.ArrowDownward
-                                    "rating_asc" -> "Puan (Artan)" to Icons.Default.ArrowUpward
-                                    "year" -> "Vizyon Yılı" to Icons.Default.CalendarMonth
-                                    "date" -> "İzleme Tarihi" to Icons.Default.Schedule
-                                    "title" -> "Film Adı" to Icons.Default.SortByAlpha
-                                    else -> "Sırala" to Icons.AutoMirrored.Filled.Sort
-                                }
-                                AssistChip(
-                                    onClick = {
-                                        val nextSort = when (state.sortBy) {
-                                            "rating_desc" -> "rating_asc"
-                                            "rating_asc" -> "year"
-                                            "year" -> "date"
-                                            "date" -> "title"
-                                            else -> "rating_desc"
-                                        }
-                                        viewModel.setSortBy(nextSort)
-                                    },
-                                    leadingIcon = {
-                                        Icon(
-                                            imageVector = sortIcon,
-                                            contentDescription = null,
-                                            tint = MaterialTheme.colorScheme.primary,
-                                            modifier = Modifier.size(16.dp)
-                                        )
-                                    },
-                                    label = {
-                                        Text(
-                                            text = sortLabel,
-                                            style = MaterialTheme.typography.labelMedium,
-                                            fontWeight = FontWeight.SemiBold,
-                                            color = MaterialTheme.colorScheme.primary
-                                        )
-                                    },
-                                    shape = MaterialTheme.shapes.small,
-                                    border = null,
-                                    colors = borderlessAssistChipColors()
-                                )
+                            val (sortLabel, sortIcon) = when (state.sortBy) {
+                                "rating_desc" -> "Puan (Azalan)" to Icons.Default.ArrowDownward
+                                "rating_asc" -> "Puan (Artan)" to Icons.Default.ArrowUpward
+                                "year" -> "Vizyon Yılı" to Icons.Default.CalendarMonth
+                                "date" -> "İzleme Tarihi" to Icons.Default.Schedule
+                                "title" -> "Film Adı" to Icons.Default.SortByAlpha
+                                else -> "Sırala" to Icons.AutoMirrored.Filled.Sort
                             }
+                            AssistChip(
+                                onClick = {
+                                    val nextSort = when (state.sortBy) {
+                                        "rating_desc" -> "rating_asc"
+                                        "rating_asc" -> "year"
+                                        "year" -> "date"
+                                        "date" -> "title"
+                                        else -> "rating_desc"
+                                    }
+                                    viewModel.setSortBy(nextSort)
+                                },
+                                leadingIcon = {
+                                    Icon(
+                                        imageVector = sortIcon,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.primary,
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                },
+                                label = {
+                                    Text(
+                                        text = sortLabel,
+                                        style = MaterialTheme.typography.labelMedium,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = MaterialTheme.colorScheme.primary
+                                    )
+                                },
+                                shape = MaterialTheme.shapes.small,
+                                border = null,
+                                colors = borderlessAssistChipColors()
+                            )
                         }
                     }
                 }
@@ -341,12 +336,12 @@ fun FilmCard(film: FilmDto) {
     ) {
         Row(
             modifier = Modifier
-                .padding(horizontal = 10.dp, vertical = 8.dp)
+                .padding(horizontal = 12.dp, vertical = 10.dp)
                 .fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically
         ) {
             PosterThumbnail(imageUrl = film.image_url, fallbackIcon = Icons.Default.Movie, width = 36, height = 52)
-            Spacer(modifier = Modifier.width(10.dp))
+            Spacer(modifier = Modifier.width(12.dp))
 
             Column(modifier = Modifier.weight(1f)) {
                 Text(
@@ -383,7 +378,7 @@ fun FilmCard(film: FilmDto) {
                     if (film.rewatch) {
                         Surface(
                             shape = CircleShape,
-                            color = CinemaAccentContainer
+                            color = domainCinemaContainer()
                         ) {
                             Row(
                                 modifier = Modifier.padding(horizontal = 5.dp, vertical = 1.5.dp),
@@ -394,12 +389,12 @@ fun FilmCard(film: FilmDto) {
                                     imageVector = Icons.Default.Repeat,
                                     contentDescription = null,
                                     modifier = Modifier.size(10.dp),
-                                    tint = CinemaAccentOnContainer
+                                    tint = domainCinemaOnContainer()
                                 )
                                 Text(
                                     text = "Tekrar",
                                     style = MaterialTheme.typography.labelSmall,
-                                    color = CinemaAccentOnContainer,
+                                    color = domainCinemaOnContainer(),
                                     fontWeight = FontWeight.Bold,
                                     maxLines = 1,
                                     softWrap = false
@@ -423,9 +418,10 @@ fun FilmCard(film: FilmDto) {
             }
 
             if (film.safeRating > 0) {
-                Spacer(modifier = Modifier.width(6.dp))
+                Spacer(modifier = Modifier.width(8.dp))
                 RatingBadge(rating = film.safeRating)
             }
         }
     }
 }
+

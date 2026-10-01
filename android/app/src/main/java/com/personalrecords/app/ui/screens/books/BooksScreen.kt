@@ -134,129 +134,124 @@ fun BooksScreen(
                     }
                 }
 
-                // Search Bar & Filter Header (Sticky)
-                stickyHeader {
-                    Surface(
-                        color = MaterialTheme.colorScheme.surface,
-                        modifier = Modifier.fillMaxWidth()
+                // Search Bar & Filter Header
+                item {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 4.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        Column(
+                        OutlinedTextField(
+                            value = state.searchQuery,
+                            onValueChange = { viewModel.setSearchQuery(it) },
+                            modifier = Modifier.fillMaxWidth(),
+                            placeholder = {
+                                Text(
+                                    text = "Kitap adı veya yazar ara...",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            },
+                            leadingIcon = {
+                                Icon(
+                                    Icons.Default.Search,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            },
+                            trailingIcon = {
+                                if (state.searchQuery.isNotEmpty()) {
+                                    IconButton(onClick = { viewModel.setSearchQuery("") }) {
+                                        Icon(
+                                            Icons.Default.Clear,
+                                            contentDescription = "Temizle",
+                                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            modifier = Modifier.size(18.dp)
+                                        )
+                                    }
+                                }
+                            },
+                            shape = CircleShape,
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                                unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+                                focusedBorderColor = MaterialTheme.colorScheme.primary,
+                                unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant
+                            ),
+                            singleLine = true
+                        )
+
+                        Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(vertical = 2.dp),
-                            verticalArrangement = Arrangement.spacedBy(6.dp)
+                                .horizontalScroll(rememberScrollState()),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
-                            OutlinedTextField(
-                                value = state.searchQuery,
-                                onValueChange = { viewModel.setSearchQuery(it) },
-                                modifier = Modifier.fillMaxWidth(),
-                                placeholder = {
-                                    Text(
-                                        text = "Kitap adı veya yazar ara...",
-                                        style = MaterialTheme.typography.bodyMedium,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
+                            listOf(
+                                Triple("all", "Tümü", null),
+                                Triple("read", "Okundu", Icons.Default.Check),
+                                Triple("to-read", "Okunacak", Icons.Default.HourglassEmpty),
+                                Triple("currently-reading", "Okunuyor", Icons.AutoMirrored.Filled.MenuBook)
+                            ).forEach { (shelf, label, icon) ->
+                                FilterChip(
+                                    selected = state.selectedShelf == shelf,
+                                    onClick = { viewModel.setShelf(shelf) },
+                                    leadingIcon = icon?.let {
+                                        {
+                                            Icon(
+                                                imageVector = it,
+                                                contentDescription = null,
+                                                modifier = Modifier.size(16.dp)
+                                            )
+                                        }
+                                    },
+                                    label = { Text(label, style = MaterialTheme.typography.labelMedium) },
+                                    shape = MaterialTheme.shapes.small,
+                                    border = null,
+                                    colors = borderlessFilterChipColors()
+                                )
+                            }
+
+                            val (sortLabel, sortIcon) = when (state.sortBy) {
+                                "rating_desc" -> "Puan (Azalan)" to Icons.Default.ArrowDownward
+                                "rating_asc" -> "Puan (Artan)" to Icons.Default.ArrowUpward
+                                "title" -> "Başlık" to Icons.Default.SortByAlpha
+                                "date" -> "Okuma Tarihi" to Icons.Default.CalendarMonth
+                                else -> "Sırala" to Icons.AutoMirrored.Filled.Sort
+                            }
+                            AssistChip(
+                                onClick = {
+                                    val nextSort = when (state.sortBy) {
+                                        "rating_desc" -> "rating_asc"
+                                        "rating_asc" -> "title"
+                                        "title" -> "date"
+                                        else -> "rating_desc"
+                                    }
+                                    viewModel.setSortBy(nextSort)
                                 },
                                 leadingIcon = {
                                     Icon(
-                                        Icons.Default.Search,
+                                        imageVector = sortIcon,
                                         contentDescription = null,
-                                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                        modifier = Modifier.size(20.dp)
+                                        tint = MaterialTheme.colorScheme.primary,
+                                        modifier = Modifier.size(16.dp)
                                     )
                                 },
-                                trailingIcon = {
-                                    if (state.searchQuery.isNotEmpty()) {
-                                        IconButton(onClick = { viewModel.setSearchQuery("") }) {
-                                            Icon(
-                                                Icons.Default.Clear,
-                                                contentDescription = "Temizle",
-                                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                                modifier = Modifier.size(18.dp)
-                                            )
-                                        }
-                                    }
+                                label = {
+                                    Text(
+                                        text = sortLabel,
+                                        style = MaterialTheme.typography.labelMedium,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = MaterialTheme.colorScheme.primary
+                                    )
                                 },
-                                shape = CircleShape,
-                                colors = OutlinedTextFieldDefaults.colors(
-                                    focusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-                                    unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainerLow,
-                                    focusedBorderColor = MaterialTheme.colorScheme.primary,
-                                    unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant
-                                ),
-                                singleLine = true
+                                shape = MaterialTheme.shapes.small,
+                                border = null,
+                                colors = borderlessAssistChipColors()
                             )
-
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .horizontalScroll(rememberScrollState()),
-                                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                listOf(
-                                    Triple("all", "Tümü", null),
-                                    Triple("read", "Okundu", Icons.Default.Check),
-                                    Triple("to-read", "Okunacak", Icons.Default.HourglassEmpty),
-                                    Triple("currently-reading", "Okunuyor", Icons.AutoMirrored.Filled.MenuBook)
-                                ).forEach { (shelf, label, icon) ->
-                                    FilterChip(
-                                        selected = state.selectedShelf == shelf,
-                                        onClick = { viewModel.setShelf(shelf) },
-                                        leadingIcon = icon?.let {
-                                            {
-                                                Icon(
-                                                    imageVector = it,
-                                                    contentDescription = null,
-                                                    modifier = Modifier.size(16.dp)
-                                                )
-                                            }
-                                        },
-                                        label = { Text(label, style = MaterialTheme.typography.labelMedium) },
-                                        shape = MaterialTheme.shapes.small,
-                                        border = null,
-                                        colors = borderlessFilterChipColors()
-                                    )
-                                }
-
-                                val (sortLabel, sortIcon) = when (state.sortBy) {
-                                    "rating_desc" -> "Puan (Azalan)" to Icons.Default.ArrowDownward
-                                    "rating_asc" -> "Puan (Artan)" to Icons.Default.ArrowUpward
-                                    "title" -> "Başlık" to Icons.Default.SortByAlpha
-                                    "date" -> "Okuma Tarihi" to Icons.Default.CalendarMonth
-                                    else -> "Sırala" to Icons.AutoMirrored.Filled.Sort
-                                }
-                                AssistChip(
-                                    onClick = {
-                                        val nextSort = when (state.sortBy) {
-                                            "rating_desc" -> "rating_asc"
-                                            "rating_asc" -> "title"
-                                            "title" -> "date"
-                                            else -> "rating_desc"
-                                        }
-                                        viewModel.setSortBy(nextSort)
-                                    },
-                                    leadingIcon = {
-                                        Icon(
-                                            imageVector = sortIcon,
-                                            contentDescription = null,
-                                            tint = MaterialTheme.colorScheme.primary,
-                                            modifier = Modifier.size(16.dp)
-                                        )
-                                    },
-                                    label = {
-                                        Text(
-                                            text = sortLabel,
-                                            style = MaterialTheme.typography.labelMedium,
-                                            fontWeight = FontWeight.SemiBold,
-                                            color = MaterialTheme.colorScheme.primary
-                                        )
-                                    },
-                                    shape = MaterialTheme.shapes.small,
-                                    border = null,
-                                    colors = borderlessAssistChipColors()
-                                )
-                            }
                         }
                     }
                 }
@@ -301,6 +296,13 @@ fun BooksScreen(
 
 @Composable
 fun BookCard(book: BookDto) {
+    val shelfLabel = when (book.exclusive_shelf.lowercase()) {
+        "read" -> "Okundu"
+        "to-read" -> "Okunacak"
+        "currently-reading" -> "Okunuyor"
+        else -> book.exclusive_shelf
+    }
+
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = MaterialTheme.shapes.medium,
@@ -312,12 +314,12 @@ fun BookCard(book: BookDto) {
     ) {
         Row(
             modifier = Modifier
-                .padding(horizontal = 10.dp, vertical = 8.dp)
+                .padding(horizontal = 12.dp, vertical = 10.dp)
                 .fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically
         ) {
             PosterThumbnail(imageUrl = book.image_url, fallbackIcon = Icons.AutoMirrored.Filled.MenuBook, width = 36, height = 52)
-            Spacer(modifier = Modifier.width(10.dp))
+            Spacer(modifier = Modifier.width(12.dp))
 
             Column(modifier = Modifier.weight(1f)) {
                 Text(
@@ -343,12 +345,12 @@ fun BookCard(book: BookDto) {
                 ) {
                     Surface(
                         shape = CircleShape,
-                        color = BooksAccentContainer
+                        color = domainBooksContainer()
                     ) {
                         Text(
-                            text = book.exclusive_shelf,
+                            text = shelfLabel,
                             style = MaterialTheme.typography.labelSmall,
-                            color = BooksAccentOnContainer,
+                            color = domainBooksOnContainer(),
                             modifier = Modifier.padding(horizontal = 6.dp, vertical = 1.5.dp),
                             fontWeight = FontWeight.Medium,
                             maxLines = 1,
@@ -368,9 +370,10 @@ fun BookCard(book: BookDto) {
             }
 
             if (book.my_rating > 0) {
-                Spacer(modifier = Modifier.width(6.dp))
+                Spacer(modifier = Modifier.width(8.dp))
                 RatingBadge(rating = book.my_rating)
             }
         }
     }
 }
+
