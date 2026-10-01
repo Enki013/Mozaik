@@ -19,6 +19,7 @@ import com.personalrecords.app.core.theme.PersonalRecordsTheme
 import com.personalrecords.app.ui.AppViewModelFactory
 import com.personalrecords.app.ui.navigation.Screen
 import com.personalrecords.app.ui.navigation.bottomNavScreens
+import com.personalrecords.app.ui.navigation.recordsSubRoutes
 import com.personalrecords.app.ui.screens.books.*
 import com.personalrecords.app.ui.screens.movies.*
 import com.personalrecords.app.ui.screens.notifications.*
@@ -53,7 +54,10 @@ fun MainAppHost() {
                 tonalElevation = 3.dp
             ) {
                 bottomNavScreens.forEach { screen ->
-                    val selected = currentDestination?.route == screen.route
+                    val selected = when (screen) {
+                        Screen.Records -> currentDestination?.route in recordsSubRoutes
+                        else -> currentDestination?.route == screen.route
+                    }
                     NavigationBarItem(
                         icon = {
                             Icon(
@@ -81,12 +85,27 @@ fun MainAppHost() {
                             unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant
                         ),
                         onClick = {
-                            navController.navigate(screen.route) {
-                                popUpTo(navController.graph.findStartDestination().id) {
-                                    saveState = true
+                            if (selected) {
+                                if (screen == Screen.Records && currentDestination?.route != Screen.Records.route) {
+                                    val popped = navController.popBackStack(Screen.Records.route, inclusive = false)
+                                    if (!popped) {
+                                        navController.navigate(Screen.Records.route) {
+                                            popUpTo(navController.graph.findStartDestination().id) {
+                                                saveState = true
+                                            }
+                                            launchSingleTop = true
+                                            restoreState = true
+                                        }
+                                    }
                                 }
-                                launchSingleTop = true
-                                restoreState = true
+                            } else {
+                                navController.navigate(screen.route) {
+                                    popUpTo(navController.graph.findStartDestination().id) {
+                                        saveState = true
+                                    }
+                                    launchSingleTop = true
+                                    restoreState = true
+                                }
                             }
                         }
                     )

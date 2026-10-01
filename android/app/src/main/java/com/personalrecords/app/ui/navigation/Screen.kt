@@ -31,3 +31,11 @@ val bottomNavScreens = listOf(
     Screen.Records,
     Screen.Settings
 )
+
+val recordsSubRoutes = setOf(
+    Screen.Records.route,
+    Screen.Nutrition.route,
+    Screen.Books.route,
+    Screen.Movies.route,
+    Screen.Notifications.route
+)
