@@ -163,3 +163,19 @@ fun domainRatingContainer(): androidx.compose.ui.graphics.Color =
 fun domainRatingOnContainer(): androidx.compose.ui.graphics.Color =
     if (isSystemInDarkTheme()) RatingGoldDarkOnContainer else RatingGoldOnContainer
 
+@Composable
+fun domainNutritionColor(): androidx.compose.ui.graphics.Color =
+    if (isSystemInDarkTheme()) NutritionGreenDark else NutritionGreen
+
+@Composable
+fun domainBooksColor(): androidx.compose.ui.graphics.Color =
+    if (isSystemInDarkTheme()) BooksAccentDark else BooksAccent
+
+@Composable
+fun domainCinemaColor(): androidx.compose.ui.graphics.Color =
+    if (isSystemInDarkTheme()) CinemaAccentDark else CinemaAccent
+
+@Composable
+fun domainRatingColor(): androidx.compose.ui.graphics.Color =
+    if (isSystemInDarkTheme()) RatingGoldDark else RatingGold
+

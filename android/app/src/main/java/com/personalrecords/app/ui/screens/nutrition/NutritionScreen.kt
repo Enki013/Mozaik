@@ -237,8 +237,8 @@ fun NutritionScreen(
 
                         val barColor = when {
                             progressPct >= 1f -> MaterialTheme.colorScheme.error
-                            progressPct > 0.85f -> RatingGold
-                            else -> NutritionGreen
+                            progressPct > 0.85f -> domainRatingColor()
+                            else -> domainNutritionColor()
                         }
 
                         // MD3 Linear Progress Indicator
@@ -268,96 +268,89 @@ fun NutritionScreen(
                                 text = remText,
                                 style = MaterialTheme.typography.bodySmall,
                                 fontWeight = FontWeight.Bold,
-                                color = if (rem >= 0) NutritionGreen else MaterialTheme.colorScheme.error
+                                color = if (rem >= 0) domainNutritionColor() else MaterialTheme.colorScheme.error
                             )
                         }
                     }
                 }
             }
 
-            // Macro Breakdown Card (Sticky Header 1)
-            stickyHeader {
-                Surface(
-                    color = MaterialTheme.colorScheme.surface,
-                    modifier = Modifier.fillMaxWidth()
+            // Macro Breakdown Card (MD3 Card)
+            item {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = MaterialTheme.shapes.medium,
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+                    ),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+                    border = null
                 ) {
-                    Card(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(vertical = 2.dp),
-                        shape = MaterialTheme.shapes.medium,
-                        colors = CardDefaults.cardColors(
-                            containerColor = MaterialTheme.colorScheme.surfaceContainerLow
-                        ),
-                        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
-                        border = null
-                    ) {
-                        Column(modifier = Modifier.padding(12.dp)) {
-                            Text(
-                                text = "Makro Besin Dağılımı",
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.onSurface
-                            )
-                            Text(
-                                text = "Kayıtlı öğünlerin besin değerleri toplamı",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                            Spacer(modifier = Modifier.height(8.dp))
+                    Column(modifier = Modifier.padding(12.dp)) {
+                        Text(
+                            text = "Makro Besin Dağılımı",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                        Text(
+                            text = "Kayıtlı öğünlerin besin değerleri toplamı",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
 
-                            val carbKcal = state.totalCarb * 4
-                            val protKcal = state.totalProtein * 4
-                            val fatKcal = state.totalFat * 9
-                            val totalKcal = carbKcal + protKcal + fatKcal
+                        val carbKcal = state.totalCarb * 4
+                        val protKcal = state.totalProtein * 4
+                        val fatKcal = state.totalFat * 9
+                        val totalKcal = carbKcal + protKcal + fatKcal
 
-                            val carbPct = if (totalKcal > 0) (carbKcal / totalKcal).toFloat() else 0.33f
-                            val protPct = if (totalKcal > 0) (protKcal / totalKcal).toFloat() else 0.33f
-                            val fatPct = if (totalKcal > 0) (fatKcal / totalKcal).toFloat() else 0.34f
+                        val carbPct = if (totalKcal > 0) (carbKcal / totalKcal).toFloat() else 0.33f
+                        val protPct = if (totalKcal > 0) (protKcal / totalKcal).toFloat() else 0.33f
+                        val fatPct = if (totalKcal > 0) (fatKcal / totalKcal).toFloat() else 0.34f
 
-                            // Multi-segment Bar
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .height(8.dp)
-                                    .clip(CircleShape)
-                            ) {
-                                Box(modifier = Modifier.fillMaxHeight().weight(carbPct.coerceAtLeast(0.01f)).background(BooksAccent))
-                                Box(modifier = Modifier.fillMaxHeight().weight(protPct.coerceAtLeast(0.01f)).background(NutritionGreen))
-                                Box(modifier = Modifier.fillMaxHeight().weight(fatPct.coerceAtLeast(0.01f)).background(RatingGold))
-                            }
-                            Spacer(modifier = Modifier.height(8.dp))
+                        val carbColor = domainBooksColor()
+                        val protColor = domainNutritionColor()
+                        val fatColor = domainRatingColor()
 
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween
-                            ) {
-                                MacroLegendItem(color = BooksAccent, label = "Karb", grams = state.totalCarb.toInt(), pct = (carbPct * 100).toInt())
-                                MacroLegendItem(color = NutritionGreen, label = "Protein", grams = state.totalProtein.toInt(), pct = (protPct * 100).toInt())
-                                MacroLegendItem(color = RatingGold, label = "Yağ", grams = state.totalFat.toInt(), pct = (fatPct * 100).toInt())
-                            }
+                        // Multi-segment Bar
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(8.dp)
+                                .clip(CircleShape)
+                        ) {
+                            Box(modifier = Modifier.fillMaxHeight().weight(carbPct.coerceAtLeast(0.01f)).background(carbColor))
+                            Box(modifier = Modifier.fillMaxHeight().weight(protPct.coerceAtLeast(0.01f)).background(protColor))
+                            Box(modifier = Modifier.fillMaxHeight().weight(fatPct.coerceAtLeast(0.01f)).background(fatColor))
                         }
-                    }
-                }
-            }
+                        Spacer(modifier = Modifier.height(8.dp))
 
-            // Food Entries Log Header & Filters (Sticky)
-            stickyHeader {
-                Surface(
-                    color = MaterialTheme.colorScheme.surface,
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(vertical = 2.dp),
-                        verticalArrangement = Arrangement.spacedBy(6.dp)
-                    ) {
-                        // Search input
-                        OutlinedTextField(
-                            value = state.searchQuery,
-                            onValueChange = { viewModel.setSearchQuery(it) },
+                        Row(
                             modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            MacroLegendItem(color = carbColor, label = "Karb", grams = state.totalCarb.toInt(), pct = (carbPct * 100).toInt())
+                            MacroLegendItem(color = protColor, label = "Protein", grams = state.totalProtein.toInt(), pct = (protPct * 100).toInt())
+                            MacroLegendItem(color = fatColor, label = "Yağ", grams = state.totalFat.toInt(), pct = (fatPct * 100).toInt())
+                        }
+                    }
+                }
+            }
+
+            // Food Entries Log Header & Filters
+            item {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 4.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    // Search input
+                    OutlinedTextField(
+                        value = state.searchQuery,
+                        onValueChange = { viewModel.setSearchQuery(it) },
+                        modifier = Modifier.fillMaxWidth(),
                             placeholder = {
                                 Text(
                                     text = "Yemek veya porsiyon ara...",
@@ -489,11 +482,25 @@ fun NutritionScreen(
                         }
                     }
                 }
-            }
+
 
 
             // Food Items List
-            if (filteredFoods.isEmpty()) {
+            if (state.isLoading && state.foodEntries.isEmpty()) {
+                item {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(48.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        CircularProgressIndicator(
+                            color = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(36.dp)
+                        )
+                    }
+                }
+            } else if (filteredFoods.isEmpty()) {
                 item {
                     Box(
                         modifier = Modifier
@@ -530,6 +537,15 @@ private fun formatMealName(meal: String): String {
     }
 }
 
+private fun getMealIcon(meal: String): androidx.compose.ui.graphics.vector.ImageVector {
+    return when (meal.trim().lowercase()) {
+        "breakfast" -> Icons.Default.BakeryDining
+        "lunch" -> Icons.Default.LunchDining
+        "dinner" -> Icons.Default.DinnerDining
+        else -> Icons.Default.Restaurant
+    }
+}
+
 @Composable
 fun MacroLegendItem(color: Color, label: String, grams: Int, pct: Int) {
     Row(verticalAlignment = Alignment.CenterVertically) {
@@ -552,6 +568,9 @@ fun MacroLegendItem(color: Color, label: String, grams: Int, pct: Int) {
 
 @Composable
 fun FoodEntryCard(item: FoodEntryDto) {
+    val mealIcon = getMealIcon(item.meal)
+    val mealLabel = formatMealName(item.meal)
+
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = MaterialTheme.shapes.medium,
@@ -563,11 +582,28 @@ fun FoodEntryCard(item: FoodEntryDto) {
     ) {
         Row(
             modifier = Modifier
-                .padding(horizontal = 10.dp, vertical = 8.dp)
+                .padding(horizontal = 12.dp, vertical = 10.dp)
                 .fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
+            // M3 Meal Avatar Container (40dp)
+            Box(
+                modifier = Modifier
+                    .size(40.dp)
+                    .clip(MaterialTheme.shapes.small)
+                    .background(domainNutritionContainer()),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = mealIcon,
+                    contentDescription = null,
+                    tint = domainNutritionOnContainer(),
+                    modifier = Modifier.size(20.dp)
+                )
+            }
+
+            Spacer(modifier = Modifier.width(12.dp))
+
             Column(modifier = Modifier.weight(1f)) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
@@ -584,13 +620,13 @@ fun FoodEntryCard(item: FoodEntryDto) {
                     )
                     Surface(
                         shape = CircleShape,
-                        color = MaterialTheme.colorScheme.secondaryContainer
+                        color = MaterialTheme.colorScheme.surfaceContainerHigh
                     ) {
                         Text(
-                            text = formatMealName(item.meal),
+                            text = mealLabel,
                             style = MaterialTheme.typography.labelSmall,
-                            modifier = Modifier.padding(horizontal = 5.dp, vertical = 1.5.dp),
-                            color = MaterialTheme.colorScheme.onSecondaryContainer,
+                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                             maxLines = 1,
                             softWrap = false
                         )
@@ -605,17 +641,19 @@ fun FoodEntryCard(item: FoodEntryDto) {
                     overflow = TextOverflow.Ellipsis
                 )
             }
+
             Spacer(modifier = Modifier.width(8.dp))
+
             Column(horizontalAlignment = Alignment.End) {
                 Text(
                     text = "${item.calories.toInt()} kcal",
                     style = MaterialTheme.typography.titleSmall,
                     fontWeight = FontWeight.Bold,
-                    color = NutritionGreen,
+                    color = domainNutritionColor(),
                     maxLines = 1,
                     softWrap = false
                 )
-                Spacer(modifier = Modifier.height(1.dp))
+                Spacer(modifier = Modifier.height(2.dp))
                 Text(
                     text = "K:${item.carbohydrate.toInt()}g P:${item.protein.toInt()}g Y:${item.fat.toInt()}g",
                     style = MaterialTheme.typography.labelSmall,
@@ -627,3 +665,4 @@ fun FoodEntryCard(item: FoodEntryDto) {
         }
     }
 }
+
