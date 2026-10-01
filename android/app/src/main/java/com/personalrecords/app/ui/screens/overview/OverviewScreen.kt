@@ -1,14 +1,13 @@
 package com.personalrecords.app.ui.screens.overview
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
-import androidx.compose.ui.input.nestedscroll.NestedScrollSource
-import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.ui.draw.clip
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.*
 import androidx.compose.material.icons.filled.*
@@ -63,23 +62,6 @@ fun OverviewScreen(
         }
     ) { innerPadding ->
         val listState = rememberLazyListState()
-        var unlockProgress by remember { mutableStateOf(0f) }
-        val stickyReleaseLock = remember {
-            object : NestedScrollConnection {
-                override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
-                    if (available.y > 0 && listState.firstVisibleItemIndex <= 1) {
-                        unlockProgress += available.y
-                        if (unlockProgress < 150f) {
-                            return available
-                        }
-                    } else if (available.y < 0) {
-                        unlockProgress = 0f
-                    }
-                    return Offset.Zero
-                }
-            }
-        }
-
         var isRefreshing by remember { mutableStateOf(false) }
         LaunchedEffect(state.isLoading) {
             if (!state.isLoading) isRefreshing = false
@@ -104,8 +86,8 @@ fun OverviewScreen(
                     state = listState,
                     modifier = Modifier
                         .fillMaxSize()
-                        .nestedScroll(stickyReleaseLock)
                         .padding(horizontal = 12.dp),
+                    contentPadding = PaddingValues(top = 8.dp, bottom = 20.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                 // Top 4 Metrics Grid
@@ -169,148 +151,168 @@ fun OverviewScreen(
                     }
                 }
 
-                // Sync & Recent Activities Header (Sticky)
-                stickyHeader {
-                    Surface(
-                        color = MaterialTheme.colorScheme.surface,
-                        modifier = Modifier.fillMaxWidth()
+                // Entegrasyonlar Card
+                item {
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = MaterialTheme.shapes.medium,
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+                        ),
+                        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+                        border = null
                     ) {
-                        Column(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(vertical = 2.dp),
-                            verticalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            // Entegrasyonlar Card
-                            Card(
-                                modifier = Modifier.fillMaxWidth(),
-                                shape = MaterialTheme.shapes.medium,
-                                colors = CardDefaults.cardColors(
-                                    containerColor = MaterialTheme.colorScheme.surfaceContainerLow
-                                ),
-                                elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
-                                border = null
+                        Column(modifier = Modifier.padding(14.dp)) {
+                            Text(
+                                text = "Entegrasyonlar & Senkronizasyon",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.SemiBold,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                            Text(
+                                text = "Tek tıkla anlık veri eşitlemesi",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            Spacer(modifier = Modifier.height(10.dp))
+
+                            // FatSecret Row
+                            SyncRow(
+                                title = "FatSecret",
+                                subtitle = "Beslenme günlüğü",
+                                isSyncing = state.isSyncing == "fatsecret",
+                                onSync = { viewModel.syncService("fatsecret") }
+                            )
+                            HorizontalDivider(
+                                modifier = Modifier.padding(vertical = 8.dp),
+                                color = MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.5f)
+                            )
+
+                            // Goodreads Row
+                            SyncRow(
+                                title = "Goodreads RSS",
+                                subtitle = "Kitaplar & Raflar",
+                                isSyncing = state.isSyncing == "goodreads",
+                                onSync = { viewModel.syncService("goodreads") }
+                            )
+                            HorizontalDivider(
+                                modifier = Modifier.padding(vertical = 8.dp),
+                                color = MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.5f)
+                            )
+
+                            // Letterboxd Row
+                            SyncRow(
+                                title = "Letterboxd RSS",
+                                subtitle = "Filmler & Puanlar",
+                                isSyncing = state.isSyncing == "letterboxd",
+                                onSync = { viewModel.syncService("letterboxd") }
+                            )
+                        }
+                    }
+                }
+
+                // Son Aktiviteler Grouped Card (M3 Pattern aligned with RecordsScreen)
+                item {
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = MaterialTheme.shapes.medium,
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+                        ),
+                        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+                        border = null
+                    ) {
+                        Column {
+                            // Header Row
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 14.dp, vertical = 10.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Column(modifier = Modifier.padding(12.dp)) {
+                                Column {
                                     Text(
-                                        text = "Entegrasyonlar & Senkronizasyon",
+                                        text = "Son Aktiviteler",
                                         style = MaterialTheme.typography.titleMedium,
                                         fontWeight = FontWeight.SemiBold,
                                         color = MaterialTheme.colorScheme.onSurface
                                     )
                                     Text(
-                                        text = "Tek tıkla anlık veri eşitlemesi",
+                                        text = "Öğün, kitap ve film akışı",
                                         style = MaterialTheme.typography.bodySmall,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
-                                    Spacer(modifier = Modifier.height(8.dp))
-
-                                    // FatSecret Row
-                                    SyncRow(
-                                        title = "FatSecret",
-                                        subtitle = "Beslenme günlüğü",
-                                        isSyncing = state.isSyncing == "fatsecret",
-                                        onSync = { viewModel.syncService("fatsecret") }
-                                    )
-                                    HorizontalDivider(
-                                        modifier = Modifier.padding(vertical = 6.dp),
-                                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
-                                    )
-
-                                    // Goodreads Row
-                                    SyncRow(
-                                        title = "Goodreads RSS",
-                                        subtitle = "Kitaplar & Raflar",
-                                        isSyncing = state.isSyncing == "goodreads",
-                                        onSync = { viewModel.syncService("goodreads") }
-                                    )
-                                    HorizontalDivider(
-                                        modifier = Modifier.padding(vertical = 6.dp),
-                                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
-                                    )
-
-                                    // Letterboxd Row
-                                    SyncRow(
-                                        title = "Letterboxd RSS",
-                                        subtitle = "Filmler & Puanlar",
-                                        isSyncing = state.isSyncing == "letterboxd",
-                                        onSync = { viewModel.syncService("letterboxd") }
-                                    )
+                                }
+                                TextButton(
+                                    onClick = onNavigateToTimeline,
+                                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp)
+                                ) {
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                    ) {
+                                        Text(
+                                            text = "Tümü",
+                                            style = MaterialTheme.typography.labelLarge,
+                                            color = MaterialTheme.colorScheme.primary,
+                                            fontWeight = FontWeight.SemiBold
+                                        )
+                                        Icon(
+                                            imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                                            contentDescription = null,
+                                            tint = MaterialTheme.colorScheme.primary,
+                                            modifier = Modifier.size(16.dp)
+                                        )
+                                    }
                                 }
                             }
 
-                            // Son Aktiviteler Header Card
-                            Card(
-                                modifier = Modifier.fillMaxWidth(),
-                                shape = MaterialTheme.shapes.medium,
-                                colors = CardDefaults.cardColors(
-                                    containerColor = MaterialTheme.colorScheme.surfaceContainerLow
-                                ),
-                                elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
-                                border = null
-                            ) {
-                                Row(
+                            HorizontalDivider(
+                                color = MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.5f),
+                                modifier = Modifier.padding(horizontal = 12.dp)
+                            )
+
+                            // Items List inside the Card
+                            if (state.recentActivities.isEmpty()) {
+                                Box(
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .padding(horizontal = 12.dp, vertical = 10.dp),
-                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                    verticalAlignment = Alignment.CenterVertically
+                                        .padding(24.dp),
+                                    contentAlignment = Alignment.Center
                                 ) {
-                                    Column {
-                                        Text(
-                                            text = "Son Aktiviteler",
-                                            style = MaterialTheme.typography.titleMedium,
-                                            fontWeight = FontWeight.SemiBold,
-                                            color = MaterialTheme.colorScheme.onSurface
-                                        )
-                                        Text(
-                                            text = "Öğün, kitap ve film akışı",
-                                            style = MaterialTheme.typography.bodySmall,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    Text(
+                                        text = "Henüz bir aktivite kaydı yok.",
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                            } else {
+                                state.recentActivities.forEachIndexed { index, item ->
+                                    if (index > 0) {
+                                        HorizontalDivider(
+                                            color = MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.5f),
+                                            modifier = Modifier.padding(horizontal = 12.dp)
                                         )
                                     }
-                                    TextButton(onClick = onNavigateToTimeline) {
-                                        Row(
-                                            verticalAlignment = Alignment.CenterVertically,
-                                            horizontalArrangement = Arrangement.spacedBy(4.dp)
-                                        ) {
-                                            Text(
-                                                text = "Tümü",
-                                                style = MaterialTheme.typography.labelLarge,
-                                                color = MaterialTheme.colorScheme.primary,
-                                                fontWeight = FontWeight.SemiBold
-                                            )
-                                            Icon(
-                                                imageVector = Icons.AutoMirrored.Filled.ArrowForward,
-                                                contentDescription = null,
-                                                tint = MaterialTheme.colorScheme.primary,
-                                                modifier = Modifier.size(16.dp)
-                                            )
+                                    ActivityRowItem(
+                                        item = item,
+                                        onClick = {
+                                            when (item.source) {
+                                                "fatsecret" -> onNavigateToNutrition()
+                                                "goodreads" -> onNavigateToBooks()
+                                                "letterboxd" -> onNavigateToMovies()
+                                                else -> onNavigateToTimeline()
+                                            }
                                         }
-                                    }
+                                    )
                                 }
                             }
                         }
                     }
                 }
 
-                // Recent Activities Items List
-                if (state.recentActivities.isEmpty()) {
-                    item {
-                        Text(
-                            text = "Henüz bir aktivite kaydı yok.",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.padding(vertical = 12.dp)
-                        )
-                    }
-                } else {
-                    items(state.recentActivities) { item ->
-                        ActivityRowItem(item = item)
-                    }
-                }
-
-                item { Spacer(modifier = Modifier.height(12.dp)) }
+                item { Spacer(modifier = Modifier.height(16.dp)) }
             }
         }
       }
@@ -372,31 +374,72 @@ fun SyncRow(
 }
 
 @Composable
-fun ActivityRowItem(item: com.personalrecords.app.core.network.model.ActivityItemDto) {
+fun ActivityRowItem(
+    item: com.personalrecords.app.core.network.model.ActivityItemDto,
+    onClick: () -> Unit
+) {
     val fallbackIcon = when (item.source) {
         "fatsecret" -> Icons.Default.Restaurant
         "goodreads" -> Icons.AutoMirrored.Filled.MenuBook
         "letterboxd" -> Icons.Default.Movie
+        "notification" -> Icons.Default.Notifications
         else -> Icons.Default.Bookmark
     }
 
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .background(
-                color = MaterialTheme.colorScheme.surfaceContainer,
-                shape = MaterialTheme.shapes.small
-            )
-            .padding(horizontal = 8.dp, vertical = 6.dp),
+            .clickable(onClick = onClick)
+            .padding(horizontal = 12.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        PosterThumbnail(
-            imageUrl = item.image_url,
-            fallbackIcon = fallbackIcon,
-            width = 32,
-            height = 46
-        )
-        Spacer(modifier = Modifier.width(10.dp))
+        // Leading Media / Icon Avatar
+        when (item.source) {
+            "notification" -> {
+                Box(
+                    modifier = Modifier
+                        .size(38.dp)
+                        .clip(CircleShape)
+                        .background(MaterialTheme.colorScheme.secondaryContainer),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Notifications,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSecondaryContainer,
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
+            }
+            "fatsecret" -> {
+                Box(
+                    modifier = Modifier
+                        .size(38.dp)
+                        .clip(MaterialTheme.shapes.small)
+                        .background(domainNutritionContainer()),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Restaurant,
+                        contentDescription = null,
+                        tint = domainNutritionOnContainer(),
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
+            }
+            else -> {
+                PosterThumbnail(
+                    imageUrl = item.image_url,
+                    fallbackIcon = fallbackIcon,
+                    width = 34,
+                    height = 48
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.width(12.dp))
+
+        // Center Details
         Column(modifier = Modifier.weight(1f)) {
             Text(
                 text = item.title,
@@ -414,6 +457,30 @@ fun ActivityRowItem(item: com.personalrecords.app.core.network.model.ActivityIte
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
+        }
+
+        Spacer(modifier = Modifier.width(8.dp))
+
+        // Trailing Badge (Calories, Rating)
+        Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(3.dp)) {
+            val rating = item.details["rating"]?.toString()?.toDoubleOrNull()
+                ?: item.details["my_rating"]?.toString()?.toDoubleOrNull()
+            if (rating != null && rating > 0) {
+                RatingBadge(rating = rating)
+            }
+            if (item.source == "fatsecret") {
+                val cal = item.details["calories"]?.toString()?.replace("\"", "")
+                if (cal != null && cal != "0" && cal != "null") {
+                    Text(
+                        text = "$cal kcal",
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.primary,
+                        maxLines = 1,
+                        softWrap = false
+                    )
+                }
+            }
         }
     }
 }
