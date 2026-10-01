@@ -338,19 +338,23 @@ fun NutritionScreen(
                 }
             }
 
-            // Food Entries Log Header & Filters
-            item {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 4.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
+            // Food Entries Log Header & Filters (Sticky Header)
+            stickyHeader {
+                Surface(
+                    color = MaterialTheme.colorScheme.surface,
+                    modifier = Modifier.fillMaxWidth()
                 ) {
-                    // Search input
-                    OutlinedTextField(
-                        value = state.searchQuery,
-                        onValueChange = { viewModel.setSearchQuery(it) },
-                        modifier = Modifier.fillMaxWidth(),
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 4.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        // Search input
+                        OutlinedTextField(
+                            value = state.searchQuery,
+                            onValueChange = { viewModel.setSearchQuery(it) },
+                            modifier = Modifier.fillMaxWidth(),
                             placeholder = {
                                 Text(
                                     text = "Yemek veya porsiyon ara...",
@@ -482,6 +486,7 @@ fun NutritionScreen(
                         }
                     }
                 }
+            }
 
 
 
