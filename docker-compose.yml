@@ -1,0 +1,31 @@
+services:
+  personal-records:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: personal-records:latest
+    container_name: personal-records
+    restart: unless-stopped
+    ports:
+      - "8787:8787"
+    environment:
+      - PORT=8787
+      - HOST=0.0.0.0
+      - DB_PATH=/data/personal_records.sqlite3
+      - APP_BASE_URL=http://localhost:8787
+      # Opsiyonel: Public FatSecret Gıda Arama (OAuth 2.0)
+      # - FATSECRET_CLIENT_ID=
+      # - FATSECRET_CLIENT_SECRET=
+      # Opsiyonel: Kişisel FatSecret Günlükleri (OAuth 1.0)
+      # - FATSECRET_CONSUMER_KEY=
+      # - FATSECRET_CONSUMER_SECRET=
+      # Opsiyonel: Webhook Doğrulama Şifresi
+      # - WEBHOOK_SECRET=
+    volumes:
+      - ./data:/data
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8787/api/health || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 5s

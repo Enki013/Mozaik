@@ -35,15 +35,19 @@ func Load() Config {
 	if host == "" {
 		host = "0.0.0.0"
 	}
+	dbPath := strings.TrimSpace(os.Getenv("DB_PATH"))
+	if dbPath == "" {
+		dbPath = filepath.Join(root, "personal_records.sqlite3")
+	}
 	return Config{
 		Root:   root,
-		DBPath: filepath.Join(root, "personal_records.sqlite3"),
+		DBPath: dbPath,
 		Port:   port,
 		Host:   host,
 	}
 }
 
-func (c Config) LoadDotEnv() error {
+func (c *Config) LoadDotEnv() error {
 	file, err := os.Open(filepath.Join(c.Root, ".env"))
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -65,6 +69,15 @@ func (c Config) LoadDotEnv() error {
 		if os.Getenv(key) == "" {
 			_ = os.Setenv(key, value)
 		}
+	}
+	if p := strings.TrimSpace(os.Getenv("PORT")); p != "" {
+		c.Port = p
+	}
+	if h := strings.TrimSpace(os.Getenv("HOST")); h != "" {
+		c.Host = h
+	}
+	if db := strings.TrimSpace(os.Getenv("DB_PATH")); db != "" {
+		c.DBPath = db
 	}
 	return scanner.Err()
 }

@@ -5,6 +5,8 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -159,6 +161,9 @@ type OAuthToken struct {
 }
 
 func Open(path string) (*Store, error) {
+	if dir := filepath.Dir(path); dir != "" && dir != "." {
+		_ = os.MkdirAll(dir, 0755)
+	}
 	db, err := sql.Open("sqlite3", path+"?_busy_timeout=5000")
 	if err != nil {
 		return nil, err

@@ -248,6 +248,30 @@ data class SaveFatSecretKeysResponse(
 )
 
 @Serializable
+data class SyncSettingsDto(
+    val feed_url: String = "",
+    val interval_minutes: Int = 360,
+    val enabled: Boolean = false,
+    val success: Boolean = true,
+    val error: String? = null
+)
+
+@Serializable
+data class SaveSyncSettingsRequest(
+    val feed_url: String = "",
+    val interval_minutes: Int = 360,
+    val enabled: Boolean = true
+)
+
+@Serializable
+data class SaveSyncSettingsResponse(
+    val success: Boolean = true,
+    val feed_url: String = "",
+    val message: String = "",
+    val error: String? = null
+)
+
+@Serializable
 data class NotificationDto(
     val id: String = "",
     val package_name: String = "",

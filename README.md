@@ -1,75 +1,68 @@
 # Kişisel Kayıtlar (Personal Records)
 
-Kişisel beslenme (FatSecret), film günlüğü (Letterboxd) ve kitap okuma (Goodreads) kayıtlarınızı tek bir yerde toplayan, veri egemenliğinizi koruyan açık kaynaklı kişisel takip platformu.
+Kişisel beslenme (FatSecret), film günlüğü (Letterboxd), kitap okuma (Goodreads) ve Android bildirimlerinizi tek bir merkezi havuzda toplayan, veri egemenliğinizi koruyan açık kaynaklı kişisel takip platformu.
 
-> 📖 **Hızlı Başlangıç & Kurulum Rehberi:** Sıfırdan ücretsiz Cloudflare D1 veya yerel Go kurulumu ve Android uygulaması yapılandırması için **[Kurulum ve Kullanım Kılavuzu (SETUP_GUIDE.md)](SETUP_GUIDE.md)** belgesine göz atın.
+> 📖 **Hızlı Başlangıç & Kurulum Rehberi:** Docker Compose veya Cloudflare D1 kurulumu, Notification Relay Webhook entegrasyonu ve Android yapılandırması için **[Kurulum ve Kullanım Kılavuzu (SETUP_GUIDE.md)](SETUP_GUIDE.md)** belgesine göz atın.  
+> 🏛️ **Sistem Mimarisi & Eklenti Tasarımı:** Eklenti modeli ve çift motorlu sunucu yapısı için **[Mimari Belgesi (ARCHITECTURE.md)](ARCHITECTURE.md)** belgesine bakın.
 
-## Mimariler
+---
 
-1. **Cloudflare Worker + D1 (Bulut & Sıfır Maliyet):** `worker/` dizininde yer alan, 7/24 ücretsiz çalışan serverless API.
-2. **Go Backend + SQLite (Yerel / Kendi Sunucun):** `cmd/personal-records` ile çalışan Clean Architecture Go uygulaması.
-3. **Android Jetpack Compose Mobil Uygulama:** `android/` dizininde, her iki backend ile de dinamik olarak çalışan yerel mobil uygulama.
+## 🏛️ Hibrit Mimari ve Eklenti Sistemi
 
-## Hızlı Çalıştırma (Go Yerel Sunucu)
+Kişisel Kayıtlar, **veri toplama motoru (Hub)** ile **kullanıcı arayüzünü (Android)** birbirinden ayırır:
+
+- **1. Webhook Eklentileri (Push):** Harici **Notification Relay Webhook** APK'sı, Tasker veya Home Assistant bildirim ve sensör verilerini doğrudan sunucunun `/api/webhooks/notification` uç noktasına iletir.
+- **2. RSS Eklentileri (Pull):** Letterboxd ve Goodreads gibi halka açık RSS beslemeleri sunucu tarafından taranır. Letterboxd için sadece kullanıcı adı (örn: `enesben_`) yazılması yeterlidir.
+- **3. OTT / OAuth Eklentileri (API):** FatSecret BYOK (Kendi Anahtarını Getir) entegrasyonu ile beslenme ve kalori geçmişi çekilir. (Yakında: Spotify ve Steam).
+- **4. Android İstemcisi:** Jetpack Compose Material 3 Expressive arayüzü ile telefonunuzda pil tüketmeden verilerinizi görüntüleyen, arama ve filtreleme sunan modern bir dashboard'dur.
+
+---
+
+## 🚀 Hızlı Başlangıç
+
+### Seçenek 1: Docker Compose (Önerilen Yerel Kurulum)
+
+Hiçbir bağımlılık kurmadan tek komutla ayağa kaldırın:
+
+```bash
+docker compose up -d
+```
+
+- Sunucunuz `http://localhost:8787` adresinde çalışır.
+- Veritabanınız `./data/personal_records.sqlite3` dizininde kalıcı olarak saklanır.
+
+### Seçenek 2: Cloudflare Worker + D1 (7/24 Kesintisiz & Ücretsiz Bulut)
+
+```bash
+cd worker
+npm install
+npx wrangler login
+npx wrangler d1 create personal-records-db
+npx wrangler d1 execute personal-records-db --remote --file=./schema.sql
+npx wrangler deploy
+```
+
+Deploy sonrası terminaldeki URL'yi (Örn: `https://personal-records-api.xxxx.workers.dev`) Android uygulamanıza yapıştırın.
+
+### Seçenek 3: Yerel Go Backend
 
 ```bash
 cp .env.example .env
 go run ./cmd/personal-records
 ```
 
-Sonra:
+---
 
-```text
-http://localhost:8787
-```
+## 📱 Android Uygulaması
 
-Mobil uygulama icin JSON API endpointleri [MOBILE_API.md](MOBILE_API.md)
-dosyasinda listelenir.
+- En son sürüm APK dosyasını [GitHub Releases](https://github.com/Enki013/personal-records/releases) sayfasından indirin.
+- **Ayarlar** sekmesinden sunucu adresinizi kaydedin.
+- **Bildirim Webhook Entegrasyonu** kartından webhook URL'nizi tek tıkla kopyalayın ve Notification Relay uygulamasına yapıştırın.
+- Letterboxd kullanıcı adınızı ve FatSecret API anahtarlarınızı doğrudan uygulama içinden tanımlayın.
 
-## Goodreads
+---
 
-Goodreads API artik pratik bir sync yolu sunmadigi icin ilk yol CSV import.
+## 🛡️ Veri Egemenliği ve Yedekleme
 
-Goodreads export dosyasini alip web arayuzunden import et:
-
-```text
-Goodreads -> My Books -> Import and export -> Export Library
-```
-
-Import edilen kayitlar `personal_records.sqlite3` icindeki `goodreads_books`
-tablosuna yazilir.
-
-Web arayuzunde:
-
-- toplam, okundu, okunacak ve puanli kitap sayilari gorunur
-- kitap/yazar aramasi yapilir
-- `read`, `to-read` gibi Goodreads raflariyla filtrelenir
-- `/goodreads/export` uzerinden import edilen kutuphane JSON olarak disari alinir
-- Goodreads RSS/feed URL girilerek belirli araliklarla otomatik sync yapilir
-
-Otomatik sync icin Goodreads'te ilgili shelf/RSS feed URL'sini bulup
-`Goodreads otomatik sync` kartina yapistir. Araligi dakika olarak belirle,
-`Otomatik calissin` kutusunu isaretle ve kaydet. `Simdi sync et` butonu ayni
-ayari hemen dener.
-
-## FatSecret
-
-Iki ayri yol var:
-
-- `FATSECRET_CLIENT_ID` ve `FATSECRET_CLIENT_SECRET`: public besin arama icin OAuth 2.0.
-- `FATSECRET_CONSUMER_KEY` ve `FATSECRET_CONSUMER_SECRET`: hesaba baglanip kisisel gunluklere ulasmak icin OAuth 1.0 3-legged.
-
-FatSecret uygulama bilgilerinden sonra `.env` dosyasini doldurup server'i yeniden
-baslat.
-
-## Go mimarisi
-
-Uygulama Go'ya tasindi ve clean architecture katmanlari `internal/` altinda:
-
-- `internal/application`: sync/import/query use-case'leri
-- `internal/infrastructure/sqlite`: SQLite schema ve repository islemleri
-- `internal/integrations/fatsecret`: FatSecret OAuth/API istemcisi
-- `internal/presentation/http`: HTML ve JSON API handler'lari
-- `internal/config`: `.env`, port ve path ayarlari
-
-Aktif local server Go entrypoint'i olan `go run ./cmd/personal-records` ile calisir.
+- **JSON Dışa Aktar:** Ayarlar menüsünden tüm verilerinizi tek bir JSON dosyası olarak indirin.
+- **SQLite (.db) İndir:** Ham veritabanınızı doğrudan cihazınıza yedekleyin.

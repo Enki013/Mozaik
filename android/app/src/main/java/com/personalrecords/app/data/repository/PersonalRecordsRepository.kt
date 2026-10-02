@@ -244,12 +244,48 @@ class PersonalRecordsRepository(
         }
     }
 
+    suspend fun getGoodreadsSettings(): Resource<SyncSettingsDto> {
+        return try {
+            val result = api.getGoodreadsSettings()
+            Resource.Success(result)
+        } catch (e: Exception) {
+            Resource.Error(e.localizedMessage ?: "Goodreads ayarları alınamadı", e)
+        }
+    }
+
+    suspend fun saveGoodreadsSettings(feedUrl: String, intervalMinutes: Int = 360, enabled: Boolean = true): Resource<SaveSyncSettingsResponse> {
+        return try {
+            val result = api.saveGoodreadsSettings(SaveSyncSettingsRequest(feed_url = feedUrl, interval_minutes = intervalMinutes, enabled = enabled))
+            Resource.Success(result)
+        } catch (e: Exception) {
+            Resource.Error(e.localizedMessage ?: "Goodreads ayarları kaydedilemedi", e)
+        }
+    }
+
     suspend fun syncLetterboxd(): Resource<SyncResultDto> {
         return try {
             val result = api.syncLetterboxd()
             Resource.Success(result)
         } catch (e: Exception) {
             Resource.Error(e.localizedMessage ?: "Letterboxd sync başarısız", e)
+        }
+    }
+
+    suspend fun getLetterboxdSettings(): Resource<SyncSettingsDto> {
+        return try {
+            val result = api.getLetterboxdSettings()
+            Resource.Success(result)
+        } catch (e: Exception) {
+            Resource.Error(e.localizedMessage ?: "Letterboxd ayarları alınamadı", e)
+        }
+    }
+
+    suspend fun saveLetterboxdSettings(feedUrl: String, intervalMinutes: Int = 360, enabled: Boolean = true): Resource<SaveSyncSettingsResponse> {
+        return try {
+            val result = api.saveLetterboxdSettings(SaveSyncSettingsRequest(feed_url = feedUrl, interval_minutes = intervalMinutes, enabled = enabled))
+            Resource.Success(result)
+        } catch (e: Exception) {
+            Resource.Error(e.localizedMessage ?: "Letterboxd ayarları kaydedilemedi", e)
         }
     }
 

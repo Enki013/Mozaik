@@ -14,8 +14,10 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.HelpOutline
 import androidx.compose.material.icons.automirrored.filled.MenuBook
 import androidx.compose.material.icons.filled.*
+import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -23,7 +25,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.personalrecords.app.core.theme.*
@@ -50,6 +54,8 @@ fun SettingsScreen(
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
     var showKeyEditor by remember { mutableStateOf(false) }
+
+    val clipboardManager = LocalClipboardManager.current
 
     fun triggerDownload(url: String, filename: String) {
         coroutineScope.launch {
@@ -116,6 +122,14 @@ fun SettingsScreen(
         state.keySaveMessage?.let { snackbarHostState.showSnackbar(it) }
     }
 
+    LaunchedEffect(state.letterboxdSaveMessage) {
+        state.letterboxdSaveMessage?.let { snackbarHostState.showSnackbar(it) }
+    }
+
+    LaunchedEffect(state.goodreadsSaveMessage) {
+        state.goodreadsSaveMessage?.let { snackbarHostState.showSnackbar(it) }
+    }
+
     var isRefreshing by remember { mutableStateOf(false) }
     LaunchedEffect(state.isTestingConnection) {
         if (!state.isTestingConnection) isRefreshing = false
@@ -146,7 +160,7 @@ fun SettingsScreen(
                     IconButton(
                         onClick = {
                             viewModel.testConnection()
-                            viewModel.loadFatSecretSettings()
+                            viewModel.loadAllSettings()
                         }
                     ) {
                         Icon(
@@ -167,7 +181,7 @@ fun SettingsScreen(
             onRefresh = {
                 isRefreshing = true
                 viewModel.testConnection()
-                viewModel.loadFatSecretSettings()
+                viewModel.loadAllSettings()
             },
             modifier = Modifier
                 .fillMaxSize()
@@ -290,7 +304,166 @@ fun SettingsScreen(
                 }
 
                 // ==========================================
-                // SECTION 2: Beslenme & FatSecret BYOK
+                // SECTION 2: Bildirim Webhook Entegrasyonu
+                // ==========================================
+                item {
+                    SettingsSectionTitle(title = "Bildirim Webhook Entegrasyonu")
+                }
+                item {
+                    SettingsCard {
+                        val cleanBaseUrl = state.serverUrl.trim().trimEnd('/')
+                        val webhookUrl = if (cleanBaseUrl.isNotBlank()) "$cleanBaseUrl/api/webhooks/notification" else "https://.../api/webhooks/notification"
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(10.dp)
+                            ) {
+                                SettingsIconBox(
+                                    icon = Icons.Default.Notifications,
+                                    containerColor = MaterialTheme.colorScheme.tertiaryContainer,
+                                    contentColor = MaterialTheme.colorScheme.onTertiaryContainer
+                                )
+                                Column {
+                                    Text(
+                                        text = "Notification Relay Webhook",
+                                        style = MaterialTheme.typography.titleMedium,
+                                        fontWeight = FontWeight.SemiBold
+                                    )
+                                    Text(
+                                        text = "Android bildirimlerini sunucuya aktarın",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(10.dp))
+
+                        Text(
+                            text = "Kişisel Kayıtlar verileri harici webhook ile toplar. Harici Notification Relay Webhook uygulaması bildirimlerinizi doğrudan sunucunuza iletir:",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+
+                        Spacer(modifier = Modifier.height(10.dp))
+
+                        // Webhook URL display
+                        Surface(
+                            shape = MaterialTheme.shapes.small,
+                            color = MaterialTheme.colorScheme.surfaceContainerHighest,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Column(modifier = Modifier.padding(10.dp)) {
+                                Text(
+                                    text = "Hedef Webhook URL'niz:",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                                Spacer(modifier = Modifier.height(4.dp))
+                                SelectionContainer {
+                                    Text(
+                                        text = webhookUrl,
+                                        style = MaterialTheme.typography.bodySmall,
+                                        fontWeight = FontWeight.Medium,
+                                        color = MaterialTheme.colorScheme.primary
+                                    )
+                                }
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Button(
+                                onClick = {
+                                    clipboardManager.setText(AnnotatedString(webhookUrl))
+                                    coroutineScope.launch {
+                                        snackbarHostState.showSnackbar("Webhook URL panoya kopyalandı!")
+                                    }
+                                },
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.ContentCopy,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                    Text("URL'yi Kopyala", style = MaterialTheme.typography.labelLarge)
+                                }
+                            }
+
+                            OutlinedButton(
+                                onClick = {
+                                    val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://github.com/cobanov/notification-relay-webhook/releases"))
+                                    context.startActivity(intent)
+                                },
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Download,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                    Text("APK İndir", style = MaterialTheme.typography.labelLarge)
+                                }
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(10.dp))
+
+                        Surface(
+                            shape = MaterialTheme.shapes.small,
+                            color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Column(modifier = Modifier.padding(10.dp)) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.AutoMirrored.Filled.HelpOutline,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(16.dp),
+                                        tint = MaterialTheme.colorScheme.primary
+                                    )
+                                    Text(
+                                        text = "3 Adımda Kolay Kurulum",
+                                        style = MaterialTheme.typography.labelMedium,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                }
+                                Spacer(modifier = Modifier.height(6.dp))
+                                Text(
+                                    text = "1. Notification Relay APK'sını kurun ve Bildirim Erişimi iznini açın.\n2. Webhooks sekmesinde '+' butonuna basıp yukarıdaki URL'yi yapıştırın.\n3. Test butonuna basıp kaydedin. Bildirimleriniz otomatik olarak veritabanına işlenecektir.",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+                    }
+                }
+
+                // ==========================================
+                // SECTION 3: Beslenme & FatSecret BYOK
                 // ==========================================
                 item {
                     SettingsSectionTitle(title = "Beslenme Entegrasyonu (FatSecret)")
@@ -502,7 +675,7 @@ fun SettingsScreen(
                                             horizontalArrangement = Arrangement.spacedBy(6.dp)
                                         ) {
                                             Icon(
-                                                imageVector = Icons.Default.HelpOutline,
+                                                imageVector = Icons.AutoMirrored.Filled.HelpOutline,
                                                 contentDescription = null,
                                                 modifier = Modifier.size(16.dp),
                                                 tint = MaterialTheme.colorScheme.primary
@@ -606,14 +779,14 @@ fun SettingsScreen(
                 }
 
                 // ==========================================
-                // SECTION 3: Medya Senkronizasyonu
+                // SECTION 4: Medya & Kültür Senkronizasyonu
                 // ==========================================
                 item {
                     SettingsSectionTitle(title = "Kültür & Medya Senkronizasyonu")
                 }
                 item {
                     SettingsCard {
-                        // Goodreads row
+                        // Letterboxd Block
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.SpaceBetween,
@@ -621,59 +794,7 @@ fun SettingsScreen(
                         ) {
                             Row(
                                 verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(10.dp),
-                                modifier = Modifier.weight(1f)
-                            ) {
-                                SettingsIconBox(
-                                    icon = Icons.AutoMirrored.Filled.MenuBook,
-                                    containerColor = MaterialTheme.colorScheme.tertiaryContainer,
-                                    contentColor = MaterialTheme.colorScheme.onTertiaryContainer
-                                )
-                                Column {
-                                    Text(
-                                        text = "Goodreads",
-                                        style = MaterialTheme.typography.titleMedium,
-                                        fontWeight = FontWeight.SemiBold
-                                    )
-                                    Text(
-                                        text = "Kitaplar ve okuma listeleri (RSS)",
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                }
-                            }
-
-                            FilledTonalButton(
-                                onClick = { viewModel.syncGoodreads() },
-                                enabled = state.isSyncing == null
-                            ) {
-                                if (state.isSyncing == "goodreads") {
-                                    CircularProgressIndicator(
-                                        modifier = Modifier.size(16.dp),
-                                        strokeWidth = 2.dp,
-                                        color = MaterialTheme.colorScheme.primary
-                                    )
-                                } else {
-                                    Text("Senkronize Et", style = MaterialTheme.typography.labelMedium)
-                                }
-                            }
-                        }
-
-                        HorizontalDivider(
-                            color = MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.6f),
-                            modifier = Modifier.padding(vertical = 10.dp)
-                        )
-
-                        // Letterboxd row
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(10.dp),
-                                modifier = Modifier.weight(1f)
+                                horizontalArrangement = Arrangement.spacedBy(10.dp)
                             ) {
                                 SettingsIconBox(
                                     icon = Icons.Default.Movie,
@@ -694,9 +815,63 @@ fun SettingsScreen(
                                 }
                             }
 
+                            if (state.letterboxdUrl.isNotBlank()) {
+                                Surface(
+                                    shape = CircleShape,
+                                    color = domainNutritionContainer()
+                                ) {
+                                    Text(
+                                        text = "Aktif ✓",
+                                        color = domainNutritionOnContainer(),
+                                        style = MaterialTheme.typography.labelSmall,
+                                        fontWeight = FontWeight.Bold,
+                                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
+                                    )
+                                }
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(10.dp))
+
+                        OutlinedTextField(
+                            value = state.letterboxdUrl,
+                            onValueChange = { viewModel.updateLetterboxdUrl(it) },
+                            modifier = Modifier.fillMaxWidth(),
+                            label = { Text("Letterboxd Kullanıcı Adı veya RSS") },
+                            placeholder = { Text("Örn: enesben_ veya https://letterboxd.com/enesben_/rss/") },
+                            singleLine = true,
+                            shape = MaterialTheme.shapes.small,
+                            supportingText = {
+                                Text("Sadece kullanıcı adı yazabilirsiniz, sistem otomatik RSS linki oluşturur.")
+                            }
+                        )
+
+                        Spacer(modifier = Modifier.height(6.dp))
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Button(
+                                onClick = { viewModel.saveLetterboxdSettings() },
+                                enabled = !state.isSavingLetterboxd && state.letterboxdUrl.isNotBlank(),
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                if (state.isSavingLetterboxd) {
+                                    CircularProgressIndicator(
+                                        modifier = Modifier.size(16.dp),
+                                        strokeWidth = 2.dp,
+                                        color = MaterialTheme.colorScheme.onPrimary
+                                    )
+                                } else {
+                                    Text("Kaydet", style = MaterialTheme.typography.labelLarge)
+                                }
+                            }
+
                             FilledTonalButton(
                                 onClick = { viewModel.syncLetterboxd() },
-                                enabled = state.isSyncing == null
+                                enabled = state.isSyncing == null,
+                                modifier = Modifier.weight(1f)
                             ) {
                                 if (state.isSyncing == "letterboxd") {
                                     CircularProgressIndicator(
@@ -705,7 +880,246 @@ fun SettingsScreen(
                                         color = MaterialTheme.colorScheme.primary
                                     )
                                 } else {
-                                    Text("Senkronize Et", style = MaterialTheme.typography.labelMedium)
+                                    Text("Senkronize Et", style = MaterialTheme.typography.labelLarge)
+                                }
+                            }
+                        }
+
+                        HorizontalDivider(
+                            color = MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.6f),
+                            modifier = Modifier.padding(vertical = 12.dp)
+                        )
+
+                        // Goodreads Block
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(10.dp)
+                            ) {
+                                SettingsIconBox(
+                                    icon = Icons.AutoMirrored.Filled.MenuBook,
+                                    containerColor = MaterialTheme.colorScheme.tertiaryContainer,
+                                    contentColor = MaterialTheme.colorScheme.onTertiaryContainer
+                                )
+                                Column {
+                                    Text(
+                                        text = "Goodreads",
+                                        style = MaterialTheme.typography.titleMedium,
+                                        fontWeight = FontWeight.SemiBold
+                                    )
+                                    Text(
+                                        text = "Kitaplar ve okuma listeleri (RSS)",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                            }
+
+                            if (state.goodreadsUrl.isNotBlank()) {
+                                Surface(
+                                    shape = CircleShape,
+                                    color = domainNutritionContainer()
+                                ) {
+                                    Text(
+                                        text = "Aktif ✓",
+                                        color = domainNutritionOnContainer(),
+                                        style = MaterialTheme.typography.labelSmall,
+                                        fontWeight = FontWeight.Bold,
+                                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
+                                    )
+                                }
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(10.dp))
+
+                        OutlinedTextField(
+                            value = state.goodreadsUrl,
+                            onValueChange = { viewModel.updateGoodreadsUrl(it) },
+                            modifier = Modifier.fillMaxWidth(),
+                            label = { Text("Goodreads RSS URL") },
+                            placeholder = { Text("https://www.goodreads.com/review/list_rss/...") },
+                            singleLine = true,
+                            shape = MaterialTheme.shapes.small
+                        )
+
+                        Spacer(modifier = Modifier.height(6.dp))
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Button(
+                                onClick = { viewModel.saveGoodreadsSettings() },
+                                enabled = !state.isSavingGoodreads && state.goodreadsUrl.isNotBlank(),
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                if (state.isSavingGoodreads) {
+                                    CircularProgressIndicator(
+                                        modifier = Modifier.size(16.dp),
+                                        strokeWidth = 2.dp,
+                                        color = MaterialTheme.colorScheme.onPrimary
+                                    )
+                                } else {
+                                    Text("Kaydet", style = MaterialTheme.typography.labelLarge)
+                                }
+                            }
+
+                            FilledTonalButton(
+                                onClick = { viewModel.syncGoodreads() },
+                                enabled = state.isSyncing == null,
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                if (state.isSyncing == "goodreads") {
+                                    CircularProgressIndicator(
+                                        modifier = Modifier.size(16.dp),
+                                        strokeWidth = 2.dp,
+                                        color = MaterialTheme.colorScheme.primary
+                                    )
+                                } else {
+                                    Text("Senkronize Et", style = MaterialTheme.typography.labelLarge)
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // ==========================================
+                // SECTION 5: Hibrit Mimari & Eklenti Sistemi
+                // ==========================================
+                item {
+                    SettingsSectionTitle(title = "Hibrit Mimari & Eklentiler")
+                }
+                item {
+                    SettingsCard {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            SettingsIconBox(
+                                icon = Icons.Default.Hub,
+                                containerColor = MaterialTheme.colorScheme.primaryContainer,
+                                contentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                            )
+                            Column {
+                                Text(
+                                    text = "Genişletilebilir Veri Havuzu",
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                                Text(
+                                    text = "3 kanaldan toplanan merkezi kişisel veriler",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(10.dp))
+
+                        Text(
+                            text = "Kişisel Kayıtlar tüm verilerinizi merkezi bir sunucu havuzunda toplar. Android uygulaması yalnızca okuyucu ve yönetim paneli olarak çalışır. Gelecekte eklenecek her servis modüler bir eklenti (plugin) olarak bağlanır:",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+
+                        Spacer(modifier = Modifier.height(10.dp))
+
+                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Surface(
+                                shape = MaterialTheme.shapes.small,
+                                color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(10.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Sensors,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.primary,
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                    Column {
+                                        Text(
+                                            text = "1. Webhook Eklentileri (Push)",
+                                            style = MaterialTheme.typography.labelMedium,
+                                            fontWeight = FontWeight.Bold
+                                        )
+                                        Text(
+                                            text = "Notification Relay APK, Tasker veya Home Assistant ile gelen anlık bildirim ve sensör verileri.",
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
+                                }
+                            }
+
+                            Surface(
+                                shape = MaterialTheme.shapes.small,
+                                color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(10.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.RssFeed,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.secondary,
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                    Column {
+                                        Text(
+                                            text = "2. RSS Eklentileri (Pull / Polling)",
+                                            style = MaterialTheme.typography.labelMedium,
+                                            fontWeight = FontWeight.Bold
+                                        )
+                                        Text(
+                                            text = "Letterboxd ve Goodreads gibi halka açık RSS beslemeleri periyodik olarak taranır.",
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
+                                }
+                            }
+
+                            Surface(
+                                shape = MaterialTheme.shapes.small,
+                                color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(10.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.VpnKey,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.tertiary,
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                    Column {
+                                        Text(
+                                            text = "3. OTT / OAuth Eklentileri (API)",
+                                            style = MaterialTheme.typography.labelMedium,
+                                            fontWeight = FontWeight.Bold
+                                        )
+                                        Text(
+                                            text = "FatSecret OAuth BYOK. Gelecek: Spotify dinleme geçmişi ve Steam kütüphanesi.",
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
                                 }
                             }
                         }

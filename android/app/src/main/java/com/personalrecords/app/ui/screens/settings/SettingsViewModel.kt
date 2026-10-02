@@ -25,7 +25,17 @@ data class SettingsUiState(
     val maskedKey: String = "",
     val isLoadingFsSettings: Boolean = false,
     val isSavingKeys: Boolean = false,
-    val keySaveMessage: String? = null
+    val keySaveMessage: String? = null,
+    // Letterboxd
+    val letterboxdUrl: String = "",
+    val isLoadingLetterboxd: Boolean = false,
+    val isSavingLetterboxd: Boolean = false,
+    val letterboxdSaveMessage: String? = null,
+    // Goodreads
+    val goodreadsUrl: String = "",
+    val isLoadingGoodreads: Boolean = false,
+    val isSavingGoodreads: Boolean = false,
+    val goodreadsSaveMessage: String? = null
 )
 
 class SettingsViewModel(
@@ -40,8 +50,14 @@ class SettingsViewModel(
         viewModelScope.launch {
             val url = preferences.serverBaseUrl.first()
             _uiState.value = _uiState.value.copy(serverUrl = url)
-            loadFatSecretSettings()
+            loadAllSettings()
         }
+    }
+
+    fun loadAllSettings() {
+        loadFatSecretSettings()
+        loadLetterboxdSettings()
+        loadGoodreadsSettings()
     }
 
     fun loadFatSecretSettings() {
@@ -189,6 +205,102 @@ class SettingsViewModel(
                     )
                 }
                 else -> _uiState.value = _uiState.value.copy(isSyncing = null)
+            }
+        }
+    }
+
+    fun loadLetterboxdSettings() {
+        viewModelScope.launch {
+            _uiState.value = _uiState.value.copy(isLoadingLetterboxd = true)
+            when (val res = repository.getLetterboxdSettings()) {
+                is Resource.Success -> {
+                    _uiState.value = _uiState.value.copy(
+                        isLoadingLetterboxd = false,
+                        letterboxdUrl = res.data.feed_url
+                    )
+                }
+                else -> _uiState.value = _uiState.value.copy(isLoadingLetterboxd = false)
+            }
+        }
+    }
+
+    fun updateLetterboxdUrl(url: String) {
+        _uiState.value = _uiState.value.copy(letterboxdUrl = url, letterboxdSaveMessage = null)
+    }
+
+    fun saveLetterboxdSettings() {
+        var input = _uiState.value.letterboxdUrl.trim()
+        if (input.isBlank()) {
+            _uiState.value = _uiState.value.copy(letterboxdSaveMessage = "Letterboxd kullanıcı adı veya RSS linki girin.")
+            return
+        }
+        if (!input.startsWith("http://") && !input.startsWith("https://")) {
+            val username = input.removePrefix("@").trim('/')
+            input = "https://letterboxd.com/$username/rss/"
+        }
+        viewModelScope.launch {
+            _uiState.value = _uiState.value.copy(isSavingLetterboxd = true, letterboxdSaveMessage = null)
+            when (val res = repository.saveLetterboxdSettings(input)) {
+                is Resource.Success -> {
+                    _uiState.value = _uiState.value.copy(
+                        isSavingLetterboxd = false,
+                        letterboxdUrl = res.data.feed_url.ifBlank { input },
+                        letterboxdSaveMessage = res.data.message.ifBlank { "Letterboxd kaydedildi!" }
+                    )
+                }
+                is Resource.Error -> {
+                    _uiState.value = _uiState.value.copy(
+                        isSavingLetterboxd = false,
+                        letterboxdSaveMessage = "Hata: ${res.message}"
+                    )
+                }
+                else -> _uiState.value = _uiState.value.copy(isSavingLetterboxd = false)
+            }
+        }
+    }
+
+    fun loadGoodreadsSettings() {
+        viewModelScope.launch {
+            _uiState.value = _uiState.value.copy(isLoadingGoodreads = true)
+            when (val res = repository.getGoodreadsSettings()) {
+                is Resource.Success -> {
+                    _uiState.value = _uiState.value.copy(
+                        isLoadingGoodreads = false,
+                        goodreadsUrl = res.data.feed_url
+                    )
+                }
+                else -> _uiState.value = _uiState.value.copy(isLoadingGoodreads = false)
+            }
+        }
+    }
+
+    fun updateGoodreadsUrl(url: String) {
+        _uiState.value = _uiState.value.copy(goodreadsUrl = url, goodreadsSaveMessage = null)
+    }
+
+    fun saveGoodreadsSettings() {
+        val input = _uiState.value.goodreadsUrl.trim()
+        if (input.isBlank()) {
+            _uiState.value = _uiState.value.copy(goodreadsSaveMessage = "Goodreads RSS linki girin.")
+            return
+        }
+        viewModelScope.launch {
+            _uiState.value = _uiState.value.copy(isSavingGoodreads = true, goodreadsSaveMessage = null)
+            when (val res = repository.saveGoodreadsSettings(input)) {
+                is Resource.Success -> {
+                    _uiState.value = _uiState.value.copy(
+                        isSavingGoodreads = false,
+                        goodreadsUrl = res.data.feed_url.ifBlank { input },
+                        goodreadsSaveMessage = res.data.message.ifBlank { "Goodreads kaydedildi!" }
+                    )
+                }
+                is Resource.Error -> {
+                    _uiState.value = _uiState.value.copy(
+                        isSavingGoodreads = false,
+                        goodreadsSaveMessage = "Hata: ${res.message}"
+                    )
+                }
+                else -> _uiState.value = _uiState.value.copy(isSavingGoodreads = false)
             }
         }
     }

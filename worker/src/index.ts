@@ -517,6 +517,83 @@ app.post("/api/settings/fatsecret", async (c) => {
   return c.json({ success: true, message: "FatSecret anahtarları başarıyla kaydedildi" });
 });
 
+// 8b. Goodreads Sync Settings
+app.get("/api/settings/goodreads", async (c) => {
+  const row = await c.env.DB
+    .prepare("SELECT feed_url, interval_minutes, enabled FROM goodreads_sync_settings WHERE id = 1")
+    .first<any>();
+  return c.json({
+    feed_url: row?.feed_url || "",
+    interval_minutes: row?.interval_minutes || 360,
+    enabled: !!(row?.enabled)
+  });
+});
+
+app.post("/api/settings/goodreads", async (c) => {
+  let body: any = {};
+  try {
+    body = await c.req.json();
+  } catch {
+    body = await c.req.parseBody();
+  }
+  const feedUrl = String(body.feed_url || body.feedUrl || "").trim();
+  const intervalMinutes = parseInt(String(body.interval_minutes || body.intervalMinutes || "360"), 10) || 360;
+  const enabled = body.enabled === true || body.enabled === "true" || body.enabled === "1" || body.enabled === 1 ? 1 : 0;
+
+  await c.env.DB.prepare(`
+    INSERT INTO goodreads_sync_settings (id, feed_url, interval_minutes, enabled, updated_at)
+    VALUES (1, ?, ?, ?, CURRENT_TIMESTAMP)
+    ON CONFLICT(id) DO UPDATE SET
+      feed_url=excluded.feed_url,
+      interval_minutes=excluded.interval_minutes,
+      enabled=excluded.enabled,
+      updated_at=CURRENT_TIMESTAMP
+  `).bind(feedUrl, intervalMinutes, enabled).run();
+
+  return c.json({ success: true, feed_url: feedUrl, message: "Goodreads ayarları kaydedildi" });
+});
+
+// 8c. Letterboxd Sync Settings
+app.get("/api/settings/letterboxd", async (c) => {
+  const row = await c.env.DB
+    .prepare("SELECT feed_url, interval_minutes, enabled FROM letterboxd_sync_settings WHERE id = 1")
+    .first<any>();
+  return c.json({
+    feed_url: row?.feed_url || "",
+    interval_minutes: row?.interval_minutes || 360,
+    enabled: !!(row?.enabled)
+  });
+});
+
+app.post("/api/settings/letterboxd", async (c) => {
+  let body: any = {};
+  try {
+    body = await c.req.json();
+  } catch {
+    body = await c.req.parseBody();
+  }
+  let feedUrl = String(body.feed_url || body.feedUrl || "").trim();
+  const intervalMinutes = parseInt(String(body.interval_minutes || body.intervalMinutes || "360"), 10) || 360;
+  const enabled = body.enabled === true || body.enabled === "true" || body.enabled === "1" || body.enabled === 1 ? 1 : 0;
+
+  if (feedUrl && !feedUrl.startsWith("http://") && !feedUrl.startsWith("https://")) {
+    const username = feedUrl.replace(/^@/, "").replace(/\/+$/, "");
+    feedUrl = `https://letterboxd.com/${username}/rss/`;
+  }
+
+  await c.env.DB.prepare(`
+    INSERT INTO letterboxd_sync_settings (id, feed_url, interval_minutes, enabled, updated_at)
+    VALUES (1, ?, ?, ?, CURRENT_TIMESTAMP)
+    ON CONFLICT(id) DO UPDATE SET
+      feed_url=excluded.feed_url,
+      interval_minutes=excluded.interval_minutes,
+      enabled=excluded.enabled,
+      updated_at=CURRENT_TIMESTAMP
+  `).bind(feedUrl, intervalMinutes, enabled).run();
+
+  return c.json({ success: true, feed_url: feedUrl, message: "Letterboxd ayarları kaydedildi" });
+});
+
 // 9. Sync Status
 app.get("/api/sync/status", async (c) => {
   const [fatRun, grRun, lbRun] = await Promise.all([
@@ -1167,7 +1244,7 @@ const handleNotificationWebhook = async (c: any) => {
     const existing = await c.env.DB
       .prepare("SELECT id FROM notifications WHERE id = ?")
       .bind(id)
-      .first<any>();
+      .first();
 
     await c.env.DB.prepare(`
       INSERT INTO notifications (

@@ -59,10 +59,12 @@ func (h *Handler) routes() {
 	h.mux.HandleFunc("/goodreads/export", h.goodreadsExport)
 	h.mux.HandleFunc("/goodreads/import", h.goodreadsImport)
 	h.mux.HandleFunc("/goodreads/settings", h.goodreadsSettings)
+	h.mux.HandleFunc("/api/settings/goodreads", h.goodreadsSettings)
 	h.mux.HandleFunc("/goodreads/sync", h.goodreadsSync)
 	h.mux.HandleFunc("/letterboxd/export", h.letterboxdExport)
 	h.mux.HandleFunc("/letterboxd/import", h.letterboxdImport)
 	h.mux.HandleFunc("/letterboxd/settings", h.letterboxdSettings)
+	h.mux.HandleFunc("/api/settings/letterboxd", h.letterboxdSettings)
 	h.mux.HandleFunc("/letterboxd/sync", h.letterboxdSync)
 	h.mux.HandleFunc("/fatsecret/export", h.fatsecretExport)
 	h.mux.HandleFunc("/fatsecret/search", h.fatsecretSearch)
@@ -339,18 +341,63 @@ func (h *Handler) goodreadsImport(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) goodreadsSettings(w http.ResponseWriter, r *http.Request) {
+	if r.Method == http.MethodGet {
+		settings, err := h.services.GoodreadsSettings(r.Context())
+		if err != nil {
+			h.writeJSON(w, http.StatusInternalServerError, map[string]any{"success": false, "error": err.Error()})
+			return
+		}
+		h.writeJSON(w, http.StatusOK, settings)
+		return
+	}
 	if r.Method != http.MethodPost {
 		http.NotFound(w, r)
 		return
 	}
+	var req struct {
+		FeedURL         string `json:"feed_url"`
+		IntervalMinutes int    `json:"interval_minutes"`
+		Enabled         *bool  `json:"enabled"`
+	}
 	_ = r.ParseForm()
+	req.FeedURL = r.FormValue("feed_url")
+	if im := formInt(r, "interval_minutes", 0); im > 0 {
+		req.IntervalMinutes = im
+	}
+	if r.FormValue("enabled") != "" {
+		enabled := true
+		req.Enabled = &enabled
+	}
+	if req.FeedURL == "" {
+		_ = json.NewDecoder(r.Body).Decode(&req)
+	}
+	if req.IntervalMinutes <= 0 {
+		req.IntervalMinutes = 360
+	}
+	isEnabled := true
+	if req.Enabled != nil {
+		isEnabled = *req.Enabled
+	}
+
 	err := h.services.SaveGoodreadsSettings(r.Context(), sqlite.SyncSettings{
-		FeedURL:         r.FormValue("feed_url"),
-		IntervalMinutes: formInt(r, "interval_minutes", 360),
-		Enabled:         r.FormValue("enabled") != "",
+		FeedURL:         strings.TrimSpace(req.FeedURL),
+		IntervalMinutes: req.IntervalMinutes,
+		Enabled:         isEnabled,
 	})
 	if err != nil {
+		if strings.HasPrefix(r.URL.Path, "/api/") || r.Header.Get("Accept") == "application/json" {
+			h.writeJSON(w, http.StatusInternalServerError, map[string]any{"success": false, "error": err.Error()})
+			return
+		}
 		h.htmlError(w, err)
+		return
+	}
+	if strings.HasPrefix(r.URL.Path, "/api/") || r.Header.Get("Accept") == "application/json" {
+		h.writeJSON(w, http.StatusOK, map[string]any{
+			"success":  true,
+			"feed_url": strings.TrimSpace(req.FeedURL),
+			"message":  "Goodreads ayarları kaydedildi",
+		})
 		return
 	}
 	http.Redirect(w, r, "/", http.StatusSeeOther)
@@ -376,18 +423,71 @@ func (h *Handler) letterboxdImport(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) letterboxdSettings(w http.ResponseWriter, r *http.Request) {
+	if r.Method == http.MethodGet {
+		settings, err := h.services.LetterboxdSettings(r.Context())
+		if err != nil {
+			h.writeJSON(w, http.StatusInternalServerError, map[string]any{"success": false, "error": err.Error()})
+			return
+		}
+		h.writeJSON(w, http.StatusOK, settings)
+		return
+	}
 	if r.Method != http.MethodPost {
 		http.NotFound(w, r)
 		return
 	}
+	var req struct {
+		FeedURL         string `json:"feed_url"`
+		IntervalMinutes int    `json:"interval_minutes"`
+		Enabled         *bool  `json:"enabled"`
+	}
 	_ = r.ParseForm()
+	req.FeedURL = r.FormValue("feed_url")
+	if im := formInt(r, "interval_minutes", 0); im > 0 {
+		req.IntervalMinutes = im
+	}
+	if r.FormValue("enabled") != "" {
+		enabled := true
+		req.Enabled = &enabled
+	}
+	if req.FeedURL == "" {
+		_ = json.NewDecoder(r.Body).Decode(&req)
+	}
+
+	feedURL := strings.TrimSpace(req.FeedURL)
+	if feedURL != "" && !strings.HasPrefix(feedURL, "http://") && !strings.HasPrefix(feedURL, "https://") {
+		username := strings.TrimPrefix(feedURL, "@")
+		username = strings.Trim(username, "/")
+		feedURL = fmt.Sprintf("https://letterboxd.com/%s/rss/", username)
+	}
+
+	if req.IntervalMinutes <= 0 {
+		req.IntervalMinutes = 360
+	}
+	isEnabled := true
+	if req.Enabled != nil {
+		isEnabled = *req.Enabled
+	}
+
 	err := h.services.SaveLetterboxdSettings(r.Context(), sqlite.SyncSettings{
-		FeedURL:         r.FormValue("feed_url"),
-		IntervalMinutes: formInt(r, "interval_minutes", 360),
-		Enabled:         r.FormValue("enabled") != "",
+		FeedURL:         feedURL,
+		IntervalMinutes: req.IntervalMinutes,
+		Enabled:         isEnabled,
 	})
 	if err != nil {
+		if strings.HasPrefix(r.URL.Path, "/api/") || r.Header.Get("Accept") == "application/json" {
+			h.writeJSON(w, http.StatusInternalServerError, map[string]any{"success": false, "error": err.Error()})
+			return
+		}
 		h.htmlError(w, err)
+		return
+	}
+	if strings.HasPrefix(r.URL.Path, "/api/") || r.Header.Get("Accept") == "application/json" {
+		h.writeJSON(w, http.StatusOK, map[string]any{
+			"success":  true,
+			"feed_url": feedURL,
+			"message":  "Letterboxd ayarları kaydedildi",
+		})
 		return
 	}
 	http.Redirect(w, r, "/", http.StatusSeeOther)

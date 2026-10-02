@@ -15,6 +15,7 @@ Thumbs.db
 *.db-shm
 *.db-wal
 migration_data.sql
+data/
 
 # Go
 .gocache/

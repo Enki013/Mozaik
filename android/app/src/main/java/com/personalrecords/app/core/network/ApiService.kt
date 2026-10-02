@@ -49,8 +49,24 @@ interface ApiService {
     @POST("api/sync/goodreads")
     suspend fun syncGoodreads(): SyncResultDto
 
+    @GET("api/settings/goodreads")
+    suspend fun getGoodreadsSettings(): SyncSettingsDto
+
+    @POST("api/settings/goodreads")
+    suspend fun saveGoodreadsSettings(
+        @Body request: SaveSyncSettingsRequest
+    ): SaveSyncSettingsResponse
+
     @POST("api/sync/letterboxd")
     suspend fun syncLetterboxd(): SyncResultDto
+
+    @GET("api/settings/letterboxd")
+    suspend fun getLetterboxdSettings(): SyncSettingsDto
+
+    @POST("api/settings/letterboxd")
+    suspend fun saveLetterboxdSettings(
+        @Body request: SaveSyncSettingsRequest
+    ): SaveSyncSettingsResponse
 
     @GET("api/settings/calorie-target")
     suspend fun getCalorieTarget(): CalorieTargetResponseDto

@@ -1,19 +1,36 @@
 # 🚀 Kişisel Kayıtlar (Personal Records) - Kurulum ve Kullanım Rehberi
 
-Bu rehber, **Kişisel Kayıtlar** sistemini sıfırdan kurup kendi verilerinizle (FatSecret beslenme günlüğü, Letterboxd filmleri, Goodreads kitapları) kullanabilmeniz için hazırlanmıştır.
+Bu rehber, **Kişisel Kayıtlar** sistemini sıfırdan kurup kendi verilerinizle (FatSecret beslenme günlüğü, Letterboxd filmleri, Goodreads kitapları ve Android bildirimleri) kullanabilmeniz için hazırlanmıştır.
 
 ---
 
-## 🏛️ Mimari Seçenekleri
+## 🏛️ Hibrit Mimari ve Çalışma Prensibi
 
-Uygulama iki farklı arka yüz (backend) desteğine sahiptir. İkisi de Android uygulamasıyla %100 uyumludur:
+Kişisel Kayıtlar, **merkezi bir veri havuzu (hub)** ve bu havuzu dinleyen bir **Android istemcisi (dashboard)** mimarisine sahiptir:
 
-| Özellik | Seçenek A: Cloudflare Worker + D1 (Önerilen) | Seçenek B: Go Backend + SQLite |
+```
+[ Android Bildirimleri ] ──(Webhook Push)──┐
+[ Home Assistant / Tasker ] ──(Webhook)───┤
+[ Letterboxd (Filmler) ] ──(RSS Polling)──┼──► [ SUNUCU / VERİ HAVUZU ] ◄──► [ ANDROID İSTEMCİ ]
+[ Goodreads (Kitaplar) ] ──(RSS Polling)──┤    (Cloudflare D1 VEYA             (Jetpack Compose M3
+[ FatSecret (Beslenme) ] ──(OAuth 1.0)───┘     Docker SQLite)                  Okuyucu & Yönetim)
+```
+
+### 1. Neden Harici Bildirim Servisi?
+Android uygulamasının kendisi arka planda sürekli bildirim dinleyen hantal bir servis çalıştırmaz. Bunun yerine:
+- Telefonunuza hafif ve açık kaynaklı **Notification Relay Webhook** kurulur.
+- Bildirimler doğrudan sunucunuzun `/api/webhooks/notification` adresine iletilir ve veritabanına kaydedilir.
+- Android uygulaması yalnızca bu verileri görüntüleyen, filtreleyen ve istatistik çıkaran hızlı ve pil dostu bir istemci olarak çalışır.
+
+### 2. İki Farklı Sunucu Seçeneği (100% Uyumlu)
+
+| Özellik | Seçenek A: Cloudflare Worker + D1 (Önerilen) | Seçenek B: Docker / Yerel Go Backend |
 | :--- | :--- | :--- |
-| **Maliyet** | **%100 Ücretsiz** (Cloudflare Free Tier) | Kendi cihazınızda ücretsiz |
-| **Çalışma Şekli** | Sunucusuz (Serverless) Bulut | Yerel bilgisayar, Raspberry Pi, VPS veya Docker |
-| **Erişilebilirlik** | 7/24 dünyanın her yerinden açık | Yerel ağda veya port yönlendirmeyle |
-| **Kurulum Süresi** | ~5 dakika | ~3 dakika |
+| **Maliyet** | **%100 Ücretsiz** (Cloudflare Free Tier) | Kendi sunucunuzda/bilgisayarınızda ücretsiz |
+| **Çalışma Şekli** | Sunucusuz (Serverless Bulut) | Docker Compose ile tek komutla konteyner |
+| **Erişilebilirlik** | 7/24 dünyanın her yerinden açık | Yerel ağda, VPN veya port yönlendirmeyle |
+| **Veritabanı** | Cloudflare D1 (Dağıtık SQLite) | Yerel `personal_records.sqlite3` dosyası |
+| **Kurulum Süresi** | ~4 dakika | ~1 dakika (Docker) |
 
 ---
 
@@ -28,138 +45,121 @@ FatSecret beslenme verilerinizi otomatik çekebilmek için ücretsiz geliştiric
 5. Uygulama oluştuktan sonra size iki değer verilecektir:
    - `Consumer Key`
    - `Consumer Secret`
-6. Bu iki değeri bir yere not edin. *(Sunucu konfigürasyonuyla uğraşmanıza gerek yok; bu anahtarları doğrudan Android uygulamasından gireceksiniz!)*
+6. Bu iki değeri not edin. *(Sunucu koduna yazmanıza gerek yok; Android uygulamasındaki Ayarlar ekranından doğrudan gireceksiniz!)*
 
 ---
 
-## ☁️ 2. Adım (Seçenek A): Cloudflare Worker & D1 Bulut Kurulumu
+## 🐳 2. Adım (Seçenek A): Docker Compose ile Kendi Sunucunu Kur (En Kolay Yerel Kurulum)
 
-Eğer 7/24 çalışan, sıfır maliyetli ve kesintisiz bir bulut altyapısı istiyorsanız bu seçeneği tercih edin.
+Eğer kendi sunucunuzda (Raspberry Pi, ev sunucusu, VPS veya yerel PC) çalıştırmak istiyorsanız:
 
-### Gereksinimler
-- Bilgisayarınızda [Node.js](https://nodejs.org/) kurulu olmalı.
-- Ücretsiz bir [Cloudflare](https://dash.cloudflare.com/) hesabı.
+1. Bilgisayarınızda **Docker** ve **Docker Compose** kurulu olsun.
+2. Proje ana dizininde tek komutla sunucuyu başlatın:
+   ```bash
+   docker compose up -d
+   ```
+3. Sunucunuz hazır! Veritabanınız `./data/personal_records.sqlite3` konumunda güvenle saklanır.
+4. Tarayıcınızdan `http://localhost:8787` adresini açarak çalıştığını doğrulayabilirsiniz.
+5. Mobil uygulamadan erişmek için yerel ağdaki IP adresinizi kullanabilirsiniz (Örn: `http://192.168.1.50:8787`).
 
-### Kurulum Adımları
+*(Docker kullanmadan doğrudan Go ile çalıştırmak isterseniz: `cp .env.example .env && go run ./cmd/personal-records`)*
+
+---
+
+## ☁️ 2. Adım (Seçenek B): Cloudflare Worker & D1 Bulut Kurulumu (7/24 Ücretsiz)
+
+Eğer elektrik faturası ve sunucu yönetimi olmadan 7/24 çalışan bir altyapı istiyorsanız:
 
 1. Terminali açın ve `worker` klasörüne girin:
    ```bash
    cd worker
    npm install
    ```
-
 2. Cloudflare hesabınıza giriş yapın:
    ```bash
    npx wrangler login
    ```
-
 3. D1 veritabanınızı oluşturun:
    ```bash
    npx wrangler d1 create personal-records-db
    ```
-   *Terminalde size bir `database_id` verilecektir.*
-
-4. `worker/wrangler.jsonc` dosyasını açın ve `database_id` alanına aldığınız ID'yi yapıştırın:
-   ```json
-   "d1_databases": [
-     {
-       "binding": "DB",
-       "database_name": "personal-records-db",
-       "database_id": "BURAYA_DATABASE_ID_YAPISTIRIN"
-     }
-   ]
-   ```
-
-5. Veritabanı tablolarını oluşturun:
+4. `worker/wrangler.jsonc` dosyasındaki `database_id` alanına terminaldeki ID'yi yapıştırın.
+5. Tabloları oluşturun:
    ```bash
    npx wrangler d1 execute personal-records-db --remote --file=./schema.sql
    ```
-
-6. Worker'ınızı buluta yükleyin:
+6. Buluta yükleyin:
    ```bash
    npx wrangler deploy
    ```
-
-7. Deploy bittiğinde terminalde çıkan URL'yi kopyalayın (Örn: `https://personal-records-api.kullaniciadi.workers.dev`).
-
----
-
-## 🖥️ 2. Adım (Seçenek B): Yerel Go Backend Kurulumu
-
-Kendi bilgisayarınızda veya ev sunucunuzda çalıştırmak isterseniz:
-
-1. Bilgisayarınızda [Go](https://go.dev/) kurulu olmalı (1.22+).
-2. Ana dizinde `.env` dosyasını hazırlayın:
-   ```bash
-   cp .env.example .env
-   ```
-3. Sunucuyu başlatın:
-   ```bash
-   go run ./cmd/personal-records
-   ```
-4. Sunucunuz `http://localhost:8787` adresinde çalışacaktır. Mobil uygulamadan erişmek için yerel ağdaki Wi-Fi IP adresinizi kullanabilirsiniz (Örn: `http://192.168.1.50:8787`).
+7. Terminalde verilen URL'yi kopyalayın (Örn: `https://personal-records-api.kullaniciadi.workers.dev`).
 
 ---
 
 ## 📱 3. Adım: Android Mobil Uygulamayı Bağlama
 
-1. `app-debug.apk` dosyasını Android telefonunuza yükleyin.
-2. Uygulamayı açın ve sağ üst köşedeki **Ayarlar** (çark) simgesine dokunun.
+1. GitHub Releases sayfasından `app-release.apk` dosyasını telefonunuza indirin ve kurun.
+2. Uygulamayı açın ve alttaki gezinti çubuğundan **Ayarlar** sekmesine geçin.
 
 ### A. Sunucu Bağlantısı
-1. **Sunucu URL** alanına:
-   - Cloudflare Worker kullanıyorsanız: `https://personal-records-api.xxxx.workers.dev`
-   - Go backend kullanıyorsanız: `http://192.168.1.xxx:8787`
-2. **Kaydet** butonuna basın, ardından **Bağlantıyı Sına** butonuna dokunun. Ekranda yeşil **"Bağlı"** rozetini gördüğünüzde bağlantı hazırdır.
+1. **Sunucu URL** alanına sunucu adresinizi yazın:
+   - Cloudflare için: `https://personal-records-api.xxxx.workers.dev`
+   - Docker / Yerel için: `http://192.168.1.xxx:8787`
+2. **Kaydet** butonuna basın ve ardından **Bağlantıyı Sına** butonuna dokunun. Yeşil **"Bağlı"** rozeti belirdiğinde bağlantı hazırdır.
 
-### B. FatSecret Bağlantısı
-1. **FatSecret API Anahtarları** kartındaki alanlara:
-   - 1. Adımda aldığınız `Consumer Key` ve `Consumer Secret` değerlerini yazın.
-   - **Anahtarları Kaydet** butonuna basın.
-2. Ekranda beliren yeşil **"FatSecret ile Bağlan (OAuth)"** butonuna tıklayın.
-3. Telefonunuzun tarayıcısında FatSecret giriş ve izin sayfası açılacaktır. Hesabınıza giriş yapıp **İzin Ver / Allow** seçeneğini onaylayın.
-4. "Bağlantı Başarılı" sayfasını görüp uygulamaya geri döndüğünüzde ekranda **"OAuth ✓"** rozeti çıkacaktır.
-
-### C. İlk Eşitleme
-- **FatSecret Senkronizasyonu** kartından **"Tüm Zamanlar"** veya **"Son 30 Gün"** butonuna basarak tüm geçmiş yemeklerinizi ve kalorilerinizi tek tıkla cihazınıza çekin!
+### B. FatSecret Bağlantısı (BYOK)
+1. **FatSecret API (BYOK)** kartına `Consumer Key` ve `Consumer Secret` değerlerinizi yazıp **Anahtarları Kaydet** butonuna dokunun.
+2. Beliren **"FatSecret ile Bağlan (OAuth)"** butonuna tıklayın. Tarayıcınızda açılan sayfada izin verin.
+3. Uygulamaya döndüğünüzde ekranda yeşil **"OAuth ✓"** rozetini göreceksiniz.
+4. "Son 30 Gün" veya "Tüm Zamanlar" butonuna dokunarak geçmiş besin kayıtlarınızı çekin.
 
 ---
 
-## 📚 4. Adım: Letterboxd ve Goodreads Entegrasyonu
+## 🔔 4. Adım: Android Bildirimlerini İletme (Notification Relay)
+
+Telefonunuza gelen bildirimleri (banka harcamaları, sağlık uygulaması uyarıları, kargo takibi vb.) sunucunuza aktarmak için:
+
+1. **Ayarlar** sekmesindeki **Bildirim Webhook Entegrasyonu** kartına bakın.
+2. Oradaki **URL'yi Kopyala** butonuna dokunun (Hedef URL otomatik hazırlanır: `https://.../api/webhooks/notification`).
+3. **APK İndir** butonuna dokunarak açık kaynaklı **[Notification Relay Webhook](https://github.com/cobanov/notification-relay-webhook)** uygulamasını kurun.
+4. Notification Relay uygulamasını açıp **Bildirim Erişimi** iznini onaylayın.
+5. **Webhooks** sekmesinde `+` simgesine dokunun ve kopyaladığınız Webhook URL'sini yapıştırıp kaydedin.
+6. **Test** butonuna basın. Başarılı olduğunda bildirimleriniz otomatik olarak Kişisel Kayıtlar veritabanına ve **Zaman Çizelgesi (Timeline)** akışına düşecektir!
+
+---
+
+## 🎬 5. Adım: Letterboxd ve Goodreads Entegrasyonu
 
 ### Letterboxd (Filmler)
-1. Uygulamadaki Ayarlar menüsünden veya API üzerinden Letterboxd RSS bağlantınızı tanımlayabilirsiniz:
-   - `https://letterboxd.com/KULLANICI_ADINIZ/rss/`
-2. **Letterboxd Sync** butonuna tıkladığınızda tüm izlediğiniz ve puanladığınız filmler günlüğünüze eklenir.
-3. *Not: Önceden izlediğiniz bir filme sonradan puan verdiğinizde sistem akıllıca mevcut filmi günceller, mükerrer veya hatalı "tekrar izlendi" kaydı oluşturmaz.*
+1. **Ayarlar -> Kültür & Medya Senkronizasyonu** kartındaki Letterboxd alanına **sadece kullanıcı adınızı** yazın (Örn: `enesben_`).
+   - *Not: Tam URL yazmakla uğraşmanıza gerek yoktur, sistem otomatik olarak `https://letterboxd.com/enesben_/rss/` formatına dönüştürür.*
+2. **Kaydet** butonuna dokunun.
+3. **Senkronize Et** butonuna bastığınızda izlediğiniz filmler ve puanlarınız kütüphanenize eklenir.
+4. *Akıllı Eşleştirme:* Daha önce izlediğiniz bir filme sonradan puan verdiğinizde sistem mevcut filmi günceller, gereksiz mükerrer kayıt oluşturmaz.
 
 ### Goodreads (Kitaplar)
-1. Goodreads profilinizden kitap listenizin RSS besleme linkini alın.
-2. **Goodreads Sync** butonuna basarak okuduğunuz ve okumakta olduğunuz kitapları anında eşitleyin.
+1. Goodreads profilinizden aldığınız kitap listenizin RSS besleme linkini yapıştırın.
+2. **Kaydet** ve **Senkronize Et** butonuna basarak kitaplarınızı eşitleyin.
 
 ---
 
-## 🔔 5. Adım: Android Bildirimlerini İletme (Notification Relay Webhook)
+## 🧩 6. Adım: Modüler Eklenti (Plugin) Sistemi
 
-Telefonunuza gelen bildirimleri (örneğin WhatsApp, banka harcamaları, kargo takipleri, sağlık uygulaması uyarıları) otomatik olarak kişisel günlüğünüze kaydetmek için:
+Kişisel Kayıtlar, gelecekte eklenecek yeni veri kaynaklarını 3 ana eklenti kategorisinde kabul eder:
 
-1. Telefonunuza açık kaynaklı **[Notification Relay Webhook](https://github.com/cobanov/notification-relay-webhook)** uygulamasını indirin:
-   - [GitHub Releases](https://github.com/cobanov/notification-relay-webhook/releases) sayfasından en son `.apk` dosyasını indirin veya Obtainium ile kurun.
-2. Uygulamayı açın ve istendiğinde **Bildirim Erişimi (Notification Access)** iznini açın.
-3. **Webhooks** sekmesine gidin ve `+` butonuna basarak yeni bir Webhook ekleyin:
-   - **URL:** `https://personal-records-api.enessalman1300.workers.dev/api/webhooks/notification`
-     *(Veya yerel Go sunucunuz için `http://192.168.1.xxx:8787/api/webhooks/notification`)*
-   - **Headers (İsteğe bağlı):** Eğer sunucunuzda `WEBHOOK_SECRET` tanımladıysanız `X-Webhook-Secret: gizli_sifreniz` ekleyebilirsiniz.
-4. **Test** butonuna basın. Başarılı olduğunu belirten yeşil bildirim çıktığında bağlantı tamamlanmıştır!
-5. **Filtreleme Ayarları:**
-   - Hangi uygulamaların bildirimlerinin kaydedileceğini seçebilirsiniz (örneğin sadece bankacılık, sağlık veya tüm uygulamalar).
-6. **Sonuç:** Bildirimleriniz anında veritabanınıza kaydedilir ve Kişisel Kayıtlar uygulamasının **Zaman Çizelgesi (Timeline)** akışında otomatik olarak görünür.
+1. **Webhook Eklentileri (Push):**
+   - Sunucunun `/api/webhooks/notification` ve benzeri uç noktalarına JSON verisi fırlatan harici istemciler.
+   - Örnekler: Notification Relay, Home Assistant otomasyonları, Tasker tetikleyicileri.
+2. **RSS Eklentileri (Pull / Polling):**
+   - Halka açık RSS/Atom beslemelerini periyodik olarak tarayıp veritabanına kaydeden yapılar.
+   - Örnekler: Letterboxd, Goodreads, blog veya haber beslemeleri.
+3. **OTT / OAuth Eklentileri (API Entegrasyonları):**
+   - İki taraflı token takası ile kullanıcı verilerine erişen servisler.
+   - Örnekler: FatSecret, yakında planlanan Spotify dinleme geçmişi ve Steam kütüphanesi.
 
 ---
 
 ## 🛡️ Veri Egemenliği ve Yedekleme
 
-Verileriniz tamamen size aittir:
-- **JSON Dışa Aktar:** Ayarlar ekranındaki "JSON İndir" butonuna tıklayarak beslenme, film, kitap ve bildirim verilerinizi tek bir JSON dosyasında cihazınızın `Downloads` klasörüne indirebilirsiniz.
-- **SQLite (.db) İndir:** "SQLite (.db) İndir" butonuna tıklayarak doğrudan ham veritabanınızı alıp istediğiniz yerde saklayabilirsiniz.
-
+- **JSON İndir:** Ayarlar ekranından tek dokunuşla tüm verilerinizi JSON olarak telefonunuzun `Downloads` klasörüne aktarabilirsiniz.
+- **SQLite (.db) İndir:** Ham veritabanı dosyasını doğrudan cihazınıza indirebilirsiniz.

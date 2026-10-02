@@ -3,6 +3,7 @@ package http_test
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -292,16 +293,16 @@ func TestFatSecretSettingsEndpoints(t *testing.T) {
 func TestNotificationWebhookAndAPI(t *testing.T) {
 	_, _, handler := setupTestServer(t)
 
-	// 1. Post notification
-	payload := `{
+	now := time.Now().UTC().Format(time.RFC3339)
+	payload := fmt.Sprintf(`{
 		"package": "com.whatsapp",
 		"appName": "WhatsApp",
 		"title": "Ahmet",
 		"text": "Toplantı saat 15:00",
 		"category": "msg",
-		"post_time": "2026-09-25T15:00:00Z",
+		"post_time": "%s",
 		"key": "msg_key_123"
-	}`
+	}`, now)
 	req := httptest.NewRequest(http.MethodPost, "/api/webhooks/notification", strings.NewReader(payload))
 	req.Header.Set("Content-Type", "application/json")
 	rec := httptest.NewRecorder()
@@ -369,7 +370,67 @@ func TestNotificationWebhookAndAPI(t *testing.T) {
 	}
 }
 
+func TestSettingsAPILetterboxdAndGoodreads(t *testing.T) {
+	_, _, handler := setupTestServer(t)
+
+	// 1. Post username to /api/settings/letterboxd - should auto-expand to RSS URL
+	lbPayload := `{"feed_url": "enesben_", "interval_minutes": 180, "enabled": true}`
+	reqLb := httptest.NewRequest(http.MethodPost, "/api/settings/letterboxd", strings.NewReader(lbPayload))
+	reqLb.Header.Set("Content-Type", "application/json")
+	recLb := httptest.NewRecorder()
+	handler.ServeHTTP(recLb, reqLb)
+
+	if recLb.Code != http.StatusOK {
+		t.Fatalf("expected 200 on post letterboxd settings, got %d: %s", recLb.Code, recLb.Body.String())
+	}
+	var lbRes map[string]any
+	_ = json.NewDecoder(recLb.Body).Decode(&lbRes)
+	if lbRes["feed_url"] != "https://letterboxd.com/enesben_/rss/" {
+		t.Errorf("expected expanded rss url, got %v", lbRes["feed_url"])
+	}
+
+	// 2. GET /api/settings/letterboxd
+	reqLbGet := httptest.NewRequest(http.MethodGet, "/api/settings/letterboxd", nil)
+	recLbGet := httptest.NewRecorder()
+	handler.ServeHTTP(recLbGet, reqLbGet)
+
+	if recLbGet.Code != http.StatusOK {
+		t.Fatalf("expected 200 on get letterboxd settings, got %d", recLbGet.Code)
+	}
+	var lbGetRes map[string]any
+	_ = json.NewDecoder(recLbGet.Body).Decode(&lbGetRes)
+	if lbGetRes["feed_url"] != "https://letterboxd.com/enesben_/rss/" {
+		t.Errorf("expected stored rss url, got %v", lbGetRes["feed_url"])
+	}
+
+	// 3. Post full url to /api/settings/goodreads
+	grPayload := `{"feed_url": "https://www.goodreads.com/review/list_rss/12345?shelf=read", "interval_minutes": 360, "enabled": true}`
+	reqGr := httptest.NewRequest(http.MethodPost, "/api/settings/goodreads", strings.NewReader(grPayload))
+	reqGr.Header.Set("Content-Type", "application/json")
+	recGr := httptest.NewRecorder()
+	handler.ServeHTTP(recGr, reqGr)
+
+	if recGr.Code != http.StatusOK {
+		t.Fatalf("expected 200 on post goodreads settings, got %d: %s", recGr.Code, recGr.Body.String())
+	}
+
+	// 4. GET /api/settings/goodreads
+	reqGrGet := httptest.NewRequest(http.MethodGet, "/api/settings/goodreads", nil)
+	recGrGet := httptest.NewRecorder()
+	handler.ServeHTTP(recGrGet, reqGrGet)
+
+	if recGrGet.Code != http.StatusOK {
+		t.Fatalf("expected 200 on get goodreads settings, got %d", recGrGet.Code)
+	}
+	var grGetRes map[string]any
+	_ = json.NewDecoder(recGrGet.Body).Decode(&grGetRes)
+	if grGetRes["feed_url"] != "https://www.goodreads.com/review/list_rss/12345?shelf=read" {
+		t.Errorf("expected stored goodreads rss url, got %v", grGetRes["feed_url"])
+	}
+}
+
 func init() {
 	_ = time.Local
 }
+
 
