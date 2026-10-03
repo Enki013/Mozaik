@@ -34,7 +34,12 @@ import java.util.TimeZone
 @OptIn(ExperimentalMaterial3Api::class, androidx.compose.foundation.ExperimentalFoundationApi::class)
 @Composable
 fun TimelineScreen(
-    viewModel: TimelineViewModel
+    viewModel: TimelineViewModel,
+    scrollToTopFlow: kotlinx.coroutines.flow.Flow<Unit>? = null,
+    refreshFlow: kotlinx.coroutines.flow.Flow<Unit>? = null,
+    onNavigateToNutrition: () -> Unit = {},
+    onNavigateToBooks: () -> Unit = {},
+    onNavigateToMovies: () -> Unit = {}
 ) {
     val state by viewModel.uiState.collectAsState()
     var showDatePicker by remember { mutableStateOf(false) }
@@ -72,12 +77,27 @@ fun TimelineScreen(
     Scaffold(
         modifier = Modifier.fillMaxSize()
     ) { innerPadding ->
+        val listState = androidx.compose.foundation.lazy.rememberLazyListState()
         var isRefreshing by remember { mutableStateOf(false) }
         LaunchedEffect(state.isLoading) {
             if (!state.isLoading) isRefreshing = false
         }
 
-        androidx.compose.material3.pulltorefresh.PullToRefreshBox(
+        LaunchedEffect(scrollToTopFlow) {
+            scrollToTopFlow?.collect {
+                listState.expressiveScrollToTop()
+            }
+        }
+
+        LaunchedEffect(refreshFlow) {
+            refreshFlow?.collect {
+                listState.expressiveScrollToTop()
+                isRefreshing = true
+                viewModel.loadData()
+            }
+        }
+
+        ExpressivePullToRefreshBox(
             isRefreshing = isRefreshing,
             onRefresh = {
                 isRefreshing = true
@@ -101,6 +121,7 @@ fun TimelineScreen(
             }
 
             LazyColumn(
+                state = listState,
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(horizontal = 12.dp),
@@ -162,13 +183,10 @@ fun TimelineScreen(
                     ) {
                         listOf(7 to "7G", 14 to "14G", 30 to "30G", 90 to "90G").forEach { (days, label) ->
                             val isSelected = state.selectedDays == days && state.selectedDate == null && state.fromDate == null
-                            FilterChip(
+                            ExpressiveFilterChip(
                                 selected = isSelected,
                                 onClick = { viewModel.setDays(days) },
-                                label = { Text(label, style = MaterialTheme.typography.labelMedium) },
-                                shape = MaterialTheme.shapes.small,
-                                border = null,
-                                colors = borderlessFilterChipColors()
+                                label = { Text(label, style = MaterialTheme.typography.labelMedium) }
                             )
                         }
 
@@ -236,7 +254,7 @@ fun TimelineScreen(
                                 Triple("notification", stringResource(R.string.timeline_filter_notifications), Icons.Default.Notifications)
                             ).forEach { (key, label, icon) ->
                                 val isSelected = state.selectedSource == key
-                                FilterChip(
+                                ExpressiveFilterChip(
                                     selected = isSelected,
                                     onClick = { viewModel.setSource(key) },
                                     leadingIcon = icon?.let {
@@ -248,10 +266,7 @@ fun TimelineScreen(
                                             )
                                         }
                                     },
-                                    label = { Text(label, style = MaterialTheme.typography.labelMedium) },
-                                    shape = MaterialTheme.shapes.small,
-                                    border = null,
-                                    colors = borderlessFilterChipColors()
+                                    label = { Text(label, style = MaterialTheme.typography.labelMedium) }
                                 )
                             }
                         }
@@ -296,9 +311,9 @@ fun TimelineScreen(
                                 .height(240.dp),
                             contentAlignment = Alignment.Center
                         ) {
-                            CircularProgressIndicator(
+                            ExpressiveLoadingIndicator(
                                 color = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier.size(36.dp)
+                                size = 40.dp
                             )
                         }
                     }
@@ -319,7 +334,12 @@ fun TimelineScreen(
                     }
                 } else {
                     items(filteredGroups) { group ->
-                        DayGroupCard(group = group)
+                        DayGroupCard(
+                            group = group,
+                            onNavigateToNutrition = onNavigateToNutrition,
+                            onNavigateToBooks = onNavigateToBooks,
+                            onNavigateToMovies = onNavigateToMovies
+                        )
                     }
                 }
 
@@ -330,7 +350,12 @@ fun TimelineScreen(
 }
 
 @Composable
-fun DayGroupCard(group: ActivityDayGroupDto) {
+fun DayGroupCard(
+    group: ActivityDayGroupDto,
+    onNavigateToNutrition: () -> Unit = {},
+    onNavigateToBooks: () -> Unit = {},
+    onNavigateToMovies: () -> Unit = {}
+) {
     val sections = remember(group.items) {
         val map = LinkedHashMap<String, MutableList<ActivityItemDto>>()
         group.items.forEach { item ->
@@ -353,25 +378,29 @@ fun DayGroupCard(group: ActivityDayGroupDto) {
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
         border = null
     ) {
-        Column(modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp)) {
+        Column {
             // Day Header
             Row(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 14.dp, vertical = 10.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Column {
                     Text(
-                        text = group.label,
+                        text = group.label.ifBlank { group.date },
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.onSurface
                     )
-                    Text(
-                        text = group.date,
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
+                    if (group.label.isNotBlank() && group.label != group.date) {
+                        Text(
+                            text = group.date,
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
                 }
 
                 // Header Badges:
@@ -442,7 +471,10 @@ fun DayGroupCard(group: ActivityDayGroupDto) {
                 }
             }
 
-            Spacer(modifier = Modifier.height(8.dp))
+            HorizontalDivider(
+                color = MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.5f),
+                modifier = Modifier.padding(horizontal = 12.dp)
+            )
 
             // Sub-sections by domain
             var isFirstSection = true
@@ -450,7 +482,7 @@ fun DayGroupCard(group: ActivityDayGroupDto) {
                 if (!isFirstSection) {
                     HorizontalDivider(
                         color = MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.5f),
-                        modifier = Modifier.padding(vertical = 8.dp)
+                        modifier = Modifier.padding(horizontal = 12.dp)
                     )
                 }
                 isFirstSection = false
@@ -460,7 +492,7 @@ fun DayGroupCard(group: ActivityDayGroupDto) {
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(vertical = 4.dp),
+                            .padding(horizontal = 14.dp, vertical = 8.dp),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
@@ -545,14 +577,32 @@ fun DayGroupCard(group: ActivityDayGroupDto) {
                             }
                         }
                     }
-                    Spacer(modifier = Modifier.height(4.dp))
+
+                    HorizontalDivider(
+                        color = MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.5f),
+                        modifier = Modifier.padding(horizontal = 12.dp)
+                    )
                 }
 
-                // Section Items
-                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    items.forEach { item ->
-                        TimelineItemCard(item = item)
+                // Section Items with HorizontalDivider
+                items.forEachIndexed { itemIndex, item ->
+                    if (itemIndex > 0) {
+                        HorizontalDivider(
+                            color = MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.5f),
+                            modifier = Modifier.padding(horizontal = 12.dp)
+                        )
                     }
+                    TimelineItemCard(
+                        item = item,
+                        onClick = {
+                            when (item.source) {
+                                "fatsecret" -> onNavigateToNutrition()
+                                "goodreads" -> onNavigateToBooks()
+                                "letterboxd" -> onNavigateToMovies()
+                                else -> {}
+                            }
+                        }
+                    )
                 }
             }
         }
@@ -560,7 +610,10 @@ fun DayGroupCard(group: ActivityDayGroupDto) {
 }
 
 @Composable
-fun TimelineItemCard(item: ActivityItemDto) {
+fun TimelineItemCard(
+    item: ActivityItemDto,
+    onClick: () -> Unit = {}
+) {
     val fallbackIcon = when (item.source) {
         "fatsecret" -> Icons.Default.Restaurant
         "goodreads" -> Icons.AutoMirrored.Filled.MenuBook
@@ -572,9 +625,8 @@ fun TimelineItemCard(item: ActivityItemDto) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(MaterialTheme.shapes.small)
-            .background(MaterialTheme.colorScheme.surfaceContainer)
-            .padding(horizontal = 8.dp, vertical = 6.dp),
+            .expressiveBounceClick(onClick = onClick)
+            .padding(horizontal = 12.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         // Leading Icon / Thumbnail
@@ -582,7 +634,7 @@ fun TimelineItemCard(item: ActivityItemDto) {
             "notification" -> {
                 Box(
                     modifier = Modifier
-                        .size(36.dp)
+                        .size(38.dp)
                         .clip(CircleShape)
                         .background(MaterialTheme.colorScheme.secondaryContainer),
                     contentAlignment = Alignment.Center
@@ -598,7 +650,7 @@ fun TimelineItemCard(item: ActivityItemDto) {
             "fatsecret" -> {
                 Box(
                     modifier = Modifier
-                        .size(36.dp)
+                        .size(38.dp)
                         .clip(MaterialTheme.shapes.small)
                         .background(domainNutritionContainer()),
                     contentAlignment = Alignment.Center
@@ -615,13 +667,13 @@ fun TimelineItemCard(item: ActivityItemDto) {
                 PosterThumbnail(
                     imageUrl = item.image_url,
                     fallbackIcon = fallbackIcon,
-                    width = 32,
-                    height = 46
+                    width = 34,
+                    height = 48
                 )
             }
         }
 
-        Spacer(modifier = Modifier.width(10.dp))
+        Spacer(modifier = Modifier.width(12.dp))
 
         Column(modifier = Modifier.weight(1f)) {
             Text(
@@ -632,19 +684,21 @@ fun TimelineItemCard(item: ActivityItemDto) {
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
-            Spacer(modifier = Modifier.height(2.dp))
-            Text(
-                text = item.subtitle,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
+            if (item.subtitle.isNotBlank()) {
+                Spacer(modifier = Modifier.height(2.dp))
+                Text(
+                    text = item.subtitle,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
         }
 
-        Spacer(modifier = Modifier.width(6.dp))
+        Spacer(modifier = Modifier.width(8.dp))
 
-        // Right details (rating, rewatch, meal badge, calorie, time)
+        // Right details (rating, rewatch, calorie, time)
         Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(3.dp)) {
             val rating = item.details["rating"]?.toString()?.toDoubleOrNull()
                 ?: item.details["my_rating"]?.toString()?.toDoubleOrNull()

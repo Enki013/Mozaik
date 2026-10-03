@@ -64,7 +64,7 @@ fun BooksScreen(
             if (!state.isLoading) isRefreshing = false
         }
 
-        androidx.compose.material3.pulltorefresh.PullToRefreshBox(
+        ExpressivePullToRefreshBox(
             isRefreshing = isRefreshing,
             onRefresh = { isRefreshing = true; viewModel.loadData() },
             modifier = Modifier
@@ -202,7 +202,7 @@ fun BooksScreen(
                                     Triple("to-read", stringResource(R.string.books_shelf_to_read), Icons.Default.HourglassEmpty),
                                     Triple("currently-reading", stringResource(R.string.books_shelf_currently_reading), Icons.AutoMirrored.Filled.MenuBook)
                                 ).forEach { (shelf, label, icon) ->
-                                    FilterChip(
+                                    ExpressiveFilterChip(
                                         selected = state.selectedShelf == shelf,
                                         onClick = { viewModel.setShelf(shelf) },
                                         leadingIcon = icon?.let {
@@ -214,10 +214,7 @@ fun BooksScreen(
                                                 )
                                             }
                                         },
-                                        label = { Text(label, style = MaterialTheme.typography.labelMedium) },
-                                        shape = MaterialTheme.shapes.small,
-                                        border = null,
-                                        colors = borderlessFilterChipColors()
+                                        label = { Text(label, style = MaterialTheme.typography.labelMedium) }
                                     )
                                 }
 
@@ -271,7 +268,7 @@ fun BooksScreen(
                                 .height(200.dp),
                             contentAlignment = Alignment.Center
                         ) {
-                            CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
+                            ExpressiveLoadingIndicator(color = MaterialTheme.colorScheme.primary)
                         }
                     }
                 } else if (filteredBooks.isEmpty()) {

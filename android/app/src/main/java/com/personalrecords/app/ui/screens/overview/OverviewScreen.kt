@@ -26,6 +26,8 @@ import com.personalrecords.app.ui.components.*
 @Composable
 fun OverviewScreen(
     viewModel: OverviewViewModel,
+    scrollToTopFlow: kotlinx.coroutines.flow.Flow<Unit>? = null,
+    refreshFlow: kotlinx.coroutines.flow.Flow<Unit>? = null,
     onNavigateToTimeline: () -> Unit,
     onNavigateToNutrition: () -> Unit = {},
     onNavigateToBooks: () -> Unit = {},
@@ -50,7 +52,21 @@ fun OverviewScreen(
             if (!state.isLoading) isRefreshing = false
         }
 
-        androidx.compose.material3.pulltorefresh.PullToRefreshBox(
+        LaunchedEffect(scrollToTopFlow) {
+            scrollToTopFlow?.collect {
+                listState.expressiveScrollToTop()
+            }
+        }
+
+        LaunchedEffect(refreshFlow) {
+            refreshFlow?.collect {
+                listState.expressiveScrollToTop()
+                isRefreshing = true
+                viewModel.loadData()
+            }
+        }
+
+        ExpressivePullToRefreshBox(
             isRefreshing = isRefreshing,
             onRefresh = { isRefreshing = true; viewModel.loadData() },
             modifier = Modifier
@@ -62,7 +78,7 @@ fun OverviewScreen(
                     modifier = Modifier.fillMaxSize(),
                     contentAlignment = Alignment.Center
                 ) {
-                    CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
+                    ExpressiveLoadingIndicator(color = MaterialTheme.colorScheme.primary)
                 }
             } else {
                 LazyColumn(
@@ -335,10 +351,10 @@ fun SyncRow(
             modifier = Modifier.height(32.dp)
         ) {
             if (isSyncing) {
-                CircularProgressIndicator(
+                ExpressiveLoadingIndicator(
+                    size = 14.dp,
                     strokeWidth = 2.dp,
-                    color = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(14.dp)
+                    color = MaterialTheme.colorScheme.primary
                 )
             } else {
                 Icon(
@@ -372,7 +388,7 @@ fun ActivityRowItem(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(onClick = onClick)
+            .expressiveBounceClick(onClick = onClick)
             .padding(horizontal = 12.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {

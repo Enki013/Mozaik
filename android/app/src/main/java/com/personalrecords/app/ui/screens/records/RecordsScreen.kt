@@ -23,12 +23,15 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.res.stringResource
 import com.personalrecords.app.R
 import com.personalrecords.app.core.theme.*
+import com.personalrecords.app.ui.components.*
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun RecordsScreen(
     viewModel: RecordsViewModel,
+    scrollToTopFlow: kotlinx.coroutines.flow.Flow<Unit>? = null,
+    refreshFlow: kotlinx.coroutines.flow.Flow<Unit>? = null,
     onNavigateToNutrition: () -> Unit = {},
     onNavigateToBooks: () -> Unit = {},
     onNavigateToMovies: () -> Unit = {},
@@ -42,12 +45,27 @@ fun RecordsScreen(
         modifier = Modifier.fillMaxSize(),
         snackbarHost = { SnackbarHost(snackbarHostState) }
     ) { innerPadding ->
+        val listState = androidx.compose.foundation.lazy.rememberLazyListState()
         var isRefreshing by remember { mutableStateOf(false) }
         LaunchedEffect(state.isLoading) {
             if (!state.isLoading) isRefreshing = false
         }
 
-        androidx.compose.material3.pulltorefresh.PullToRefreshBox(
+        LaunchedEffect(scrollToTopFlow) {
+            scrollToTopFlow?.collect {
+                listState.expressiveScrollToTop()
+            }
+        }
+
+        LaunchedEffect(refreshFlow) {
+            refreshFlow?.collect {
+                listState.expressiveScrollToTop()
+                isRefreshing = true
+                viewModel.loadData()
+            }
+        }
+
+        ExpressivePullToRefreshBox(
             isRefreshing = isRefreshing,
             onRefresh = { isRefreshing = true; viewModel.loadData() },
             modifier = Modifier
@@ -61,6 +79,7 @@ fun RecordsScreen(
             val notifsCount = counts["notifications"] ?: 0
 
             LazyColumn(
+                state = listState,
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(horizontal = 12.dp),
@@ -225,7 +244,7 @@ private fun RecordItemRow(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(onClick = onClick)
+            .expressiveBounceClick(onClick = onClick)
             .padding(horizontal = 12.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {

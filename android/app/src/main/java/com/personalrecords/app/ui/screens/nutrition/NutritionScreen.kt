@@ -158,7 +158,7 @@ fun NutritionScreen(
             if (!state.isLoading) isRefreshing = false
         }
 
-        androidx.compose.material3.pulltorefresh.PullToRefreshBox(
+        ExpressivePullToRefreshBox(
             isRefreshing = isRefreshing,
             onRefresh = { isRefreshing = true; viewModel.loadData() },
             modifier = Modifier
@@ -507,9 +507,9 @@ fun NutritionScreen(
                             .padding(48.dp),
                         contentAlignment = Alignment.Center
                     ) {
-                        CircularProgressIndicator(
+                        ExpressiveLoadingIndicator(
                             color = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(36.dp)
+                            size = 40.dp
                         )
                     }
                 }

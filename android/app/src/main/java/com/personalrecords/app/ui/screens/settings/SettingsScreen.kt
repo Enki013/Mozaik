@@ -40,6 +40,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.personalrecords.app.R
 import com.personalrecords.app.core.theme.*
+import com.personalrecords.app.ui.components.*
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -56,7 +57,9 @@ import androidx.core.net.toUri
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsScreen(
-    viewModel: SettingsViewModel
+    viewModel: SettingsViewModel,
+    scrollToTopFlow: kotlinx.coroutines.flow.Flow<Unit>? = null,
+    refreshFlow: kotlinx.coroutines.flow.Flow<Unit>? = null
 ) {
     val state by viewModel.uiState.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
@@ -157,8 +160,25 @@ fun SettingsScreen(
     }
 
     var isRefreshing by remember { mutableStateOf(false) }
+    val listState = androidx.compose.foundation.lazy.rememberLazyListState()
+
     LaunchedEffect(state.isTestingConnection) {
         if (!state.isTestingConnection) isRefreshing = false
+    }
+
+    LaunchedEffect(scrollToTopFlow) {
+        scrollToTopFlow?.collect {
+            listState.expressiveScrollToTop()
+        }
+    }
+
+    LaunchedEffect(refreshFlow) {
+        refreshFlow?.collect {
+            listState.expressiveScrollToTop()
+            isRefreshing = true
+            viewModel.testConnection()
+            viewModel.loadAllSettings()
+        }
     }
 
     Scaffold(
@@ -200,7 +220,7 @@ fun SettingsScreen(
                     onNavigateBack = { showLanguageSelection = false }
                 )
             } else {
-                androidx.compose.material3.pulltorefresh.PullToRefreshBox(
+                ExpressivePullToRefreshBox(
                     isRefreshing = isRefreshing,
                     onRefresh = {
                         isRefreshing = true
@@ -210,6 +230,7 @@ fun SettingsScreen(
                     modifier = Modifier.fillMaxSize()
                 ) {
                     LazyColumn(
+                        state = listState,
                         modifier = Modifier
                             .fillMaxSize()
                             .padding(horizontal = 12.dp),
@@ -374,8 +395,8 @@ fun SettingsScreen(
                                 modifier = Modifier.weight(1f)
                             ) {
                                 if (state.isTestingConnection) {
-                                    CircularProgressIndicator(
-                                        modifier = Modifier.size(16.dp),
+                                    ExpressiveLoadingIndicator(
+                                        size = 16.dp,
                                         strokeWidth = 2.dp,
                                         color = MaterialTheme.colorScheme.primary
                                     )
@@ -724,8 +745,8 @@ fun SettingsScreen(
                                     modifier = Modifier.fillMaxWidth()
                                 ) {
                                     if (state.isSavingKeys) {
-                                        CircularProgressIndicator(
-                                            modifier = Modifier.size(16.dp),
+                                        ExpressiveLoadingIndicator(
+                                            size = 16.dp,
                                             strokeWidth = 2.dp,
                                             color = MaterialTheme.colorScheme.onPrimary
                                         )
@@ -1019,8 +1040,8 @@ fun SettingsScreen(
                                 modifier = Modifier.fillMaxWidth()
                             ) {
                                 if (state.isSyncing == "letterboxd") {
-                                    CircularProgressIndicator(
-                                        modifier = Modifier.size(16.dp),
+                                    ExpressiveLoadingIndicator(
+                                        size = 16.dp,
                                         strokeWidth = 2.dp,
                                         color = MaterialTheme.colorScheme.primary
                                     )
@@ -1089,8 +1110,8 @@ fun SettingsScreen(
                                         modifier = Modifier.weight(1f)
                                     ) {
                                         if (state.isSavingLetterboxd) {
-                                            CircularProgressIndicator(
-                                                modifier = Modifier.size(16.dp),
+                                            ExpressiveLoadingIndicator(
+                                                size = 16.dp,
                                                 strokeWidth = 2.dp,
                                                 color = MaterialTheme.colorScheme.onPrimary
                                             )
@@ -1106,8 +1127,8 @@ fun SettingsScreen(
                                             modifier = Modifier.weight(1f)
                                         ) {
                                             if (state.isSyncing == "letterboxd") {
-                                                CircularProgressIndicator(
-                                                    modifier = Modifier.size(16.dp),
+                                                ExpressiveLoadingIndicator(
+                                                    size = 16.dp,
                                                     strokeWidth = 2.dp,
                                                     color = MaterialTheme.colorScheme.primary
                                                 )
@@ -1240,8 +1261,8 @@ fun SettingsScreen(
                                 modifier = Modifier.fillMaxWidth()
                             ) {
                                 if (state.isSyncing == "goodreads") {
-                                    CircularProgressIndicator(
-                                        modifier = Modifier.size(16.dp),
+                                    ExpressiveLoadingIndicator(
+                                        size = 16.dp,
                                         strokeWidth = 2.dp,
                                         color = MaterialTheme.colorScheme.primary
                                     )
@@ -1310,8 +1331,8 @@ fun SettingsScreen(
                                         modifier = Modifier.weight(1f)
                                     ) {
                                         if (state.isSavingGoodreads) {
-                                            CircularProgressIndicator(
-                                                modifier = Modifier.size(16.dp),
+                                            ExpressiveLoadingIndicator(
+                                                size = 16.dp,
                                                 strokeWidth = 2.dp,
                                                 color = MaterialTheme.colorScheme.onPrimary
                                             )
@@ -1327,8 +1348,8 @@ fun SettingsScreen(
                                             modifier = Modifier.weight(1f)
                                         ) {
                                             if (state.isSyncing == "goodreads") {
-                                                CircularProgressIndicator(
-                                                    modifier = Modifier.size(16.dp),
+                                                ExpressiveLoadingIndicator(
+                                                    size = 16.dp,
                                                     strokeWidth = 2.dp,
                                                     color = MaterialTheme.colorScheme.primary
                                                 )

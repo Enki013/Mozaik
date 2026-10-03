@@ -30,9 +30,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.personalrecords.app.R
 import com.personalrecords.app.core.network.model.NotificationDto
-import com.personalrecords.app.ui.components.MetricCard
-import com.personalrecords.app.ui.components.borderlessAssistChipColors
-import com.personalrecords.app.ui.components.borderlessFilterChipColors
+import com.personalrecords.app.ui.components.*
 import java.time.LocalDate
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
@@ -78,7 +76,7 @@ fun NotificationsScreen(
             if (!state.isLoading) isRefreshing = false
         }
 
-        androidx.compose.material3.pulltorefresh.PullToRefreshBox(
+        ExpressivePullToRefreshBox(
             isRefreshing = isRefreshing,
             onRefresh = { isRefreshing = true; viewModel.loadData() },
             modifier = Modifier
@@ -253,7 +251,7 @@ fun NotificationsScreen(
                                 .height(200.dp),
                             contentAlignment = Alignment.Center
                         ) {
-                            CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
+                            ExpressiveLoadingIndicator(color = MaterialTheme.colorScheme.primary)
                         }
                     }
                 } else if (filteredList.isEmpty()) {
@@ -490,7 +488,7 @@ fun NotificationRowItem(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(onClick = onClick)
+            .expressiveBounceClick(onClick = onClick)
             .padding(horizontal = 12.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {

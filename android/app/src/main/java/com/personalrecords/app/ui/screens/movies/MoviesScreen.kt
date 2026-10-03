@@ -65,7 +65,7 @@ fun MoviesScreen(
             if (!state.isLoading) isRefreshing = false
         }
 
-        androidx.compose.material3.pulltorefresh.PullToRefreshBox(
+        ExpressivePullToRefreshBox(
             isRefreshing = isRefreshing,
             onRefresh = { isRefreshing = true; viewModel.loadData() },
             modifier = Modifier
@@ -228,7 +228,7 @@ fun MoviesScreen(
                                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                FilterChip(
+                                ExpressiveFilterChip(
                                     selected = state.onlyRewatches,
                                     onClick = { viewModel.toggleRewatches() },
                                     label = {
@@ -243,10 +243,7 @@ fun MoviesScreen(
                                             contentDescription = null,
                                             modifier = Modifier.size(FilterChipDefaults.IconSize)
                                         )
-                                    },
-                                    shape = MaterialTheme.shapes.small,
-                                    border = null,
-                                    colors = borderlessFilterChipColors()
+                                    }
                                 )
 
                                 val (sortLabel, sortIcon) = when (state.sortBy) {
@@ -301,7 +298,7 @@ fun MoviesScreen(
                                 .height(200.dp),
                             contentAlignment = Alignment.Center
                         ) {
-                            CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
+                            ExpressiveLoadingIndicator(color = MaterialTheme.colorScheme.primary)
                         }
                     }
                 } else if (filteredFilms.isEmpty()) {
