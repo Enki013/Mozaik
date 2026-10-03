@@ -68,22 +68,7 @@ fun TimelineScreen(
     }
 
     Scaffold(
-        modifier = Modifier.fillMaxSize(),
-        topBar = {
-            TopAppBar(
-                title = {
-                    Text(
-                        text = "Zaman Çizelgesi",
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.Bold
-                    )
-                },
-                actions = {},
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.surface
-                )
-            )
-        }
+        modifier = Modifier.fillMaxSize()
     ) { innerPadding ->
         var isRefreshing by remember { mutableStateOf(false) }
         LaunchedEffect(state.isLoading) {
