@@ -730,10 +730,20 @@ fun SettingsScreen(
                                             },
                                             contentPadding = PaddingValues(horizontal = 0.dp, vertical = 0.dp)
                                         ) {
-                                            Text(
-                                                text = "platform.fatsecret.com →",
-                                                style = MaterialTheme.typography.labelSmall
-                                            )
+                                            Row(
+                                                verticalAlignment = Alignment.CenterVertically,
+                                                horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                            ) {
+                                                Text(
+                                                    text = "platform.fatsecret.com",
+                                                    style = MaterialTheme.typography.labelSmall
+                                                )
+                                                Icon(
+                                                    imageVector = Icons.Default.ArrowOutward,
+                                                    contentDescription = null,
+                                                    modifier = Modifier.size(14.dp)
+                                                )
+                                            }
                                         }
                                     }
                                 }
@@ -876,7 +886,7 @@ fun SettingsScreen(
                             onValueChange = { viewModel.updateLetterboxdUrl(it) },
                             modifier = Modifier.fillMaxWidth(),
                             label = { Text("Letterboxd Kullanıcı Adı veya RSS") },
-                            placeholder = { Text("Örn: enesben_ veya https://letterboxd.com/enesben_/rss/") },
+                            placeholder = { Text("Örn: username veya https://letterboxd.com/username/rss/") },
                             singleLine = true,
                             shape = MaterialTheme.shapes.small,
                             supportingText = {
