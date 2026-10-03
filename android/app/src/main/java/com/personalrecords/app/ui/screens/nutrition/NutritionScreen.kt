@@ -529,8 +529,28 @@ fun NutritionScreen(
                     }
                 }
             } else {
-                items(filteredFoods) { food ->
-                    FoodEntryCard(item = food)
+                item {
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = MaterialTheme.shapes.medium,
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+                        ),
+                        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+                        border = null
+                    ) {
+                        Column {
+                            filteredFoods.forEachIndexed { index, food ->
+                                if (index > 0) {
+                                    HorizontalDivider(
+                                        color = MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.5f),
+                                        modifier = Modifier.padding(horizontal = 12.dp)
+                                    )
+                                }
+                                FoodEntryRowItem(item = food)
+                            }
+                        }
+                    }
                 }
             }
 
@@ -581,102 +601,97 @@ fun MacroLegendItem(color: Color, label: String, grams: Int, pct: Int) {
 }
 
 @Composable
-fun FoodEntryCard(item: FoodEntryDto) {
+fun FoodEntryRowItem(item: FoodEntryDto) {
     val mealIcon = getMealIcon(item.meal)
     val mealLabel = formatMealName(item.meal)
 
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = MaterialTheme.shapes.medium,
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceContainerLow
-        ),
-        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
-        border = null
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 12.dp, vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically
     ) {
-        Row(
+        // M3 Meal Avatar Container (40dp)
+        Box(
             modifier = Modifier
-                .padding(horizontal = 12.dp, vertical = 10.dp)
-                .fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically
+                .size(40.dp)
+                .clip(MaterialTheme.shapes.small)
+                .background(domainNutritionContainer()),
+            contentAlignment = Alignment.Center
         ) {
-            // M3 Meal Avatar Container (40dp)
-            Box(
-                modifier = Modifier
-                    .size(40.dp)
-                    .clip(MaterialTheme.shapes.small)
-                    .background(domainNutritionContainer()),
-                contentAlignment = Alignment.Center
+            Icon(
+                imageVector = mealIcon,
+                contentDescription = null,
+                tint = domainNutritionOnContainer(),
+                modifier = Modifier.size(20.dp)
+            )
+        }
+
+        Spacer(modifier = Modifier.width(12.dp))
+
+        Column(modifier = Modifier.weight(1f)) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
             ) {
-                Icon(
-                    imageVector = mealIcon,
-                    contentDescription = null,
-                    tint = domainNutritionOnContainer(),
-                    modifier = Modifier.size(20.dp)
+                Text(
+                    text = item.displayName,
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f, fill = false)
                 )
-            }
-
-            Spacer(modifier = Modifier.width(12.dp))
-
-            Column(modifier = Modifier.weight(1f)) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                Surface(
+                    shape = CircleShape,
+                    color = MaterialTheme.colorScheme.surfaceContainerHigh
                 ) {
                     Text(
-                        text = item.displayName,
-                        style = MaterialTheme.typography.bodyMedium,
-                        fontWeight = FontWeight.SemiBold,
-                        color = MaterialTheme.colorScheme.onSurface,
+                        text = mealLabel,
+                        style = MaterialTheme.typography.labelSmall,
+                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                         maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.weight(1f, fill = false)
+                        softWrap = false
                     )
-                    Surface(
-                        shape = CircleShape,
-                        color = MaterialTheme.colorScheme.surfaceContainerHigh
-                    ) {
-                        Text(
-                            text = mealLabel,
-                            style = MaterialTheme.typography.labelSmall,
-                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            maxLines = 1,
-                            softWrap = false
-                        )
-                    }
                 }
-                Spacer(modifier = Modifier.height(2.dp))
-                Text(
-                    text = "${item.displayAmount} · ${item.displayDate}",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
             }
+            Spacer(modifier = Modifier.height(2.dp))
+            Text(
+                text = "${item.displayAmount} · ${item.displayDate}",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+        }
 
-            Spacer(modifier = Modifier.width(8.dp))
+        Spacer(modifier = Modifier.width(8.dp))
 
-            Column(horizontalAlignment = Alignment.End) {
-                Text(
-                    text = "${item.calories.toInt()} kcal",
-                    style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.Bold,
-                    color = domainNutritionColor(),
-                    maxLines = 1,
-                    softWrap = false
-                )
-                Spacer(modifier = Modifier.height(2.dp))
-                Text(
-                    text = stringResource(R.string.nutrition_macro_short, item.carbohydrate.toInt(), item.protein.toInt(), item.fat.toInt()),
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 1,
-                    softWrap = false
-                )
-            }
+        Column(horizontalAlignment = Alignment.End) {
+            Text(
+                text = "${item.calories.toInt()} kcal",
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.Bold,
+                color = domainNutritionColor(),
+                maxLines = 1,
+                softWrap = false
+            )
+            Spacer(modifier = Modifier.height(2.dp))
+            Text(
+                text = stringResource(R.string.nutrition_macro_short, item.carbohydrate.toInt(), item.protein.toInt(), item.fat.toInt()),
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1,
+                softWrap = false
+            )
         }
     }
+}
+
+@Composable
+fun FoodEntryCard(item: FoodEntryDto) {
+    FoodEntryRowItem(item = item)
 }
 

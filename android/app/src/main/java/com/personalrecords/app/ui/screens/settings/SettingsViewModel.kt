@@ -292,10 +292,17 @@ class SettingsViewModel(
     }
 
     fun saveGoodreadsSettings() {
-        val input = _uiState.value.goodreadsUrl.trim()
+        var input = _uiState.value.goodreadsUrl.trim()
         if (input.isBlank()) {
             _uiState.value = _uiState.value.copy(goodreadsSaveMessage = "Goodreads RSS linki girin.")
             return
+        }
+        if (!input.startsWith("http://") && !input.startsWith("https://")) {
+            val id = input.removePrefix("@").trim('/')
+            input = "https://www.goodreads.com/review/list_rss/$id"
+        } else if (input.contains("goodreads.com/user/show/")) {
+            val id = input.substringAfter("goodreads.com/user/show/").substringBefore("?").trim('/')
+            input = "https://www.goodreads.com/review/list_rss/$id"
         }
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isSavingGoodreads = true, goodreadsSaveMessage = null)

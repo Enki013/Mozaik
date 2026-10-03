@@ -39,6 +39,7 @@
     <string name="action_download_apk">Download APK</string>
     <string name="action_see_all">See All</string>
     <string name="action_copied">Copied</string>
+    <string name="action_edit">Edit</string>
     <string name="filter_all">All</string>
     <string name="badge_soon">Soon</string>
     <string name="badge_planned">Planned</string>

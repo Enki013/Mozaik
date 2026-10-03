@@ -320,8 +320,28 @@ fun MoviesScreen(
                         }
                     }
                 } else {
-                    items(filteredFilms) { film ->
-                        FilmCard(film = film)
+                    item {
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = MaterialTheme.shapes.medium,
+                            colors = CardDefaults.cardColors(
+                                containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+                            ),
+                            elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+                            border = null
+                        ) {
+                            Column {
+                                filteredFilms.forEachIndexed { index, film ->
+                                    if (index > 0) {
+                                        HorizontalDivider(
+                                            color = MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.5f),
+                                            modifier = Modifier.padding(horizontal = 12.dp)
+                                        )
+                                    }
+                                    FilmRowItem(film = film)
+                                }
+                            }
+                        }
                     }
                 }
 
@@ -332,104 +352,99 @@ fun MoviesScreen(
 }
 
 @Composable
-fun FilmCard(film: FilmDto) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = MaterialTheme.shapes.medium,
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceContainerLow
-        ),
-        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
-        border = null
+fun FilmRowItem(film: FilmDto) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 12.dp, vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically
     ) {
-        Row(
-            modifier = Modifier
-                .padding(horizontal = 12.dp, vertical = 10.dp)
-                .fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            PosterThumbnail(imageUrl = film.image_url, fallbackIcon = Icons.Default.Movie, width = 36, height = 52)
-            Spacer(modifier = Modifier.width(12.dp))
+        PosterThumbnail(imageUrl = film.image_url, fallbackIcon = Icons.Default.Movie, width = 36, height = 52)
+        Spacer(modifier = Modifier.width(12.dp))
 
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = film.displayTitle,
-                    style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.SemiBold,
-                    color = MaterialTheme.colorScheme.onSurface,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis
-                )
-                Spacer(modifier = Modifier.height(2.dp))
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(6.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    if (film.safeYear > 0) {
-                        Text(
-                            text = "${film.safeYear}",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
-                            maxLines = 1,
-                            softWrap = false
-                        )
-                    }
-                    if (film.safeWatchedDate.isNotBlank()) {
-                        Text(
-                            text = "· ${film.safeWatchedDate}",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
-                            maxLines = 1,
-                            softWrap = false
-                        )
-                    }
-                    if (film.rewatch) {
-                        Surface(
-                            shape = CircleShape,
-                            color = domainCinemaContainer()
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = film.displayTitle,
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.onSurface,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis
+            )
+            Spacer(modifier = Modifier.height(2.dp))
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                if (film.safeYear > 0) {
+                    Text(
+                        text = "${film.safeYear}",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
+                        maxLines = 1,
+                        softWrap = false
+                    )
+                }
+                if (film.safeWatchedDate.isNotBlank()) {
+                    Text(
+                        text = "· ${film.safeWatchedDate}",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
+                        maxLines = 1,
+                        softWrap = false
+                    )
+                }
+                if (film.rewatch) {
+                    Surface(
+                        shape = CircleShape,
+                        color = domainCinemaContainer()
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 5.dp, vertical = 1.5.dp),
+                            horizontalArrangement = Arrangement.spacedBy(3.dp),
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Row(
-                                modifier = Modifier.padding(horizontal = 5.dp, vertical = 1.5.dp),
-                                horizontalArrangement = Arrangement.spacedBy(3.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.Repeat,
-                                    contentDescription = null,
-                                    modifier = Modifier.size(10.dp),
-                                    tint = domainCinemaOnContainer()
-                                )
-                                Text(
-                                    text = stringResource(R.string.movies_rewatch_badge),
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = domainCinemaOnContainer(),
-                                    fontWeight = FontWeight.Bold,
-                                    maxLines = 1,
-                                    softWrap = false
-                                )
-                            }
+                            Icon(
+                                imageVector = Icons.Default.Repeat,
+                                contentDescription = null,
+                                modifier = Modifier.size(10.dp),
+                                tint = domainCinemaOnContainer()
+                            )
+                            Text(
+                                text = stringResource(R.string.movies_rewatch_badge),
+                                style = MaterialTheme.typography.labelSmall,
+                                color = domainCinemaOnContainer(),
+                                fontWeight = FontWeight.Bold,
+                                maxLines = 1,
+                                softWrap = false
+                            )
                         }
                     }
                 }
-
-                if (film.safeReview.isNotBlank()) {
-                    Spacer(modifier = Modifier.height(3.dp))
-                    Text(
-                        text = "“${film.safeReview.take(120)}${if (film.safeReview.length > 120) "..." else ""}”",
-                        style = MaterialTheme.typography.bodySmall,
-                        fontStyle = FontStyle.Italic,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 2,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                }
             }
 
-            if (film.safeRating > 0) {
-                Spacer(modifier = Modifier.width(8.dp))
-                RatingBadge(rating = film.safeRating)
+            if (film.safeReview.isNotBlank()) {
+                Spacer(modifier = Modifier.height(3.dp))
+                Text(
+                    text = "“${film.safeReview.take(120)}${if (film.safeReview.length > 120) "..." else ""}”",
+                    style = MaterialTheme.typography.bodySmall,
+                    fontStyle = FontStyle.Italic,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis
+                )
             }
         }
+
+        if (film.safeRating > 0) {
+            Spacer(modifier = Modifier.width(8.dp))
+            RatingBadge(rating = film.safeRating)
+        }
     }
+}
+
+@Composable
+fun FilmCard(film: FilmDto) {
+    FilmRowItem(film = film)
 }
 

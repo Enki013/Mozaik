@@ -39,6 +39,7 @@
     <string name="action_download_apk">APK İndir</string>
     <string name="action_see_all">Tümü</string>
     <string name="action_copied">Kopyalandı</string>
+    <string name="action_edit">Düzenle</string>
     <string name="filter_all">Tümü</string>
     <string name="badge_soon">Yakında</string>
     <string name="badge_planned">Planlanan</string>

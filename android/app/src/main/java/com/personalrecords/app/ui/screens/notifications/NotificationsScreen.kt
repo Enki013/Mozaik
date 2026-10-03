@@ -318,11 +318,31 @@ fun NotificationsScreen(
                         }
                     }
                 } else {
-                    items(filteredList, key = { it.id }) { notif ->
-                        NotificationCard(
-                            notification = notif,
-                            onClick = { selectedNotification = notif }
-                        )
+                    item {
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = MaterialTheme.shapes.medium,
+                            colors = CardDefaults.cardColors(
+                                containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+                            ),
+                            elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+                            border = null
+                        ) {
+                            Column {
+                                filteredList.forEachIndexed { index, notif ->
+                                    if (index > 0) {
+                                        HorizontalDivider(
+                                            color = MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.5f),
+                                            modifier = Modifier.padding(horizontal = 12.dp)
+                                        )
+                                    }
+                                    NotificationRowItem(
+                                        notification = notif,
+                                        onClick = { selectedNotification = notif }
+                                    )
+                                }
+                            }
+                        }
                     }
                 }
 
@@ -463,104 +483,102 @@ fun NotificationsScreen(
 }
 
 @Composable
-fun NotificationCard(
+fun NotificationRowItem(
     notification: NotificationDto,
     onClick: () -> Unit
 ) {
-    Card(
-        onClick = onClick,
-        modifier = Modifier.fillMaxWidth(),
-        shape = MaterialTheme.shapes.medium,
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceContainerLow
-        ),
-        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
-        border = null
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .padding(horizontal = 12.dp, vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically
     ) {
-        Row(
+        // M3 Circular Notification Avatar Box (40dp)
+        Box(
             modifier = Modifier
-                .padding(horizontal = 12.dp, vertical = 10.dp)
-                .fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically
+                .size(40.dp)
+                .clip(CircleShape)
+                .background(MaterialTheme.colorScheme.secondaryContainer),
+            contentAlignment = Alignment.Center
         ) {
-            // M3 Circular Notification Avatar Box (40dp)
-            Box(
-                modifier = Modifier
-                    .size(40.dp)
-                    .clip(CircleShape)
-                    .background(MaterialTheme.colorScheme.secondaryContainer),
-                contentAlignment = Alignment.Center
+            Icon(
+                imageVector = Icons.Default.Notifications,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSecondaryContainer,
+                modifier = Modifier.size(20.dp)
+            )
+        }
+
+        Spacer(modifier = Modifier.width(12.dp))
+
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = notification.displayTitle,
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.onSurface,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+            Spacer(modifier = Modifier.height(2.dp))
+            Text(
+                text = notification.displayBody.ifBlank { notification.sub_text.ifBlank { stringResource(R.string.notifications_no_content) } },
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+            Spacer(modifier = Modifier.height(4.dp))
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Icon(
-                    imageVector = Icons.Default.Notifications,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onSecondaryContainer,
-                    modifier = Modifier.size(20.dp)
-                )
-            }
-
-            Spacer(modifier = Modifier.width(12.dp))
-
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = notification.displayTitle,
-                    style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.SemiBold,
-                    color = MaterialTheme.colorScheme.onSurface,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-                Spacer(modifier = Modifier.height(2.dp))
-                Text(
-                    text = notification.displayBody.ifBlank { notification.sub_text.ifBlank { stringResource(R.string.notifications_no_content) } },
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-                Spacer(modifier = Modifier.height(4.dp))
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(6.dp),
-                    verticalAlignment = Alignment.CenterVertically
+                Surface(
+                    shape = CircleShape,
+                    color = MaterialTheme.colorScheme.secondaryContainer
                 ) {
-                    Surface(
-                        shape = CircleShape,
-                        color = MaterialTheme.colorScheme.secondaryContainer
-                    ) {
-                        Text(
-                            text = notification.displayAppName,
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSecondaryContainer,
-                            modifier = Modifier.padding(horizontal = 7.dp, vertical = 2.dp),
-                            fontWeight = FontWeight.Medium,
-                            maxLines = 1,
-                            softWrap = false
-                        )
-                    }
-                    if (notification.category.isNotBlank()) {
-                        Surface(
-                            shape = CircleShape,
-                            color = MaterialTheme.colorScheme.surfaceContainerHighest
-                        ) {
-                            Text(
-                                text = notification.category,
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
-                                maxLines = 1,
-                                softWrap = false
-                            )
-                        }
-                    }
                     Text(
-                        text = "${notification.formattedDate} · ${notification.formattedTime}",
+                        text = notification.displayAppName,
                         style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        color = MaterialTheme.colorScheme.onSecondaryContainer,
+                        modifier = Modifier.padding(horizontal = 7.dp, vertical = 2.dp),
+                        fontWeight = FontWeight.Medium,
                         maxLines = 1,
                         softWrap = false
                     )
                 }
+                if (notification.category.isNotBlank()) {
+                    Surface(
+                        shape = CircleShape,
+                        color = MaterialTheme.colorScheme.surfaceContainerHighest
+                    ) {
+                        Text(
+                            text = notification.category,
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                            maxLines = 1,
+                            softWrap = false
+                        )
+                    }
+                }
+                Text(
+                    text = "${notification.formattedDate} · ${notification.formattedTime}",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    softWrap = false
+                )
             }
         }
     }
+}
+
+@Composable
+fun NotificationCard(
+    notification: NotificationDto,
+    onClick: () -> Unit
+) {
+    NotificationRowItem(notification = notification, onClick = onClick)
 }

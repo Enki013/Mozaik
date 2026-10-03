@@ -63,6 +63,8 @@ fun SettingsScreen(
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
     var showKeyEditor by remember { mutableStateOf(false) }
+    var showLetterboxdEditor by remember { mutableStateOf(false) }
+    var showGoodreadsEditor by remember { mutableStateOf(false) }
     var showLanguageSelection by remember { mutableStateOf(false) }
 
     BackHandler(enabled = showLanguageSelection) {
@@ -137,11 +139,21 @@ fun SettingsScreen(
     }
 
     LaunchedEffect(state.letterboxdSaveMessage) {
-        state.letterboxdSaveMessage?.let { snackbarHostState.showSnackbar(it) }
+        state.letterboxdSaveMessage?.let {
+            snackbarHostState.showSnackbar(it)
+            if (!it.startsWith("Hata") && !it.startsWith("Error")) {
+                showLetterboxdEditor = false
+            }
+        }
     }
 
     LaunchedEffect(state.goodreadsSaveMessage) {
-        state.goodreadsSaveMessage?.let { snackbarHostState.showSnackbar(it) }
+        state.goodreadsSaveMessage?.let {
+            snackbarHostState.showSnackbar(it)
+            if (!it.startsWith("Hata") && !it.startsWith("Error")) {
+                showGoodreadsEditor = false
+            }
+        }
     }
 
     var isRefreshing by remember { mutableStateOf(false) }
@@ -933,7 +945,7 @@ fun SettingsScreen(
                                     modifier = Modifier.padding(start = 8.dp)
                                 ) {
                                     Text(
-                                        text = stringResource(R.string.badge_active_check),
+                                        text = stringResource(R.string.badge_connected),
                                         color = domainNutritionOnContainer(),
                                         style = MaterialTheme.typography.labelSmall,
                                         fontWeight = FontWeight.Bold,
@@ -945,47 +957,66 @@ fun SettingsScreen(
                             }
                         }
 
-                        Spacer(modifier = Modifier.height(10.dp))
-
-                        OutlinedTextField(
-                            value = state.letterboxdUrl,
-                            onValueChange = { viewModel.updateLetterboxdUrl(it) },
-                            modifier = Modifier.fillMaxWidth(),
-                            label = { Text(stringResource(R.string.settings_letterboxd_user_label)) },
-                            placeholder = { Text(stringResource(R.string.settings_letterboxd_user_hint)) },
-                            singleLine = true,
-                            shape = MaterialTheme.shapes.small,
-                            supportingText = {
-                                Text(stringResource(R.string.settings_letterboxd_support))
-                            }
-                        )
-
-                        Spacer(modifier = Modifier.height(6.dp))
-
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            Button(
-                                onClick = { viewModel.saveLetterboxdSettings() },
-                                enabled = !state.isSavingLetterboxd && state.letterboxdUrl.isNotBlank(),
-                                modifier = Modifier.weight(1f)
+                        // Configured Summary & Sync Button (shown when already configured and editor closed)
+                        if (state.letterboxdUrl.isNotBlank() && !showLetterboxdEditor) {
+                            Spacer(modifier = Modifier.height(10.dp))
+                            Surface(
+                                shape = MaterialTheme.shapes.small,
+                                color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                                modifier = Modifier.fillMaxWidth()
                             ) {
-                                if (state.isSavingLetterboxd) {
-                                    CircularProgressIndicator(
-                                        modifier = Modifier.size(16.dp),
-                                        strokeWidth = 2.dp,
-                                        color = MaterialTheme.colorScheme.onPrimary
-                                    )
-                                } else {
-                                    Text(stringResource(R.string.action_save), style = MaterialTheme.typography.labelLarge)
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    modifier = Modifier.padding(10.dp)
+                                ) {
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                        modifier = Modifier.weight(1f)
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.CheckCircle,
+                                            contentDescription = null,
+                                            tint = domainNutritionColor(),
+                                            modifier = Modifier.size(18.dp)
+                                        )
+                                        Column(modifier = Modifier.weight(1f)) {
+                                            val username = remember(state.letterboxdUrl) {
+                                                extractLetterboxdUsername(state.letterboxdUrl)
+                                            }
+                                            Text(
+                                                text = "@$username",
+                                                style = MaterialTheme.typography.titleSmall,
+                                                fontWeight = FontWeight.Bold
+                                            )
+                                            Text(
+                                                text = state.letterboxdUrl,
+                                                style = MaterialTheme.typography.bodySmall,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                maxLines = 1,
+                                                overflow = TextOverflow.Ellipsis
+                                            )
+                                        }
+                                    }
+                                    TextButton(
+                                        onClick = { showLetterboxdEditor = true },
+                                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp)
+                                    ) {
+                                        Text(
+                                            text = stringResource(R.string.action_edit),
+                                            style = MaterialTheme.typography.labelMedium
+                                        )
+                                    }
                                 }
                             }
+
+                            Spacer(modifier = Modifier.height(8.dp))
 
                             FilledTonalButton(
                                 onClick = { viewModel.syncLetterboxd() },
                                 enabled = state.isSyncing == null,
-                                modifier = Modifier.weight(1f)
+                                modifier = Modifier.fillMaxWidth()
                             ) {
                                 if (state.isSyncing == "letterboxd") {
                                     CircularProgressIndicator(
@@ -993,8 +1024,98 @@ fun SettingsScreen(
                                         strokeWidth = 2.dp,
                                         color = MaterialTheme.colorScheme.primary
                                     )
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text(stringResource(R.string.action_syncing), style = MaterialTheme.typography.labelLarge)
                                 } else {
-                                    Text(stringResource(R.string.action_sync), style = MaterialTheme.typography.labelLarge)
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.Sync,
+                                            contentDescription = null,
+                                            modifier = Modifier.size(16.dp)
+                                        )
+                                        Text(stringResource(R.string.action_sync), style = MaterialTheme.typography.labelLarge)
+                                    }
+                                }
+                            }
+                        }
+
+                        // Editor / Initial Setup Inputs (shown when blank OR user tapped Edit)
+                        AnimatedVisibility(visible = state.letterboxdUrl.isBlank() || showLetterboxdEditor) {
+                            Column {
+                                if (state.letterboxdUrl.isNotBlank() && showLetterboxdEditor) {
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.End
+                                    ) {
+                                        TextButton(
+                                            onClick = { showLetterboxdEditor = false },
+                                            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp)
+                                        ) {
+                                            Text(
+                                                text = stringResource(R.string.action_cancel),
+                                                style = MaterialTheme.typography.labelMedium
+                                            )
+                                        }
+                                    }
+                                } else {
+                                    Spacer(modifier = Modifier.height(10.dp))
+                                }
+
+                                OutlinedTextField(
+                                    value = state.letterboxdUrl,
+                                    onValueChange = { viewModel.updateLetterboxdUrl(it) },
+                                    modifier = Modifier.fillMaxWidth(),
+                                    label = { Text(stringResource(R.string.settings_letterboxd_user_label)) },
+                                    placeholder = { Text(stringResource(R.string.settings_letterboxd_user_hint)) },
+                                    singleLine = true,
+                                    shape = MaterialTheme.shapes.small,
+                                    supportingText = {
+                                        Text(stringResource(R.string.settings_letterboxd_support))
+                                    }
+                                )
+
+                                Spacer(modifier = Modifier.height(6.dp))
+
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    Button(
+                                        onClick = { viewModel.saveLetterboxdSettings() },
+                                        enabled = !state.isSavingLetterboxd && state.letterboxdUrl.isNotBlank(),
+                                        modifier = Modifier.weight(1f)
+                                    ) {
+                                        if (state.isSavingLetterboxd) {
+                                            CircularProgressIndicator(
+                                                modifier = Modifier.size(16.dp),
+                                                strokeWidth = 2.dp,
+                                                color = MaterialTheme.colorScheme.onPrimary
+                                            )
+                                        } else {
+                                            Text(stringResource(R.string.action_save), style = MaterialTheme.typography.labelLarge)
+                                        }
+                                    }
+
+                                    if (state.letterboxdUrl.isNotBlank()) {
+                                        FilledTonalButton(
+                                            onClick = { viewModel.syncLetterboxd() },
+                                            enabled = state.isSyncing == null,
+                                            modifier = Modifier.weight(1f)
+                                        ) {
+                                            if (state.isSyncing == "letterboxd") {
+                                                CircularProgressIndicator(
+                                                    modifier = Modifier.size(16.dp),
+                                                    strokeWidth = 2.dp,
+                                                    color = MaterialTheme.colorScheme.primary
+                                                )
+                                            } else {
+                                                Text(stringResource(R.string.action_sync), style = MaterialTheme.typography.labelLarge)
+                                            }
+                                        }
+                                    }
                                 }
                             }
                         }
@@ -1045,7 +1166,7 @@ fun SettingsScreen(
                                     modifier = Modifier.padding(start = 8.dp)
                                 ) {
                                     Text(
-                                        text = stringResource(R.string.badge_active_check),
+                                        text = stringResource(R.string.badge_connected),
                                         color = domainNutritionOnContainer(),
                                         style = MaterialTheme.typography.labelSmall,
                                         fontWeight = FontWeight.Bold,
@@ -1057,44 +1178,66 @@ fun SettingsScreen(
                             }
                         }
 
-                        Spacer(modifier = Modifier.height(10.dp))
-
-                        OutlinedTextField(
-                            value = state.goodreadsUrl,
-                            onValueChange = { viewModel.updateGoodreadsUrl(it) },
-                            modifier = Modifier.fillMaxWidth(),
-                            label = { Text(stringResource(R.string.settings_goodreads_user_label)) },
-                            placeholder = { Text(stringResource(R.string.settings_goodreads_user_hint)) },
-                            singleLine = true,
-                            shape = MaterialTheme.shapes.small
-                        )
-
-                        Spacer(modifier = Modifier.height(6.dp))
-
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            Button(
-                                onClick = { viewModel.saveGoodreadsSettings() },
-                                enabled = !state.isSavingGoodreads && state.goodreadsUrl.isNotBlank(),
-                                modifier = Modifier.weight(1f)
+                        // Configured Summary & Sync Button (shown when already configured and editor closed)
+                        if (state.goodreadsUrl.isNotBlank() && !showGoodreadsEditor) {
+                            Spacer(modifier = Modifier.height(10.dp))
+                            Surface(
+                                shape = MaterialTheme.shapes.small,
+                                color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                                modifier = Modifier.fillMaxWidth()
                             ) {
-                                if (state.isSavingGoodreads) {
-                                    CircularProgressIndicator(
-                                        modifier = Modifier.size(16.dp),
-                                        strokeWidth = 2.dp,
-                                        color = MaterialTheme.colorScheme.onPrimary
-                                    )
-                                } else {
-                                    Text(stringResource(R.string.action_save), style = MaterialTheme.typography.labelLarge)
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    modifier = Modifier.padding(10.dp)
+                                ) {
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                        modifier = Modifier.weight(1f)
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.CheckCircle,
+                                            contentDescription = null,
+                                            tint = domainNutritionColor(),
+                                            modifier = Modifier.size(18.dp)
+                                        )
+                                        Column(modifier = Modifier.weight(1f)) {
+                                            val goodreadsId = remember(state.goodreadsUrl) {
+                                                extractGoodreadsId(state.goodreadsUrl)
+                                            }
+                                            Text(
+                                                text = "ID: $goodreadsId",
+                                                style = MaterialTheme.typography.titleSmall,
+                                                fontWeight = FontWeight.Bold
+                                            )
+                                            Text(
+                                                text = state.goodreadsUrl,
+                                                style = MaterialTheme.typography.bodySmall,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                maxLines = 1,
+                                                overflow = TextOverflow.Ellipsis
+                                            )
+                                        }
+                                    }
+                                    TextButton(
+                                        onClick = { showGoodreadsEditor = true },
+                                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp)
+                                    ) {
+                                        Text(
+                                            text = stringResource(R.string.action_edit),
+                                            style = MaterialTheme.typography.labelMedium
+                                        )
+                                    }
                                 }
                             }
+
+                            Spacer(modifier = Modifier.height(8.dp))
 
                             FilledTonalButton(
                                 onClick = { viewModel.syncGoodreads() },
                                 enabled = state.isSyncing == null,
-                                modifier = Modifier.weight(1f)
+                                modifier = Modifier.fillMaxWidth()
                             ) {
                                 if (state.isSyncing == "goodreads") {
                                     CircularProgressIndicator(
@@ -1102,8 +1245,98 @@ fun SettingsScreen(
                                         strokeWidth = 2.dp,
                                         color = MaterialTheme.colorScheme.primary
                                     )
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text(stringResource(R.string.action_syncing), style = MaterialTheme.typography.labelLarge)
                                 } else {
-                                    Text(stringResource(R.string.action_sync), style = MaterialTheme.typography.labelLarge)
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.Sync,
+                                            contentDescription = null,
+                                            modifier = Modifier.size(16.dp)
+                                        )
+                                        Text(stringResource(R.string.action_sync), style = MaterialTheme.typography.labelLarge)
+                                    }
+                                }
+                            }
+                        }
+
+                        // Editor / Initial Setup Inputs (shown when blank OR user tapped Edit)
+                        AnimatedVisibility(visible = state.goodreadsUrl.isBlank() || showGoodreadsEditor) {
+                            Column {
+                                if (state.goodreadsUrl.isNotBlank() && showGoodreadsEditor) {
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.End
+                                    ) {
+                                        TextButton(
+                                            onClick = { showGoodreadsEditor = false },
+                                            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp)
+                                        ) {
+                                            Text(
+                                                text = stringResource(R.string.action_cancel),
+                                                style = MaterialTheme.typography.labelMedium
+                                            )
+                                        }
+                                    }
+                                } else {
+                                    Spacer(modifier = Modifier.height(10.dp))
+                                }
+
+                                OutlinedTextField(
+                                    value = state.goodreadsUrl,
+                                    onValueChange = { viewModel.updateGoodreadsUrl(it) },
+                                    modifier = Modifier.fillMaxWidth(),
+                                    label = { Text(stringResource(R.string.settings_goodreads_user_label)) },
+                                    placeholder = { Text(stringResource(R.string.settings_goodreads_user_hint)) },
+                                    singleLine = true,
+                                    shape = MaterialTheme.shapes.small,
+                                    supportingText = {
+                                        Text(stringResource(R.string.settings_goodreads_support))
+                                    }
+                                )
+
+                                Spacer(modifier = Modifier.height(6.dp))
+
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    Button(
+                                        onClick = { viewModel.saveGoodreadsSettings() },
+                                        enabled = !state.isSavingGoodreads && state.goodreadsUrl.isNotBlank(),
+                                        modifier = Modifier.weight(1f)
+                                    ) {
+                                        if (state.isSavingGoodreads) {
+                                            CircularProgressIndicator(
+                                                modifier = Modifier.size(16.dp),
+                                                strokeWidth = 2.dp,
+                                                color = MaterialTheme.colorScheme.onPrimary
+                                            )
+                                        } else {
+                                            Text(stringResource(R.string.action_save), style = MaterialTheme.typography.labelLarge)
+                                        }
+                                    }
+
+                                    if (state.goodreadsUrl.isNotBlank()) {
+                                        FilledTonalButton(
+                                            onClick = { viewModel.syncGoodreads() },
+                                            enabled = state.isSyncing == null,
+                                            modifier = Modifier.weight(1f)
+                                        ) {
+                                            if (state.isSyncing == "goodreads") {
+                                                CircularProgressIndicator(
+                                                    modifier = Modifier.size(16.dp),
+                                                    strokeWidth = 2.dp,
+                                                    color = MaterialTheme.colorScheme.primary
+                                                )
+                                            } else {
+                                                Text(stringResource(R.string.action_sync), style = MaterialTheme.typography.labelLarge)
+                                            }
+                                        }
+                                    }
                                 }
                             }
                         }
@@ -1556,5 +1789,28 @@ private fun LanguageSelectionScreen(
             }
         }
     }
+}
+
+private fun extractLetterboxdUsername(url: String): String {
+    val trimmed = url.trim()
+    val pattern = Regex("""letterboxd\.com/([^/]+)""", RegexOption.IGNORE_CASE)
+    val match = pattern.find(trimmed)
+    if (match != null) {
+        val user = match.groupValues[1]
+        if (user.isNotBlank() && user != "rss") {
+            return user
+        }
+    }
+    return trimmed.removePrefix("@").removeSuffix("/rss").removeSuffix("/rss/").trim('/')
+}
+
+private fun extractGoodreadsId(url: String): String {
+    val trimmed = url.trim()
+    val pattern = Regex("""(?:list_rss|user/show)/([0-9]+)""", RegexOption.IGNORE_CASE)
+    val match = pattern.find(trimmed)
+    if (match != null) {
+        return match.groupValues[1]
+    }
+    return trimmed
 }
 

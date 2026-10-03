@@ -290,8 +290,28 @@ fun BooksScreen(
                         }
                     }
                 } else {
-                    items(filteredBooks) { book ->
-                        BookCard(book = book)
+                    item {
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = MaterialTheme.shapes.medium,
+                            colors = CardDefaults.cardColors(
+                                containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+                            ),
+                            elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+                            border = null
+                        ) {
+                            Column {
+                                filteredBooks.forEachIndexed { index, book ->
+                                    if (index > 0) {
+                                        HorizontalDivider(
+                                            color = MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.5f),
+                                            modifier = Modifier.padding(horizontal = 12.dp)
+                                        )
+                                    }
+                                    BookRowItem(book = book)
+                                }
+                            }
+                        }
                     }
                 }
 
@@ -302,85 +322,80 @@ fun BooksScreen(
 }
 
 @Composable
-fun BookCard(book: BookDto) {
+fun BookRowItem(book: BookDto) {
     val shelfLabel = when (book.exclusive_shelf.lowercase()) {
-        "read" -> "Okundu"
-        "to-read" -> "Okunacak"
-        "currently-reading" -> "Okunuyor"
+        "read" -> stringResource(R.string.books_shelf_read)
+        "to-read" -> stringResource(R.string.books_shelf_to_read)
+        "currently-reading" -> stringResource(R.string.books_shelf_currently_reading)
         else -> book.exclusive_shelf
     }
 
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = MaterialTheme.shapes.medium,
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceContainerLow
-        ),
-        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
-        border = null
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 12.dp, vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically
     ) {
-        Row(
-            modifier = Modifier
-                .padding(horizontal = 12.dp, vertical = 10.dp)
-                .fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            PosterThumbnail(imageUrl = book.image_url, fallbackIcon = Icons.AutoMirrored.Filled.MenuBook, width = 36, height = 52)
-            Spacer(modifier = Modifier.width(12.dp))
+        PosterThumbnail(imageUrl = book.image_url, fallbackIcon = Icons.AutoMirrored.Filled.MenuBook, width = 36, height = 52)
+        Spacer(modifier = Modifier.width(12.dp))
 
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = book.title,
-                    style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.SemiBold,
-                    color = MaterialTheme.colorScheme.onSurface,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis
-                )
-                Spacer(modifier = Modifier.height(2.dp))
-                Text(
-                    text = book.author,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-                Spacer(modifier = Modifier.height(4.dp))
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(6.dp),
-                    verticalAlignment = Alignment.CenterVertically
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = book.title,
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.onSurface,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis
+            )
+            Spacer(modifier = Modifier.height(2.dp))
+            Text(
+                text = book.author,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+            Spacer(modifier = Modifier.height(4.dp))
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Surface(
+                    shape = CircleShape,
+                    color = domainBooksContainer()
                 ) {
-                    Surface(
-                        shape = CircleShape,
-                        color = domainBooksContainer()
-                    ) {
-                        Text(
-                            text = shelfLabel,
-                            style = MaterialTheme.typography.labelSmall,
-                            color = domainBooksOnContainer(),
-                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 1.5.dp),
-                            fontWeight = FontWeight.Medium,
-                            maxLines = 1,
-                            softWrap = false
-                        )
-                    }
-                    if (book.number_of_pages > 0) {
-                        Text(
-                            text = stringResource(R.string.books_pages, book.number_of_pages),
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            maxLines = 1,
-                            softWrap = false
-                        )
-                    }
+                    Text(
+                        text = shelfLabel,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = domainBooksOnContainer(),
+                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 1.5.dp),
+                        fontWeight = FontWeight.Medium,
+                        maxLines = 1,
+                        softWrap = false
+                    )
+                }
+                if (book.number_of_pages > 0) {
+                    Text(
+                        text = stringResource(R.string.books_pages, book.number_of_pages),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        softWrap = false
+                    )
                 }
             }
+        }
 
-            if (book.my_rating > 0) {
-                Spacer(modifier = Modifier.width(8.dp))
-                RatingBadge(rating = book.my_rating)
-            }
+        if (book.my_rating > 0) {
+            Spacer(modifier = Modifier.width(8.dp))
+            RatingBadge(rating = book.my_rating)
         }
     }
+}
+
+@Composable
+fun BookCard(book: BookDto) {
+    BookRowItem(book = book)
 }
 

@@ -536,9 +536,17 @@ app.post("/api/settings/goodreads", async (c) => {
   } catch {
     body = await c.req.parseBody();
   }
-  const feedUrl = String(body.feed_url || body.feedUrl || "").trim();
+  let feedUrl = String(body.feed_url || body.feedUrl || "").trim();
   const intervalMinutes = parseInt(String(body.interval_minutes || body.intervalMinutes || "360"), 10) || 360;
   const enabled = body.enabled === true || body.enabled === "true" || body.enabled === "1" || body.enabled === 1 ? 1 : 0;
+
+  if (feedUrl && !feedUrl.startsWith("http://") && !feedUrl.startsWith("https://")) {
+    const id = feedUrl.replace(/^@/, "").replace(/\/+$/, "");
+    feedUrl = `https://www.goodreads.com/review/list_rss/${id}`;
+  } else if (feedUrl.includes("goodreads.com/user/show/")) {
+    const id = feedUrl.split("goodreads.com/user/show/")[1].split("?")[0].replace(/\/+$/, "");
+    feedUrl = `https://www.goodreads.com/review/list_rss/${id}`;
+  }
 
   await c.env.DB.prepare(`
     INSERT INTO goodreads_sync_settings (id, feed_url, interval_minutes, enabled, updated_at)
@@ -615,12 +623,21 @@ app.post("/api/sync/goodreads", async (c) => {
     .prepare("SELECT feed_url FROM goodreads_sync_settings WHERE id = 1")
     .first<any>();
 
-  if (!settings?.feed_url) {
+  let feedUrl = String(settings?.feed_url || "").trim();
+  if (!feedUrl) {
     return c.json({ inserted: 0, updated: 0, message: "Goodreads RSS URL kayitli degil" }, 400);
   }
 
+  if (!feedUrl.startsWith("http://") && !feedUrl.startsWith("https://")) {
+    const id = feedUrl.replace(/^@/, "").replace(/\/+$/, "");
+    feedUrl = `https://www.goodreads.com/review/list_rss/${id}`;
+  } else if (feedUrl.includes("goodreads.com/user/show/")) {
+    const id = feedUrl.split("goodreads.com/user/show/")[1].split("?")[0].replace(/\/+$/, "");
+    feedUrl = `https://www.goodreads.com/review/list_rss/${id}`;
+  }
+
   try {
-    const resp = await fetch(settings.feed_url, {
+    const resp = await fetch(feedUrl, {
       headers: { "User-Agent": "Mozilla/5.0 (PersonalRecords-Worker)" },
     });
     if (!resp.ok) throw new Error(`HTTP ${resp.status}: ${resp.statusText}`);
