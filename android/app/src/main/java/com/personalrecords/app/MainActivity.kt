@@ -118,26 +118,10 @@ fun MainAppHost() {
             navController = navController,
             startDestination = Screen.Overview.route,
             modifier = Modifier.padding(innerPadding),
-            enterTransition = {
-                androidx.compose.animation.fadeIn(
-                    animationSpec = androidx.compose.animation.core.tween(300, easing = androidx.compose.animation.core.FastOutSlowInEasing)
-                )
-            },
-            exitTransition = {
-                androidx.compose.animation.fadeOut(
-                    animationSpec = androidx.compose.animation.core.tween(250, easing = androidx.compose.animation.core.FastOutSlowInEasing)
-                )
-            },
-            popEnterTransition = {
-                androidx.compose.animation.fadeIn(
-                    animationSpec = androidx.compose.animation.core.tween(300, easing = androidx.compose.animation.core.FastOutSlowInEasing)
-                )
-            },
-            popExitTransition = {
-                androidx.compose.animation.fadeOut(
-                    animationSpec = androidx.compose.animation.core.tween(250, easing = androidx.compose.animation.core.FastOutSlowInEasing)
-                )
-            }
+            enterTransition = { androidx.compose.animation.EnterTransition.None },
+            exitTransition = { androidx.compose.animation.ExitTransition.None },
+            popEnterTransition = { androidx.compose.animation.EnterTransition.None },
+            popExitTransition = { androidx.compose.animation.ExitTransition.None }
         ) {
             composable(Screen.Overview.route) {
                 val vm: OverviewViewModel = viewModel(factory = AppViewModelFactory())
