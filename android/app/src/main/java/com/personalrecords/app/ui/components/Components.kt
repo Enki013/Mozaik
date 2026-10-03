@@ -740,28 +740,25 @@ fun Modifier.expressivePressScale(
 
 /**
  * MD3 Expressive spring scroll to top extension for [LazyListState].
- * Smoothly scrolls the list to the top with Material 3 Expressive spring physics.
+ * Smoothly scrolls the list to the top with a playful M3 Expressive spring bounce effect.
  */
 suspend fun LazyListState.expressiveScrollToTop() {
-    if (firstVisibleItemIndex > 2) {
-        scrollToItem(2)
+    if (firstVisibleItemIndex > 8) {
+        scrollToItem(8)
     }
-    if (firstVisibleItemIndex > 0) {
-        scrollToItem(0, 400)
-    }
-    val item0Info = layoutInfo.visibleItemsInfo.firstOrNull { it.index == 0 }
-    val offsetToScroll = if (item0Info != null) {
-        -item0Info.offset.toFloat()
-    } else {
-        firstVisibleItemScrollOffset.toFloat()
-    }
+    val visibleItems = layoutInfo.visibleItemsInfo
+    val firstVisible = firstVisibleItemIndex
+    val firstOffset = firstVisibleItemScrollOffset
 
-    if (offsetToScroll > 0f) {
+    val averageItemHeight = if (visibleItems.isNotEmpty()) visibleItems.sumOf { it.size }.toFloat() / visibleItems.size else 200f
+    val totalDistance = (firstVisible * averageItemHeight) + firstOffset
+
+    if (totalDistance > 0f) {
         animateScrollBy(
-            value = -offsetToScroll,
+            value = -totalDistance,
             animationSpec = spring(
-                dampingRatio = Spring.DampingRatioMediumBouncy,
-                stiffness = Spring.StiffnessLow
+                dampingRatio = 0.65f,
+                stiffness = 180f
             )
         )
     }
