@@ -157,19 +157,6 @@ fun SettingsScreen(
                         }
                     }
                 },
-                actions = {
-                    IconButton(
-                        onClick = {
-                            viewModel.testConnection()
-                            viewModel.loadAllSettings()
-                        }
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Refresh,
-                            contentDescription = "Yenile"
-                        )
-                    }
-                },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.surface
                 )

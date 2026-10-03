@@ -21,7 +21,6 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.personalrecords.app.core.theme.*
-import com.personalrecords.app.ui.components.MetricCard
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -48,14 +47,6 @@ fun RecordsScreen(
                         style = MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.Bold
                     )
-                },
-                actions = {
-                    IconButton(onClick = { viewModel.loadData() }) {
-                        Icon(
-                            imageVector = Icons.Default.Refresh,
-                            contentDescription = "Yenile"
-                        )
-                    }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.surface
@@ -88,30 +79,6 @@ fun RecordsScreen(
                 contentPadding = PaddingValues(top = 8.dp, bottom = 20.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                // Top Metrics Row
-                item {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(6.dp)
-                    ) {
-                        MetricCard(
-                            title = "Toplam Kayıt",
-                            value = "${state.totalRecords}",
-                            badgeText = "Veri",
-                            note = "4 aktif kaynak",
-                            modifier = Modifier.weight(1f)
-                        )
-                        MetricCard(
-                            title = "Bugün Alınan",
-                            value = "${state.todayCalories} kcal",
-                            badgeText = "FatSecret",
-                            note = "${state.todayEntries} öğün kaydı",
-                            modifier = Modifier.weight(1f),
-                            badgeBg = domainNutritionContainer(),
-                            badgeColor = domainNutritionOnContainer()
-                        )
-                    }
-                }
 
                 // Section 1: Sağlık & Yaşam
                 item {
