@@ -1,0 +1,295 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Personal Records</string>
+    <string name="app_version_info">v1.0.0 · Material 3 Expressive Design</string>
+    <string name="app_description">Kişisel veri egemenliği &amp; yaşam günlüğü paneli</string>
+
+    <!-- Navigation -->
+    <string name="nav_overview">Özet</string>
+    <string name="nav_timeline">Zaman</string>
+    <string name="nav_records">Kayıtlar</string>
+    <string name="nav_settings">Ayarlar</string>
+    <string name="nav_nutrition">Beslenme</string>
+    <string name="nav_books">Kitaplar</string>
+    <string name="nav_movies">Filmler</string>
+    <string name="nav_notifications">Bildirimler</string>
+
+    <string name="title_overview">Personal Records</string>
+    <string name="title_timeline">Zaman Çizelgesi</string>
+    <string name="title_records">Kayıtlar</string>
+    <string name="title_settings">Ayarlar</string>
+    <string name="title_nutrition">Beslenme Günlüğü</string>
+    <string name="title_books">Kitaplar</string>
+    <string name="title_movies">Filmler</string>
+    <string name="title_notifications">Bildirimler</string>
+    <string name="action_back">Geri</string>
+
+    <!-- Common Actions & Badges -->
+    <string name="action_save">Kaydet</string>
+    <string name="action_saving">Kaydediliyor…</string>
+    <string name="action_sync">Sync Et</string>
+    <string name="action_syncing">Eşitleniyor…</string>
+    <string name="action_test_connection">Bağlantıyı Sına</string>
+    <string name="action_testing">Sınanıyor…</string>
+    <string name="action_cancel">İptal</string>
+    <string name="action_close">Kapat</string>
+    <string name="action_ok">Tamam</string>
+    <string name="action_retry">Yeniden Dene</string>
+    <string name="action_copy_url">URL\'yi Kopyala</string>
+    <string name="action_download_apk">APK İndir</string>
+    <string name="action_see_all">Tümü</string>
+    <string name="action_copied">Kopyalandı</string>
+    <string name="filter_all">Tümü</string>
+    <string name="badge_soon">Yakında</string>
+    <string name="badge_planned">Planlanan</string>
+    <string name="badge_connected">Bağlı</string>
+    <string name="badge_not_connected">Bağlı Değil</string>
+    <string name="badge_active">Aktif</string>
+    <string name="badge_data">Veri</string>
+    <string name="badge_list">Liste</string>
+    <string name="badge_avg">Ort.</string>
+    <string name="badge_daily">Günlük</string>
+    <string name="badge_active_key">Aktif Anahtar: %1$s</string>
+
+    <!-- Overview Screen -->
+    <string name="overview_metric_today_calories">Bugün Alınan</string>
+    <string name="overview_metric_kcal">%1$s kcal</string>
+    <string name="overview_metric_meals_count">%1$s öğün kaydı</string>
+    <string name="overview_metric_library">Kütüphane</string>
+    <string name="overview_metric_books_count">%1$s kitap</string>
+    <string name="overview_metric_books_note">Toplam kayıtlı</string>
+    <string name="overview_metric_watched">İzlenen</string>
+    <string name="overview_metric_films_count">%1$s film</string>
+    <string name="overview_metric_films_note">Toplam film</string>
+    <string name="overview_metric_food_log">Yemek Günlüğü</string>
+    <string name="overview_metric_foods_count">%1$s kayıt</string>
+    <string name="overview_metric_foods_note">Tüm öğünler</string>
+    <string name="overview_integrations_title">Entegrasyonlar &amp; Senkronizasyon</string>
+    <string name="overview_integrations_subtitle">Tek tıkla anlık veri eşitlemesi</string>
+    <string name="overview_integration_fatsecret">FatSecret</string>
+    <string name="overview_integration_fatsecret_desc">Beslenme günlüğü</string>
+    <string name="overview_integration_goodreads">Goodreads RSS</string>
+    <string name="overview_integration_goodreads_desc">Kitaplar &amp; Raflar</string>
+    <string name="overview_integration_letterboxd">Letterboxd RSS</string>
+    <string name="overview_integration_letterboxd_desc">Filmler &amp; Puanlar</string>
+    <string name="overview_recent_activities_title">Son Aktiviteler</string>
+    <string name="overview_recent_activities_subtitle">Öğün, kitap ve film akışı</string>
+    <string name="overview_no_activities">Henüz aktivite kaydı bulunmuyor.</string>
+    <string name="overview_sync_success">%1$s başarıyla eşitlendi: %2$d yeni kayıt</string>
+
+    <!-- Timeline Screen -->
+    <string name="timeline_search_placeholder">Aktivite ara (yemek, kitap, film)…</string>
+    <string name="timeline_filter_all">Tümü</string>
+    <string name="timeline_filter_nutrition">Beslenme</string>
+    <string name="timeline_filter_books">Kitaplar</string>
+    <string name="timeline_filter_movies">Filmler</string>
+    <string name="timeline_filter_notifications">Bildirimler</string>
+    <string name="timeline_today">Bugün</string>
+    <string name="timeline_yesterday">Dün</string>
+    <string name="timeline_this_week">Bu Hafta</string>
+    <string name="timeline_earlier">Daha Önce</string>
+    <string name="timeline_items_count">%1$d aktivite</string>
+    <string name="timeline_empty_title">Kayıt Bulunamadı</string>
+    <string name="timeline_empty_desc">Arama kriterlerinize veya filtreye uygun bir aktivite kaydı yok.</string>
+
+    <!-- Records Screen -->
+    <string name="records_section_health">Sağlık &amp; Yaşam</string>
+    <string name="records_item_nutrition_title">Beslenme Günlüğü</string>
+    <string name="records_item_nutrition_sub">FatSecret · %1$d kayıtlı öğün</string>
+    <string name="records_item_healthconnect_title">Health Connect</string>
+    <string name="records_item_healthconnect_sub">Adım, uyku, nabız ve antrenman</string>
+    <string name="records_section_media">Kültür &amp; Medya</string>
+    <string name="records_item_movies_title">Filmler &amp; Sinema</string>
+    <string name="records_item_movies_sub">Letterboxd · %1$d film izlendi</string>
+    <string name="records_item_books_title">Kütüphane &amp; Kitaplar</string>
+    <string name="records_item_books_sub">Goodreads · %1$d kitap kayıtlı</string>
+    <string name="records_item_music_title">Müzik &amp; Ses</string>
+    <string name="records_item_music_sub">Spotify ve podcast dinleme geçmişi</string>
+    <string name="records_section_system">Sistem &amp; Cihaz</string>
+    <string name="records_item_notifications_title">Bildirim Günlüğü</string>
+    <string name="records_item_notifications_sub">Webhook Relay · %1$d bildirim</string>
+    <string name="records_item_automation_title">İletişim &amp; Otomasyon</string>
+    <string name="records_item_automation_sub">Tasker, n8n ve webhook tetikleyicileri</string>
+    <string name="records_toast_healthconnect">Health Connect webhook entegrasyonu yakında aktif olacaktır.</string>
+    <string name="records_toast_music">Spotify dinleme geçmişi entegrasyonu planlanmaktadır.</string>
+    <string name="records_toast_automation">Otomasyon ve aksiyon tetikleyicileri yakında eklenecektir.</string>
+
+    <!-- Settings Screen -->
+    <string name="settings_section_language">Dil &amp; Bölge</string>
+    <string name="settings_language_title">Uygulama Dili</string>
+    <string name="settings_language_desc">Kullanmak istediğiniz uygulama dilini seçin</string>
+    <string name="settings_language_system">Sistem Varsayılanı</string>
+    <string name="settings_language_tr">Türkçe (Turkish)</string>
+    <string name="settings_language_en">English (İngilizce)</string>
+
+    <string name="settings_section_server">Sunucu &amp; Altyapı</string>
+    <string name="settings_server_title">API Sunucusu</string>
+    <string name="settings_server_desc">Cloudflare Worker veya yerel sunucu</string>
+    <string name="settings_server_url_label">Sunucu URL</string>
+    <string name="settings_server_url_hint">https://your-api.domain.com</string>
+    <string name="settings_server_url_support">Sonunda eğik çizgi (/) olmadan giriniz</string>
+
+    <string name="settings_section_webhook">Bildirim Webhook Entegrasyonu</string>
+    <string name="settings_webhook_title">Notification Relay Webhook</string>
+    <string name="settings_webhook_desc">Android bildirimlerini sunucuya aktarın</string>
+    <string name="settings_webhook_relay_summary">Kişisel Kayıtlar verileri harici webhook ile toplar. Harici Notification Relay Webhook uygulaması bildirimlerinizi doğrudan sunucunuza iletir:</string>
+    <string name="settings_target_webhook_url">Hedef Webhook URL\'niz:</string>
+    <string name="settings_setup_guide_title">3 Adımda Kolay Kurulum</string>
+    <string name="settings_setup_step_1">1. Notification Relay APK\'sını kurun ve Bildirim Erişimi iznini açın.</string>
+    <string name="settings_setup_step_2">2. Webhooks sekmesinde \'+\' butonuna basıp yukarıdaki URL\'yi yapıştırın.</string>
+    <string name="settings_setup_step_3">3. Test butonuna basıp kaydedin. Bildirimleriniz otomatik olarak veritabanına işlenecektir.</string>
+
+    <string name="settings_section_fatsecret">Beslenme Entegrasyonu (FatSecret)</string>
+    <string name="settings_fatsecret_title">FatSecret API (BYOK)</string>
+    <string name="settings_fatsecret_desc">Kendi API anahtarınız ile güvenli bağlantı</string>
+    <string name="settings_fatsecret_connected_banner">FatSecret Hesabı Başarıyla Bağlandı</string>
+    <string name="settings_fatsecret_reconnect">Yeniden Bağla</string>
+    <string name="settings_fatsecret_disconnect">Bağlantıyı Kes</string>
+    <string name="settings_fatsecret_help_title">FatSecret API Anahtarı Nasıl Alınır?</string>
+    <string name="settings_fatsecret_help_step_1">1. platform.fatsecret.com adresine gidin ve ücretsiz geliştirici hesabı açın.</string>
+    <string name="settings_fatsecret_help_step_2">2. Basic API sekmesinden yeni bir uygulama (App) oluşturun.</string>
+    <string name="settings_fatsecret_help_step_3">3. Size verilen Client ID (Consumer Key) ve Client Secret bilgilerini aşağıya yapıştırın.</string>
+    <string name="settings_fatsecret_help_step_4">4. \'OAuth ile Bağlan\' butonuna basarak yetkilendirmeyi tamamlayın.</string>
+    <string name="settings_consumer_key_label">Client ID (Consumer Key)</string>
+    <string name="settings_consumer_secret_label">Client Secret</string>
+    <string name="settings_btn_connect_oauth">OAuth ile Bağlan</string>
+    <string name="settings_btn_save_keys">Anahtarları Kaydet</string>
+    <string name="settings_fatsecret_change_keys">Anahtarları Değiştir</string>
+    <string name="settings_fatsecret_close_editor">Düzenlemeyi Kapat</string>
+    <string name="toast_webhook_copied">Webhook URL panoya kopyalandı!</string>
+    <string name="badge_key_ready">Anahtar ✓</string>
+    <string name="settings_fatsecret_sync_title">Besin Geçmişini Senkronize Et</string>
+    <string name="settings_fatsecret_sync_desc">FatSecret sunucusundan geçmiş öğün kayıtlarını çekin:</string>
+    <string name="settings_sync_today">Bugün (1G)</string>
+    <string name="settings_sync_30d">Son 30 Gün</string>
+    <string name="settings_sync_1y">Son 1 Yıl</string>
+    <string name="settings_sync_all">Tüm Zamanlar</string>
+    <string name="settings_save_server_first">Lütfen önce sunucu adresini kaydedin.</string>
+    <string name="badge_active_check">Aktif ✓</string>
+    <string name="toast_downloading">İndiriliyor: %1$s…</string>
+    <string name="toast_downloaded">İndirildi: %1$s (Downloads klasörüne kaydedildi)</string>
+    <string name="toast_download_browser">Tarayıcıda indirme başlatılıyor…</string>
+    <string name="toast_download_failed">İndirme başarısız oldu.</string>
+
+    <string name="action_clear">Temizle</string>
+    <string name="timeline_filter_reset">Sıfırla</string>
+    <string name="settings_section_media">Kültür &amp; Medya Senkronizasyonu</string>
+    <string name="settings_section_goodreads">Goodreads Entegrasyonu</string>
+    <string name="settings_goodreads_title">Goodreads RSS URL</string>
+    <string name="settings_goodreads_desc">Okuduğunuz ve listenizdeki kitaplar</string>
+    <string name="settings_goodreads_user_label">Goodreads Kullanıcı ID veya RSS</string>
+    <string name="settings_goodreads_user_hint">Örn: 12345678 veya https://goodreads.com/user/show/12345678</string>
+    <string name="settings_goodreads_support">goodreads.com profilinizdeki RSS bağlantısını veya kullanıcı numaranızı girin.</string>
+
+    <string name="settings_section_letterboxd">Letterboxd Entegrasyonu</string>
+    <string name="settings_letterboxd_title">Letterboxd RSS URL</string>
+    <string name="settings_letterboxd_desc">İzlediğiniz filmler ve verdiğiniz puanlar</string>
+    <string name="settings_letterboxd_user_label">Letterboxd Kullanıcı Adı veya RSS</string>
+    <string name="settings_letterboxd_user_hint">Örn: username veya https://letterboxd.com/username/rss/</string>
+    <string name="settings_letterboxd_support">Kullanıcı adınızı girdiğinizde RSS bağlantısı otomatik oluşturulur.</string>
+
+    <string name="settings_section_architecture">Hibrit Mimari &amp; Eklentiler</string>
+    <string name="settings_architecture_title">Genişletilebilir Veri Havuzu</string>
+    <string name="settings_architecture_subtitle">3 kanaldan toplanan merkezi kişisel veriler</string>
+    <string name="settings_architecture_desc">Kişisel Kayıtlar tüm verilerinizi merkezi bir sunucu havuzunda toplar. Android uygulaması yalnızca okuyucu ve yönetim paneli olarak çalışır. Gelecekte eklenecek her servis modüler bir eklenti (plugin) olarak bağlanır:</string>
+    <string name="settings_plugin_webhook_title">1. Webhook Eklentileri (Push)</string>
+    <string name="settings_plugin_webhook_desc">Notification Relay APK, Tasker veya Home Assistant ile gelen anlık bildirim ve sensör verileri.</string>
+    <string name="settings_plugin_rss_title">2. RSS Eklentileri (Pull / Polling)</string>
+    <string name="settings_plugin_rss_desc">Letterboxd ve Goodreads gibi halka açık RSS beslemeleri periyodik olarak taranır.</string>
+    <string name="settings_plugin_api_title">3. OTT / OAuth Eklentileri (API)</string>
+    <string name="settings_plugin_api_desc">FatSecret OAuth BYOK. Gelecek: Spotify dinleme geçmişi ve Steam kütüphanesi.</string>
+
+    <string name="settings_section_export">Veri Egemenliği &amp; Yedekleme</string>
+    <string name="settings_export_title">Veri Dışa Aktarma</string>
+    <string name="settings_export_desc">Tüm kayıtları cihazınıza indirin ve saklayın</string>
+    <string name="settings_btn_export_json">JSON İndir</string>
+    <string name="settings_btn_export_sqlite">SQLite (.db)</string>
+    <string name="settings_export_note">Dosyalar Downloads klasörünüze kaydedilir.</string>
+
+    <string name="settings_section_app_info">Uygulama Bilgisi</string>
+    <string name="settings_app_name">Personal Records</string>
+
+    <!-- Nutrition Screen -->
+    <string name="nutrition_calorie_target_title">Günlük Kalori Hedefi</string>
+    <string name="nutrition_consumed_today">Bugün: %1$d / %2$d kcal (%3$d%%)</string>
+    <string name="nutrition_target_exceeded">%1$d kcal aşıldı</string>
+    <string name="nutrition_target_remaining">%1$d kcal kaldı</string>
+    <string name="nutrition_macro_title">Makro Besin Dağılımı</string>
+    <string name="nutrition_macro_subtitle">Kayıtlı öğünlerin besin değerleri toplamı</string>
+    <string name="nutrition_macro_carb">Karb: %1$sg (%2$d%%)</string>
+    <string name="nutrition_macro_protein">Protein: %1$sg (%2$d%%)</string>
+    <string name="nutrition_macro_fat">Yağ: %1$sg (%2$d%%)</string>
+    <string name="nutrition_label_carb">Karb</string>
+    <string name="nutrition_label_protein">Protein</string>
+    <string name="nutrition_label_fat">Yağ</string>
+    <string name="nutrition_search_placeholder">Yemek veya porsiyon ara…</string>
+    <string name="nutrition_filter_all_meals">Tüm Öğünler</string>
+    <string name="nutrition_filter_breakfast">Kahvaltı</string>
+    <string name="nutrition_filter_lunch">Öğle</string>
+    <string name="nutrition_filter_dinner">Akşam</string>
+    <string name="nutrition_filter_snack">Ara Öğün</string>
+    <string name="nutrition_filter_high_protein">Yüksek Protein</string>
+    <string name="nutrition_pick_date">Gün Seç</string>
+    <string name="nutrition_empty">Besin kaydı bulunamadı.</string>
+    <string name="nutrition_target_dialog_title">Günlük Kalori Hedefi</string>
+    <string name="nutrition_target_dialog_label">Kalori Miktarı (kcal)</string>
+
+    <!-- Books Screen -->
+    <string name="books_stats_total">Toplam</string>
+    <string name="books_badge_book">Kitap</string>
+    <string name="books_stats_read">%1$d okundu</string>
+    <string name="books_stats_to_read">Okunacak</string>
+    <string name="books_stats_avg_rating">%1$s ort.</string>
+    <string name="books_search_placeholder">Kitap veya yazar ara…</string>
+    <string name="books_shelf_all">Tümü</string>
+    <string name="books_shelf_read">Okunanlar</string>
+    <string name="books_shelf_currently_reading">Şu An Okunan</string>
+    <string name="books_shelf_to_read">Okunacaklar</string>
+    <string name="books_empty">Kitap kaydı bulunamadı.</string>
+    <string name="books_pages">%1$d sayfa</string>
+
+    <!-- Movies Screen -->
+    <string name="movies_stats_total">Toplam Film</string>
+    <string name="movies_badge_letterboxd">Letterboxd</string>
+    <string name="movies_stats_rated">%1$d puanlanan</string>
+    <string name="movies_stats_avg_rating">Ortalama Puan</string>
+    <string name="movies_stats_rewatch">%1$d tekrar izleme</string>
+    <string name="movies_search_placeholder">Film adı veya yıl ara…</string>
+    <string name="movies_filter_all">Tümü</string>
+    <string name="movies_filter_rewatches">Tekrar İzlenenler</string>
+    <string name="movies_filter_highest_rated">En Yüksek Puan</string>
+    <string name="movies_empty">Film kaydı bulunamadı.</string>
+    <string name="movies_rewatch_badge">Tekrar</string>
+
+    <!-- Notifications Screen -->
+    <string name="notifications_stats_total">Toplam</string>
+    <string name="notifications_badge_notification">Bildirim</string>
+    <string name="notifications_stats_apps_count">%1$d uygulama</string>
+    <string name="notifications_stats_today">Bugün</string>
+    <string name="notifications_stats_active_stream">Aktif akış</string>
+    <string name="notifications_search_placeholder">Bildirim veya uygulama ara…</string>
+    <string name="notifications_filter_all">Tümü</string>
+    <string name="notifications_empty">Bildirim kaydı bulunamadı.</string>
+    <string name="notifications_detail_title">Bildirim Detayı</string>
+    <string name="notifications_copy_text">Metni Kopyala</string>
+    <string name="notifications_empty_guide">Telefon bildirimlerinizin sunucunuza aktarılması için harici Notification Relay Webhook uygulamasını bağlayabilirsiniz. Webhook URL\'nizi ve 3 adımlı kurulum rehberini Ayarlar sekmesinde bulabilirsiniz.</string>
+    <string name="notifications_search_empty">Arama kriterlerine uygun bildirim bulunamadı.</string>
+    <string name="notifications_no_content">İçerik yok</string>
+
+    <!-- Sorting & Timeline & Common -->
+    <string name="timeline_selected_date">Seçili Gün: %1$s</string>
+    <string name="common_other">Diğer</string>
+    <string name="action_sort">Sırala</string>
+    <string name="sort_rating_desc">Puan (Azalan)</string>
+    <string name="sort_rating_asc">Puan (Artan)</string>
+    <string name="sort_title">Başlık</string>
+    <string name="sort_date_read">Okuma Tarihi</string>
+    <string name="sort_date_watched">İzleme Tarihi</string>
+    <string name="sort_release_year">Vizyon Yılı</string>
+    <string name="sort_movie_title">Film Adı</string>
+    <string name="timeline_count_notifications">%1$d bildirim</string>
+    <string name="timeline_count_films">%1$d film</string>
+    <string name="timeline_count_books">%1$d kitap</string>
+    <string name="nutrition_macro_short">K:%1$dg P:%2$dg Y:%3$dg</string>
+    <string name="nutrition_macro_chip_format">%1$s: %2$sg (%%%3$d)</string>
+</resources>

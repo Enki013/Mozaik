@@ -16,8 +16,12 @@ class AppPreferences(private val context: Context) {
     companion object {
         val SERVER_BASE_URL = stringPreferencesKey("server_base_url")
         val CALORIE_TARGET = intPreferencesKey("calorie_target")
+        val APP_LANGUAGE = stringPreferencesKey("app_language")
         const val DEFAULT_BASE_URL = "https://personal-records-api.enessalman1300.workers.dev"
+    }
 
+    val appLanguage: Flow<String> = context.dataStore.data.map { prefs ->
+        prefs[APP_LANGUAGE] ?: "system"
     }
 
     val serverBaseUrl: Flow<String> = context.dataStore.data.map { prefs ->
@@ -26,6 +30,12 @@ class AppPreferences(private val context: Context) {
 
     val calorieTarget: Flow<Int?> = context.dataStore.data.map { prefs ->
         prefs[CALORIE_TARGET]
+    }
+
+    suspend fun setAppLanguage(language: String) {
+        context.dataStore.edit { prefs ->
+            prefs[APP_LANGUAGE] = language
+        }
     }
 
     suspend fun setServerBaseUrl(url: String) {

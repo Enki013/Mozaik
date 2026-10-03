@@ -2,18 +2,15 @@ package com.personalrecords.app.ui.screens.settings
 
 import android.content.ContentValues
 import android.content.Intent
-import android.net.Uri
 import android.os.Build
 import android.os.Environment
 import android.provider.MediaStore
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.HelpOutline
 import androidx.compose.material.icons.automirrored.filled.MenuBook
 import androidx.compose.material.icons.filled.*
@@ -27,10 +24,12 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.personalrecords.app.R
 import com.personalrecords.app.core.theme.*
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -43,12 +42,12 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 import java.util.concurrent.TimeUnit
+import androidx.core.net.toUri
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsScreen(
-    viewModel: SettingsViewModel,
-    onNavigateBack: (() -> Unit)? = null
+    viewModel: SettingsViewModel
 ) {
     val state by viewModel.uiState.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
@@ -60,7 +59,7 @@ fun SettingsScreen(
 
     fun triggerDownload(url: String, filename: String) {
         coroutineScope.launch {
-            snackbarHostState.showSnackbar("İndiriliyor: $filename...")
+            snackbarHostState.showSnackbar(context.getString(R.string.toast_downloading, filename))
             val success = withContext(Dispatchers.IO) {
                 try {
                     val client = OkHttpClient.Builder()
@@ -96,20 +95,20 @@ fun SettingsScreen(
                         }
                         true
                     }
-                } catch (e: Exception) {
+                } catch (_: Exception) {
                     false
                 }
             }
 
             if (success) {
-                snackbarHostState.showSnackbar("İndirildi: $filename (Downloads klasörüne kaydedildi)")
+                snackbarHostState.showSnackbar(context.getString(R.string.toast_downloaded, filename))
             } else {
                 try {
-                    val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url))
+                    val intent = Intent(Intent.ACTION_VIEW, url.toUri())
                     context.startActivity(intent)
-                    snackbarHostState.showSnackbar("Tarayıcıda indirme başlatılıyor...")
-                } catch (e: Exception) {
-                    snackbarHostState.showSnackbar("İndirme başarısız oldu.")
+                    snackbarHostState.showSnackbar(context.getString(R.string.toast_download_browser))
+                } catch (_: Exception) {
+                    snackbarHostState.showSnackbar(context.getString(R.string.toast_download_failed))
                 }
             }
         }
@@ -159,10 +158,113 @@ fun SettingsScreen(
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 // ==========================================
+                // SECTION 0: Dil ve Bölge / Language & Region
+                // ==========================================
+                item {
+                    SettingsSectionTitle(title = stringResource(R.string.settings_section_language))
+                }
+                item {
+                    SettingsCard {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            SettingsIconBox(
+                                icon = Icons.Default.Language,
+                                containerColor = MaterialTheme.colorScheme.tertiaryContainer,
+                                contentColor = MaterialTheme.colorScheme.onTertiaryContainer
+                            )
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = stringResource(R.string.settings_language_title),
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.SemiBold,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                                Text(
+                                    text = stringResource(R.string.settings_language_desc),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(12.dp))
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            FilterChip(
+                                selected = state.appLanguage == "system",
+                                onClick = { viewModel.setLanguage("system") },
+                                label = {
+                                    Text(
+                                        text = stringResource(R.string.settings_language_system),
+                                        style = MaterialTheme.typography.labelMedium
+                                    )
+                                },
+                                leadingIcon = if (state.appLanguage == "system") {
+                                    {
+                                        Icon(
+                                            imageVector = Icons.Default.Check,
+                                            contentDescription = null,
+                                            modifier = Modifier.size(16.dp)
+                                        )
+                                    }
+                                } else null
+                            )
+                            FilterChip(
+                                selected = state.appLanguage == "tr",
+                                onClick = { viewModel.setLanguage("tr") },
+                                label = {
+                                    Text(
+                                        text = "🇹🇷 Türkçe",
+                                        style = MaterialTheme.typography.labelMedium
+                                    )
+                                },
+                                leadingIcon = if (state.appLanguage == "tr") {
+                                    {
+                                        Icon(
+                                            imageVector = Icons.Default.Check,
+                                            contentDescription = null,
+                                            modifier = Modifier.size(16.dp)
+                                        )
+                                    }
+                                } else null
+                            )
+                            FilterChip(
+                                selected = state.appLanguage == "en",
+                                onClick = { viewModel.setLanguage("en") },
+                                label = {
+                                    Text(
+                                        text = "🇺🇸 English",
+                                        style = MaterialTheme.typography.labelMedium
+                                    )
+                                },
+                                leadingIcon = if (state.appLanguage == "en") {
+                                    {
+                                        Icon(
+                                            imageVector = Icons.Default.Check,
+                                            contentDescription = null,
+                                            modifier = Modifier.size(16.dp)
+                                        )
+                                    }
+                                } else null
+                            )
+                        }
+                    }
+                }
+
+                // ==========================================
                 // SECTION 1: Sunucu ve Altyapı
                 // ==========================================
                 item {
-                    SettingsSectionTitle(title = "Sunucu & Altyapı")
+                    SettingsSectionTitle(title = stringResource(R.string.settings_section_server))
                 }
                 item {
                     SettingsCard {
@@ -183,14 +285,14 @@ fun SettingsScreen(
                                 )
                                 Column(modifier = Modifier.weight(1f, fill = false)) {
                                     Text(
-                                        text = "API Sunucusu",
+                                        text = stringResource(R.string.settings_server_title),
                                         style = MaterialTheme.typography.titleMedium,
                                         fontWeight = FontWeight.SemiBold,
                                         maxLines = 1,
                                         overflow = TextOverflow.Ellipsis
                                     )
                                     Text(
-                                        text = "Cloudflare Worker veya yerel sunucu",
+                                        text = stringResource(R.string.settings_server_desc),
                                         style = MaterialTheme.typography.bodySmall,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                                         maxLines = 1,
@@ -219,7 +321,7 @@ fun SettingsScreen(
                                                 .background(statusFg, CircleShape)
                                         )
                                         Text(
-                                            text = if (ok) "Bağlı" else "Hata",
+                                            text = if (ok) stringResource(R.string.badge_connected) else stringResource(R.string.action_retry),
                                             color = statusFg,
                                             style = MaterialTheme.typography.labelSmall,
                                             fontWeight = FontWeight.Bold,
@@ -237,7 +339,7 @@ fun SettingsScreen(
                             value = state.serverUrl,
                             onValueChange = { viewModel.updateServerUrlInput(it) },
                             modifier = Modifier.fillMaxWidth(),
-                            label = { Text("Sunucu URL") },
+                            label = { Text(stringResource(R.string.settings_server_url_label)) },
                             placeholder = { Text("https://personal-records-api.workers.dev") },
                             singleLine = true,
                             shape = MaterialTheme.shapes.small
@@ -253,7 +355,7 @@ fun SettingsScreen(
                                 onClick = { viewModel.saveServerUrl() },
                                 modifier = Modifier.weight(1f)
                             ) {
-                                Text("Kaydet", style = MaterialTheme.typography.labelLarge)
+                                Text(stringResource(R.string.action_save), style = MaterialTheme.typography.labelLarge)
                             }
 
                             OutlinedButton(
@@ -268,7 +370,7 @@ fun SettingsScreen(
                                         color = MaterialTheme.colorScheme.primary
                                     )
                                 } else {
-                                    Text("Bağlantıyı Sına", style = MaterialTheme.typography.labelLarge)
+                                    Text(stringResource(R.string.action_test_connection), style = MaterialTheme.typography.labelLarge)
                                 }
                             }
                         }
@@ -279,7 +381,7 @@ fun SettingsScreen(
                 // SECTION 2: Bildirim Webhook Entegrasyonu
                 // ==========================================
                 item {
-                    SettingsSectionTitle(title = "Bildirim Webhook Entegrasyonu")
+                    SettingsSectionTitle(title = stringResource(R.string.settings_section_webhook))
                 }
                 item {
                     SettingsCard {
@@ -303,14 +405,14 @@ fun SettingsScreen(
                                 )
                                 Column(modifier = Modifier.weight(1f, fill = false)) {
                                     Text(
-                                        text = "Notification Relay Webhook",
+                                        text = stringResource(R.string.settings_webhook_title),
                                         style = MaterialTheme.typography.titleMedium,
                                         fontWeight = FontWeight.SemiBold,
                                         maxLines = 1,
                                         overflow = TextOverflow.Ellipsis
                                     )
                                     Text(
-                                        text = "Android bildirimlerini sunucuya aktarın",
+                                        text = stringResource(R.string.settings_webhook_desc),
                                         style = MaterialTheme.typography.bodySmall,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                                         maxLines = 1,
@@ -323,7 +425,7 @@ fun SettingsScreen(
                         Spacer(modifier = Modifier.height(10.dp))
 
                         Text(
-                            text = "Kişisel Kayıtlar verileri harici webhook ile toplar. Harici Notification Relay Webhook uygulaması bildirimlerinizi doğrudan sunucunuza iletir:",
+                            text = stringResource(R.string.settings_webhook_relay_summary),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -338,7 +440,7 @@ fun SettingsScreen(
                         ) {
                             Column(modifier = Modifier.padding(10.dp)) {
                                 Text(
-                                    text = "Hedef Webhook URL'niz:",
+                                    text = stringResource(R.string.settings_target_webhook_url),
                                     style = MaterialTheme.typography.labelSmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                     fontWeight = FontWeight.SemiBold
@@ -365,7 +467,7 @@ fun SettingsScreen(
                                 onClick = {
                                     clipboardManager.setText(AnnotatedString(webhookUrl))
                                     coroutineScope.launch {
-                                        snackbarHostState.showSnackbar("Webhook URL panoya kopyalandı!")
+                                        snackbarHostState.showSnackbar(context.getString(R.string.toast_webhook_copied))
                                     }
                                 },
                                 modifier = Modifier.weight(1f)
@@ -379,13 +481,14 @@ fun SettingsScreen(
                                         contentDescription = null,
                                         modifier = Modifier.size(16.dp)
                                     )
-                                    Text("URL'yi Kopyala", style = MaterialTheme.typography.labelLarge)
+                                    Text(stringResource(R.string.action_copy_url), style = MaterialTheme.typography.labelLarge)
                                 }
                             }
 
                             OutlinedButton(
                                 onClick = {
-                                    val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://github.com/cobanov/notification-relay-webhook/releases"))
+                                    val intent = Intent(Intent.ACTION_VIEW,
+                                        "https://github.com/cobanov/notification-relay-webhook/releases".toUri())
                                     context.startActivity(intent)
                                 },
                                 modifier = Modifier.weight(1f)
@@ -399,7 +502,7 @@ fun SettingsScreen(
                                         contentDescription = null,
                                         modifier = Modifier.size(16.dp)
                                     )
-                                    Text("APK İndir", style = MaterialTheme.typography.labelLarge)
+                                    Text(stringResource(R.string.action_download_apk), style = MaterialTheme.typography.labelLarge)
                                 }
                             }
                         }
@@ -423,14 +526,14 @@ fun SettingsScreen(
                                         tint = MaterialTheme.colorScheme.primary
                                     )
                                     Text(
-                                        text = "3 Adımda Kolay Kurulum",
+                                        text = stringResource(R.string.settings_setup_guide_title),
                                         style = MaterialTheme.typography.labelMedium,
                                         fontWeight = FontWeight.Bold
                                     )
                                 }
                                 Spacer(modifier = Modifier.height(6.dp))
                                 Text(
-                                    text = "1. Notification Relay APK'sını kurun ve Bildirim Erişimi iznini açın.\n2. Webhooks sekmesinde '+' butonuna basıp yukarıdaki URL'yi yapıştırın.\n3. Test butonuna basıp kaydedin. Bildirimleriniz otomatik olarak veritabanına işlenecektir.",
+                                    text = "${stringResource(R.string.settings_setup_step_1)}\n${stringResource(R.string.settings_setup_step_2)}\n${stringResource(R.string.settings_setup_step_3)}",
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
@@ -443,7 +546,7 @@ fun SettingsScreen(
                 // SECTION 3: Beslenme & FatSecret BYOK
                 // ==========================================
                 item {
-                    SettingsSectionTitle(title = "Beslenme Entegrasyonu (FatSecret)")
+                    SettingsSectionTitle(title = stringResource(R.string.settings_section_fatsecret))
                 }
                 item {
                     SettingsCard {
@@ -465,14 +568,14 @@ fun SettingsScreen(
                                 )
                                 Column(modifier = Modifier.weight(1f, fill = false)) {
                                     Text(
-                                        text = "FatSecret API (BYOK)",
+                                        text = stringResource(R.string.settings_fatsecret_title),
                                         style = MaterialTheme.typography.titleMedium,
                                         fontWeight = FontWeight.SemiBold,
                                         maxLines = 1,
                                         overflow = TextOverflow.Ellipsis
                                     )
                                     Text(
-                                        text = "Kendi API anahtarınız ile güvenli bağlantı",
+                                        text = stringResource(R.string.settings_fatsecret_desc),
                                         style = MaterialTheme.typography.bodySmall,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                                         maxLines = 1,
@@ -498,7 +601,7 @@ fun SettingsScreen(
                                                 .background(domainNutritionOnContainer(), CircleShape)
                                         )
                                         Text(
-                                            text = "Bağlı",
+                                            text = stringResource(R.string.badge_connected),
                                             color = domainNutritionOnContainer(),
                                             style = MaterialTheme.typography.labelSmall,
                                             fontWeight = FontWeight.Bold,
@@ -514,7 +617,7 @@ fun SettingsScreen(
                                     modifier = Modifier.padding(start = 8.dp)
                                 ) {
                                     Text(
-                                        text = "Anahtar ✓",
+                                        text = stringResource(R.string.badge_key_ready),
                                         color = MaterialTheme.colorScheme.onTertiaryContainer,
                                         style = MaterialTheme.typography.labelSmall,
                                         fontWeight = FontWeight.Bold,
@@ -547,14 +650,14 @@ fun SettingsScreen(
                                     )
                                     Column {
                                         Text(
-                                            text = "FatSecret Hesabı Başarıyla Bağlandı",
+                                            text = stringResource(R.string.settings_fatsecret_connected_banner),
                                             style = MaterialTheme.typography.labelMedium,
                                             fontWeight = FontWeight.Bold,
                                             color = domainNutritionOnContainer()
                                         )
                                         if (state.maskedKey.isNotBlank()) {
                                             Text(
-                                                text = "Aktif Anahtar: ${state.maskedKey}",
+                                                text = stringResource(R.string.badge_active_key, state.maskedKey),
                                                 style = MaterialTheme.typography.bodySmall,
                                                 color = domainNutritionOnContainer().copy(alpha = 0.85f)
                                             )
@@ -572,7 +675,7 @@ fun SettingsScreen(
                                     contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp)
                                 ) {
                                     Text(
-                                        text = if (showKeyEditor) "Düzenlemeyi Kapat" else "Anahtarları Değiştir",
+                                        text = if (showKeyEditor) stringResource(R.string.settings_fatsecret_close_editor) else stringResource(R.string.settings_fatsecret_change_keys),
                                         style = MaterialTheme.typography.labelMedium
                                     )
                                 }
@@ -587,8 +690,8 @@ fun SettingsScreen(
                                     value = state.consumerKey,
                                     onValueChange = { viewModel.updateConsumerKey(it) },
                                     modifier = Modifier.fillMaxWidth(),
-                                    label = { Text("Consumer Key") },
-                                    placeholder = { Text("FatSecret Consumer Key") },
+                                    label = { Text(stringResource(R.string.settings_consumer_key_label)) },
+                                    placeholder = { Text(stringResource(R.string.settings_consumer_key_label)) },
                                     singleLine = true,
                                     shape = MaterialTheme.shapes.small
                                 )
@@ -598,8 +701,8 @@ fun SettingsScreen(
                                     value = state.consumerSecret,
                                     onValueChange = { viewModel.updateConsumerSecret(it) },
                                     modifier = Modifier.fillMaxWidth(),
-                                    label = { Text("Consumer Secret") },
-                                    placeholder = { Text("FatSecret Consumer Secret") },
+                                    label = { Text(stringResource(R.string.settings_consumer_secret_label)) },
+                                    placeholder = { Text(stringResource(R.string.settings_consumer_secret_label)) },
                                     singleLine = true,
                                     shape = MaterialTheme.shapes.small
                                 )
@@ -617,7 +720,7 @@ fun SettingsScreen(
                                             color = MaterialTheme.colorScheme.onPrimary
                                         )
                                     } else {
-                                        Text("Anahtarları Kaydet", style = MaterialTheme.typography.labelLarge)
+                                        Text(stringResource(R.string.settings_btn_save_keys), style = MaterialTheme.typography.labelLarge)
                                     }
                                 }
 
@@ -628,10 +731,11 @@ fun SettingsScreen(
                                             val baseUrl = state.serverUrl.trim().trimEnd('/')
                                             if (baseUrl.isBlank()) {
                                                 coroutineScope.launch {
-                                                    snackbarHostState.showSnackbar("Önce sunucu adresini kaydedin.")
+                                                    snackbarHostState.showSnackbar(context.getString(R.string.settings_save_server_first))
                                                 }
                                             } else {
-                                                val intent = Intent(Intent.ACTION_VIEW, Uri.parse("$baseUrl/fatsecret/connect"))
+                                                val intent = Intent(Intent.ACTION_VIEW,
+                                                    "$baseUrl/fatsecret/connect".toUri())
                                                 context.startActivity(intent)
                                             }
                                         },
@@ -647,7 +751,7 @@ fun SettingsScreen(
                                                 modifier = Modifier.size(18.dp)
                                             )
                                             Text(
-                                                text = "FatSecret ile Bağlan (OAuth)",
+                                                text = stringResource(R.string.settings_btn_connect_oauth),
                                                 style = MaterialTheme.typography.labelLarge,
                                                 maxLines = 1,
                                                 overflow = TextOverflow.Ellipsis
@@ -674,21 +778,22 @@ fun SettingsScreen(
                                                 tint = MaterialTheme.colorScheme.primary
                                             )
                                             Text(
-                                                text = "API anahtarı nasıl alınır?",
+                                                text = stringResource(R.string.settings_fatsecret_help_title),
                                                 style = MaterialTheme.typography.labelMedium,
                                                 fontWeight = FontWeight.Bold
                                             )
                                         }
                                         Spacer(modifier = Modifier.height(4.dp))
                                         Text(
-                                            text = "1. platform.fatsecret.com'a gidin\n2. Ücretsiz hesap ve Application oluşturun\n3. Consumer Key ve Secret değerlerini kopyalayın",
+                                            text = "${stringResource(R.string.settings_fatsecret_help_step_1)}\n${stringResource(R.string.settings_fatsecret_help_step_2)}\n${stringResource(R.string.settings_fatsecret_help_step_3)}",
                                             style = MaterialTheme.typography.bodySmall,
                                             color = MaterialTheme.colorScheme.onSurfaceVariant
                                         )
                                         Spacer(modifier = Modifier.height(4.dp))
                                         TextButton(
                                             onClick = {
-                                                val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://platform.fatsecret.com/"))
+                                                val intent = Intent(Intent.ACTION_VIEW,
+                                                    "https://platform.fatsecret.com/".toUri())
                                                 context.startActivity(intent)
                                             },
                                             contentPadding = PaddingValues(horizontal = 0.dp, vertical = 0.dp)
@@ -731,14 +836,14 @@ fun SettingsScreen(
                                 modifier = Modifier.size(18.dp)
                             )
                             Text(
-                                text = "Besin Geçmişini Senkronize Et",
+                                text = stringResource(R.string.settings_fatsecret_sync_title),
                                 style = MaterialTheme.typography.titleSmall,
                                 fontWeight = FontWeight.SemiBold
                             )
                         }
                         Spacer(modifier = Modifier.height(4.dp))
                         Text(
-                            text = "FatSecret sunucusundan geçmiş öğün kayıtlarını çekin:",
+                            text = stringResource(R.string.settings_fatsecret_sync_desc),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -751,14 +856,14 @@ fun SettingsScreen(
                                     enabled = state.isSyncing == null,
                                     modifier = Modifier.weight(1f)
                                 ) {
-                                    Text("Bugün (1G)", style = MaterialTheme.typography.labelMedium)
+                                    Text(stringResource(R.string.settings_sync_today), style = MaterialTheme.typography.labelMedium)
                                 }
                                 FilledTonalButton(
                                     onClick = { viewModel.syncFatSecret(30) },
                                     enabled = state.isSyncing == null,
                                     modifier = Modifier.weight(1f)
                                 ) {
-                                    Text("Son 30 Gün", style = MaterialTheme.typography.labelMedium)
+                                    Text(stringResource(R.string.settings_sync_30d), style = MaterialTheme.typography.labelMedium)
                                 }
                             }
                             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -767,14 +872,14 @@ fun SettingsScreen(
                                     enabled = state.isSyncing == null,
                                     modifier = Modifier.weight(1f)
                                 ) {
-                                    Text("Son 1 Yıl", style = MaterialTheme.typography.labelMedium)
+                                    Text(stringResource(R.string.settings_sync_1y), style = MaterialTheme.typography.labelMedium)
                                 }
                                 FilledTonalButton(
                                     onClick = { viewModel.syncFatSecret(1095) },
                                     enabled = state.isSyncing == null,
                                     modifier = Modifier.weight(1f)
                                 ) {
-                                    Text("Tüm Zamanlar", style = MaterialTheme.typography.labelMedium)
+                                    Text(stringResource(R.string.settings_sync_all), style = MaterialTheme.typography.labelMedium)
                                 }
                             }
                         }
@@ -785,7 +890,7 @@ fun SettingsScreen(
                 // SECTION 4: Medya & Kültür Senkronizasyonu
                 // ==========================================
                 item {
-                    SettingsSectionTitle(title = "Kültür & Medya Senkronizasyonu")
+                    SettingsSectionTitle(title = stringResource(R.string.settings_section_media))
                 }
                 item {
                     SettingsCard {
@@ -814,7 +919,7 @@ fun SettingsScreen(
                                         overflow = TextOverflow.Ellipsis
                                     )
                                     Text(
-                                        text = "İzlenen film günlüğü (RSS)",
+                                        text = stringResource(R.string.settings_letterboxd_desc),
                                         style = MaterialTheme.typography.bodySmall,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                                         maxLines = 1,
@@ -830,7 +935,7 @@ fun SettingsScreen(
                                     modifier = Modifier.padding(start = 8.dp)
                                 ) {
                                     Text(
-                                        text = "Aktif ✓",
+                                        text = stringResource(R.string.badge_active_check),
                                         color = domainNutritionOnContainer(),
                                         style = MaterialTheme.typography.labelSmall,
                                         fontWeight = FontWeight.Bold,
@@ -848,12 +953,12 @@ fun SettingsScreen(
                             value = state.letterboxdUrl,
                             onValueChange = { viewModel.updateLetterboxdUrl(it) },
                             modifier = Modifier.fillMaxWidth(),
-                            label = { Text("Letterboxd Kullanıcı Adı veya RSS") },
-                            placeholder = { Text("Örn: username veya https://letterboxd.com/username/rss/") },
+                            label = { Text(stringResource(R.string.settings_letterboxd_user_label)) },
+                            placeholder = { Text(stringResource(R.string.settings_letterboxd_user_hint)) },
                             singleLine = true,
                             shape = MaterialTheme.shapes.small,
                             supportingText = {
-                                Text("Sadece kullanıcı adı yazabilirsiniz, sistem otomatik RSS linki oluşturur.")
+                                Text(stringResource(R.string.settings_letterboxd_support))
                             }
                         )
 
@@ -875,7 +980,7 @@ fun SettingsScreen(
                                         color = MaterialTheme.colorScheme.onPrimary
                                     )
                                 } else {
-                                    Text("Kaydet", style = MaterialTheme.typography.labelLarge)
+                                    Text(stringResource(R.string.action_save), style = MaterialTheme.typography.labelLarge)
                                 }
                             }
 
@@ -891,7 +996,7 @@ fun SettingsScreen(
                                         color = MaterialTheme.colorScheme.primary
                                     )
                                 } else {
-                                    Text("Senkronize Et", style = MaterialTheme.typography.labelLarge)
+                                    Text(stringResource(R.string.action_sync), style = MaterialTheme.typography.labelLarge)
                                 }
                             }
                         }
@@ -926,7 +1031,7 @@ fun SettingsScreen(
                                         overflow = TextOverflow.Ellipsis
                                     )
                                     Text(
-                                        text = "Kitaplar ve okuma listeleri (RSS)",
+                                        text = stringResource(R.string.settings_goodreads_desc),
                                         style = MaterialTheme.typography.bodySmall,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                                         maxLines = 1,
@@ -942,7 +1047,7 @@ fun SettingsScreen(
                                     modifier = Modifier.padding(start = 8.dp)
                                 ) {
                                     Text(
-                                        text = "Aktif ✓",
+                                        text = stringResource(R.string.badge_active_check),
                                         color = domainNutritionOnContainer(),
                                         style = MaterialTheme.typography.labelSmall,
                                         fontWeight = FontWeight.Bold,
@@ -960,8 +1065,8 @@ fun SettingsScreen(
                             value = state.goodreadsUrl,
                             onValueChange = { viewModel.updateGoodreadsUrl(it) },
                             modifier = Modifier.fillMaxWidth(),
-                            label = { Text("Goodreads RSS URL") },
-                            placeholder = { Text("https://www.goodreads.com/review/list_rss/...") },
+                            label = { Text(stringResource(R.string.settings_goodreads_user_label)) },
+                            placeholder = { Text(stringResource(R.string.settings_goodreads_user_hint)) },
                             singleLine = true,
                             shape = MaterialTheme.shapes.small
                         )
@@ -984,7 +1089,7 @@ fun SettingsScreen(
                                         color = MaterialTheme.colorScheme.onPrimary
                                     )
                                 } else {
-                                    Text("Kaydet", style = MaterialTheme.typography.labelLarge)
+                                    Text(stringResource(R.string.action_save), style = MaterialTheme.typography.labelLarge)
                                 }
                             }
 
@@ -1000,7 +1105,7 @@ fun SettingsScreen(
                                         color = MaterialTheme.colorScheme.primary
                                     )
                                 } else {
-                                    Text("Senkronize Et", style = MaterialTheme.typography.labelLarge)
+                                    Text(stringResource(R.string.action_sync), style = MaterialTheme.typography.labelLarge)
                                 }
                             }
                         }
@@ -1011,7 +1116,7 @@ fun SettingsScreen(
                 // SECTION 5: Hibrit Mimari & Eklenti Sistemi
                 // ==========================================
                 item {
-                    SettingsSectionTitle(title = "Hibrit Mimari & Eklentiler")
+                    SettingsSectionTitle(title = stringResource(R.string.settings_section_architecture))
                 }
                 item {
                     SettingsCard {
@@ -1026,12 +1131,12 @@ fun SettingsScreen(
                             )
                             Column {
                                 Text(
-                                    text = "Genişletilebilir Veri Havuzu",
+                                    text = stringResource(R.string.settings_architecture_title),
                                     style = MaterialTheme.typography.titleMedium,
                                     fontWeight = FontWeight.SemiBold
                                 )
                                 Text(
-                                    text = "3 kanaldan toplanan merkezi kişisel veriler",
+                                    text = stringResource(R.string.settings_architecture_subtitle),
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
@@ -1041,7 +1146,7 @@ fun SettingsScreen(
                         Spacer(modifier = Modifier.height(10.dp))
 
                         Text(
-                            text = "Kişisel Kayıtlar tüm verilerinizi merkezi bir sunucu havuzunda toplar. Android uygulaması yalnızca okuyucu ve yönetim paneli olarak çalışır. Gelecekte eklenecek her servis modüler bir eklenti (plugin) olarak bağlanır:",
+                            text = stringResource(R.string.settings_architecture_desc),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -1067,12 +1172,12 @@ fun SettingsScreen(
                                     )
                                     Column {
                                         Text(
-                                            text = "1. Webhook Eklentileri (Push)",
+                                            text = stringResource(R.string.settings_plugin_webhook_title),
                                             style = MaterialTheme.typography.labelMedium,
                                             fontWeight = FontWeight.Bold
                                         )
                                         Text(
-                                            text = "Notification Relay APK, Tasker veya Home Assistant ile gelen anlık bildirim ve sensör verileri.",
+                                            text = stringResource(R.string.settings_plugin_webhook_desc),
                                             style = MaterialTheme.typography.bodySmall,
                                             color = MaterialTheme.colorScheme.onSurfaceVariant
                                         )
@@ -1098,12 +1203,12 @@ fun SettingsScreen(
                                     )
                                     Column {
                                         Text(
-                                            text = "2. RSS Eklentileri (Pull / Polling)",
+                                            text = stringResource(R.string.settings_plugin_rss_title),
                                             style = MaterialTheme.typography.labelMedium,
                                             fontWeight = FontWeight.Bold
                                         )
                                         Text(
-                                            text = "Letterboxd ve Goodreads gibi halka açık RSS beslemeleri periyodik olarak taranır.",
+                                            text = stringResource(R.string.settings_plugin_rss_desc),
                                             style = MaterialTheme.typography.bodySmall,
                                             color = MaterialTheme.colorScheme.onSurfaceVariant
                                         )
@@ -1129,12 +1234,12 @@ fun SettingsScreen(
                                     )
                                     Column {
                                         Text(
-                                            text = "3. OTT / OAuth Eklentileri (API)",
+                                            text = stringResource(R.string.settings_plugin_api_title),
                                             style = MaterialTheme.typography.labelMedium,
                                             fontWeight = FontWeight.Bold
                                         )
                                         Text(
-                                            text = "FatSecret OAuth BYOK. Gelecek: Spotify dinleme geçmişi ve Steam kütüphanesi.",
+                                            text = stringResource(R.string.settings_plugin_api_desc),
                                             style = MaterialTheme.typography.bodySmall,
                                             color = MaterialTheme.colorScheme.onSurfaceVariant
                                         )
@@ -1149,7 +1254,7 @@ fun SettingsScreen(
                 // SECTION 4: Veri Egemenliği & Yedekleme
                 // ==========================================
                 item {
-                    SettingsSectionTitle(title = "Veri Egemenliği & Yedekleme")
+                    SettingsSectionTitle(title = stringResource(R.string.settings_section_export))
                 }
                 item {
                     SettingsCard {
@@ -1164,12 +1269,12 @@ fun SettingsScreen(
                             )
                             Column {
                                 Text(
-                                    text = "Veri Dışa Aktarma",
+                                    text = stringResource(R.string.settings_export_title),
                                     style = MaterialTheme.typography.titleMedium,
                                     fontWeight = FontWeight.SemiBold
                                 )
                                 Text(
-                                    text = "Tüm kayıtları cihazınıza indirin ve saklayın",
+                                    text = stringResource(R.string.settings_export_desc),
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
@@ -1187,7 +1292,7 @@ fun SettingsScreen(
                                     val baseUrl = state.serverUrl.trim().trimEnd('/')
                                     if (baseUrl.isBlank()) {
                                         coroutineScope.launch {
-                                            snackbarHostState.showSnackbar("Lütfen önce sunucu adresini kaydedin.")
+                                            snackbarHostState.showSnackbar(context.getString(R.string.settings_save_server_first))
                                         }
                                     } else {
                                         val timestamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
@@ -1205,7 +1310,7 @@ fun SettingsScreen(
                                         contentDescription = null,
                                         modifier = Modifier.size(16.dp)
                                     )
-                                    Text("JSON İndir", style = MaterialTheme.typography.labelMedium)
+                                    Text(stringResource(R.string.settings_btn_export_json), style = MaterialTheme.typography.labelMedium)
                                 }
                             }
 
@@ -1214,7 +1319,7 @@ fun SettingsScreen(
                                     val baseUrl = state.serverUrl.trim().trimEnd('/')
                                     if (baseUrl.isBlank()) {
                                         coroutineScope.launch {
-                                            snackbarHostState.showSnackbar("Lütfen önce sunucu adresini kaydedin.")
+                                            snackbarHostState.showSnackbar(context.getString(R.string.settings_save_server_first))
                                         }
                                     } else {
                                         val timestamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
@@ -1232,7 +1337,7 @@ fun SettingsScreen(
                                         contentDescription = null,
                                         modifier = Modifier.size(16.dp)
                                     )
-                                    Text("SQLite (.db)", style = MaterialTheme.typography.labelMedium)
+                                    Text(stringResource(R.string.settings_btn_export_sqlite), style = MaterialTheme.typography.labelMedium)
                                 }
                             }
                         }
@@ -1249,7 +1354,7 @@ fun SettingsScreen(
                                 tint = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                             Text(
-                                text = "Dosyalar Downloads klasörünüze kaydedilir.",
+                                text = stringResource(R.string.settings_export_note),
                                 style = MaterialTheme.typography.labelSmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -1261,7 +1366,7 @@ fun SettingsScreen(
                 // SECTION 5: Uygulama Bilgisi
                 // ==========================================
                 item {
-                    SettingsSectionTitle(title = "Uygulama Bilgisi")
+                    SettingsSectionTitle(title = stringResource(R.string.settings_section_app_info))
                 }
                 item {
                     SettingsCard {
@@ -1276,17 +1381,17 @@ fun SettingsScreen(
                             )
                             Column {
                                 Text(
-                                    text = "Personal Records",
+                                    text = stringResource(R.string.app_name),
                                     style = MaterialTheme.typography.titleMedium,
                                     fontWeight = FontWeight.Bold
                                 )
                                 Text(
-                                    text = "v1.0.0 · Material 3 Expressive Design",
+                                    text = stringResource(R.string.app_version_info),
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                                 Text(
-                                    text = "Kişisel veri egemenliği & yaşam günlüğü paneli",
+                                    text = stringResource(R.string.app_description),
                                     style = MaterialTheme.typography.labelSmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f)
                                 )

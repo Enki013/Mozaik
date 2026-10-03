@@ -16,9 +16,11 @@ import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.personalrecords.app.R
 import com.personalrecords.app.core.theme.*
 import com.personalrecords.app.ui.components.*
 
@@ -90,20 +92,20 @@ fun OverviewScreen(
                     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                         Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                             MetricCard(
-                                title = "Bugün Alınan",
-                                value = "$todayCal kcal",
+                                title = stringResource(R.string.overview_metric_today_calories),
+                                value = stringResource(R.string.overview_metric_kcal, todayCal),
                                 badgeText = "FatSecret",
-                                note = "$todayEntries öğün kaydı",
+                                note = stringResource(R.string.overview_metric_meals_count, todayEntries),
                                 modifier = Modifier.weight(1f),
                                 badgeBg = domainNutritionContainer(),
                                 badgeColor = domainNutritionOnContainer(),
                                 onClick = onNavigateToNutrition
                             )
                             MetricCard(
-                                title = "Kütüphane",
-                                value = "$booksCount kitap",
+                                title = stringResource(R.string.overview_metric_library),
+                                value = stringResource(R.string.overview_metric_books_count, booksCount),
                                 badgeText = "Goodreads",
-                                note = "Toplam kayıtlı",
+                                note = stringResource(R.string.overview_metric_books_note),
                                 modifier = Modifier.weight(1f),
                                 badgeBg = domainBooksContainer(),
                                 badgeColor = domainBooksOnContainer(),
@@ -112,20 +114,20 @@ fun OverviewScreen(
                         }
                         Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                             MetricCard(
-                                title = "İzlenen",
-                                value = "$filmsCount film",
+                                title = stringResource(R.string.overview_metric_watched),
+                                value = stringResource(R.string.overview_metric_films_count, filmsCount),
                                 badgeText = "Letterboxd",
-                                note = "Toplam film",
+                                note = stringResource(R.string.overview_metric_films_note),
                                 modifier = Modifier.weight(1f),
                                 badgeBg = domainCinemaContainer(),
                                 badgeColor = domainCinemaOnContainer(),
                                 onClick = onNavigateToMovies
                             )
                             MetricCard(
-                                title = "Yemek Günlüğü",
-                                value = "$foodsCount kayıt",
-                                badgeText = "Besin",
-                                note = "Tüm öğünler",
+                                title = stringResource(R.string.overview_metric_food_log),
+                                value = stringResource(R.string.overview_metric_foods_count, foodsCount),
+                                badgeText = stringResource(R.string.badge_data),
+                                note = stringResource(R.string.overview_metric_foods_note),
                                 modifier = Modifier.weight(1f),
                                 badgeBg = domainNutritionContainer(),
                                 badgeColor = domainNutritionOnContainer(),
@@ -148,13 +150,13 @@ fun OverviewScreen(
                     ) {
                         Column(modifier = Modifier.padding(14.dp)) {
                             Text(
-                                text = "Entegrasyonlar & Senkronizasyon",
+                                text = stringResource(R.string.overview_integrations_title),
                                 style = MaterialTheme.typography.titleMedium,
                                 fontWeight = FontWeight.SemiBold,
                                 color = MaterialTheme.colorScheme.onSurface
                             )
                             Text(
-                                text = "Tek tıkla anlık veri eşitlemesi",
+                                text = stringResource(R.string.overview_integrations_subtitle),
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -163,7 +165,7 @@ fun OverviewScreen(
                             // FatSecret Row
                             SyncRow(
                                 title = "FatSecret",
-                                subtitle = "Beslenme günlüğü",
+                                subtitle = stringResource(R.string.overview_integration_fatsecret_desc),
                                 isSyncing = state.isSyncing == "fatsecret",
                                 onSync = { viewModel.syncService("fatsecret") }
                             )
@@ -175,7 +177,7 @@ fun OverviewScreen(
                             // Goodreads Row
                             SyncRow(
                                 title = "Goodreads RSS",
-                                subtitle = "Kitaplar & Raflar",
+                                subtitle = stringResource(R.string.overview_integration_goodreads_desc),
                                 isSyncing = state.isSyncing == "goodreads",
                                 onSync = { viewModel.syncService("goodreads") }
                             )
@@ -187,7 +189,7 @@ fun OverviewScreen(
                             // Letterboxd Row
                             SyncRow(
                                 title = "Letterboxd RSS",
-                                subtitle = "Filmler & Puanlar",
+                                subtitle = stringResource(R.string.overview_integration_letterboxd_desc),
                                 isSyncing = state.isSyncing == "letterboxd",
                                 onSync = { viewModel.syncService("letterboxd") }
                             )
@@ -217,13 +219,13 @@ fun OverviewScreen(
                             ) {
                                 Column {
                                     Text(
-                                        text = "Son Aktiviteler",
+                                        text = stringResource(R.string.overview_recent_activities_title),
                                         style = MaterialTheme.typography.titleMedium,
                                         fontWeight = FontWeight.SemiBold,
                                         color = MaterialTheme.colorScheme.onSurface
                                     )
                                     Text(
-                                        text = "Öğün, kitap ve film akışı",
+                                        text = stringResource(R.string.overview_recent_activities_subtitle),
                                         style = MaterialTheme.typography.bodySmall,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
@@ -237,7 +239,7 @@ fun OverviewScreen(
                                         horizontalArrangement = Arrangement.spacedBy(4.dp)
                                     ) {
                                         Text(
-                                            text = "Tümü",
+                                            text = stringResource(R.string.action_see_all),
                                             style = MaterialTheme.typography.labelLarge,
                                             color = MaterialTheme.colorScheme.primary,
                                             fontWeight = FontWeight.SemiBold
@@ -266,7 +268,7 @@ fun OverviewScreen(
                                     contentAlignment = Alignment.Center
                                 ) {
                                     Text(
-                                        text = "Henüz bir aktivite kaydı yok.",
+                                        text = stringResource(R.string.overview_no_activities),
                                         style = MaterialTheme.typography.bodyMedium,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
@@ -349,7 +351,7 @@ fun SyncRow(
                 )
                 Spacer(modifier = Modifier.width(4.dp))
                 Text(
-                    text = "Sync Et",
+                    text = stringResource(R.string.action_sync),
                     style = MaterialTheme.typography.labelMedium
                 )
             }

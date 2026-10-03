@@ -22,11 +22,13 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.personalrecords.app.R
 import com.personalrecords.app.core.network.model.NotificationDto
 import com.personalrecords.app.ui.components.MetricCard
 import com.personalrecords.app.ui.components.borderlessAssistChipColors
@@ -49,7 +51,7 @@ fun NotificationsScreen(
             TopAppBar(
                 title = {
                     Text(
-                        text = "Bildirimler",
+                        text = stringResource(R.string.title_notifications),
                         style = MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.Bold
                     )
@@ -59,7 +61,7 @@ fun NotificationsScreen(
                         IconButton(onClick = onNavigateBack) {
                             Icon(
                                 imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                                contentDescription = "Geri"
+                                contentDescription = stringResource(R.string.action_back)
                             )
                         }
                     }
@@ -120,17 +122,17 @@ fun NotificationsScreen(
                         horizontalArrangement = Arrangement.spacedBy(6.dp)
                     ) {
                         MetricCard(
-                            title = "Toplam",
+                            title = stringResource(R.string.notifications_stats_total),
                             value = "$total",
-                            badgeText = "Bildirim",
-                            note = "$appCount uygulama",
+                            badgeText = stringResource(R.string.notifications_badge_notification),
+                            note = stringResource(R.string.notifications_stats_apps_count, appCount),
                             modifier = Modifier.weight(1f)
                         )
                         MetricCard(
-                            title = "Bugün",
+                            title = stringResource(R.string.notifications_stats_today),
                             value = "$todayCount",
-                            badgeText = "Günlük",
-                            note = "Aktif akış",
+                            badgeText = stringResource(R.string.badge_daily),
+                            note = stringResource(R.string.notifications_stats_active_stream),
                             modifier = Modifier.weight(1f)
                         )
                     }
@@ -154,7 +156,7 @@ fun NotificationsScreen(
                                 modifier = Modifier.fillMaxWidth(),
                                 placeholder = {
                                     Text(
-                                        text = "Bildirim ara...",
+                                        text = stringResource(R.string.notifications_search_placeholder),
                                         style = MaterialTheme.typography.bodyMedium,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
@@ -172,7 +174,7 @@ fun NotificationsScreen(
                                         IconButton(onClick = { viewModel.setSearchQuery("") }) {
                                             Icon(
                                                 Icons.Default.Clear,
-                                                contentDescription = "Temizle",
+                                                contentDescription = stringResource(R.string.action_clear),
                                                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
                                                 modifier = Modifier.size(18.dp)
                                             )
@@ -199,7 +201,7 @@ fun NotificationsScreen(
                                 FilterChip(
                                     selected = state.selectedApp == null,
                                     onClick = { viewModel.setAppFilter(null) },
-                                    label = { Text("Tümü", style = MaterialTheme.typography.labelMedium) },
+                                    label = { Text(stringResource(R.string.filter_all), style = MaterialTheme.typography.labelMedium) },
                                     shape = MaterialTheme.shapes.small,
                                     border = null,
                                     colors = borderlessFilterChipColors()
@@ -225,7 +227,7 @@ fun NotificationsScreen(
                                         },
                                         label = {
                                             Text(
-                                                text = "Temizle",
+                                                text = stringResource(R.string.action_clear),
                                                 style = MaterialTheme.typography.labelMedium,
                                                 color = MaterialTheme.colorScheme.error
                                             )
@@ -288,12 +290,12 @@ fun NotificationsScreen(
                                         }
                                     }
                                     Text(
-                                        text = "Henüz Bildirim Kaydı Yok",
+                                        text = stringResource(R.string.notifications_empty),
                                         style = MaterialTheme.typography.titleMedium,
                                         fontWeight = FontWeight.Bold
                                     )
                                     Text(
-                                        text = "Telefon bildirimlerinizin sunucunuza aktarılması için harici Notification Relay Webhook uygulamasını bağlayabilirsiniz. Webhook URL'nizi ve 3 adımlı kurulum rehberini Ayarlar sekmesinde bulabilirsiniz.",
+                                        text = stringResource(R.string.notifications_empty_guide),
                                         style = MaterialTheme.typography.bodySmall,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                                         textAlign = TextAlign.Center
@@ -308,7 +310,7 @@ fun NotificationsScreen(
                                 contentAlignment = Alignment.Center
                             ) {
                                 Text(
-                                    text = "Arama kriterlerine uygun bildirim bulunamadı.",
+                                    text = stringResource(R.string.notifications_search_empty),
                                     style = MaterialTheme.typography.bodyMedium,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
@@ -431,7 +433,7 @@ fun NotificationsScreen(
                             val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
                             val clip = ClipData.newPlainText("Bildirim", textToCopy)
                             clipboard.setPrimaryClip(clip)
-                            Toast.makeText(context, "Metin kopyalandı", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(context, context.getString(R.string.action_copied), Toast.LENGTH_SHORT).show()
                         },
                         modifier = Modifier.weight(1f),
                         shape = MaterialTheme.shapes.small
@@ -442,7 +444,7 @@ fun NotificationsScreen(
                             modifier = Modifier.size(16.dp)
                         )
                         Spacer(modifier = Modifier.width(6.dp))
-                        Text("Kopyala")
+                        Text(stringResource(R.string.notifications_copy_text))
                     }
 
                     Button(
@@ -450,7 +452,7 @@ fun NotificationsScreen(
                         modifier = Modifier.weight(1f),
                         shape = MaterialTheme.shapes.small
                     ) {
-                        Text("Kapat")
+                        Text(stringResource(R.string.action_close))
                     }
                 }
 
@@ -510,7 +512,7 @@ fun NotificationCard(
                 )
                 Spacer(modifier = Modifier.height(2.dp))
                 Text(
-                    text = notification.displayBody.ifBlank { notification.sub_text.ifBlank { "İçerik yok" } },
+                    text = notification.displayBody.ifBlank { notification.sub_text.ifBlank { stringResource(R.string.notifications_no_content) } },
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 1,

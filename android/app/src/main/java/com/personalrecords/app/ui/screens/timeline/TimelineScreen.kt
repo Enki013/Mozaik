@@ -17,9 +17,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.personalrecords.app.R
 import com.personalrecords.app.core.network.model.ActivityDayGroupDto
 import com.personalrecords.app.core.network.model.ActivityItemDto
 import com.personalrecords.app.core.theme.*
@@ -54,12 +56,12 @@ fun TimelineScreen(
                         showDatePicker = false
                     }
                 ) {
-                    Text("Tamam", style = MaterialTheme.typography.labelLarge)
+                    Text(stringResource(R.string.action_ok), style = MaterialTheme.typography.labelLarge)
                 }
             },
             dismissButton = {
                 TextButton(onClick = { showDatePicker = false }) {
-                    Text("İptal", style = MaterialTheme.typography.labelLarge)
+                    Text(stringResource(R.string.action_cancel), style = MaterialTheme.typography.labelLarge)
                 }
             }
         ) {
@@ -113,7 +115,7 @@ fun TimelineScreen(
                         modifier = Modifier.fillMaxWidth(),
                         placeholder = {
                             Text(
-                                text = "Aktivite ara (yemek, kitap, film)...",
+                                text = stringResource(R.string.timeline_search_placeholder),
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -131,7 +133,7 @@ fun TimelineScreen(
                                 IconButton(onClick = { viewModel.setSearchQuery("") }) {
                                     Icon(
                                         Icons.Default.Clear,
-                                        contentDescription = "Temizle",
+                                        contentDescription = stringResource(R.string.action_clear),
                                         tint = MaterialTheme.colorScheme.onSurfaceVariant,
                                         modifier = Modifier.size(18.dp)
                                     )
@@ -179,7 +181,7 @@ fun TimelineScreen(
                                     modifier = Modifier.size(16.dp)
                                 )
                             },
-                            label = { Text("Gün Seç", style = MaterialTheme.typography.labelMedium) },
+                            label = { Text(stringResource(R.string.nutrition_pick_date), style = MaterialTheme.typography.labelMedium) },
                             shape = MaterialTheme.shapes.small,
                             border = null,
                             colors = borderlessAssistChipColors()
@@ -187,7 +189,7 @@ fun TimelineScreen(
 
                         AssistChip(
                             onClick = { viewModel.setToday() },
-                            label = { Text("Bugün", style = MaterialTheme.typography.labelMedium) },
+                            label = { Text(stringResource(R.string.timeline_today), style = MaterialTheme.typography.labelMedium) },
                             shape = MaterialTheme.shapes.small,
                             border = null,
                             colors = borderlessAssistChipColors()
@@ -198,7 +200,7 @@ fun TimelineScreen(
                                 onClick = { viewModel.resetFilters() },
                                 label = {
                                     Text(
-                                        text = "Sıfırla",
+                                        text = stringResource(R.string.timeline_filter_reset),
                                         style = MaterialTheme.typography.labelMedium,
                                         color = MaterialTheme.colorScheme.error
                                     )
@@ -227,11 +229,11 @@ fun TimelineScreen(
                             horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
                             listOf(
-                                Triple("all", "Tümü", null),
-                                Triple("fatsecret", "Beslenme", Icons.Default.Restaurant),
-                                Triple("goodreads", "Kitaplar", Icons.AutoMirrored.Filled.MenuBook),
-                                Triple("letterboxd", "Filmler", Icons.Default.Movie),
-                                Triple("notification", "Bildirimler", Icons.Default.Notifications)
+                                Triple("all", stringResource(R.string.timeline_filter_all), null),
+                                Triple("fatsecret", stringResource(R.string.timeline_filter_nutrition), Icons.Default.Restaurant),
+                                Triple("goodreads", stringResource(R.string.timeline_filter_books), Icons.AutoMirrored.Filled.MenuBook),
+                                Triple("letterboxd", stringResource(R.string.timeline_filter_movies), Icons.Default.Movie),
+                                Triple("notification", stringResource(R.string.timeline_filter_notifications), Icons.Default.Notifications)
                             ).forEach { (key, label, icon) ->
                                 val isSelected = state.selectedSource == key
                                 FilterChip(
@@ -276,7 +278,7 @@ fun TimelineScreen(
                                     modifier = Modifier.size(16.dp)
                                 )
                                 Text(
-                                    text = "Seçili Gün: $date",
+                                    text = stringResource(R.string.timeline_selected_date, date),
                                     color = MaterialTheme.colorScheme.onSecondaryContainer,
                                     style = MaterialTheme.typography.labelMedium,
                                     fontWeight = FontWeight.SemiBold
@@ -309,7 +311,7 @@ fun TimelineScreen(
                             contentAlignment = Alignment.Center
                         ) {
                             Text(
-                                text = "Kriterlere uygun aktivite bulunamadı.",
+                                text = stringResource(R.string.timeline_empty_desc),
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -395,7 +397,7 @@ fun DayGroupCard(group: ActivityDayGroupDto) {
                         color = MaterialTheme.colorScheme.surfaceContainerHigh
                     ) {
                         Text(
-                            text = "${group.items.size} aktivite",
+                            text = stringResource(R.string.timeline_items_count, group.items.size),
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             style = MaterialTheme.typography.labelSmall,
                             fontWeight = FontWeight.Medium,
@@ -405,22 +407,22 @@ fun DayGroupCard(group: ActivityDayGroupDto) {
                 } else if (singleSource != null && singleSource != "fatsecret") {
                     val (badgeText, badgeBg, badgeFg) = when (singleSource) {
                         "notification" -> Triple(
-                            "${group.items.size} bildirim",
+                            stringResource(R.string.timeline_count_notifications, group.items.size),
                             MaterialTheme.colorScheme.secondaryContainer,
                             MaterialTheme.colorScheme.onSecondaryContainer
                         )
                         "letterboxd" -> Triple(
-                            "${group.items.size} film",
+                            stringResource(R.string.timeline_count_films, group.items.size),
                             CinemaAccentContainer,
                             CinemaAccentOnContainer
                         )
                         "goodreads" -> Triple(
-                            "${group.items.size} kitap",
+                            stringResource(R.string.timeline_count_books, group.items.size),
                             MaterialTheme.colorScheme.tertiaryContainer,
                             MaterialTheme.colorScheme.onTertiaryContainer
                         )
                         else -> Triple(
-                            "${group.items.size} kayıt",
+                            stringResource(R.string.timeline_items_count, group.items.size),
                             MaterialTheme.colorScheme.surfaceContainerHigh,
                             MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -463,11 +465,11 @@ fun DayGroupCard(group: ActivityDayGroupDto) {
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         val (icon, title, color) = when (source) {
-                            "fatsecret" -> Triple(Icons.Default.Restaurant, "Beslenme", MaterialTheme.colorScheme.primary)
-                            "notification" -> Triple(Icons.Default.Notifications, "Bildirimler", MaterialTheme.colorScheme.secondary)
-                            "letterboxd" -> Triple(Icons.Default.Movie, "Filmler", CinemaAccent)
-                            "goodreads" -> Triple(Icons.AutoMirrored.Filled.MenuBook, "Kitaplar", BooksAccent)
-                            else -> Triple(Icons.Default.Bookmark, "Diğer", MaterialTheme.colorScheme.onSurfaceVariant)
+                            "fatsecret" -> Triple(Icons.Default.Restaurant, stringResource(R.string.timeline_filter_nutrition), MaterialTheme.colorScheme.primary)
+                            "notification" -> Triple(Icons.Default.Notifications, stringResource(R.string.timeline_filter_notifications), MaterialTheme.colorScheme.secondary)
+                            "letterboxd" -> Triple(Icons.Default.Movie, stringResource(R.string.timeline_filter_movies), CinemaAccent)
+                            "goodreads" -> Triple(Icons.AutoMirrored.Filled.MenuBook, stringResource(R.string.timeline_filter_books), BooksAccent)
+                            else -> Triple(Icons.Default.Bookmark, stringResource(R.string.common_other), MaterialTheme.colorScheme.onSurfaceVariant)
                         }
 
                         Row(
@@ -508,7 +510,7 @@ fun DayGroupCard(group: ActivityDayGroupDto) {
                                 color = MaterialTheme.colorScheme.secondaryContainer
                             ) {
                                 Text(
-                                    text = "${items.size} bildirim",
+                                    text = stringResource(R.string.timeline_count_notifications, items.size),
                                     color = MaterialTheme.colorScheme.onSecondaryContainer,
                                     style = MaterialTheme.typography.labelSmall,
                                     fontWeight = FontWeight.Medium,
@@ -521,7 +523,7 @@ fun DayGroupCard(group: ActivityDayGroupDto) {
                                 color = CinemaAccentContainer
                             ) {
                                 Text(
-                                    text = "${items.size} film",
+                                    text = stringResource(R.string.timeline_count_films, items.size),
                                     color = CinemaAccentOnContainer,
                                     style = MaterialTheme.typography.labelSmall,
                                     fontWeight = FontWeight.Medium,
@@ -534,7 +536,7 @@ fun DayGroupCard(group: ActivityDayGroupDto) {
                                 color = MaterialTheme.colorScheme.tertiaryContainer
                             ) {
                                 Text(
-                                    text = "${items.size} kitap",
+                                    text = stringResource(R.string.timeline_count_books, items.size),
                                     color = MaterialTheme.colorScheme.onTertiaryContainer,
                                     style = MaterialTheme.typography.labelSmall,
                                     fontWeight = FontWeight.Medium,

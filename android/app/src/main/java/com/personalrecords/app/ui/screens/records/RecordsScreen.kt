@@ -20,6 +20,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.res.stringResource
+import com.personalrecords.app.R
 import com.personalrecords.app.core.theme.*
 import kotlinx.coroutines.launch
 
@@ -68,7 +70,7 @@ fun RecordsScreen(
 
                 // Section 1: Sağlık & Yaşam
                 item {
-                    SectionTitle(title = "Sağlık & Yaşam")
+                    SectionTitle(title = stringResource(R.string.records_section_health))
                 }
                 item {
                     Card(
@@ -80,13 +82,14 @@ fun RecordsScreen(
                         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
                         border = null
                     ) {
+                        val healthConnectToast = stringResource(R.string.records_toast_healthconnect)
                         Column {
                             RecordItemRow(
                                 icon = Icons.Default.Restaurant,
                                 iconBg = domainNutritionContainer(),
                                 iconTint = domainNutritionOnContainer(),
-                                title = "Beslenme Günlüğü",
-                                subtitle = "FatSecret · $foodsCount kayıtlı öğün",
+                                title = stringResource(R.string.records_item_nutrition_title),
+                                subtitle = stringResource(R.string.records_item_nutrition_sub, foodsCount),
                                 onClick = onNavigateToNutrition
                             )
                             HorizontalDivider(
@@ -97,12 +100,12 @@ fun RecordsScreen(
                                 icon = Icons.Default.Favorite,
                                 iconBg = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.4f),
                                 iconTint = MaterialTheme.colorScheme.error,
-                                title = "Health Connect",
-                                subtitle = "Adım, uyku, nabız ve antrenman",
-                                badgeText = "Yakında",
+                                title = stringResource(R.string.records_item_healthconnect_title),
+                                subtitle = stringResource(R.string.records_item_healthconnect_sub),
+                                badgeText = stringResource(R.string.badge_soon),
                                 onClick = {
                                     coroutineScope.launch {
-                                        snackbarHostState.showSnackbar("Health Connect webhook entegrasyonu yakında aktif olacaktır.")
+                                        snackbarHostState.showSnackbar(healthConnectToast)
                                     }
                                 }
                             )
@@ -112,7 +115,7 @@ fun RecordsScreen(
 
                 // Section 2: Kültür & Medya
                 item {
-                    SectionTitle(title = "Kültür & Medya")
+                    SectionTitle(title = stringResource(R.string.records_section_media))
                 }
                 item {
                     Card(
@@ -124,13 +127,14 @@ fun RecordsScreen(
                         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
                         border = null
                     ) {
+                        val musicToast = stringResource(R.string.records_toast_music)
                         Column {
                             RecordItemRow(
                                 icon = Icons.Default.Movie,
                                 iconBg = domainCinemaContainer(),
                                 iconTint = domainCinemaOnContainer(),
-                                title = "Filmler & Sinema",
-                                subtitle = "Letterboxd · $filmsCount film izlendi",
+                                title = stringResource(R.string.records_item_movies_title),
+                                subtitle = stringResource(R.string.records_item_movies_sub, filmsCount),
                                 onClick = onNavigateToMovies
                             )
                             HorizontalDivider(
@@ -141,8 +145,8 @@ fun RecordsScreen(
                                 icon = Icons.AutoMirrored.Filled.MenuBook,
                                 iconBg = domainBooksContainer(),
                                 iconTint = domainBooksOnContainer(),
-                                title = "Kütüphane & Kitaplar",
-                                subtitle = "Goodreads · $booksCount kitap kayıtlı",
+                                title = stringResource(R.string.records_item_books_title),
+                                subtitle = stringResource(R.string.records_item_books_sub, booksCount),
                                 onClick = onNavigateToBooks
                             )
                             HorizontalDivider(
@@ -153,12 +157,12 @@ fun RecordsScreen(
                                 icon = Icons.Default.Headphones,
                                 iconBg = MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.5f),
                                 iconTint = MaterialTheme.colorScheme.onTertiaryContainer,
-                                title = "Müzik & Ses",
-                                subtitle = "Spotify ve podcast dinleme geçmişi",
-                                badgeText = "Planlanan",
+                                title = stringResource(R.string.records_item_music_title),
+                                subtitle = stringResource(R.string.records_item_music_sub),
+                                badgeText = stringResource(R.string.badge_planned),
                                 onClick = {
                                     coroutineScope.launch {
-                                        snackbarHostState.showSnackbar("Müzik ve Podcast entegrasyonu planlanan yol haritasındadır.")
+                                        snackbarHostState.showSnackbar(musicToast)
                                     }
                                 }
                             )
@@ -168,7 +172,7 @@ fun RecordsScreen(
 
                 // Section 3: Sistem & Cihaz
                 item {
-                    SectionTitle(title = "Sistem & Cihaz")
+                    SectionTitle(title = stringResource(R.string.records_section_system))
                 }
                 item {
                     Card(
@@ -184,8 +188,8 @@ fun RecordsScreen(
                             icon = Icons.Default.Notifications,
                             iconBg = MaterialTheme.colorScheme.secondaryContainer,
                             iconTint = MaterialTheme.colorScheme.onSecondaryContainer,
-                            title = "Bildirim Günlüğü",
-                            subtitle = "Webhook Relay · $notifsCount bildirim",
+                            title = stringResource(R.string.records_item_notifications_title),
+                            subtitle = stringResource(R.string.records_item_notifications_sub, notifsCount),
                             onClick = onNavigateToNotifications
                         )
                     }

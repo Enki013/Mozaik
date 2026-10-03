@@ -13,11 +13,13 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.personalrecords.app.R
 import com.personalrecords.app.core.network.model.FilmDto
 import com.personalrecords.app.core.theme.*
 import com.personalrecords.app.ui.components.*
@@ -36,7 +38,7 @@ fun MoviesScreen(
             TopAppBar(
                 title = {
                     Text(
-                        text = "Filmler",
+                        text = stringResource(R.string.title_movies),
                         style = MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.Bold
                     )
@@ -46,7 +48,7 @@ fun MoviesScreen(
                         IconButton(onClick = onNavigateBack) {
                             Icon(
                                 imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                                contentDescription = "Geri"
+                                contentDescription = stringResource(R.string.action_back)
                             )
                         }
                     }
@@ -111,21 +113,21 @@ fun MoviesScreen(
                         horizontalArrangement = Arrangement.spacedBy(6.dp)
                     ) {
                         MetricCard(
-                            title = "Toplam Film",
+                            title = stringResource(R.string.movies_stats_total),
                             value = "$totalFilms",
-                            badgeText = "Letterboxd",
-                            note = "$ratedFilms puanlanan",
+                            badgeText = stringResource(R.string.movies_badge_letterboxd),
+                            note = stringResource(R.string.movies_stats_rated, ratedFilms),
                             modifier = Modifier.weight(1f),
                             badgeBg = domainCinemaContainer(),
                             badgeColor = domainCinemaOnContainer()
                         )
                         MetricCard(
-                            title = "Ortalama Puan",
+                            title = stringResource(R.string.movies_stats_avg_rating),
                             value = avgRating,
                             valueIcon = Icons.Filled.Star,
                             valueIconTint = domainRatingOnContainer(),
-                            badgeText = "Ort.",
-                            note = "$rewatchFilms tekrar izleme",
+                            badgeText = stringResource(R.string.badge_avg),
+                            note = stringResource(R.string.movies_stats_rewatch, rewatchFilms),
                             modifier = Modifier.weight(1f),
                             badgeBg = domainRatingContainer(),
                             badgeColor = domainRatingOnContainer()
@@ -153,7 +155,7 @@ fun MoviesScreen(
                                 )
                                 TextButton(onClick = { viewModel.loadData() }) {
                                     Text(
-                                        text = "Tekrar Dene",
+                                        text = stringResource(R.string.action_retry),
                                         style = MaterialTheme.typography.labelMedium,
                                         color = MaterialTheme.colorScheme.error,
                                         fontWeight = FontWeight.Bold
@@ -182,7 +184,7 @@ fun MoviesScreen(
                                 modifier = Modifier.fillMaxWidth(),
                                 placeholder = {
                                     Text(
-                                        text = "Film adı ara...",
+                                        text = stringResource(R.string.movies_search_placeholder),
                                         style = MaterialTheme.typography.bodyMedium,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
@@ -200,7 +202,7 @@ fun MoviesScreen(
                                         IconButton(onClick = { viewModel.setSearchQuery("") }) {
                                             Icon(
                                                 Icons.Default.Clear,
-                                                contentDescription = "Temizle",
+                                                contentDescription = stringResource(R.string.action_clear),
                                                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
                                                 modifier = Modifier.size(18.dp)
                                             )
@@ -218,6 +220,7 @@ fun MoviesScreen(
                             )
 
                             val rewatchFilms = state.films.count { it.rewatch }
+                            val rewatchLabel = stringResource(R.string.movies_filter_rewatches)
                             Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
@@ -230,7 +233,7 @@ fun MoviesScreen(
                                     onClick = { viewModel.toggleRewatches() },
                                     label = {
                                         Text(
-                                            text = "Tekrar İzlenenler ($rewatchFilms)",
+                                            text = "$rewatchLabel ($rewatchFilms)",
                                             style = MaterialTheme.typography.labelMedium
                                         )
                                     },
@@ -247,12 +250,12 @@ fun MoviesScreen(
                                 )
 
                                 val (sortLabel, sortIcon) = when (state.sortBy) {
-                                    "rating_desc" -> "Puan (Azalan)" to Icons.Default.ArrowDownward
-                                    "rating_asc" -> "Puan (Artan)" to Icons.Default.ArrowUpward
-                                    "year" -> "Vizyon Yılı" to Icons.Default.CalendarMonth
-                                    "date" -> "İzleme Tarihi" to Icons.Default.Schedule
-                                    "title" -> "Film Adı" to Icons.Default.SortByAlpha
-                                    else -> "Sırala" to Icons.AutoMirrored.Filled.Sort
+                                    "rating_desc" -> stringResource(R.string.sort_rating_desc) to Icons.Default.ArrowDownward
+                                    "rating_asc" -> stringResource(R.string.sort_rating_asc) to Icons.Default.ArrowUpward
+                                    "year" -> stringResource(R.string.sort_release_year) to Icons.Default.CalendarMonth
+                                    "date" -> stringResource(R.string.sort_date_watched) to Icons.Default.Schedule
+                                    "title" -> stringResource(R.string.sort_movie_title) to Icons.Default.SortByAlpha
+                                    else -> stringResource(R.string.action_sort) to Icons.AutoMirrored.Filled.Sort
                                 }
                                 AssistChip(
                                     onClick = {
@@ -310,7 +313,7 @@ fun MoviesScreen(
                             contentAlignment = Alignment.Center
                         ) {
                             Text(
-                                text = "Uygun film bulunamadı.",
+                                text = stringResource(R.string.movies_empty),
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -397,7 +400,7 @@ fun FilmCard(film: FilmDto) {
                                     tint = domainCinemaOnContainer()
                                 )
                                 Text(
-                                    text = "Tekrar",
+                                    text = stringResource(R.string.movies_rewatch_badge),
                                     style = MaterialTheme.typography.labelSmall,
                                     color = domainCinemaOnContainer(),
                                     fontWeight = FontWeight.Bold,

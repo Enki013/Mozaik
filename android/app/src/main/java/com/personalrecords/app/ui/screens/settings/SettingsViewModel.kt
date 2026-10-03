@@ -35,7 +35,9 @@ data class SettingsUiState(
     val goodreadsUrl: String = "",
     val isLoadingGoodreads: Boolean = false,
     val isSavingGoodreads: Boolean = false,
-    val goodreadsSaveMessage: String? = null
+    val goodreadsSaveMessage: String? = null,
+    // Language
+    val appLanguage: String = "system"
 )
 
 class SettingsViewModel(
@@ -51,6 +53,17 @@ class SettingsViewModel(
             val url = preferences.serverBaseUrl.first()
             _uiState.value = _uiState.value.copy(serverUrl = url)
             loadAllSettings()
+        }
+        viewModelScope.launch {
+            preferences.appLanguage.collect { lang ->
+                _uiState.value = _uiState.value.copy(appLanguage = lang)
+            }
+        }
+    }
+
+    fun setLanguage(language: String) {
+        viewModelScope.launch {
+            preferences.setAppLanguage(language)
         }
     }
 

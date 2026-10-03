@@ -13,10 +13,12 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.personalrecords.app.R
 import com.personalrecords.app.core.network.model.BookDto
 import com.personalrecords.app.core.theme.*
 import com.personalrecords.app.ui.components.*
@@ -35,7 +37,7 @@ fun BooksScreen(
             TopAppBar(
                 title = {
                     Text(
-                        text = "Kitaplar",
+                        text = stringResource(R.string.title_books),
                         style = MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.Bold
                     )
@@ -45,7 +47,7 @@ fun BooksScreen(
                         IconButton(onClick = onNavigateBack) {
                             Icon(
                                 imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                                contentDescription = "Geri"
+                                contentDescription = stringResource(R.string.action_back)
                             )
                         }
                     }
@@ -112,19 +114,19 @@ fun BooksScreen(
                         horizontalArrangement = Arrangement.spacedBy(6.dp)
                     ) {
                         MetricCard(
-                            title = "Toplam",
+                            title = stringResource(R.string.books_stats_total),
                             value = "$totalBooks",
-                            badgeText = "Kitap",
-                            note = "$readBooks okundu",
+                            badgeText = stringResource(R.string.books_badge_book),
+                            note = stringResource(R.string.books_stats_read, readBooks),
                             modifier = Modifier.weight(1f),
                             badgeBg = domainBooksContainer(),
                             badgeColor = domainBooksOnContainer()
                         )
                         MetricCard(
-                            title = "Okunacak",
+                            title = stringResource(R.string.books_stats_to_read),
                             value = "$toReadBooks",
-                            badgeText = "Liste",
-                            note = "$avgRating ort.",
+                            badgeText = stringResource(R.string.badge_list),
+                            note = stringResource(R.string.books_stats_avg_rating, avgRating),
                             noteIcon = Icons.Filled.Star,
                             noteIconTint = domainRatingOnContainer(),
                             modifier = Modifier.weight(1f),
@@ -152,7 +154,7 @@ fun BooksScreen(
                                 modifier = Modifier.fillMaxWidth(),
                                 placeholder = {
                                     Text(
-                                        text = "Kitap adı veya yazar ara...",
+                                        text = stringResource(R.string.books_search_placeholder),
                                         style = MaterialTheme.typography.bodyMedium,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
@@ -170,7 +172,7 @@ fun BooksScreen(
                                         IconButton(onClick = { viewModel.setSearchQuery("") }) {
                                             Icon(
                                                 Icons.Default.Clear,
-                                                contentDescription = "Temizle",
+                                                contentDescription = stringResource(R.string.action_clear),
                                                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
                                                 modifier = Modifier.size(18.dp)
                                             )
@@ -195,10 +197,10 @@ fun BooksScreen(
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 listOf(
-                                    Triple("all", "Tümü", null),
-                                    Triple("read", "Okundu", Icons.Default.Check),
-                                    Triple("to-read", "Okunacak", Icons.Default.HourglassEmpty),
-                                    Triple("currently-reading", "Okunuyor", Icons.AutoMirrored.Filled.MenuBook)
+                                    Triple("all", stringResource(R.string.books_shelf_all), null),
+                                    Triple("read", stringResource(R.string.books_shelf_read), Icons.Default.Check),
+                                    Triple("to-read", stringResource(R.string.books_shelf_to_read), Icons.Default.HourglassEmpty),
+                                    Triple("currently-reading", stringResource(R.string.books_shelf_currently_reading), Icons.AutoMirrored.Filled.MenuBook)
                                 ).forEach { (shelf, label, icon) ->
                                     FilterChip(
                                         selected = state.selectedShelf == shelf,
@@ -220,11 +222,11 @@ fun BooksScreen(
                                 }
 
                                 val (sortLabel, sortIcon) = when (state.sortBy) {
-                                    "rating_desc" -> "Puan (Azalan)" to Icons.Default.ArrowDownward
-                                    "rating_asc" -> "Puan (Artan)" to Icons.Default.ArrowUpward
-                                    "title" -> "Başlık" to Icons.Default.SortByAlpha
-                                    "date" -> "Okuma Tarihi" to Icons.Default.CalendarMonth
-                                    else -> "Sırala" to Icons.AutoMirrored.Filled.Sort
+                                    "rating_desc" -> stringResource(R.string.sort_rating_desc) to Icons.Default.ArrowDownward
+                                    "rating_asc" -> stringResource(R.string.sort_rating_asc) to Icons.Default.ArrowUpward
+                                    "title" -> stringResource(R.string.sort_title) to Icons.Default.SortByAlpha
+                                    "date" -> stringResource(R.string.sort_date_read) to Icons.Default.CalendarMonth
+                                    else -> stringResource(R.string.action_sort) to Icons.AutoMirrored.Filled.Sort
                                 }
                                 AssistChip(
                                     onClick = {
@@ -281,7 +283,7 @@ fun BooksScreen(
                             contentAlignment = Alignment.Center
                         ) {
                             Text(
-                                text = "Kütüphanede uygun kitap bulunamadı.",
+                                text = stringResource(R.string.books_empty),
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -364,7 +366,7 @@ fun BookCard(book: BookDto) {
                     }
                     if (book.number_of_pages > 0) {
                         Text(
-                            text = "${book.number_of_pages} sf.",
+                            text = stringResource(R.string.books_pages, book.number_of_pages),
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             maxLines = 1,

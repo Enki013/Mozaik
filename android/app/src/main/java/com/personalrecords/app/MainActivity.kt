@@ -33,10 +33,43 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
-            PersonalRecordsTheme {
-                MainAppHost()
+            val preferences = remember { PersonalRecordsApp.instance.preferences }
+            val language by preferences.appLanguage.collectAsState(initial = "system")
+
+            ProvideLocalizedApp(language = language) {
+                PersonalRecordsTheme {
+                    MainAppHost()
+                }
             }
         }
+    }
+}
+
+@Composable
+fun ProvideLocalizedApp(
+    language: String,
+    content: @Composable () -> Unit
+) {
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val localizedContext = remember(language, context) {
+        if (language == "system") {
+            context
+        } else {
+            val locale = java.util.Locale(language)
+            java.util.Locale.setDefault(locale)
+            val config = android.content.res.Configuration(context.resources.configuration).apply {
+                setLocale(locale)
+                setLayoutDirection(locale)
+            }
+            context.createConfigurationContext(config)
+        }
+    }
+
+    CompositionLocalProvider(
+        androidx.compose.ui.platform.LocalContext provides localizedContext,
+        androidx.compose.ui.platform.LocalConfiguration provides localizedContext.resources.configuration
+    ) {
+        content()
     }
 }
 
@@ -62,13 +95,13 @@ fun MainAppHost() {
                         icon = {
                             Icon(
                                 if (selected) screen.selectedIcon else screen.icon,
-                                contentDescription = screen.title,
+                                contentDescription = androidx.compose.ui.res.stringResource(screen.titleRes),
                                 modifier = Modifier.size(20.dp)
                             )
                         },
                         label = {
                             Text(
-                                text = screen.navLabel,
+                                text = androidx.compose.ui.res.stringResource(screen.navLabelRes),
                                 style = MaterialTheme.typography.labelSmall,
                                 textAlign = TextAlign.Center,
                                 maxLines = 1,

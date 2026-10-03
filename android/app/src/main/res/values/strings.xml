@@ -1,3 +1,295 @@
+<?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">Personal Records</string>
+    <string name="app_version_info">v1.0.0 · Material 3 Expressive Design</string>
+    <string name="app_description">Personal data sovereignty &amp; life log dashboard</string>
+
+    <!-- Navigation -->
+    <string name="nav_overview">Overview</string>
+    <string name="nav_timeline">Timeline</string>
+    <string name="nav_records">Records</string>
+    <string name="nav_settings">Settings</string>
+    <string name="nav_nutrition">Nutrition</string>
+    <string name="nav_books">Books</string>
+    <string name="nav_movies">Movies</string>
+    <string name="nav_notifications">Notifications</string>
+
+    <string name="title_overview">Personal Records</string>
+    <string name="title_timeline">Timeline</string>
+    <string name="title_records">Records</string>
+    <string name="title_settings">Settings</string>
+    <string name="title_nutrition">Nutrition Diary</string>
+    <string name="title_books">Books</string>
+    <string name="title_movies">Movies</string>
+    <string name="title_notifications">Notifications</string>
+    <string name="action_back">Back</string>
+
+    <!-- Common Actions & Badges -->
+    <string name="action_save">Save</string>
+    <string name="action_saving">Saving…</string>
+    <string name="action_sync">Sync</string>
+    <string name="action_syncing">Syncing…</string>
+    <string name="action_test_connection">Test Connection</string>
+    <string name="action_testing">Testing…</string>
+    <string name="action_cancel">Cancel</string>
+    <string name="action_close">Close</string>
+    <string name="action_ok">OK</string>
+    <string name="action_retry">Retry</string>
+    <string name="action_copy_url">Copy URL</string>
+    <string name="action_download_apk">Download APK</string>
+    <string name="action_see_all">See All</string>
+    <string name="action_copied">Copied</string>
+    <string name="filter_all">All</string>
+    <string name="badge_soon">Soon</string>
+    <string name="badge_planned">Planned</string>
+    <string name="badge_connected">Connected</string>
+    <string name="badge_not_connected">Not Connected</string>
+    <string name="badge_active">Active</string>
+    <string name="badge_data">Data</string>
+    <string name="badge_list">List</string>
+    <string name="badge_avg">Avg</string>
+    <string name="badge_daily">Daily</string>
+    <string name="badge_active_key">Active Key: %1$s</string>
+
+    <!-- Overview Screen -->
+    <string name="overview_metric_today_calories">Consumed Today</string>
+    <string name="overview_metric_kcal">%1$s kcal</string>
+    <string name="overview_metric_meals_count">%1$s meal entries</string>
+    <string name="overview_metric_library">Library</string>
+    <string name="overview_metric_books_count">%1$s books</string>
+    <string name="overview_metric_books_note">Total recorded</string>
+    <string name="overview_metric_watched">Watched</string>
+    <string name="overview_metric_films_count">%1$s films</string>
+    <string name="overview_metric_films_note">Total films</string>
+    <string name="overview_metric_food_log">Food Diary</string>
+    <string name="overview_metric_foods_count">%1$s entries</string>
+    <string name="overview_metric_foods_note">All meals</string>
+    <string name="overview_integrations_title">Integrations &amp; Synchronization</string>
+    <string name="overview_integrations_subtitle">Instant one-tap data sync</string>
+    <string name="overview_integration_fatsecret">FatSecret</string>
+    <string name="overview_integration_fatsecret_desc">Nutrition diary</string>
+    <string name="overview_integration_goodreads">Goodreads RSS</string>
+    <string name="overview_integration_goodreads_desc">Books &amp; Shelves</string>
+    <string name="overview_integration_letterboxd">Letterboxd RSS</string>
+    <string name="overview_integration_letterboxd_desc">Films &amp; Ratings</string>
+    <string name="overview_recent_activities_title">Recent Activities</string>
+    <string name="overview_recent_activities_subtitle">Meals, books and films stream</string>
+    <string name="overview_no_activities">No activity records yet.</string>
+    <string name="overview_sync_success">%1$s synced successfully: %2$d new records</string>
+
+    <!-- Timeline Screen -->
+    <string name="timeline_search_placeholder">Search activity (meal, book, movie)…</string>
+    <string name="timeline_filter_all">All</string>
+    <string name="timeline_filter_nutrition">Nutrition</string>
+    <string name="timeline_filter_books">Books</string>
+    <string name="timeline_filter_movies">Movies</string>
+    <string name="timeline_filter_notifications">Notifications</string>
+    <string name="timeline_today">Today</string>
+    <string name="timeline_yesterday">Yesterday</string>
+    <string name="timeline_this_week">This Week</string>
+    <string name="timeline_earlier">Earlier</string>
+    <string name="timeline_items_count">%1$d activities</string>
+    <string name="timeline_empty_title">No Records Found</string>
+    <string name="timeline_empty_desc">No activities match your search query or filters.</string>
+
+    <!-- Records Screen -->
+    <string name="records_section_health">Health &amp; Living</string>
+    <string name="records_item_nutrition_title">Nutrition Diary</string>
+    <string name="records_item_nutrition_sub">FatSecret · %1$d recorded meals</string>
+    <string name="records_item_healthconnect_title">Health Connect</string>
+    <string name="records_item_healthconnect_sub">Steps, sleep, heart rate and workouts</string>
+    <string name="records_section_media">Culture &amp; Media</string>
+    <string name="records_item_movies_title">Movies &amp; Cinema</string>
+    <string name="records_item_movies_sub">Letterboxd · %1$d films watched</string>
+    <string name="records_item_books_title">Library &amp; Books</string>
+    <string name="records_item_books_sub">Goodreads · %1$d books recorded</string>
+    <string name="records_item_music_title">Music &amp; Audio</string>
+    <string name="records_item_music_sub">Spotify and podcast listening history</string>
+    <string name="records_section_system">System &amp; Device</string>
+    <string name="records_item_notifications_title">Notification Log</string>
+    <string name="records_item_notifications_sub">Webhook Relay · %1$d notifications</string>
+    <string name="records_item_automation_title">Automation &amp; Actions</string>
+    <string name="records_item_automation_sub">Tasker, n8n and webhook triggers</string>
+    <string name="records_toast_healthconnect">Health Connect webhook integration will be available soon.</string>
+    <string name="records_toast_music">Spotify listening history integration is planned.</string>
+    <string name="records_toast_automation">Automation and action triggers will be available soon.</string>
+
+    <!-- Settings Screen -->
+    <string name="settings_section_language">Language &amp; Region</string>
+    <string name="settings_language_title">App Language</string>
+    <string name="settings_language_desc">Choose your preferred application language</string>
+    <string name="settings_language_system">System Default</string>
+    <string name="settings_language_tr">Türkçe (Turkish)</string>
+    <string name="settings_language_en">English (English)</string>
+
+    <string name="settings_section_server">Server &amp; Infrastructure</string>
+    <string name="settings_server_title">API Server</string>
+    <string name="settings_server_desc">Cloudflare Worker or local backend</string>
+    <string name="settings_server_url_label">Server URL</string>
+    <string name="settings_server_url_hint">https://your-api.domain.com</string>
+    <string name="settings_server_url_support">Do not include trailing slash (/)</string>
+
+    <string name="settings_section_webhook">Notification Webhook Integration</string>
+    <string name="settings_webhook_title">Notification Relay Webhook</string>
+    <string name="settings_webhook_desc">Forward Android notifications to your server</string>
+    <string name="settings_webhook_relay_summary">Personal Records gathers data through an external webhook relay. The companion Notification Relay Webhook app automatically pushes your notifications to your server:</string>
+    <string name="settings_target_webhook_url">Target Webhook URL:</string>
+    <string name="settings_setup_guide_title">3-Step Easy Setup</string>
+    <string name="settings_setup_step_1">1. Install Notification Relay APK and grant Notification Access permission.</string>
+    <string name="settings_setup_step_2">2. In Webhooks tab tap \'+\' and paste the target webhook URL above.</string>
+    <string name="settings_setup_step_3">3. Tap Test and save. All notifications will be saved to your database automatically.</string>
+
+    <string name="settings_section_fatsecret">Nutrition Integration (FatSecret)</string>
+    <string name="settings_fatsecret_title">FatSecret API (BYOK)</string>
+    <string name="settings_fatsecret_desc">Secure connection with your own API credentials</string>
+    <string name="settings_fatsecret_connected_banner">FatSecret Account Connected</string>
+    <string name="settings_fatsecret_reconnect">Reconnect</string>
+    <string name="settings_fatsecret_disconnect">Disconnect</string>
+    <string name="settings_fatsecret_help_title">How to Get FatSecret API Keys?</string>
+    <string name="settings_fatsecret_help_step_1">1. Go to platform.fatsecret.com and sign up for a free developer account.</string>
+    <string name="settings_fatsecret_help_step_2">2. Under Basic API tab, create a new application.</string>
+    <string name="settings_fatsecret_help_step_3">3. Paste your Client ID (Consumer Key) and Client Secret below.</string>
+    <string name="settings_fatsecret_help_step_4">4. Tap \'Connect with OAuth\' to complete authorization.</string>
+    <string name="settings_consumer_key_label">Client ID (Consumer Key)</string>
+    <string name="settings_consumer_secret_label">Client Secret</string>
+    <string name="settings_btn_connect_oauth">Connect with OAuth</string>
+    <string name="settings_btn_save_keys">Save Keys</string>
+    <string name="settings_fatsecret_change_keys">Change Keys</string>
+    <string name="settings_fatsecret_close_editor">Close Editor</string>
+    <string name="toast_webhook_copied">Webhook URL copied to clipboard!</string>
+    <string name="badge_key_ready">Key ✓</string>
+    <string name="settings_fatsecret_sync_title">Sync Nutrition History</string>
+    <string name="settings_fatsecret_sync_desc">Fetch past meal logs from FatSecret server:</string>
+    <string name="settings_sync_today">Today (1D)</string>
+    <string name="settings_sync_30d">Last 30 Days</string>
+    <string name="settings_sync_1y">Last 1 Year</string>
+    <string name="settings_sync_all">All Time</string>
+    <string name="settings_save_server_first">Please save the server URL first.</string>
+    <string name="badge_active_check">Active ✓</string>
+    <string name="toast_downloading">Downloading: %1$s…</string>
+    <string name="toast_downloaded">Downloaded: %1$s (saved to Downloads folder)</string>
+    <string name="toast_download_browser">Starting download in browser…</string>
+    <string name="toast_download_failed">Download failed.</string>
+
+    <string name="action_clear">Clear</string>
+    <string name="timeline_filter_reset">Reset</string>
+    <string name="settings_section_media">Culture &amp; Media Synchronization</string>
+    <string name="settings_section_goodreads">Goodreads Integration</string>
+    <string name="settings_goodreads_title">Goodreads RSS URL</string>
+    <string name="settings_goodreads_desc">Books you have read and want to read</string>
+    <string name="settings_goodreads_user_label">Goodreads User ID or RSS</string>
+    <string name="settings_goodreads_user_hint">e.g.: 12345678 or https://goodreads.com/user/show/12345678</string>
+    <string name="settings_goodreads_support">Enter your profile RSS link or Goodreads user ID.</string>
+
+    <string name="settings_section_letterboxd">Letterboxd Integration</string>
+    <string name="settings_letterboxd_title">Letterboxd RSS URL</string>
+    <string name="settings_letterboxd_desc">Watched films, diary and movie ratings</string>
+    <string name="settings_letterboxd_user_label">Letterboxd Username or RSS</string>
+    <string name="settings_letterboxd_user_hint">e.g.: username or https://letterboxd.com/username/rss/</string>
+    <string name="settings_letterboxd_support">Entering your username automatically generates the RSS feed link.</string>
+
+    <string name="settings_section_architecture">Hybrid Architecture &amp; Plugins</string>
+    <string name="settings_architecture_title">Extensible Data Hub</string>
+    <string name="settings_architecture_subtitle">Central personal data gathered from 3 pipelines</string>
+    <string name="settings_architecture_desc">Personal Records pools all records into a central server repository. The Android app acts as a reader and control panel. Future services attach as modular plugins:</string>
+    <string name="settings_plugin_webhook_title">1. Webhook Plugins (Push)</string>
+    <string name="settings_plugin_webhook_desc">Instant notification and sensor data via Notification Relay APK, Tasker, or Home Assistant.</string>
+    <string name="settings_plugin_rss_title">2. RSS Plugins (Pull / Polling)</string>
+    <string name="settings_plugin_rss_desc">Periodic background polling of public RSS feeds like Letterboxd and Goodreads.</string>
+    <string name="settings_plugin_api_title">3. OTT / OAuth Plugins (API)</string>
+    <string name="settings_plugin_api_desc">FatSecret OAuth BYOK. Upcoming: Spotify listening history and Steam library.</string>
+
+    <string name="settings_section_export">Data Sovereignty &amp; Backup</string>
+    <string name="settings_export_title">Data Export</string>
+    <string name="settings_export_desc">Download and preserve all your records on your device</string>
+    <string name="settings_btn_export_json">Export JSON</string>
+    <string name="settings_btn_export_sqlite">SQLite (.db)</string>
+    <string name="settings_export_note">Files are saved to your Downloads folder.</string>
+
+    <string name="settings_section_app_info">Application Information</string>
+    <string name="settings_app_name">Personal Records</string>
+
+    <!-- Nutrition Screen -->
+    <string name="nutrition_calorie_target_title">Daily Calorie Target</string>
+    <string name="nutrition_consumed_today">Today: %1$d / %2$d kcal (%3$d%%)</string>
+    <string name="nutrition_target_exceeded">%1$d kcal exceeded</string>
+    <string name="nutrition_target_remaining">%1$d kcal remaining</string>
+    <string name="nutrition_macro_title">Macronutrient Breakdown</string>
+    <string name="nutrition_macro_subtitle">Total nutrients from recorded meals</string>
+    <string name="nutrition_macro_carb">Carb: %1$sg (%2$d%%)</string>
+    <string name="nutrition_macro_protein">Protein: %1$sg (%2$d%%)</string>
+    <string name="nutrition_macro_fat">Fat: %1$sg (%2$d%%)</string>
+    <string name="nutrition_label_carb">Carb</string>
+    <string name="nutrition_label_protein">Protein</string>
+    <string name="nutrition_label_fat">Fat</string>
+    <string name="nutrition_search_placeholder">Search food or portion…</string>
+    <string name="nutrition_filter_all_meals">All Meals</string>
+    <string name="nutrition_filter_breakfast">Breakfast</string>
+    <string name="nutrition_filter_lunch">Lunch</string>
+    <string name="nutrition_filter_dinner">Dinner</string>
+    <string name="nutrition_filter_snack">Snack</string>
+    <string name="nutrition_filter_high_protein">High Protein</string>
+    <string name="nutrition_pick_date">Pick Date</string>
+    <string name="nutrition_empty">No food entries found.</string>
+    <string name="nutrition_target_dialog_title">Daily Calorie Target</string>
+    <string name="nutrition_target_dialog_label">Target Calories (kcal)</string>
+
+    <!-- Books Screen -->
+    <string name="books_stats_total">Total</string>
+    <string name="books_badge_book">Book</string>
+    <string name="books_stats_read">%1$d read</string>
+    <string name="books_stats_to_read">To Read</string>
+    <string name="books_stats_avg_rating">%1$s avg</string>
+    <string name="books_search_placeholder">Search book or author…</string>
+    <string name="books_shelf_all">All</string>
+    <string name="books_shelf_read">Read</string>
+    <string name="books_shelf_currently_reading">Currently Reading</string>
+    <string name="books_shelf_to_read">Want to Read</string>
+    <string name="books_empty">No books found.</string>
+    <string name="books_pages">%1$d pages</string>
+
+    <!-- Movies Screen -->
+    <string name="movies_stats_total">Total Movies</string>
+    <string name="movies_badge_letterboxd">Letterboxd</string>
+    <string name="movies_stats_rated">%1$d rated</string>
+    <string name="movies_stats_avg_rating">Average Rating</string>
+    <string name="movies_stats_rewatch">%1$d rewatches</string>
+    <string name="movies_search_placeholder">Search movie title or year…</string>
+    <string name="movies_filter_all">All</string>
+    <string name="movies_filter_rewatches">Rewatches</string>
+    <string name="movies_filter_highest_rated">Highest Rated</string>
+    <string name="movies_empty">No movies found.</string>
+    <string name="movies_rewatch_badge">Rewatch</string>
+
+    <!-- Notifications Screen -->
+    <string name="notifications_stats_total">Total</string>
+    <string name="notifications_badge_notification">Notification</string>
+    <string name="notifications_stats_apps_count">%1$d apps</string>
+    <string name="notifications_stats_today">Today</string>
+    <string name="notifications_stats_active_stream">Active stream</string>
+    <string name="notifications_search_placeholder">Search notifications or apps…</string>
+    <string name="notifications_filter_all">All</string>
+    <string name="notifications_empty">No notifications found.</string>
+    <string name="notifications_detail_title">Notification Details</string>
+    <string name="notifications_copy_text">Copy Text</string>
+    <string name="notifications_empty_guide">To stream phone notifications to your server, connect the companion Notification Relay Webhook app. You can find your target Webhook URL and the 3-step setup guide in Settings.</string>
+    <string name="notifications_search_empty">No notifications match your search criteria.</string>
+    <string name="notifications_no_content">No content</string>
+
+    <!-- Sorting & Timeline & Common -->
+    <string name="timeline_selected_date">Selected Date: %1$s</string>
+    <string name="common_other">Other</string>
+    <string name="action_sort">Sort</string>
+    <string name="sort_rating_desc">Rating (High-Low)</string>
+    <string name="sort_rating_asc">Rating (Low-High)</string>
+    <string name="sort_title">Title</string>
+    <string name="sort_date_read">Date Read</string>
+    <string name="sort_date_watched">Date Watched</string>
+    <string name="sort_release_year">Release Year</string>
+    <string name="sort_movie_title">Movie Title</string>
+    <string name="timeline_count_notifications">%1$d notifications</string>
+    <string name="timeline_count_films">%1$d films</string>
+    <string name="timeline_count_books">%1$d books</string>
+    <string name="nutrition_macro_short">C:%1$dg P:%2$dg F:%3$dg</string>
+    <string name="nutrition_macro_chip_format">%1$s: %2$sg (%3$d%%)</string>
 </resources>

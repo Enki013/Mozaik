@@ -19,10 +19,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.personalrecords.app.R
 import com.personalrecords.app.core.network.model.FoodEntryDto
 import com.personalrecords.app.core.theme.*
 import com.personalrecords.app.ui.components.*
@@ -58,12 +60,12 @@ fun NutritionScreen(
                         showDatePicker = false
                     }
                 ) {
-                    Text("Tamam", style = MaterialTheme.typography.labelLarge)
+                    Text(stringResource(R.string.action_ok), style = MaterialTheme.typography.labelLarge)
                 }
             },
             dismissButton = {
                 TextButton(onClick = { showDatePicker = false }) {
-                    Text("İptal", style = MaterialTheme.typography.labelLarge)
+                    Text(stringResource(R.string.action_cancel), style = MaterialTheme.typography.labelLarge)
                 }
             }
         ) {
@@ -77,7 +79,7 @@ fun NutritionScreen(
             onDismissRequest = { showTargetDialog = false },
             title = {
                 Text(
-                    text = "Günlük Kalori Hedefi",
+                    text = stringResource(R.string.nutrition_target_dialog_title),
                     style = MaterialTheme.typography.headlineSmall
                 )
             },
@@ -85,7 +87,7 @@ fun NutritionScreen(
                 OutlinedTextField(
                     value = tempTarget,
                     onValueChange = { tempTarget = it },
-                    label = { Text("Hedef Kalori (kcal)") },
+                    label = { Text(stringResource(R.string.nutrition_target_dialog_label)) },
                     singleLine = true,
                     shape = MaterialTheme.shapes.small
                 )
@@ -100,12 +102,12 @@ fun NutritionScreen(
                         showTargetDialog = false
                     }
                 ) {
-                    Text("Kaydet", style = MaterialTheme.typography.labelLarge)
+                    Text(stringResource(R.string.action_save), style = MaterialTheme.typography.labelLarge)
                 }
             },
             dismissButton = {
                 TextButton(onClick = { showTargetDialog = false }) {
-                    Text("İptal", style = MaterialTheme.typography.labelLarge)
+                    Text(stringResource(R.string.action_cancel), style = MaterialTheme.typography.labelLarge)
                 }
             }
         )
@@ -117,7 +119,7 @@ fun NutritionScreen(
             TopAppBar(
                 title = {
                     Text(
-                        text = "Beslenme",
+                        text = stringResource(R.string.title_nutrition),
                         style = MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.Bold
                     )
@@ -127,7 +129,7 @@ fun NutritionScreen(
                         IconButton(onClick = onNavigateBack) {
                             Icon(
                                 imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                                contentDescription = "Geri"
+                                contentDescription = stringResource(R.string.action_back)
                             )
                         }
                     }
@@ -198,7 +200,7 @@ fun NutritionScreen(
                                     modifier = Modifier.size(18.dp)
                                 )
                                 Text(
-                                    text = "Günlük Kalori Hedefi",
+                                    text = stringResource(R.string.nutrition_calorie_target_title),
                                     style = MaterialTheme.typography.titleMedium,
                                     fontWeight = FontWeight.Bold,
                                     color = MaterialTheme.colorScheme.onSurface
@@ -258,9 +260,15 @@ fun NutritionScreen(
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
                             val rem = if (target != null) (target - state.todayCalories).toInt() else 0
-                            val remText = target?.let { if (rem >= 0) "$rem kcal kaldı" else "${-rem} kcal aşıldı" } ?: ""
+                            val remText = target?.let {
+                                if (rem >= 0) stringResource(R.string.nutrition_target_remaining, rem)
+                                else stringResource(R.string.nutrition_target_exceeded, -rem)
+                            } ?: ""
+                            val consumedText = target?.let {
+                                stringResource(R.string.nutrition_consumed_today, state.todayCalories.toInt(), it, (progressPct * 100).toInt())
+                            } ?: "${state.todayCalories.toInt()} kcal"
                             Text(
-                                text = target?.let { "Bugün: ${state.todayCalories.toInt()} / $it kcal (%${(progressPct * 100).toInt()})" } ?: "Bugün: ${state.todayCalories.toInt()} kcal",
+                                text = consumedText,
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -288,13 +296,13 @@ fun NutritionScreen(
                 ) {
                     Column(modifier = Modifier.padding(12.dp)) {
                         Text(
-                            text = "Makro Besin Dağılımı",
+                            text = stringResource(R.string.nutrition_macro_title),
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.onSurface
                         )
                         Text(
-                            text = "Kayıtlı öğünlerin besin değerleri toplamı",
+                            text = stringResource(R.string.nutrition_macro_subtitle),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -330,9 +338,9 @@ fun NutritionScreen(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
-                            MacroLegendItem(color = carbColor, label = "Karb", grams = state.totalCarb.toInt(), pct = (carbPct * 100).toInt())
-                            MacroLegendItem(color = protColor, label = "Protein", grams = state.totalProtein.toInt(), pct = (protPct * 100).toInt())
-                            MacroLegendItem(color = fatColor, label = "Yağ", grams = state.totalFat.toInt(), pct = (fatPct * 100).toInt())
+                            MacroLegendItem(color = carbColor, label = stringResource(R.string.nutrition_label_carb), grams = state.totalCarb.toInt(), pct = (carbPct * 100).toInt())
+                            MacroLegendItem(color = protColor, label = stringResource(R.string.nutrition_label_protein), grams = state.totalProtein.toInt(), pct = (protPct * 100).toInt())
+                            MacroLegendItem(color = fatColor, label = stringResource(R.string.nutrition_label_fat), grams = state.totalFat.toInt(), pct = (fatPct * 100).toInt())
                         }
                     }
                 }
@@ -357,7 +365,7 @@ fun NutritionScreen(
                             modifier = Modifier.fillMaxWidth(),
                             placeholder = {
                                 Text(
-                                    text = "Yemek veya porsiyon ara...",
+                                    text = stringResource(R.string.nutrition_search_placeholder),
                                     style = MaterialTheme.typography.bodyMedium,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
@@ -375,7 +383,7 @@ fun NutritionScreen(
                                     IconButton(onClick = { viewModel.setSearchQuery("") }) {
                                         Icon(
                                             Icons.Default.Clear,
-                                            contentDescription = "Temizle",
+                                            contentDescription = stringResource(R.string.action_clear),
                                             tint = MaterialTheme.colorScheme.onSurfaceVariant,
                                             modifier = Modifier.size(18.dp)
                                         )
@@ -412,7 +420,7 @@ fun NutritionScreen(
                                 },
                                 label = {
                                     Text(
-                                        text = state.selectedDateFilter ?: "Gün Seç",
+                                        text = state.selectedDateFilter ?: stringResource(R.string.nutrition_pick_date),
                                         style = MaterialTheme.typography.labelMedium
                                     )
                                 },
@@ -423,11 +431,11 @@ fun NutritionScreen(
 
                             // Meals
                             listOf(
-                                Triple("all", "Tüm Öğünler", null),
-                                Triple("Breakfast", "Kahvaltı", Icons.Default.BakeryDining),
-                                Triple("Lunch", "Öğle", Icons.Default.LunchDining),
-                                Triple("Dinner", "Akşam", Icons.Default.DinnerDining),
-                                Triple("Other", "Diğer", Icons.Default.Fastfood)
+                                Triple("all", stringResource(R.string.nutrition_filter_all_meals), null),
+                                Triple("Breakfast", stringResource(R.string.nutrition_filter_breakfast), Icons.Default.BakeryDining),
+                                Triple("Lunch", stringResource(R.string.nutrition_filter_lunch), Icons.Default.LunchDining),
+                                Triple("Dinner", stringResource(R.string.nutrition_filter_dinner), Icons.Default.DinnerDining),
+                                Triple("Other", stringResource(R.string.nutrition_filter_snack), Icons.Default.Fastfood)
                             ).forEach { (mealKey, label, icon) ->
                                 FilterChip(
                                     selected = state.selectedMeal == mealKey,
@@ -471,7 +479,7 @@ fun NutritionScreen(
                                     onClick = { viewModel.resetFilters() },
                                     label = {
                                         Text(
-                                            text = "Temizle",
+                                            text = stringResource(R.string.action_clear),
                                             style = MaterialTheme.typography.labelMedium,
                                             color = MaterialTheme.colorScheme.error
                                         )
@@ -514,7 +522,7 @@ fun NutritionScreen(
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
-                            text = "Kriterlere uygun yemek kaydı bulunamadı.",
+                            text = stringResource(R.string.nutrition_empty),
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -532,12 +540,13 @@ fun NutritionScreen(
     }
 }
 
+@Composable
 private fun formatMealName(meal: String): String {
     return when (meal.trim().lowercase()) {
-        "breakfast" -> "Kahvaltı"
-        "lunch" -> "Öğle"
-        "dinner" -> "Akşam"
-        "snack", "other" -> "Ara Öğün"
+        "breakfast" -> stringResource(R.string.nutrition_filter_breakfast)
+        "lunch" -> stringResource(R.string.nutrition_filter_lunch)
+        "dinner" -> stringResource(R.string.nutrition_filter_dinner)
+        "snack", "other" -> stringResource(R.string.nutrition_filter_snack)
         else -> meal
     }
 }
@@ -562,7 +571,7 @@ fun MacroLegendItem(color: Color, label: String, grams: Int, pct: Int) {
         )
         Spacer(modifier = Modifier.width(4.dp))
         Text(
-            text = "$label: ${grams}g (%$pct)",
+            text = stringResource(R.string.nutrition_macro_chip_format, label, grams, pct),
             style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             maxLines = 1,
@@ -660,7 +669,7 @@ fun FoodEntryCard(item: FoodEntryDto) {
                 )
                 Spacer(modifier = Modifier.height(2.dp))
                 Text(
-                    text = "K:${item.carbohydrate.toInt()}g P:${item.protein.toInt()}g Y:${item.fat.toInt()}g",
+                    text = stringResource(R.string.nutrition_macro_short, item.carbohydrate.toInt(), item.protein.toInt(), item.fat.toInt()),
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 1,
