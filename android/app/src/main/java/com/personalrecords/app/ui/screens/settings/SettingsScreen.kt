@@ -5,6 +5,7 @@ import android.content.Intent
 import android.os.Build
 import android.os.Environment
 import android.provider.MediaStore
+import androidx.activity.compose.BackHandler
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.BorderStroke
@@ -13,6 +14,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
@@ -35,6 +37,7 @@ import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.personalrecords.app.R
 import com.personalrecords.app.core.theme.*
 import kotlinx.coroutines.Dispatchers
@@ -60,7 +63,11 @@ fun SettingsScreen(
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
     var showKeyEditor by remember { mutableStateOf(false) }
-    var isLanguageExpanded by remember { mutableStateOf(false) }
+    var showLanguageSelection by remember { mutableStateOf(false) }
+
+    BackHandler(enabled = showLanguageSelection) {
+        showLanguageSelection = false
+    }
 
     val clipboardManager = LocalClipboardManager.current
 
@@ -146,150 +153,110 @@ fun SettingsScreen(
         modifier = Modifier.fillMaxSize(),
         snackbarHost = { SnackbarHost(snackbarHostState) }
     ) { innerPadding ->
-        androidx.compose.material3.pulltorefresh.PullToRefreshBox(
-            isRefreshing = isRefreshing,
-            onRefresh = {
-                isRefreshing = true
-                viewModel.testConnection()
-                viewModel.loadAllSettings()
+        AnimatedContent(
+            targetState = showLanguageSelection,
+            transitionSpec = {
+                if (targetState) {
+                    slideInHorizontally(
+                        initialOffsetX = { fullWidth -> fullWidth },
+                        animationSpec = tween(durationMillis = 280, easing = FastOutSlowInEasing)
+                    ) togetherWith slideOutHorizontally(
+                        targetOffsetX = { fullWidth -> -fullWidth / 3 },
+                        animationSpec = tween(durationMillis = 280, easing = FastOutSlowInEasing)
+                    )
+                } else {
+                    slideInHorizontally(
+                        initialOffsetX = { fullWidth -> -fullWidth / 3 },
+                        animationSpec = tween(durationMillis = 280, easing = FastOutSlowInEasing)
+                    ) togetherWith slideOutHorizontally(
+                        targetOffsetX = { fullWidth -> fullWidth },
+                        animationSpec = tween(durationMillis = 280, easing = FastOutSlowInEasing)
+                    )
+                }
             },
+            label = "LanguageScreenTransition",
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
-        ) {
-            LazyColumn(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(horizontal = 12.dp),
-                contentPadding = PaddingValues(top = 4.dp, bottom = 24.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                // ==========================================
-                // SECTION 0: Dil ve Bölge / Language & Region
-                // ==========================================
-                item {
-                    SettingsSectionTitle(title = stringResource(R.string.settings_section_language))
-                }
-                item {
-                    SettingsCard {
-                        val currentLanguageLabel = when (state.appLanguage) {
-                            "tr" -> "🇹🇷 Türkçe"
-                            "en" -> "🇺🇸 English"
-                            else -> stringResource(R.string.settings_language_system)
+        ) { isLanguageScreen ->
+            if (isLanguageScreen) {
+                LanguageSelectionScreen(
+                    currentLanguage = state.appLanguage,
+                    onLanguageSelected = { lang ->
+                        viewModel.setLanguage(lang)
+                    },
+                    onNavigateBack = { showLanguageSelection = false }
+                )
+            } else {
+                androidx.compose.material3.pulltorefresh.PullToRefreshBox(
+                    isRefreshing = isRefreshing,
+                    onRefresh = {
+                        isRefreshing = true
+                        viewModel.testConnection()
+                        viewModel.loadAllSettings()
+                    },
+                    modifier = Modifier.fillMaxSize()
+                ) {
+                    LazyColumn(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(horizontal = 12.dp),
+                        contentPadding = PaddingValues(top = 4.dp, bottom = 24.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        // ==========================================
+                        // SECTION 0: Dil ve Bölge / Language & Region
+                        // ==========================================
+                        item {
+                            SettingsSectionTitle(title = stringResource(R.string.settings_section_language))
                         }
-                        val chevronRotation by animateFloatAsState(
-                            targetValue = if (isLanguageExpanded) 90f else 0f,
-                            animationSpec = spring(stiffness = Spring.StiffnessMediumLow),
-                            label = "chevronRotation"
-                        )
+                        item {
+                            SettingsCard {
+                                val currentLanguageLabel = when (state.appLanguage) {
+                                    "tr" -> "Türkçe"
+                                    "en" -> "English"
+                                    else -> stringResource(R.string.settings_language_system)
+                                }
 
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clip(MaterialTheme.shapes.small)
-                                .clickable { isLanguageExpanded = !isLanguageExpanded }
-                                .padding(vertical = 4.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(10.dp)
-                        ) {
-                            SettingsIconBox(
-                                icon = Icons.Default.Language,
-                                containerColor = MaterialTheme.colorScheme.tertiaryContainer,
-                                contentColor = MaterialTheme.colorScheme.onTertiaryContainer
-                            )
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(
-                                    text = stringResource(R.string.settings_language_title),
-                                    style = MaterialTheme.typography.titleMedium,
-                                    fontWeight = FontWeight.SemiBold,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis
-                                )
-                                Text(
-                                    text = stringResource(R.string.settings_language_current, currentLanguageLabel),
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.primary,
-                                    fontWeight = FontWeight.Medium,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis
-                                )
-                            }
-                            IconButton(
-                                onClick = { isLanguageExpanded = !isLanguageExpanded },
-                                modifier = Modifier.size(36.dp)
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.ChevronRight,
-                                    contentDescription = if (isLanguageExpanded) "Collapse" else "Expand",
-                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    modifier = Modifier.rotate(chevronRotation)
-                                )
-                            }
-                        }
-
-                        AnimatedVisibility(
-                            visible = isLanguageExpanded,
-                            enter = expandHorizontally(
-                                expandFrom = Alignment.Start,
-                                animationSpec = spring(
-                                    dampingRatio = Spring.DampingRatioLowBouncy,
-                                    stiffness = Spring.StiffnessMediumLow
-                                )
-                            ) + slideInHorizontally(
-                                initialOffsetX = { -it },
-                                animationSpec = spring(stiffness = Spring.StiffnessMediumLow)
-                            ) + fadeIn(),
-                            exit = shrinkHorizontally(
-                                shrinkTowards = Alignment.Start,
-                                animationSpec = tween(durationMillis = 200)
-                            ) + slideOutHorizontally(
-                                targetOffsetX = { -it },
-                                animationSpec = tween(durationMillis = 200)
-                            ) + fadeOut(animationSpec = tween(durationMillis = 150))
-                        ) {
-                            Column(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(top = 12.dp)
-                            ) {
-                                Text(
-                                    text = stringResource(R.string.settings_language_desc),
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    modifier = Modifier.padding(bottom = 8.dp)
-                                )
                                 Row(
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .horizontalScroll(rememberScrollState()),
+                                        .clip(MaterialTheme.shapes.small)
+                                        .clickable { showLanguageSelection = true }
+                                        .padding(vertical = 4.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
                                     horizontalArrangement = Arrangement.spacedBy(10.dp)
                                 ) {
-                                    LanguageOptionCard(
-                                        flag = "🌐",
-                                        title = stringResource(R.string.settings_language_system),
-                                        subtitle = stringResource(R.string.settings_language_system_sub),
-                                        isSelected = state.appLanguage == "system",
-                                        onClick = { viewModel.setLanguage("system") }
+                                    SettingsIconBox(
+                                        icon = Icons.Default.Language,
+                                        containerColor = MaterialTheme.colorScheme.tertiaryContainer,
+                                        contentColor = MaterialTheme.colorScheme.onTertiaryContainer
                                     )
-                                    LanguageOptionCard(
-                                        flag = "🇹🇷",
-                                        title = "Türkçe",
-                                        subtitle = "Turkish",
-                                        isSelected = state.appLanguage == "tr",
-                                        onClick = { viewModel.setLanguage("tr") }
-                                    )
-                                    LanguageOptionCard(
-                                        flag = "🇺🇸",
-                                        title = "English",
-                                        subtitle = "English",
-                                        isSelected = state.appLanguage == "en",
-                                        onClick = { viewModel.setLanguage("en") }
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text(
+                                            text = stringResource(R.string.settings_language_title),
+                                            style = MaterialTheme.typography.titleMedium,
+                                            fontWeight = FontWeight.SemiBold,
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis
+                                        )
+                                        Text(
+                                            text = currentLanguageLabel,
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.primary,
+                                            fontWeight = FontWeight.Medium,
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis
+                                        )
+                                    }
+                                    Icon(
+                                        imageVector = Icons.Default.ChevronRight,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
                                 }
                             }
                         }
-                    }
-                }
 
                 // ==========================================
                 // SECTION 1: Sunucu ve Altyapı
@@ -1436,6 +1403,8 @@ fun SettingsScreen(
         }
     }
 }
+}
+}
 
 @Composable
 private fun SettingsSectionTitle(title: String) {
@@ -1490,78 +1459,101 @@ private fun SettingsIconBox(
     }
 }
 
+private data class LanguageOption(
+    val code: String,
+    val labelRes: Int? = null,
+    val rawLabel: String? = null
+)
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun LanguageOptionCard(
-    flag: String,
-    title: String,
-    subtitle: String,
-    isSelected: Boolean,
-    onClick: () -> Unit
+private fun LanguageSelectionScreen(
+    currentLanguage: String,
+    onLanguageSelected: (String) -> Unit,
+    onNavigateBack: () -> Unit
 ) {
-    Card(
-        onClick = onClick,
-        shape = MaterialTheme.shapes.medium,
-        colors = CardDefaults.cardColors(
-            containerColor = if (isSelected) {
-                MaterialTheme.colorScheme.primaryContainer
-            } else {
-                MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.5f)
-            }
-        ),
-        border = if (isSelected) {
-            BorderStroke(1.5.dp, MaterialTheme.colorScheme.primary)
-        } else {
-            BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
-        },
-        modifier = Modifier.widthIn(min = 135.dp)
-    ) {
-        Column(
-            modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
-            verticalArrangement = Arrangement.spacedBy(4.dp)
-        ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = flag,
-                    style = MaterialTheme.typography.titleMedium
-                )
-                if (isSelected) {
-                    Icon(
-                        imageVector = Icons.Default.CheckCircle,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(16.dp)
+    val languages = remember {
+        listOf(
+            LanguageOption(code = "system", labelRes = R.string.settings_language_system),
+            LanguageOption(code = "en", rawLabel = "English"),
+            LanguageOption(code = "tr", rawLabel = "Türkçe")
+        )
+    }
+
+    Scaffold(
+        modifier = Modifier.fillMaxSize(),
+        topBar = {
+            CenterAlignedTopAppBar(
+                title = {
+                    Text(
+                        text = stringResource(R.string.settings_language_screen_title),
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.SemiBold
                     )
+                },
+                navigationIcon = {
+                    IconButton(
+                        onClick = onNavigateBack,
+                        modifier = Modifier.padding(start = 4.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.ChevronLeft,
+                            contentDescription = stringResource(R.string.action_back),
+                            modifier = Modifier.size(32.dp),
+                            tint = MaterialTheme.colorScheme.onSurface
+                        )
+                    }
+                },
+                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.background,
+                    titleContentColor = MaterialTheme.colorScheme.onSurface,
+                    navigationIconContentColor = MaterialTheme.colorScheme.onSurface
+                )
+            )
+        },
+        containerColor = MaterialTheme.colorScheme.background
+    ) { innerPadding ->
+        LazyColumn(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(innerPadding),
+            contentPadding = PaddingValues(vertical = 8.dp)
+        ) {
+            items(languages) { item ->
+                val isSelected = currentLanguage == item.code
+                val label = item.labelRes?.let { stringResource(it) } ?: item.rawLabel.orEmpty()
+
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { onLanguageSelected(item.code) }
+                        .padding(horizontal = 24.dp, vertical = 16.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = label,
+                        style = MaterialTheme.typography.bodyLarge.copy(fontSize = 17.sp),
+                        fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    if (isSelected) {
+                        Spacer(modifier = Modifier.width(10.dp))
+                        Box(
+                            modifier = Modifier
+                                .size(20.dp)
+                                .background(Color(0xFF22C55E), CircleShape),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Check,
+                                contentDescription = null,
+                                tint = Color.White,
+                                modifier = Modifier.size(13.dp)
+                            )
+                        }
+                    }
                 }
             }
-            Spacer(modifier = Modifier.height(2.dp))
-            Text(
-                text = title,
-                style = MaterialTheme.typography.labelLarge,
-                fontWeight = FontWeight.Bold,
-                color = if (isSelected) {
-                    MaterialTheme.colorScheme.onPrimaryContainer
-                } else {
-                    MaterialTheme.colorScheme.onSurface
-                },
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
-            Text(
-                text = subtitle,
-                style = MaterialTheme.typography.bodySmall,
-                color = if (isSelected) {
-                    MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f)
-                } else {
-                    MaterialTheme.colorScheme.onSurfaceVariant
-                },
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
         }
     }
 }

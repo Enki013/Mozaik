@@ -117,12 +117,13 @@
     <!-- Settings Screen -->
     <string name="settings_section_language">Dil &amp; Bölge</string>
     <string name="settings_language_title">Uygulama Dili</string>
+    <string name="settings_language_screen_title">Dil</string>
     <string name="settings_language_desc">Kullanmak istediğiniz uygulama dilini seçin</string>
-    <string name="settings_language_system">Sistem Varsayılanı</string>
+    <string name="settings_language_system">Sistem</string>
     <string name="settings_language_system_sub">Cihazın varsayılan dili</string>
     <string name="settings_language_current">Seçili: %1$s</string>
-    <string name="settings_language_tr">Türkçe (Turkish)</string>
-    <string name="settings_language_en">English (İngilizce)</string>
+    <string name="settings_language_tr">Türkçe</string>
+    <string name="settings_language_en">English</string>
 
     <string name="settings_section_server">Sunucu &amp; Altyapı</string>
     <string name="settings_server_title">API Sunucusu</string>
