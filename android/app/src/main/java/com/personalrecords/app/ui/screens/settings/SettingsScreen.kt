@@ -535,7 +535,7 @@ fun SettingsScreen(
                                                 .background(domainNutritionOnContainer(), CircleShape)
                                         )
                                         Text(
-                                            text = "OAuth ✓",
+                                            text = "Bağlı",
                                             color = domainNutritionOnContainer(),
                                             style = MaterialTheme.typography.labelSmall,
                                             fontWeight = FontWeight.Bold,
