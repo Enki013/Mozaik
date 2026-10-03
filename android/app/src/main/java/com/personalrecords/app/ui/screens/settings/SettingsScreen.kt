@@ -5,10 +5,15 @@ import android.content.Intent
 import android.os.Build
 import android.os.Environment
 import android.provider.MediaStore
-import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.*
+import androidx.compose.animation.core.*
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.HelpOutline
@@ -20,6 +25,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalClipboardManager
@@ -54,6 +60,7 @@ fun SettingsScreen(
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
     var showKeyEditor by remember { mutableStateOf(false) }
+    var isLanguageExpanded by remember { mutableStateOf(false) }
 
     val clipboardManager = LocalClipboardManager.current
 
@@ -165,8 +172,23 @@ fun SettingsScreen(
                 }
                 item {
                     SettingsCard {
+                        val currentLanguageLabel = when (state.appLanguage) {
+                            "tr" -> "🇹🇷 Türkçe"
+                            "en" -> "🇺🇸 English"
+                            else -> stringResource(R.string.settings_language_system)
+                        }
+                        val chevronRotation by animateFloatAsState(
+                            targetValue = if (isLanguageExpanded) 90f else 0f,
+                            animationSpec = spring(stiffness = Spring.StiffnessMediumLow),
+                            label = "chevronRotation"
+                        )
+
                         Row(
-                            modifier = Modifier.fillMaxWidth(),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(MaterialTheme.shapes.small)
+                                .clickable { isLanguageExpanded = !isLanguageExpanded }
+                                .padding(vertical = 4.dp),
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(10.dp)
                         ) {
@@ -184,78 +206,87 @@ fun SettingsScreen(
                                     overflow = TextOverflow.Ellipsis
                                 )
                                 Text(
-                                    text = stringResource(R.string.settings_language_desc),
+                                    text = stringResource(R.string.settings_language_current, currentLanguageLabel),
                                     style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    color = MaterialTheme.colorScheme.primary,
+                                    fontWeight = FontWeight.Medium,
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis
                                 )
                             }
+                            IconButton(
+                                onClick = { isLanguageExpanded = !isLanguageExpanded },
+                                modifier = Modifier.size(36.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.ChevronRight,
+                                    contentDescription = if (isLanguageExpanded) "Collapse" else "Expand",
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.rotate(chevronRotation)
+                                )
+                            }
                         }
 
-                        Spacer(modifier = Modifier.height(12.dp))
-
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        AnimatedVisibility(
+                            visible = isLanguageExpanded,
+                            enter = expandHorizontally(
+                                expandFrom = Alignment.Start,
+                                animationSpec = spring(
+                                    dampingRatio = Spring.DampingRatioLowBouncy,
+                                    stiffness = Spring.StiffnessMediumLow
+                                )
+                            ) + slideInHorizontally(
+                                initialOffsetX = { -it },
+                                animationSpec = spring(stiffness = Spring.StiffnessMediumLow)
+                            ) + fadeIn(),
+                            exit = shrinkHorizontally(
+                                shrinkTowards = Alignment.Start,
+                                animationSpec = tween(durationMillis = 200)
+                            ) + slideOutHorizontally(
+                                targetOffsetX = { -it },
+                                animationSpec = tween(durationMillis = 200)
+                            ) + fadeOut(animationSpec = tween(durationMillis = 150))
                         ) {
-                            FilterChip(
-                                selected = state.appLanguage == "system",
-                                onClick = { viewModel.setLanguage("system") },
-                                label = {
-                                    Text(
-                                        text = stringResource(R.string.settings_language_system),
-                                        style = MaterialTheme.typography.labelMedium
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(top = 12.dp)
+                            ) {
+                                Text(
+                                    text = stringResource(R.string.settings_language_desc),
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.padding(bottom = 8.dp)
+                                )
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .horizontalScroll(rememberScrollState()),
+                                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                                ) {
+                                    LanguageOptionCard(
+                                        flag = "🌐",
+                                        title = stringResource(R.string.settings_language_system),
+                                        subtitle = stringResource(R.string.settings_language_system_sub),
+                                        isSelected = state.appLanguage == "system",
+                                        onClick = { viewModel.setLanguage("system") }
                                     )
-                                },
-                                leadingIcon = if (state.appLanguage == "system") {
-                                    {
-                                        Icon(
-                                            imageVector = Icons.Default.Check,
-                                            contentDescription = null,
-                                            modifier = Modifier.size(16.dp)
-                                        )
-                                    }
-                                } else null
-                            )
-                            FilterChip(
-                                selected = state.appLanguage == "tr",
-                                onClick = { viewModel.setLanguage("tr") },
-                                label = {
-                                    Text(
-                                        text = "🇹🇷 Türkçe",
-                                        style = MaterialTheme.typography.labelMedium
+                                    LanguageOptionCard(
+                                        flag = "🇹🇷",
+                                        title = "Türkçe",
+                                        subtitle = "Turkish",
+                                        isSelected = state.appLanguage == "tr",
+                                        onClick = { viewModel.setLanguage("tr") }
                                     )
-                                },
-                                leadingIcon = if (state.appLanguage == "tr") {
-                                    {
-                                        Icon(
-                                            imageVector = Icons.Default.Check,
-                                            contentDescription = null,
-                                            modifier = Modifier.size(16.dp)
-                                        )
-                                    }
-                                } else null
-                            )
-                            FilterChip(
-                                selected = state.appLanguage == "en",
-                                onClick = { viewModel.setLanguage("en") },
-                                label = {
-                                    Text(
-                                        text = "🇺🇸 English",
-                                        style = MaterialTheme.typography.labelMedium
+                                    LanguageOptionCard(
+                                        flag = "🇺🇸",
+                                        title = "English",
+                                        subtitle = "English",
+                                        isSelected = state.appLanguage == "en",
+                                        onClick = { viewModel.setLanguage("en") }
                                     )
-                                },
-                                leadingIcon = if (state.appLanguage == "en") {
-                                    {
-                                        Icon(
-                                            imageVector = Icons.Default.Check,
-                                            contentDescription = null,
-                                            modifier = Modifier.size(16.dp)
-                                        )
-                                    }
-                                } else null
-                            )
+                                }
+                            }
                         }
                     }
                 }
@@ -1458,3 +1489,80 @@ private fun SettingsIconBox(
         )
     }
 }
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun LanguageOptionCard(
+    flag: String,
+    title: String,
+    subtitle: String,
+    isSelected: Boolean,
+    onClick: () -> Unit
+) {
+    Card(
+        onClick = onClick,
+        shape = MaterialTheme.shapes.medium,
+        colors = CardDefaults.cardColors(
+            containerColor = if (isSelected) {
+                MaterialTheme.colorScheme.primaryContainer
+            } else {
+                MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.5f)
+            }
+        ),
+        border = if (isSelected) {
+            BorderStroke(1.5.dp, MaterialTheme.colorScheme.primary)
+        } else {
+            BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+        },
+        modifier = Modifier.widthIn(min = 135.dp)
+    ) {
+        Column(
+            modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
+            verticalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = flag,
+                    style = MaterialTheme.typography.titleMedium
+                )
+                if (isSelected) {
+                    Icon(
+                        imageVector = Icons.Default.CheckCircle,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(16.dp)
+                    )
+                }
+            }
+            Spacer(modifier = Modifier.height(2.dp))
+            Text(
+                text = title,
+                style = MaterialTheme.typography.labelLarge,
+                fontWeight = FontWeight.Bold,
+                color = if (isSelected) {
+                    MaterialTheme.colorScheme.onPrimaryContainer
+                } else {
+                    MaterialTheme.colorScheme.onSurface
+                },
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+            Text(
+                text = subtitle,
+                style = MaterialTheme.typography.bodySmall,
+                color = if (isSelected) {
+                    MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f)
+                } else {
+                    MaterialTheme.colorScheme.onSurfaceVariant
+                },
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+        }
+    }
+}
+

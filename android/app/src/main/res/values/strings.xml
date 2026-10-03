@@ -119,6 +119,8 @@
     <string name="settings_language_title">App Language</string>
     <string name="settings_language_desc">Choose your preferred application language</string>
     <string name="settings_language_system">System Default</string>
+    <string name="settings_language_system_sub">Device default language</string>
+    <string name="settings_language_current">Selected: %1$s</string>
     <string name="settings_language_tr">Türkçe (Turkish)</string>
     <string name="settings_language_en">English (English)</string>
 
