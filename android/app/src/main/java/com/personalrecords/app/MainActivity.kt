@@ -43,6 +43,10 @@ import com.personalrecords.app.ui.screens.overview.*
 import com.personalrecords.app.ui.screens.records.*
 import com.personalrecords.app.ui.screens.settings.*
 import com.personalrecords.app.ui.screens.timeline.*
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.semantics
+import com.personalrecords.app.ui.components.expressivePressScale
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.launch
 
@@ -296,14 +300,13 @@ fun MainAppHost() {
                     .widthIn(max = 440.dp)
                     .fillMaxWidth()
             ) {
-                NavigationBar(
+                Row(
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(80.dp)
                         .padding(horizontal = 6.dp),
-                    containerColor = Color.Transparent,
-                    tonalElevation = 0.dp,
-                    windowInsets = WindowInsets(0, 0, 0, 0)
+                    horizontalArrangement = Arrangement.SpaceEvenly,
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
                     val haptic = LocalHapticFeedback.current
                     bottomNavScreens.forEach { screen ->
@@ -322,34 +325,103 @@ fun MainAppHost() {
                             label = "nav_icon_bounce"
                         )
 
-                        NavigationBarItem(
-                            selected = selected,
-                            onClick = {
-                                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                        // M3 Expressive active indicator pill spring morphing
+                        val indicatorAlpha by animateFloatAsState(
+                            targetValue = if (selected) 1f else 0f,
+                            animationSpec = spring(
+                                dampingRatio = Spring.DampingRatioNoBouncy,
+                                stiffness = Spring.StiffnessMediumLow
+                            ),
+                            label = "nav_indicator_alpha"
+                        )
+                        val indicatorScale by animateFloatAsState(
+                            targetValue = if (selected) 1f else 0.7f,
+                            animationSpec = spring(
+                                dampingRatio = Spring.DampingRatioMediumBouncy,
+                                stiffness = Spring.StiffnessMediumLow
+                            ),
+                            label = "nav_indicator_scale"
+                        )
 
-                                fun triggerScrollToTop(route: String) {
-                                    when (route) {
-                                        Screen.Overview.route -> overviewScrollFlow.tryEmit(Unit)
-                                        Screen.Timeline.route -> timelineScrollFlow.tryEmit(Unit)
-                                        Screen.Records.route -> recordsScrollFlow.tryEmit(Unit)
-                                        Screen.Settings.route -> settingsScrollFlow.tryEmit(Unit)
-                                    }
-                                }
+                        val iconColor by animateColorAsState(
+                            targetValue = if (selected) {
+                                MaterialTheme.colorScheme.onSecondaryContainer
+                            } else {
+                                MaterialTheme.colorScheme.onSurfaceVariant
+                            },
+                            animationSpec = tween(180),
+                            label = "nav_icon_color"
+                        )
 
-                                fun triggerRefresh(route: String) {
-                                    when (route) {
-                                        Screen.Overview.route -> overviewRefreshFlow.tryEmit(Unit)
-                                        Screen.Timeline.route -> timelineRefreshFlow.tryEmit(Unit)
-                                        Screen.Records.route -> recordsRefreshFlow.tryEmit(Unit)
-                                        Screen.Settings.route -> settingsRefreshFlow.tryEmit(Unit)
-                                    }
-                                }
+                        val textColor by animateColorAsState(
+                            targetValue = if (selected) {
+                                MaterialTheme.colorScheme.onSurface
+                            } else {
+                                MaterialTheme.colorScheme.onSurfaceVariant
+                            },
+                            animationSpec = tween(180),
+                            label = "nav_text_color"
+                        )
 
-                                if (selected) {
-                                    if (screen == Screen.Records && currentDestination?.route != Screen.Records.route) {
-                                        val popped = navController.popBackStack(Screen.Records.route, inclusive = false)
-                                        if (!popped) {
-                                            navController.navigate(Screen.Records.route) {
+                        val interactionSource = remember { MutableInteractionSource() }
+
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .fillMaxHeight()
+                                .clip(CircleShape)
+                                .clickable(
+                                    interactionSource = interactionSource,
+                                    indication = ripple(),
+                                    role = Role.Tab,
+                                    onClick = {
+                                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+
+                                        fun triggerScrollToTop(route: String) {
+                                            when (route) {
+                                                Screen.Overview.route -> overviewScrollFlow.tryEmit(Unit)
+                                                Screen.Timeline.route -> timelineScrollFlow.tryEmit(Unit)
+                                                Screen.Records.route -> recordsScrollFlow.tryEmit(Unit)
+                                                Screen.Settings.route -> settingsScrollFlow.tryEmit(Unit)
+                                            }
+                                        }
+
+                                        fun triggerRefresh(route: String) {
+                                            when (route) {
+                                                Screen.Overview.route -> overviewRefreshFlow.tryEmit(Unit)
+                                                Screen.Timeline.route -> timelineRefreshFlow.tryEmit(Unit)
+                                                Screen.Records.route -> recordsRefreshFlow.tryEmit(Unit)
+                                                Screen.Settings.route -> settingsRefreshFlow.tryEmit(Unit)
+                                            }
+                                        }
+
+                                        if (selected) {
+                                            if (screen == Screen.Records && currentDestination?.route != Screen.Records.route) {
+                                                val popped = navController.popBackStack(Screen.Records.route, inclusive = false)
+                                                if (!popped) {
+                                                    navController.navigate(Screen.Records.route) {
+                                                        popUpTo(navController.graph.findStartDestination().id) {
+                                                            saveState = true
+                                                        }
+                                                        launchSingleTop = true
+                                                        restoreState = true
+                                                    }
+                                                }
+                                            } else {
+                                                if (activeTabTapJob?.isActive == true) {
+                                                    activeTabTapJob?.cancel()
+                                                    activeTabTapJob = null
+                                                    triggerRefresh(screen.route)
+                                                } else {
+                                                    triggerScrollToTop(screen.route)
+                                                    activeTabTapJob = coroutineScope.launch {
+                                                        kotlinx.coroutines.delay(220L)
+                                                        activeTabTapJob = null
+                                                    }
+                                                }
+                                            }
+                                        } else {
+                                            navController.navigate(screen.route) {
                                                 popUpTo(navController.graph.findStartDestination().id) {
                                                     saveState = true
                                                 }
@@ -357,47 +429,54 @@ fun MainAppHost() {
                                                 restoreState = true
                                             }
                                         }
-                                    } else {
-                                        if (activeTabTapJob?.isActive == true) {
-                                            activeTabTapJob?.cancel()
-                                            activeTabTapJob = null
-                                            triggerRefresh(screen.route)
-                                        } else {
-                                            triggerScrollToTop(screen.route)
-                                            activeTabTapJob = coroutineScope.launch {
-                                                kotlinx.coroutines.delay(220L)
-                                                activeTabTapJob = null
-                                            }
-                                        }
                                     }
-                                } else {
-                                    navController.navigate(screen.route) {
-                                        popUpTo(navController.graph.findStartDestination().id) {
-                                            saveState = true
-                                        }
-                                        launchSingleTop = true
-                                        restoreState = true
-                                    }
-                                }
-                            },
-                            icon = {
+                                )
+                                .semantics { this.selected = selected },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxHeight()
+                                    .expressivePressScale(interactionSource, scaleDown = 0.95f),
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.Center
+                            ) {
+                                // M3 Expressive Active Indicator Pill & Centered Icon
                                 Box(
-                                    modifier = Modifier
-                                        .size(24.dp)
-                                        .graphicsLayer {
-                                            scaleX = iconScale
-                                            scaleY = iconScale
-                                        },
+                                    modifier = Modifier.size(width = 56.dp, height = 32.dp),
                                     contentAlignment = Alignment.Center
                                 ) {
+                                    if (indicatorAlpha > 0.005f) {
+                                        Box(
+                                            modifier = Modifier
+                                                .fillMaxSize()
+                                                .graphicsLayer {
+                                                    scaleX = indicatorScale
+                                                    scaleY = indicatorScale
+                                                    alpha = indicatorAlpha
+                                                }
+                                                .background(
+                                                    color = MaterialTheme.colorScheme.secondaryContainer,
+                                                    shape = CircleShape
+                                                )
+                                        )
+                                    }
+
                                     Icon(
                                         imageVector = if (selected) screen.selectedIcon else screen.icon,
                                         contentDescription = stringResource(screen.titleRes),
-                                        modifier = Modifier.size(24.dp)
+                                        tint = iconColor,
+                                        modifier = Modifier
+                                            .size(24.dp)
+                                            .graphicsLayer {
+                                                scaleX = iconScale
+                                                scaleY = iconScale
+                                            }
                                     )
                                 }
-                            },
-                            label = {
+
+                                Spacer(modifier = Modifier.height(4.dp))
+
                                 Text(
                                     text = stringResource(screen.navLabelRes),
                                     style = MaterialTheme.typography.labelSmall.copy(
@@ -405,21 +484,14 @@ fun MainAppHost() {
                                         lineHeight = 14.sp,
                                         fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium
                                     ),
+                                    color = textColor,
                                     textAlign = TextAlign.Center,
                                     maxLines = 1,
                                     softWrap = false,
                                     overflow = TextOverflow.Ellipsis
                                 )
-                            },
-                            alwaysShowLabel = true,
-                            colors = NavigationBarItemDefaults.colors(
-                                selectedIconColor = MaterialTheme.colorScheme.onSecondaryContainer,
-                                selectedTextColor = MaterialTheme.colorScheme.onSurface,
-                                indicatorColor = MaterialTheme.colorScheme.secondaryContainer,
-                                unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                                unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        )
+                            }
+                        }
                     }
                 }
             }
