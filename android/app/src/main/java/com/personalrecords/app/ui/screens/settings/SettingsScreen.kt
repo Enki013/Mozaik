@@ -487,7 +487,9 @@ fun SettingsScreen(
                         Spacer(modifier = Modifier.height(8.dp))
 
                         Row(
-                            modifier = Modifier.fillMaxWidth(),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(IntrinsicSize.Min),
                             horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
                             Button(
@@ -497,7 +499,12 @@ fun SettingsScreen(
                                         snackbarHostState.showSnackbar(context.getString(R.string.toast_webhook_copied))
                                     }
                                 },
-                                modifier = Modifier.weight(1f)
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .fillMaxHeight()
+                                    .heightIn(min = 44.dp),
+                                contentPadding = PaddingValues(horizontal = 10.dp, vertical = 8.dp),
+                                shape = MaterialTheme.shapes.small
                             ) {
                                 Row(
                                     verticalAlignment = Alignment.CenterVertically,
@@ -508,7 +515,13 @@ fun SettingsScreen(
                                         contentDescription = null,
                                         modifier = Modifier.size(16.dp)
                                     )
-                                    Text(stringResource(R.string.action_copy_url), style = MaterialTheme.typography.labelLarge)
+                                    Text(
+                                        text = stringResource(R.string.action_copy_url),
+                                        style = MaterialTheme.typography.labelLarge,
+                                        maxLines = 1,
+                                        softWrap = false,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
                                 }
                             }
 
@@ -518,7 +531,12 @@ fun SettingsScreen(
                                         "https://github.com/cobanov/notification-relay-webhook/releases".toUri())
                                     context.startActivity(intent)
                                 },
-                                modifier = Modifier.weight(1f)
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .fillMaxHeight()
+                                    .heightIn(min = 44.dp),
+                                contentPadding = PaddingValues(horizontal = 10.dp, vertical = 8.dp),
+                                shape = MaterialTheme.shapes.small
                             ) {
                                 Row(
                                     verticalAlignment = Alignment.CenterVertically,
@@ -529,7 +547,13 @@ fun SettingsScreen(
                                         contentDescription = null,
                                         modifier = Modifier.size(16.dp)
                                     )
-                                    Text(stringResource(R.string.action_download_apk), style = MaterialTheme.typography.labelLarge)
+                                    Text(
+                                        text = stringResource(R.string.action_download_apk),
+                                        style = MaterialTheme.typography.labelLarge,
+                                        maxLines = 1,
+                                        softWrap = false,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
                                 }
                             }
                         }
@@ -1399,100 +1423,52 @@ fun SettingsScreen(
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
 
-                        Spacer(modifier = Modifier.height(10.dp))
+                        Spacer(modifier = Modifier.height(12.dp))
 
-                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                            Surface(
-                                shape = MaterialTheme.shapes.small,
-                                color = MaterialTheme.colorScheme.surfaceContainerHigh,
-                                modifier = Modifier.fillMaxWidth()
-                            ) {
-                                Row(
-                                    modifier = Modifier.padding(10.dp),
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Default.Sensors,
-                                        contentDescription = null,
-                                        tint = MaterialTheme.colorScheme.primary,
-                                        modifier = Modifier.size(20.dp)
-                                    )
-                                    Column {
-                                        Text(
-                                            text = stringResource(R.string.settings_plugin_webhook_title),
-                                            style = MaterialTheme.typography.labelMedium,
-                                            fontWeight = FontWeight.Bold
-                                        )
-                                        Text(
-                                            text = stringResource(R.string.settings_plugin_webhook_desc),
-                                            style = MaterialTheme.typography.bodySmall,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                                        )
-                                    }
-                                }
-                            }
-
-                            Surface(
-                                shape = MaterialTheme.shapes.small,
-                                color = MaterialTheme.colorScheme.surfaceContainerHigh,
-                                modifier = Modifier.fillMaxWidth()
-                            ) {
-                                Row(
-                                    modifier = Modifier.padding(10.dp),
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Default.RssFeed,
-                                        contentDescription = null,
-                                        tint = MaterialTheme.colorScheme.secondary,
-                                        modifier = Modifier.size(20.dp)
-                                    )
-                                    Column {
-                                        Text(
-                                            text = stringResource(R.string.settings_plugin_rss_title),
-                                            style = MaterialTheme.typography.labelMedium,
-                                            fontWeight = FontWeight.Bold
-                                        )
-                                        Text(
-                                            text = stringResource(R.string.settings_plugin_rss_desc),
-                                            style = MaterialTheme.typography.bodySmall,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                                        )
-                                    }
-                                }
-                            }
-
-                            Surface(
-                                shape = MaterialTheme.shapes.small,
-                                color = MaterialTheme.colorScheme.surfaceContainerHigh,
-                                modifier = Modifier.fillMaxWidth()
-                            ) {
-                                Row(
-                                    modifier = Modifier.padding(10.dp),
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Default.VpnKey,
-                                        contentDescription = null,
-                                        tint = MaterialTheme.colorScheme.tertiary,
-                                        modifier = Modifier.size(20.dp)
-                                    )
-                                    Column {
-                                        Text(
-                                            text = stringResource(R.string.settings_plugin_api_title),
-                                            style = MaterialTheme.typography.labelMedium,
-                                            fontWeight = FontWeight.Bold
-                                        )
-                                        Text(
-                                            text = stringResource(R.string.settings_plugin_api_desc),
-                                            style = MaterialTheme.typography.bodySmall,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                                        )
-                                    }
-                                }
+                        Surface(
+                            shape = MaterialTheme.shapes.medium,
+                            color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Column {
+                                HybridArchitecturePluginItem(
+                                    icon = Icons.Default.Sensors,
+                                    iconContainerColor = MaterialTheme.colorScheme.primaryContainer,
+                                    iconColor = MaterialTheme.colorScheme.primary,
+                                    title = stringResource(R.string.settings_plugin_webhook_title),
+                                    description = stringResource(R.string.settings_plugin_webhook_desc),
+                                    badgeText = "Push",
+                                    badgeContainerColor = MaterialTheme.colorScheme.primaryContainer,
+                                    badgeContentColor = MaterialTheme.colorScheme.primary
+                                )
+                                HorizontalDivider(
+                                    modifier = Modifier.padding(horizontal = 12.dp),
+                                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)
+                                )
+                                HybridArchitecturePluginItem(
+                                    icon = Icons.Default.RssFeed,
+                                    iconContainerColor = MaterialTheme.colorScheme.secondaryContainer,
+                                    iconColor = MaterialTheme.colorScheme.secondary,
+                                    title = stringResource(R.string.settings_plugin_rss_title),
+                                    description = stringResource(R.string.settings_plugin_rss_desc),
+                                    badgeText = "Pull",
+                                    badgeContainerColor = MaterialTheme.colorScheme.secondaryContainer,
+                                    badgeContentColor = MaterialTheme.colorScheme.secondary
+                                )
+                                HorizontalDivider(
+                                    modifier = Modifier.padding(horizontal = 12.dp),
+                                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)
+                                )
+                                HybridArchitecturePluginItem(
+                                    icon = Icons.Default.VpnKey,
+                                    iconContainerColor = MaterialTheme.colorScheme.tertiaryContainer,
+                                    iconColor = MaterialTheme.colorScheme.tertiary,
+                                    title = stringResource(R.string.settings_plugin_api_title),
+                                    description = stringResource(R.string.settings_plugin_api_desc),
+                                    badgeText = "BYOK",
+                                    badgeContainerColor = MaterialTheme.colorScheme.tertiaryContainer,
+                                    badgeContentColor = MaterialTheme.colorScheme.tertiary
+                                )
                             }
                         }
                     }
@@ -1706,6 +1682,78 @@ private fun SettingsIconBox(
             tint = contentColor,
             modifier = Modifier.size(20.dp)
         )
+    }
+}
+
+@Composable
+private fun HybridArchitecturePluginItem(
+    icon: ImageVector,
+    iconContainerColor: Color,
+    iconColor: Color,
+    title: String,
+    description: String,
+    badgeText: String,
+    badgeContainerColor: Color,
+    badgeContentColor: Color
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 12.dp, vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(10.dp)
+    ) {
+        Box(
+            modifier = Modifier
+                .size(36.dp)
+                .clip(MaterialTheme.shapes.small)
+                .background(iconContainerColor),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                tint = iconColor,
+                modifier = Modifier.size(18.dp)
+            )
+        }
+
+        Column(
+            modifier = Modifier.weight(1f)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    modifier = Modifier.weight(1f, fill = false)
+                )
+                Spacer(modifier = Modifier.width(6.dp))
+                Surface(
+                    shape = CircleShape,
+                    color = badgeContainerColor,
+                    contentColor = badgeContentColor
+                ) {
+                    Text(
+                        text = badgeText,
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.padding(horizontal = 7.dp, vertical = 2.dp)
+                    )
+                }
+            }
+            Spacer(modifier = Modifier.height(2.dp))
+            Text(
+                text = description,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
     }
 }
 
