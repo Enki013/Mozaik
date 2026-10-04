@@ -196,24 +196,18 @@ fun NotificationsScreen(
                                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                FilterChip(
+                                ExpressiveFilterChip(
                                     selected = state.selectedApp == null,
                                     onClick = { viewModel.setAppFilter(null) },
-                                    label = { Text(stringResource(R.string.filter_all), style = MaterialTheme.typography.labelMedium) },
-                                    shape = MaterialTheme.shapes.small,
-                                    border = null,
-                                    colors = borderlessFilterChipColors()
+                                    label = { Text(stringResource(R.string.filter_all), style = MaterialTheme.typography.labelMedium) }
                                 )
 
                                 appList.forEach { appName ->
                                     val isSelected = state.selectedApp == appName
-                                    FilterChip(
+                                    ExpressiveFilterChip(
                                         selected = isSelected,
                                         onClick = { viewModel.setAppFilter(if (isSelected) null else appName) },
-                                        label = { Text(appName, style = MaterialTheme.typography.labelMedium) },
-                                        shape = MaterialTheme.shapes.small,
-                                        border = null,
-                                        colors = borderlessFilterChipColors()
+                                        label = { Text(appName, style = MaterialTheme.typography.labelMedium) }
                                     )
                                 }
 

@@ -437,7 +437,7 @@ fun NutritionScreen(
                                 Triple("Dinner", stringResource(R.string.nutrition_filter_dinner), Icons.Default.DinnerDining),
                                 Triple("Other", stringResource(R.string.nutrition_filter_snack), Icons.Default.Fastfood)
                             ).forEach { (mealKey, label, icon) ->
-                                FilterChip(
+                                ExpressiveFilterChip(
                                     selected = state.selectedMeal == mealKey,
                                     onClick = { viewModel.setMeal(mealKey) },
                                     leadingIcon = icon?.let {
@@ -449,15 +449,12 @@ fun NutritionScreen(
                                             )
                                         }
                                     },
-                                    label = { Text(label, style = MaterialTheme.typography.labelMedium) },
-                                    shape = MaterialTheme.shapes.small,
-                                    border = null,
-                                    colors = borderlessFilterChipColors()
+                                    label = { Text(label, style = MaterialTheme.typography.labelMedium) }
                                 )
                             }
 
                             // High protein
-                            FilterChip(
+                            ExpressiveFilterChip(
                                 selected = state.onlyHighProtein,
                                 onClick = { viewModel.toggleHighProtein() },
                                 leadingIcon = {
@@ -467,10 +464,7 @@ fun NutritionScreen(
                                         modifier = Modifier.size(16.dp)
                                     )
                                 },
-                                label = { Text(">20g Protein", style = MaterialTheme.typography.labelMedium) },
-                                shape = MaterialTheme.shapes.small,
-                                border = null,
-                                colors = borderlessFilterChipColors()
+                                label = { Text(">20g Protein", style = MaterialTheme.typography.labelMedium) }
                             )
 
                             // Clear filter button

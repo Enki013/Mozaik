@@ -35,6 +35,7 @@ import com.personalrecords.app.ui.screens.settings.*
 import com.personalrecords.app.ui.screens.timeline.*
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.launch
+import kotlin.time.Duration.Companion.milliseconds
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -211,7 +212,7 @@ fun MainAppHost() {
                                     } else {
                                         triggerScrollToTop(screen.route)
                                         activeTabTapJob = coroutineScope.launch {
-                                            kotlinx.coroutines.delay(220L)
+                                            kotlinx.coroutines.delay(220L.milliseconds)
                                             activeTabTapJob = null
                                         }
                                     }
