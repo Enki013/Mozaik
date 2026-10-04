@@ -7,20 +7,26 @@ import androidx.activity.enableEdgeToEdge
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.*
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -275,27 +281,29 @@ fun MainAppHost() {
                 .align(Alignment.BottomCenter)
                 .fillMaxWidth()
                 .navigationBarsPadding()
-                .padding(start = 16.dp, end = 16.dp, bottom = 14.dp),
+                .padding(start = 16.dp, end = 16.dp, bottom = 12.dp),
             contentAlignment = Alignment.Center
         ) {
             Surface(
                 shape = CircleShape,
                 color = MaterialTheme.colorScheme.surfaceContainer,
-                shadowElevation = 8.dp,
-                tonalElevation = 3.dp,
+                shadowElevation = 6.dp,
+                tonalElevation = 2.dp,
                 border = BorderStroke(
                     width = 1.dp,
-                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)
+                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f)
                 ),
                 modifier = Modifier
                     .widthIn(max = 440.dp)
                     .fillMaxWidth()
             ) {
-                NavigationBar(
-                    modifier = Modifier.height(80.dp),
-                    containerColor = Color.Transparent,
-                    tonalElevation = 0.dp,
-                    windowInsets = WindowInsets(0, 0, 0, 0)
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(68.dp)
+                        .padding(horizontal = 8.dp),
+                    horizontalArrangement = Arrangement.SpaceEvenly,
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
                     val haptic = LocalHapticFeedback.current
                     bottomNavScreens.forEach { screen ->
@@ -304,87 +312,89 @@ fun MainAppHost() {
                             else -> currentDestination?.route == screen.route
                         }
 
-                        val iconScale by animateFloatAsState(
-                            targetValue = if (selected) 1.12f else 1.0f,
+                        val indicatorAlpha by animateFloatAsState(
+                            targetValue = if (selected) 1f else 0f,
                             animationSpec = spring(
-                                dampingRatio = Spring.DampingRatioMediumBouncy,
-                                stiffness = Spring.StiffnessMediumLow
+                                dampingRatio = 0.82f,
+                                stiffness = 380f
                             ),
-                            label = "nav_icon_bounce"
+                            label = "nav_indicator_alpha"
                         )
-                        val iconOffsetY by animateDpAsState(
-                            targetValue = if (selected) (-1).dp else 0.dp,
+                        val indicatorScale by animateFloatAsState(
+                            targetValue = if (selected) 1f else 0.85f,
                             animationSpec = spring(
-                                dampingRatio = Spring.DampingRatioMediumBouncy,
-                                stiffness = Spring.StiffnessMediumLow
+                                dampingRatio = 0.82f,
+                                stiffness = 380f
                             ),
-                            label = "nav_icon_offset"
+                            label = "nav_indicator_scale"
+                        )
+                        val iconColor by animateColorAsState(
+                            targetValue = if (selected) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
+                            animationSpec = tween(durationMillis = 200),
+                            label = "nav_icon_color"
+                        )
+                        val textColor by animateColorAsState(
+                            targetValue = if (selected) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant,
+                            animationSpec = tween(durationMillis = 200),
+                            label = "nav_text_color"
                         )
 
-                        NavigationBarItem(
-                            icon = {
-                                Box(
-                                    modifier = Modifier
-                                        .offset(y = iconOffsetY)
-                                        .graphicsLayer {
-                                            scaleX = iconScale
-                                            scaleY = iconScale
-                                        },
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Icon(
-                                        if (selected) screen.selectedIcon else screen.icon,
-                                        contentDescription = androidx.compose.ui.res.stringResource(screen.titleRes),
-                                        modifier = Modifier.size(24.dp)
-                                    )
-                                }
-                            },
-                            label = {
-                                Text(
-                                    text = androidx.compose.ui.res.stringResource(screen.navLabelRes),
-                                    style = MaterialTheme.typography.labelSmall.copy(
-                                        fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium
-                                    ),
-                                    textAlign = TextAlign.Center,
-                                    maxLines = 1,
-                                    softWrap = false,
-                                    overflow = TextOverflow.Ellipsis
-                                )
-                            },
-                            selected = selected,
-                            colors = NavigationBarItemDefaults.colors(
-                                selectedIconColor = MaterialTheme.colorScheme.onSecondaryContainer,
-                                selectedTextColor = MaterialTheme.colorScheme.onSurface,
-                                indicatorColor = MaterialTheme.colorScheme.secondaryContainer,
-                                unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                                unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant
-                            ),
-                            onClick = {
-                                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .fillMaxHeight()
+                                .clip(CircleShape)
+                                .clickable(
+                                    interactionSource = remember { MutableInteractionSource() },
+                                    indication = ripple(bounded = true),
+                                    onClick = {
+                                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
 
-                                fun triggerScrollToTop(route: String) {
-                                    when (route) {
-                                        Screen.Overview.route -> overviewScrollFlow.tryEmit(Unit)
-                                        Screen.Timeline.route -> timelineScrollFlow.tryEmit(Unit)
-                                        Screen.Records.route -> recordsScrollFlow.tryEmit(Unit)
-                                        Screen.Settings.route -> settingsScrollFlow.tryEmit(Unit)
-                                    }
-                                }
+                                        fun triggerScrollToTop(route: String) {
+                                            when (route) {
+                                                Screen.Overview.route -> overviewScrollFlow.tryEmit(Unit)
+                                                Screen.Timeline.route -> timelineScrollFlow.tryEmit(Unit)
+                                                Screen.Records.route -> recordsScrollFlow.tryEmit(Unit)
+                                                Screen.Settings.route -> settingsScrollFlow.tryEmit(Unit)
+                                            }
+                                        }
 
-                                fun triggerRefresh(route: String) {
-                                    when (route) {
-                                        Screen.Overview.route -> overviewRefreshFlow.tryEmit(Unit)
-                                        Screen.Timeline.route -> timelineRefreshFlow.tryEmit(Unit)
-                                        Screen.Records.route -> recordsRefreshFlow.tryEmit(Unit)
-                                        Screen.Settings.route -> settingsRefreshFlow.tryEmit(Unit)
-                                    }
-                                }
+                                        fun triggerRefresh(route: String) {
+                                            when (route) {
+                                                Screen.Overview.route -> overviewRefreshFlow.tryEmit(Unit)
+                                                Screen.Timeline.route -> timelineRefreshFlow.tryEmit(Unit)
+                                                Screen.Records.route -> recordsRefreshFlow.tryEmit(Unit)
+                                                Screen.Settings.route -> settingsRefreshFlow.tryEmit(Unit)
+                                            }
+                                        }
 
-                                if (selected) {
-                                    if (screen == Screen.Records && currentDestination?.route != Screen.Records.route) {
-                                        val popped = navController.popBackStack(Screen.Records.route, inclusive = false)
-                                        if (!popped) {
-                                            navController.navigate(Screen.Records.route) {
+                                        if (selected) {
+                                            if (screen == Screen.Records && currentDestination?.route != Screen.Records.route) {
+                                                val popped = navController.popBackStack(Screen.Records.route, inclusive = false)
+                                                if (!popped) {
+                                                    navController.navigate(Screen.Records.route) {
+                                                        popUpTo(navController.graph.findStartDestination().id) {
+                                                            saveState = true
+                                                        }
+                                                        launchSingleTop = true
+                                                        restoreState = true
+                                                    }
+                                                }
+                                            } else {
+                                                if (activeTabTapJob?.isActive == true) {
+                                                    activeTabTapJob?.cancel()
+                                                    activeTabTapJob = null
+                                                    triggerRefresh(screen.route)
+                                                } else {
+                                                    triggerScrollToTop(screen.route)
+                                                    activeTabTapJob = coroutineScope.launch {
+                                                        kotlinx.coroutines.delay(220L.milliseconds)
+                                                        activeTabTapJob = null
+                                                    }
+                                                }
+                                            }
+                                        } else {
+                                            navController.navigate(screen.route) {
                                                 popUpTo(navController.graph.findStartDestination().id) {
                                                     saveState = true
                                                 }
@@ -392,30 +402,60 @@ fun MainAppHost() {
                                                 restoreState = true
                                             }
                                         }
-                                    } else {
-                                        if (activeTabTapJob?.isActive == true) {
-                                            activeTabTapJob?.cancel()
-                                            activeTabTapJob = null
-                                            triggerRefresh(screen.route)
-                                        } else {
-                                            triggerScrollToTop(screen.route)
-                                            activeTabTapJob = coroutineScope.launch {
-                                                kotlinx.coroutines.delay(220L.milliseconds)
-                                                activeTabTapJob = null
-                                            }
-                                        }
                                     }
-                                } else {
-                                    navController.navigate(screen.route) {
-                                        popUpTo(navController.graph.findStartDestination().id) {
-                                            saveState = true
-                                        }
-                                        launchSingleTop = true
-                                        restoreState = true
+                                ),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Column(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.Center
+                            ) {
+                                Box(
+                                    modifier = Modifier.size(width = 56.dp, height = 32.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    if (indicatorAlpha > 0.005f) {
+                                        Box(
+                                            modifier = Modifier
+                                                .fillMaxSize()
+                                                .graphicsLayer {
+                                                    scaleX = indicatorScale
+                                                    scaleY = indicatorScale
+                                                    alpha = indicatorAlpha
+                                                }
+                                                .background(
+                                                    color = MaterialTheme.colorScheme.secondaryContainer,
+                                                    shape = CircleShape
+                                                )
+                                        )
                                     }
+
+                                    Icon(
+                                        imageVector = if (selected) screen.selectedIcon else screen.icon,
+                                        contentDescription = stringResource(screen.titleRes),
+                                        tint = iconColor,
+                                        modifier = Modifier.size(24.dp)
+                                    )
                                 }
+
+                                Spacer(modifier = Modifier.height(4.dp))
+
+                                Text(
+                                    text = stringResource(screen.navLabelRes),
+                                    style = MaterialTheme.typography.labelSmall.copy(
+                                        fontSize = 11.sp,
+                                        lineHeight = 14.sp,
+                                        fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium
+                                    ),
+                                    color = textColor,
+                                    textAlign = TextAlign.Center,
+                                    maxLines = 1,
+                                    softWrap = false,
+                                    overflow = TextOverflow.Ellipsis
+                                )
                             }
-                        )
+                        }
                     }
                 }
             }
