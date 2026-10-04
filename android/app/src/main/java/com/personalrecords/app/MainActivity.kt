@@ -372,7 +372,7 @@ fun MainAppHost() {
                                 .clip(CircleShape)
                                 .clickable(
                                     interactionSource = interactionSource,
-                                    indication = ripple(),
+                                    indication = null,
                                     role = Role.Tab,
                                     onClick = {
                                         haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
