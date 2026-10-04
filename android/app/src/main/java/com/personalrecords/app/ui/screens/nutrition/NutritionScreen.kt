@@ -2,6 +2,7 @@ package com.personalrecords.app.ui.screens.nutrition
 
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 
 import androidx.compose.foundation.layout.*
@@ -42,35 +43,22 @@ fun NutritionScreen(
     val state by viewModel.uiState.collectAsState()
     var showTargetDialog by remember { mutableStateOf(false) }
     var showDatePicker by remember { mutableStateOf(false) }
-    val datePickerState = rememberDatePickerState()
 
     if (showDatePicker) {
-        DatePickerDialog(
+        ExpressiveDateFilterDialog(
+            initialStartDate = state.selectedDateFilter ?: state.fromDateFilter,
+            initialEndDate = state.toDateFilter,
             onDismissRequest = { showDatePicker = false },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        datePickerState.selectedDateMillis?.let { millis ->
-                            val formatter = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).apply {
-                                timeZone = TimeZone.getTimeZone("UTC")
-                            }
-                            val formatted = formatter.format(Date(millis))
-                            viewModel.setDateFilter(formatted)
-                        }
-                        showDatePicker = false
-                    }
-                ) {
-                    Text(stringResource(R.string.action_ok), style = MaterialTheme.typography.labelLarge)
-                }
+            onDateSelected = { date ->
+                viewModel.setDateFilter(date)
             },
-            dismissButton = {
-                TextButton(onClick = { showDatePicker = false }) {
-                    Text(stringResource(R.string.action_cancel), style = MaterialTheme.typography.labelLarge)
-                }
+            onDateRangeSelected = { start, end ->
+                viewModel.setDateRangeFilter(start, end)
+            },
+            onClear = {
+                viewModel.clearDateFilter()
             }
-        ) {
-            DatePicker(state = datePickerState)
-        }
+        )
     }
 
     if (showTargetDialog) {
@@ -115,6 +103,7 @@ fun NutritionScreen(
 
     Scaffold(
         modifier = Modifier.fillMaxSize(),
+        contentWindowInsets = WindowInsets.statusBars,
         topBar = {
             TopAppBar(
                 title = {
@@ -141,12 +130,27 @@ fun NutritionScreen(
             )
         }
     ) { innerPadding ->
-        val filteredFoods = remember(state.foodEntries, state.searchQuery, state.selectedDateFilter, state.selectedMeal, state.onlyHighProtein) {
+        val filteredFoods = remember(
+            state.foodEntries,
+            state.searchQuery,
+            state.selectedDateFilter,
+            state.fromDateFilter,
+            state.toDateFilter,
+            state.selectedMeal,
+            state.onlyHighProtein
+        ) {
             state.foodEntries.filter { item ->
                 val matchesSearch = state.searchQuery.isBlank() ||
                     item.displayName.contains(state.searchQuery, ignoreCase = true) ||
                     item.displayAmount.contains(state.searchQuery, ignoreCase = true)
-                val matchesDate = state.selectedDateFilter == null || item.displayDate == state.selectedDateFilter
+                val matchesDate = when {
+                    state.selectedDateFilter != null -> item.displayDate == state.selectedDateFilter
+                    state.fromDateFilter != null && state.toDateFilter != null ->
+                        item.displayDate in state.fromDateFilter!!..state.toDateFilter!!
+                    state.fromDateFilter != null -> item.displayDate >= state.fromDateFilter!!
+                    state.toDateFilter != null -> item.displayDate <= state.toDateFilter!!
+                    else -> true
+                }
                 val matchesMeal = state.selectedMeal == "all" || item.meal.equals(state.selectedMeal, ignoreCase = true)
                 val matchesProtein = !state.onlyHighProtein || item.protein >= 20.0
                 matchesSearch && matchesDate && matchesMeal && matchesProtein
@@ -169,7 +173,7 @@ fun NutritionScreen(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(horizontal = 12.dp),
-                contentPadding = PaddingValues(top = 10.dp, bottom = 12.dp),
+                contentPadding = PaddingValues(top = 10.dp, bottom = 144.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
             // Calorie Budget Card (Card MD3)
@@ -208,7 +212,6 @@ fun NutritionScreen(
                             }
                             FilledTonalButton(
                                 onClick = { showTargetDialog = true },
-                                shape = MaterialTheme.shapes.small,
                                 contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
                                 modifier = Modifier.height(30.dp)
                             ) {
@@ -408,25 +411,41 @@ fun NutritionScreen(
                             horizontalArrangement = Arrangement.spacedBy(8.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            // Date picker chip
-                            AssistChip(
+                            val hasActiveDate = state.selectedDateFilter != null || state.fromDateFilter != null
+                            val dateLabel = formatDateRangeChipLabel(
+                                singleDate = state.selectedDateFilter,
+                                fromDate = state.fromDateFilter,
+                                toDate = state.toDateFilter,
+                                defaultText = stringResource(R.string.nutrition_pick_date)
+                            )
+
+                            ExpressiveFilterChip(
+                                selected = hasActiveDate,
                                 onClick = { showDatePicker = true },
                                 leadingIcon = {
                                     Icon(
-                                        imageVector = Icons.Default.CalendarMonth,
+                                        imageVector = if (hasActiveDate) Icons.Default.DateRange else Icons.Default.CalendarMonth,
                                         contentDescription = null,
                                         modifier = Modifier.size(16.dp)
                                     )
                                 },
+                                trailingIcon = if (hasActiveDate) {
+                                    {
+                                        Icon(
+                                            imageVector = Icons.Default.Close,
+                                            contentDescription = null,
+                                            modifier = Modifier
+                                                .size(14.dp)
+                                                .clickable { viewModel.clearDateFilter() }
+                                        )
+                                    }
+                                } else null,
                                 label = {
                                     Text(
-                                        text = state.selectedDateFilter ?: stringResource(R.string.nutrition_pick_date),
+                                        text = dateLabel,
                                         style = MaterialTheme.typography.labelMedium
                                     )
-                                },
-                                shape = MaterialTheme.shapes.small,
-                                border = null,
-                                colors = borderlessAssistChipColors()
+                                }
                             )
 
                             // Meals

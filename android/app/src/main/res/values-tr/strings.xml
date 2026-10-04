@@ -234,6 +234,11 @@
     <string name="nutrition_filter_snack">Ara Öğün</string>
     <string name="nutrition_filter_high_protein">Yüksek Protein</string>
     <string name="nutrition_pick_date">Gün Seç</string>
+    <string name="date_picker_single_day">Tek Gün</string>
+    <string name="date_picker_date_range">Tarih Aralığı</string>
+    <string name="date_picker_clear">Temizle</string>
+    <string name="date_picker_apply">Uygula</string>
+    <string name="filter_pick_date">Tarih Seç</string>
     <string name="nutrition_empty">Besin kaydı bulunamadı.</string>
     <string name="nutrition_target_dialog_title">Günlük Kalori Hedefi</string>
     <string name="nutrition_target_dialog_label">Kalori Miktarı (kcal)</string>

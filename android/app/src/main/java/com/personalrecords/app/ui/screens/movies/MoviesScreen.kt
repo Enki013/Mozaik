@@ -1,5 +1,6 @@
 package com.personalrecords.app.ui.screens.movies
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -31,9 +32,28 @@ fun MoviesScreen(
     onNavigateBack: (() -> Unit)? = null
 ) {
     val state by viewModel.uiState.collectAsState()
+    var showDatePicker by remember { mutableStateOf(false) }
+
+    if (showDatePicker) {
+        ExpressiveDateFilterDialog(
+            initialStartDate = state.selectedDateFilter ?: state.fromDateFilter,
+            initialEndDate = state.toDateFilter,
+            onDismissRequest = { showDatePicker = false },
+            onDateSelected = { date ->
+                viewModel.setDateFilter(date)
+            },
+            onDateRangeSelected = { start, end ->
+                viewModel.setDateRangeFilter(start, end)
+            },
+            onClear = {
+                viewModel.clearDateFilter()
+            }
+        )
+    }
 
     Scaffold(
         modifier = Modifier.fillMaxSize(),
+        contentWindowInsets = WindowInsets.statusBars,
         topBar = {
             TopAppBar(
                 title = {
@@ -72,12 +92,29 @@ fun MoviesScreen(
                 .fillMaxSize()
                 .padding(innerPadding)
         ) {
-            val filteredFilms = remember(state.films, state.searchQuery, state.onlyRewatches, state.sortBy) {
+            val filteredFilms = remember(
+                state.films,
+                state.searchQuery,
+                state.selectedDateFilter,
+                state.fromDateFilter,
+                state.toDateFilter,
+                state.onlyRewatches,
+                state.sortBy
+            ) {
                 var list = state.films.filter { film ->
                     val matchesSearch = state.searchQuery.isBlank() ||
                         film.displayTitle.contains(state.searchQuery, ignoreCase = true)
                     val matchesRewatch = !state.onlyRewatches || film.rewatch
-                    matchesSearch && matchesRewatch
+                    val filmDate = film.safeWatchedDate.ifBlank { film.diary_date ?: "" }
+                    val matchesDate = when {
+                        state.selectedDateFilter != null -> filmDate.startsWith(state.selectedDateFilter!!)
+                        state.fromDateFilter != null && state.toDateFilter != null ->
+                            filmDate.isNotBlank() && filmDate >= state.fromDateFilter!! && filmDate <= state.toDateFilter!!
+                        state.fromDateFilter != null -> filmDate.isNotBlank() && filmDate >= state.fromDateFilter!!
+                        state.toDateFilter != null -> filmDate.isNotBlank() && filmDate <= state.toDateFilter!!
+                        else -> true
+                    }
+                    matchesSearch && matchesRewatch && matchesDate
                 }
 
                 list = when (state.sortBy) {
@@ -95,7 +132,7 @@ fun MoviesScreen(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(horizontal = 12.dp),
-                contentPadding = PaddingValues(top = 10.dp, bottom = 12.dp),
+                contentPadding = PaddingValues(top = 10.dp, bottom = 144.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
 
@@ -228,6 +265,42 @@ fun MoviesScreen(
                                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
+                                val hasActiveDate = state.selectedDateFilter != null || state.fromDateFilter != null
+                                val dateLabel = formatDateRangeChipLabel(
+                                    singleDate = state.selectedDateFilter,
+                                    fromDate = state.fromDateFilter,
+                                    toDate = state.toDateFilter,
+                                    defaultText = stringResource(R.string.filter_pick_date)
+                                )
+
+                                ExpressiveFilterChip(
+                                    selected = hasActiveDate,
+                                    onClick = { showDatePicker = true },
+                                    leadingIcon = {
+                                        Icon(
+                                            imageVector = if (hasActiveDate) Icons.Default.DateRange else Icons.Default.CalendarMonth,
+                                            contentDescription = null,
+                                            modifier = Modifier.size(FilterChipDefaults.IconSize)
+                                        )
+                                    },
+                                    trailingIcon = if (hasActiveDate) {
+                                        {
+                                            Icon(
+                                                imageVector = Icons.Default.Close,
+                                                contentDescription = null,
+                                                modifier = Modifier
+                                                    .size(14.dp)
+                                                    .clickable { viewModel.clearDateFilter() }
+                                            )
+                                        }
+                                    } else null,
+                                    label = {
+                                        Text(
+                                            text = dateLabel,
+                                            style = MaterialTheme.typography.labelMedium
+                                        )
+                                    }
+                                )
                                 ExpressiveFilterChip(
                                     selected = state.onlyRewatches,
                                     onClick = { viewModel.toggleRewatches() },

@@ -42,9 +42,28 @@ fun NotificationsScreen(
     val state by viewModel.uiState.collectAsState()
     val context = LocalContext.current
     var selectedNotification by remember { mutableStateOf<NotificationDto?>(null) }
+    var showDatePicker by remember { mutableStateOf(false) }
+
+    if (showDatePicker) {
+        ExpressiveDateFilterDialog(
+            initialStartDate = state.selectedDateFilter ?: state.fromDateFilter,
+            initialEndDate = state.toDateFilter,
+            onDismissRequest = { showDatePicker = false },
+            onDateSelected = { date ->
+                viewModel.setDateFilter(date)
+            },
+            onDateRangeSelected = { start, end ->
+                viewModel.setDateRangeFilter(start, end)
+            },
+            onClear = {
+                viewModel.clearDateFilter()
+            }
+        )
+    }
 
     Scaffold(
         modifier = Modifier.fillMaxSize(),
+        contentWindowInsets = WindowInsets.statusBars,
         topBar = {
             TopAppBar(
                 title = {
@@ -90,14 +109,30 @@ fun NotificationsScreen(
                     .sorted()
             }
 
-            val filteredList = remember(state.notifications, state.selectedApp, state.searchQuery) {
+            val filteredList = remember(
+                state.notifications,
+                state.selectedApp,
+                state.searchQuery,
+                state.selectedDateFilter,
+                state.fromDateFilter,
+                state.toDateFilter
+            ) {
                 state.notifications.filter { item ->
                     val matchesApp = state.selectedApp == null || item.displayAppName == state.selectedApp
                     val matchesSearch = state.searchQuery.isBlank() ||
                         item.displayTitle.contains(state.searchQuery, ignoreCase = true) ||
                         item.displayBody.contains(state.searchQuery, ignoreCase = true) ||
                         item.displayAppName.contains(state.searchQuery, ignoreCase = true)
-                    matchesApp && matchesSearch
+                    val notifDate = item.formattedDate.ifBlank { item.created_at.take(10) }
+                    val matchesDate = when {
+                        state.selectedDateFilter != null -> notifDate.startsWith(state.selectedDateFilter!!)
+                        state.fromDateFilter != null && state.toDateFilter != null ->
+                            notifDate.isNotBlank() && notifDate >= state.fromDateFilter!! && notifDate <= state.toDateFilter!!
+                        state.fromDateFilter != null -> notifDate.isNotBlank() && notifDate >= state.fromDateFilter!!
+                        state.toDateFilter != null -> notifDate.isNotBlank() && notifDate <= state.toDateFilter!!
+                        else -> true
+                    }
+                    matchesApp && matchesSearch && matchesDate
                 }
             }
 
@@ -105,7 +140,7 @@ fun NotificationsScreen(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(horizontal = 12.dp),
-                contentPadding = PaddingValues(top = 10.dp, bottom = 12.dp),
+                contentPadding = PaddingValues(top = 10.dp, bottom = 144.dp),
                 verticalArrangement = Arrangement.spacedBy(6.dp)
             ) {
                 // Stats Row
@@ -196,6 +231,43 @@ fun NotificationsScreen(
                                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
+                                val hasActiveDate = state.selectedDateFilter != null || state.fromDateFilter != null
+                                val dateLabel = formatDateRangeChipLabel(
+                                    singleDate = state.selectedDateFilter,
+                                    fromDate = state.fromDateFilter,
+                                    toDate = state.toDateFilter,
+                                    defaultText = stringResource(R.string.filter_pick_date)
+                                )
+
+                                ExpressiveFilterChip(
+                                    selected = hasActiveDate,
+                                    onClick = { showDatePicker = true },
+                                    leadingIcon = {
+                                        Icon(
+                                            imageVector = if (hasActiveDate) Icons.Default.DateRange else Icons.Default.CalendarMonth,
+                                            contentDescription = null,
+                                            modifier = Modifier.size(FilterChipDefaults.IconSize)
+                                        )
+                                    },
+                                    trailingIcon = if (hasActiveDate) {
+                                        {
+                                            Icon(
+                                                imageVector = Icons.Default.Close,
+                                                contentDescription = null,
+                                                modifier = Modifier
+                                                    .size(14.dp)
+                                                    .clickable { viewModel.clearDateFilter() }
+                                            )
+                                        }
+                                    } else null,
+                                    label = {
+                                        Text(
+                                            text = dateLabel,
+                                            style = MaterialTheme.typography.labelMedium
+                                        )
+                                    }
+                                )
+
                                 ExpressiveFilterChip(
                                     selected = state.selectedApp == null,
                                     onClick = { viewModel.setAppFilter(null) },
@@ -211,11 +283,12 @@ fun NotificationsScreen(
                                     )
                                 }
 
-                                if (state.selectedApp != null || state.searchQuery.isNotEmpty()) {
+                                if (state.selectedApp != null || state.searchQuery.isNotEmpty() || hasActiveDate) {
                                     AssistChip(
                                         onClick = {
                                             viewModel.setAppFilter(null)
                                             viewModel.setSearchQuery("")
+                                            viewModel.clearDateFilter()
                                         },
                                         label = {
                                             Text(
@@ -447,8 +520,7 @@ fun NotificationsScreen(
                             clipboard.setPrimaryClip(clip)
                             Toast.makeText(context, context.getString(R.string.action_copied), Toast.LENGTH_SHORT).show()
                         },
-                        modifier = Modifier.weight(1f),
-                        shape = MaterialTheme.shapes.small
+                        modifier = Modifier.weight(1f)
                     ) {
                         Icon(
                             imageVector = Icons.Default.ContentCopy,
@@ -461,8 +533,7 @@ fun NotificationsScreen(
 
                     Button(
                         onClick = { selectedNotification = null },
-                        modifier = Modifier.weight(1f),
-                        shape = MaterialTheme.shapes.small
+                        modifier = Modifier.weight(1f)
                     ) {
                         Text(stringResource(R.string.action_close))
                     }

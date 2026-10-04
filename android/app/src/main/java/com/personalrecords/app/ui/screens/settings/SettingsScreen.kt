@@ -179,7 +179,8 @@ fun SettingsScreen(
 
     Scaffold(
         modifier = Modifier.fillMaxSize(),
-        snackbarHost = { SnackbarHost(snackbarHostState) }
+        contentWindowInsets = WindowInsets.statusBars,
+        snackbarHost = { SnackbarHost(snackbarHostState, modifier = Modifier.navigationBarsPadding().padding(bottom = 96.dp)) }
     ) { innerPadding ->
         AnimatedContent(
             targetState = showLanguageSelection,
@@ -230,7 +231,7 @@ fun SettingsScreen(
                         modifier = Modifier
                             .fillMaxSize()
                             .padding(horizontal = 12.dp),
-                        contentPadding = PaddingValues(top = 4.dp, bottom = 24.dp),
+                        contentPadding = PaddingValues(top = 4.dp, bottom = 144.dp),
                         verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         // ==========================================
@@ -503,8 +504,7 @@ fun SettingsScreen(
                                     .weight(1f)
                                     .fillMaxHeight()
                                     .heightIn(min = 44.dp),
-                                contentPadding = PaddingValues(horizontal = 10.dp, vertical = 8.dp),
-                                shape = MaterialTheme.shapes.small
+                                contentPadding = PaddingValues(horizontal = 10.dp, vertical = 8.dp)
                             ) {
                                 Row(
                                     verticalAlignment = Alignment.CenterVertically,
@@ -535,8 +535,7 @@ fun SettingsScreen(
                                     .weight(1f)
                                     .fillMaxHeight()
                                     .heightIn(min = 44.dp),
-                                contentPadding = PaddingValues(horizontal = 10.dp, vertical = 8.dp),
-                                shape = MaterialTheme.shapes.small
+                                contentPadding = PaddingValues(horizontal = 10.dp, vertical = 8.dp)
                             ) {
                                 Row(
                                     verticalAlignment = Alignment.CenterVertically,
@@ -1780,6 +1779,7 @@ private fun LanguageSelectionScreen(
 
     Scaffold(
         modifier = Modifier.fillMaxSize(),
+        contentWindowInsets = WindowInsets.statusBars,
         topBar = {
             CenterAlignedTopAppBar(
                 title = {
@@ -1815,7 +1815,7 @@ private fun LanguageSelectionScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding),
-            contentPadding = PaddingValues(vertical = 8.dp)
+            contentPadding = PaddingValues(top = 8.dp, bottom = 144.dp)
         ) {
             items(languages) { item ->
                 val isSelected = currentLanguage == item.code

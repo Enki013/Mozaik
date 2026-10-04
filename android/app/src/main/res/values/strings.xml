@@ -234,6 +234,11 @@
     <string name="nutrition_filter_snack">Snack</string>
     <string name="nutrition_filter_high_protein">High Protein</string>
     <string name="nutrition_pick_date">Pick Date</string>
+    <string name="date_picker_single_day">Single Day</string>
+    <string name="date_picker_date_range">Date Range</string>
+    <string name="date_picker_clear">Clear</string>
+    <string name="date_picker_apply">Apply</string>
+    <string name="filter_pick_date">Pick Date</string>
     <string name="nutrition_empty">No food entries found.</string>
     <string name="nutrition_target_dialog_title">Daily Calorie Target</string>
     <string name="nutrition_target_dialog_label">Target Calories (kcal)</string>

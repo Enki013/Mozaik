@@ -44,7 +44,8 @@ fun OverviewScreen(
     }
     Scaffold(
         modifier = Modifier.fillMaxSize(),
-        snackbarHost = { SnackbarHost(snackbarHostState) }
+        contentWindowInsets = WindowInsets.statusBars,
+        snackbarHost = { SnackbarHost(snackbarHostState, modifier = Modifier.navigationBarsPadding().padding(bottom = 96.dp)) }
     ) { innerPadding ->
         val listState = rememberLazyListState()
         var isRefreshing by remember { mutableStateOf(false) }
@@ -86,7 +87,7 @@ fun OverviewScreen(
                     modifier = Modifier
                         .fillMaxSize()
                         .padding(horizontal = 12.dp),
-                    contentPadding = PaddingValues(top = 8.dp, bottom = 20.dp),
+                    contentPadding = PaddingValues(top = 8.dp, bottom = 144.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                 // Top 4 Metrics Grid
@@ -346,7 +347,6 @@ fun SyncRow(
         FilledTonalButton(
             onClick = onSync,
             enabled = !isSyncing,
-            shape = MaterialTheme.shapes.small,
             contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
             modifier = Modifier.height(32.dp)
         ) {

@@ -53,6 +53,12 @@ import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.res.stringResource
+import com.personalrecords.app.R
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
+import java.util.TimeZone
 import com.personalrecords.app.core.theme.*
 
 /**
@@ -764,4 +770,235 @@ suspend fun LazyListState.expressiveScrollToTop() {
     }
     scrollToItem(0, 0)
 }
+
+enum class DateSelectionMode {
+    SINGLE,
+    RANGE
+}
+
+fun formatMillisToIsoDate(millis: Long): String {
+    val formatter = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).apply {
+        timeZone = TimeZone.getTimeZone("UTC")
+    }
+    return formatter.format(Date(millis))
+}
+
+fun parseIsoDateToMillis(dateStr: String?): Long? {
+    if (dateStr.isNullOrBlank()) return null
+    return try {
+        val clean = dateStr.trim().replace('/', '-')
+        val formatter = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).apply {
+            timeZone = TimeZone.getTimeZone("UTC")
+        }
+        formatter.parse(clean)?.time
+    } catch (e: Exception) {
+        null
+    }
+}
+
+fun formatIsoToReadableDate(dateStr: String): String {
+    return try {
+        val clean = dateStr.trim().replace('/', '-')
+        val inputFormatter = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+        val date = inputFormatter.parse(clean) ?: return dateStr
+        val outputFormatter = SimpleDateFormat("d MMM yyyy", Locale.getDefault())
+        outputFormatter.format(date)
+    } catch (e: Exception) {
+        dateStr
+    }
+}
+
+fun formatIsoToShortDate(dateStr: String): String {
+    return try {
+        val clean = dateStr.trim().replace('/', '-')
+        val inputFormatter = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+        val date = inputFormatter.parse(clean) ?: return dateStr
+        val outputFormatter = SimpleDateFormat("d MMM", Locale.getDefault())
+        outputFormatter.format(date)
+    } catch (e: Exception) {
+        dateStr
+    }
+}
+
+fun formatDateRangeChipLabel(
+    singleDate: String?,
+    fromDate: String?,
+    toDate: String?,
+    defaultText: String
+): String {
+    return when {
+        !singleDate.isNullOrBlank() -> formatIsoToReadableDate(singleDate)
+        !fromDate.isNullOrBlank() && !toDate.isNullOrBlank() -> {
+            "${formatIsoToShortDate(fromDate)} – ${formatIsoToShortDate(toDate)}"
+        }
+        !fromDate.isNullOrBlank() -> "${formatIsoToShortDate(fromDate)} →"
+        !toDate.isNullOrBlank() -> "→ ${formatIsoToShortDate(toDate)}"
+        else -> defaultText
+    }
+}
+
+/**
+ * Material 3 Expressive Date & Date Range Picker Dialog.
+ * Allows switching seamlessly between single day selection and date range selection with spring transitions.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun ExpressiveDateFilterDialog(
+    initialStartDate: String? = null,
+    initialEndDate: String? = null,
+    onDismissRequest: () -> Unit,
+    onDateSelected: (String) -> Unit,
+    onDateRangeSelected: (String, String) -> Unit,
+    onClear: () -> Unit
+) {
+    val initialStartMillis = remember(initialStartDate) { parseIsoDateToMillis(initialStartDate) }
+    val initialEndMillis = remember(initialEndDate) { parseIsoDateToMillis(initialEndDate) }
+
+    var selectionMode by remember {
+        mutableStateOf(
+            if (!initialEndDate.isNullOrBlank()) DateSelectionMode.RANGE
+            else DateSelectionMode.SINGLE
+        )
+    }
+
+    val singleDatePickerState = rememberDatePickerState(
+        initialSelectedDateMillis = initialStartMillis
+    )
+
+    val dateRangePickerState = rememberDateRangePickerState(
+        initialSelectedStartDateMillis = initialStartMillis,
+        initialSelectedEndDateMillis = initialEndMillis
+    )
+
+    val haptic = LocalHapticFeedback.current
+
+    DatePickerDialog(
+        onDismissRequest = onDismissRequest,
+        confirmButton = {
+            TextButton(
+                onClick = {
+                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                    if (selectionMode == DateSelectionMode.SINGLE) {
+                        singleDatePickerState.selectedDateMillis?.let { millis ->
+                            onDateSelected(formatMillisToIsoDate(millis))
+                        }
+                    } else {
+                        val startMillis = dateRangePickerState.selectedStartDateMillis
+                        val endMillis = dateRangePickerState.selectedEndDateMillis
+                        if (startMillis != null && endMillis != null) {
+                            onDateRangeSelected(
+                                formatMillisToIsoDate(startMillis),
+                                formatMillisToIsoDate(endMillis)
+                            )
+                        } else if (startMillis != null) {
+                            onDateSelected(formatMillisToIsoDate(startMillis))
+                        }
+                    }
+                    onDismissRequest()
+                }
+            ) {
+                Text(
+                    text = stringResource(R.string.date_picker_apply),
+                    style = MaterialTheme.typography.labelLarge,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+        },
+        dismissButton = {
+            Row {
+                if (!initialStartDate.isNullOrBlank() || !initialEndDate.isNullOrBlank()) {
+                    TextButton(
+                        onClick = {
+                            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                            onClear()
+                            onDismissRequest()
+                        }
+                    ) {
+                        Text(
+                            text = stringResource(R.string.date_picker_clear),
+                            color = MaterialTheme.colorScheme.error,
+                            style = MaterialTheme.typography.labelLarge
+                        )
+                    }
+                }
+                TextButton(onClick = onDismissRequest) {
+                    Text(
+                        text = stringResource(R.string.action_cancel),
+                        style = MaterialTheme.typography.labelLarge
+                    )
+                }
+            }
+        },
+        shape = MaterialTheme.shapes.extraLarge,
+        colors = DatePickerDefaults.colors(
+            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
+        )
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(top = 8.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            // Segmented mode toggle
+            SingleChoiceSegmentedButtonRow(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 4.dp)
+            ) {
+                SegmentedButton(
+                    selected = selectionMode == DateSelectionMode.SINGLE,
+                    onClick = {
+                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                        selectionMode = DateSelectionMode.SINGLE
+                    },
+                    shape = SegmentedButtonDefaults.itemShape(index = 0, count = 2)
+                ) {
+                    Text(
+                        text = stringResource(R.string.date_picker_single_day),
+                        style = MaterialTheme.typography.labelMedium
+                    )
+                }
+                SegmentedButton(
+                    selected = selectionMode == DateSelectionMode.RANGE,
+                    onClick = {
+                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                        selectionMode = DateSelectionMode.RANGE
+                    },
+                    shape = SegmentedButtonDefaults.itemShape(index = 1, count = 2)
+                ) {
+                    Text(
+                        text = stringResource(R.string.date_picker_date_range),
+                        style = MaterialTheme.typography.labelMedium
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(4.dp))
+
+            Crossfade(
+                targetState = selectionMode,
+                animationSpec = spring(
+                    dampingRatio = Spring.DampingRatioLowBouncy,
+                    stiffness = Spring.StiffnessMediumLow
+                ),
+                label = "date_picker_mode_fade"
+            ) { mode ->
+                if (mode == DateSelectionMode.SINGLE) {
+                    DatePicker(
+                        state = singleDatePickerState,
+                        showModeToggle = false
+                    )
+                } else {
+                    DateRangePicker(
+                        state = dateRangePickerState,
+                        showModeToggle = false,
+                        modifier = Modifier.heightIn(max = 440.dp)
+                    )
+                }
+            }
+        }
+    }
+}
+
 

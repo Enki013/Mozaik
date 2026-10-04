@@ -1,6 +1,7 @@
 package com.personalrecords.app.ui.screens.timeline
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -43,39 +44,27 @@ fun TimelineScreen(
 ) {
     val state by viewModel.uiState.collectAsState()
     var showDatePicker by remember { mutableStateOf(false) }
-    val datePickerState = rememberDatePickerState()
 
     if (showDatePicker) {
-        DatePickerDialog(
+        ExpressiveDateFilterDialog(
+            initialStartDate = state.selectedDate ?: state.fromDate,
+            initialEndDate = state.toDate,
             onDismissRequest = { showDatePicker = false },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        datePickerState.selectedDateMillis?.let { millis ->
-                            val formatter = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).apply {
-                                timeZone = TimeZone.getTimeZone("UTC")
-                            }
-                            val formatted = formatter.format(Date(millis))
-                            viewModel.setSpecificDate(formatted)
-                        }
-                        showDatePicker = false
-                    }
-                ) {
-                    Text(stringResource(R.string.action_ok), style = MaterialTheme.typography.labelLarge)
-                }
+            onDateSelected = { date ->
+                viewModel.setSpecificDate(date)
             },
-            dismissButton = {
-                TextButton(onClick = { showDatePicker = false }) {
-                    Text(stringResource(R.string.action_cancel), style = MaterialTheme.typography.labelLarge)
-                }
+            onDateRangeSelected = { start, end ->
+                viewModel.setDateRange(start, end)
+            },
+            onClear = {
+                viewModel.resetFilters()
             }
-        ) {
-            DatePicker(state = datePickerState)
-        }
+        )
     }
 
     Scaffold(
-        modifier = Modifier.fillMaxSize()
+        modifier = Modifier.fillMaxSize(),
+        contentWindowInsets = WindowInsets.statusBars
     ) { innerPadding ->
         val listState = androidx.compose.foundation.lazy.rememberLazyListState()
         var isRefreshing by remember { mutableStateOf(false) }
@@ -125,7 +114,7 @@ fun TimelineScreen(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(horizontal = 12.dp),
-                contentPadding = PaddingValues(top = 10.dp, bottom = 12.dp),
+                contentPadding = PaddingValues(top = 10.dp, bottom = 144.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 // MD3 Search Bar (scrollable)
@@ -190,19 +179,36 @@ fun TimelineScreen(
                             )
                         }
 
-                        AssistChip(
+                        val hasCustomDate = state.selectedDate != null || state.fromDate != null
+                        val dateLabel = formatDateRangeChipLabel(
+                            singleDate = state.selectedDate,
+                            fromDate = state.fromDate,
+                            toDate = state.toDate,
+                            defaultText = stringResource(R.string.nutrition_pick_date)
+                        )
+
+                        ExpressiveFilterChip(
+                            selected = hasCustomDate,
                             onClick = { showDatePicker = true },
                             leadingIcon = {
                                 Icon(
-                                    imageVector = Icons.Default.CalendarMonth,
+                                    imageVector = if (hasCustomDate) Icons.Default.DateRange else Icons.Default.CalendarMonth,
                                     contentDescription = null,
                                     modifier = Modifier.size(16.dp)
                                 )
                             },
-                            label = { Text(stringResource(R.string.nutrition_pick_date), style = MaterialTheme.typography.labelMedium) },
-                            shape = MaterialTheme.shapes.small,
-                            border = null,
-                            colors = borderlessAssistChipColors()
+                            trailingIcon = if (hasCustomDate) {
+                                {
+                                    Icon(
+                                        imageVector = Icons.Default.Close,
+                                        contentDescription = null,
+                                        modifier = Modifier
+                                            .size(14.dp)
+                                            .clickable { viewModel.resetFilters() }
+                                    )
+                                }
+                            } else null,
+                            label = { Text(dateLabel, style = MaterialTheme.typography.labelMedium) }
                         )
 
                         AssistChip(

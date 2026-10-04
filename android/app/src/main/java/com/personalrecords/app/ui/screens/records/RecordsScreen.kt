@@ -43,7 +43,8 @@ fun RecordsScreen(
 
     Scaffold(
         modifier = Modifier.fillMaxSize(),
-        snackbarHost = { SnackbarHost(snackbarHostState) }
+        contentWindowInsets = WindowInsets.statusBars,
+        snackbarHost = { SnackbarHost(snackbarHostState, modifier = Modifier.navigationBarsPadding().padding(bottom = 96.dp)) }
     ) { innerPadding ->
         val listState = androidx.compose.foundation.lazy.rememberLazyListState()
         var isRefreshing by remember { mutableStateOf(false) }
@@ -83,7 +84,7 @@ fun RecordsScreen(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(horizontal = 12.dp),
-                contentPadding = PaddingValues(top = 8.dp, bottom = 20.dp),
+                contentPadding = PaddingValues(top = 8.dp, bottom = 144.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
 

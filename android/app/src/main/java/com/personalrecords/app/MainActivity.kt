@@ -3,13 +3,17 @@ package com.personalrecords.app
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.activity.enableEdgeToEdge
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
@@ -40,13 +44,19 @@ import kotlin.time.Duration.Companion.milliseconds
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        enableEdgeToEdge()
         setContent {
             val preferences = remember { PersonalRecordsApp.instance.preferences }
             val language by preferences.appLanguage.collectAsState(initial = "system")
 
             ProvideLocalizedApp(language = language) {
                 PersonalRecordsTheme {
-                    MainAppHost()
+                    Surface(
+                        modifier = Modifier.fillMaxSize(),
+                        color = MaterialTheme.colorScheme.background
+                    ) {
+                        MainAppHost()
+                    }
                 }
             }
         }
@@ -102,162 +112,32 @@ fun MainAppHost() {
     val coroutineScope = rememberCoroutineScope()
     var activeTabTapJob by remember { mutableStateOf<kotlinx.coroutines.Job?>(null) }
 
-    Scaffold(
-        modifier = Modifier.fillMaxSize(),
-        bottomBar = {
-            NavigationBar(
-                containerColor = MaterialTheme.colorScheme.surfaceContainer,
-                tonalElevation = 3.dp
-            ) {
-                val haptic = LocalHapticFeedback.current
-                bottomNavScreens.forEach { screen ->
-                    val selected = when (screen) {
-                        Screen.Records -> currentDestination?.route in recordsSubRoutes
-                        else -> currentDestination?.route == screen.route
-                    }
+    val detailSubRoutes = setOf(
+        Screen.Nutrition.route,
+        Screen.Books.route,
+        Screen.Movies.route,
+        Screen.Notifications.route
+    )
 
-                    val iconScale by animateFloatAsState(
-                        targetValue = if (selected) 1.15f else 1.0f,
-                        animationSpec = spring(
-                            dampingRatio = Spring.DampingRatioMediumBouncy,
-                            stiffness = Spring.StiffnessMediumLow
-                        ),
-                        label = "nav_icon_bounce"
-                    )
-                    val iconOffsetY by animateDpAsState(
-                        targetValue = if (selected) (-2).dp else 0.dp,
-                        animationSpec = spring(
-                            dampingRatio = Spring.DampingRatioMediumBouncy,
-                            stiffness = Spring.StiffnessMediumLow
-                        ),
-                        label = "nav_icon_offset"
-                    )
-
-                    NavigationBarItem(
-                        icon = {
-                            Box(
-                                modifier = Modifier
-                                    .offset(y = iconOffsetY)
-                                    .graphicsLayer {
-                                        scaleX = iconScale
-                                        scaleY = iconScale
-                                    },
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Icon(
-                                    if (selected) screen.selectedIcon else screen.icon,
-                                    contentDescription = androidx.compose.ui.res.stringResource(screen.titleRes),
-                                    modifier = Modifier.size(20.dp)
-                                )
-                            }
-                        },
-                        label = {
-                            Text(
-                                text = androidx.compose.ui.res.stringResource(screen.navLabelRes),
-                                style = MaterialTheme.typography.labelSmall.copy(
-                                    fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium
-                                ),
-                                textAlign = TextAlign.Center,
-                                maxLines = 1,
-                                softWrap = false,
-                                overflow = TextOverflow.Ellipsis
-                            )
-                        },
-                        selected = selected,
-                        colors = NavigationBarItemDefaults.colors(
-                            selectedIconColor = MaterialTheme.colorScheme.onSecondaryContainer,
-                            selectedTextColor = MaterialTheme.colorScheme.onSurface,
-                            indicatorColor = MaterialTheme.colorScheme.secondaryContainer,
-                            unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                            unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant
-                        ),
-                        onClick = {
-                            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-
-                            fun triggerScrollToTop(route: String) {
-                                when (route) {
-                                    Screen.Overview.route -> overviewScrollFlow.tryEmit(Unit)
-                                    Screen.Timeline.route -> timelineScrollFlow.tryEmit(Unit)
-                                    Screen.Records.route -> recordsScrollFlow.tryEmit(Unit)
-                                    Screen.Settings.route -> settingsScrollFlow.tryEmit(Unit)
-                                }
-                            }
-
-                            fun triggerRefresh(route: String) {
-                                when (route) {
-                                    Screen.Overview.route -> overviewRefreshFlow.tryEmit(Unit)
-                                    Screen.Timeline.route -> timelineRefreshFlow.tryEmit(Unit)
-                                    Screen.Records.route -> recordsRefreshFlow.tryEmit(Unit)
-                                    Screen.Settings.route -> settingsRefreshFlow.tryEmit(Unit)
-                                }
-                            }
-
-                            if (selected) {
-                                if (screen == Screen.Records && currentDestination?.route != Screen.Records.route) {
-                                    val popped = navController.popBackStack(Screen.Records.route, inclusive = false)
-                                    if (!popped) {
-                                        navController.navigate(Screen.Records.route) {
-                                            popUpTo(navController.graph.findStartDestination().id) {
-                                                saveState = true
-                                            }
-                                            launchSingleTop = true
-                                            restoreState = true
-                                        }
-                                    }
-                                } else {
-                                    if (activeTabTapJob?.isActive == true) {
-                                        activeTabTapJob?.cancel()
-                                        activeTabTapJob = null
-                                        triggerRefresh(screen.route)
-                                    } else {
-                                        triggerScrollToTop(screen.route)
-                                        activeTabTapJob = coroutineScope.launch {
-                                            kotlinx.coroutines.delay(220L.milliseconds)
-                                            activeTabTapJob = null
-                                        }
-                                    }
-                                }
-                            } else {
-                                navController.navigate(screen.route) {
-                                    popUpTo(navController.graph.findStartDestination().id) {
-                                        saveState = true
-                                    }
-                                    launchSingleTop = true
-                                    restoreState = true
-                                }
-                            }
-                        }
-                    )
-                }
-            }
-        }
-    ) { innerPadding ->
-
-        val detailSubRoutes = setOf(
-            Screen.Nutrition.route,
-            Screen.Books.route,
-            Screen.Movies.route,
-            Screen.Notifications.route
-        )
-
+    Box(modifier = Modifier.fillMaxSize()) {
         NavHost(
             navController = navController,
             startDestination = Screen.Overview.route,
-            modifier = Modifier.padding(innerPadding),
+            modifier = Modifier.fillMaxSize(),
             enterTransition = {
                 val target = targetState.destination.route
                 if (target in detailSubRoutes) {
                     slideInHorizontally(
-                        initialOffsetX = { it / 4 },
+                        initialOffsetX = { (it * 0.18f).toInt() },
                         animationSpec = spring(
-                            dampingRatio = Spring.DampingRatioLowBouncy,
-                            stiffness = Spring.StiffnessMediumLow
+                            dampingRatio = 0.82f,
+                            stiffness = 380f
                         )
-                    ) + fadeIn(animationSpec = tween(220))
+                    ) + fadeIn(animationSpec = tween(220, easing = LinearOutSlowInEasing))
                 } else {
-                    fadeIn(animationSpec = tween(200)) + scaleIn(
+                    fadeIn(animationSpec = tween(220, easing = LinearOutSlowInEasing)) + scaleIn(
                         initialScale = 0.98f,
-                        animationSpec = tween(200)
+                        animationSpec = tween(220, easing = LinearOutSlowInEasing)
                     )
                 }
             },
@@ -265,27 +145,27 @@ fun MainAppHost() {
                 val target = targetState.destination.route
                 if (target in detailSubRoutes) {
                     slideOutHorizontally(
-                        targetOffsetX = { -it / 6 },
-                        animationSpec = tween(200)
-                    ) + fadeOut(animationSpec = tween(150))
+                        targetOffsetX = { -(it * 0.1f).toInt() },
+                        animationSpec = tween(180, easing = FastOutLinearInEasing)
+                    ) + fadeOut(animationSpec = tween(160, easing = FastOutLinearInEasing))
                 } else {
-                    fadeOut(animationSpec = tween(150))
+                    fadeOut(animationSpec = tween(180, easing = FastOutLinearInEasing))
                 }
             },
             popEnterTransition = {
                 val initial = initialState.destination.route
                 if (initial in detailSubRoutes) {
                     slideInHorizontally(
-                        initialOffsetX = { -it / 6 },
+                        initialOffsetX = { -(it * 0.1f).toInt() },
                         animationSpec = spring(
-                            dampingRatio = Spring.DampingRatioLowBouncy,
-                            stiffness = Spring.StiffnessMediumLow
+                            dampingRatio = 0.82f,
+                            stiffness = 380f
                         )
-                    ) + fadeIn(animationSpec = tween(220))
+                    ) + fadeIn(animationSpec = tween(220, easing = LinearOutSlowInEasing))
                 } else {
-                    fadeIn(animationSpec = tween(200)) + scaleIn(
+                    fadeIn(animationSpec = tween(220, easing = LinearOutSlowInEasing)) + scaleIn(
                         initialScale = 0.98f,
-                        animationSpec = tween(200)
+                        animationSpec = tween(220, easing = LinearOutSlowInEasing)
                     )
                 }
             },
@@ -293,14 +173,14 @@ fun MainAppHost() {
                 val initial = initialState.destination.route
                 if (initial in detailSubRoutes) {
                     slideOutHorizontally(
-                        targetOffsetX = { it / 4 },
+                        targetOffsetX = { (it * 0.22f).toInt() },
                         animationSpec = spring(
-                            dampingRatio = Spring.DampingRatioLowBouncy,
-                            stiffness = Spring.StiffnessMediumLow
+                            dampingRatio = 0.82f,
+                            stiffness = 380f
                         )
-                    ) + fadeOut(animationSpec = tween(180))
+                    ) + fadeOut(animationSpec = tween(180, easing = FastOutLinearInEasing))
                 } else {
-                    fadeOut(animationSpec = tween(150))
+                    fadeOut(animationSpec = tween(180, easing = FastOutLinearInEasing))
                 }
             }
         ) {
@@ -347,7 +227,6 @@ fun MainAppHost() {
                     onNavigateToNotifications = { navController.navigate(Screen.Notifications.route) }
                 )
             }
-
             composable(Screen.Nutrition.route) {
                 val vm: NutritionViewModel = viewModel(factory = AppViewModelFactory())
                 NutritionScreen(
@@ -387,6 +266,158 @@ fun MainAppHost() {
                     scrollToTopFlow = settingsScrollFlow,
                     refreshFlow = settingsRefreshFlow
                 )
+            }
+        }
+
+        // Floating Bottom Bar Dock
+        Box(
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .fillMaxWidth()
+                .navigationBarsPadding()
+                .padding(start = 16.dp, end = 16.dp, bottom = 14.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            Surface(
+                shape = CircleShape,
+                color = MaterialTheme.colorScheme.surfaceContainer,
+                shadowElevation = 8.dp,
+                tonalElevation = 3.dp,
+                border = BorderStroke(
+                    width = 1.dp,
+                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)
+                ),
+                modifier = Modifier
+                    .widthIn(max = 440.dp)
+                    .fillMaxWidth()
+            ) {
+                NavigationBar(
+                    modifier = Modifier.height(80.dp),
+                    containerColor = Color.Transparent,
+                    tonalElevation = 0.dp,
+                    windowInsets = WindowInsets(0, 0, 0, 0)
+                ) {
+                    val haptic = LocalHapticFeedback.current
+                    bottomNavScreens.forEach { screen ->
+                        val selected = when (screen) {
+                            Screen.Records -> currentDestination?.route in recordsSubRoutes
+                            else -> currentDestination?.route == screen.route
+                        }
+
+                        val iconScale by animateFloatAsState(
+                            targetValue = if (selected) 1.12f else 1.0f,
+                            animationSpec = spring(
+                                dampingRatio = Spring.DampingRatioMediumBouncy,
+                                stiffness = Spring.StiffnessMediumLow
+                            ),
+                            label = "nav_icon_bounce"
+                        )
+                        val iconOffsetY by animateDpAsState(
+                            targetValue = if (selected) (-1).dp else 0.dp,
+                            animationSpec = spring(
+                                dampingRatio = Spring.DampingRatioMediumBouncy,
+                                stiffness = Spring.StiffnessMediumLow
+                            ),
+                            label = "nav_icon_offset"
+                        )
+
+                        NavigationBarItem(
+                            icon = {
+                                Box(
+                                    modifier = Modifier
+                                        .offset(y = iconOffsetY)
+                                        .graphicsLayer {
+                                            scaleX = iconScale
+                                            scaleY = iconScale
+                                        },
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        if (selected) screen.selectedIcon else screen.icon,
+                                        contentDescription = androidx.compose.ui.res.stringResource(screen.titleRes),
+                                        modifier = Modifier.size(24.dp)
+                                    )
+                                }
+                            },
+                            label = {
+                                Text(
+                                    text = androidx.compose.ui.res.stringResource(screen.navLabelRes),
+                                    style = MaterialTheme.typography.labelSmall.copy(
+                                        fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium
+                                    ),
+                                    textAlign = TextAlign.Center,
+                                    maxLines = 1,
+                                    softWrap = false,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                            },
+                            selected = selected,
+                            colors = NavigationBarItemDefaults.colors(
+                                selectedIconColor = MaterialTheme.colorScheme.onSecondaryContainer,
+                                selectedTextColor = MaterialTheme.colorScheme.onSurface,
+                                indicatorColor = MaterialTheme.colorScheme.secondaryContainer,
+                                unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                                unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant
+                            ),
+                            onClick = {
+                                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+
+                                fun triggerScrollToTop(route: String) {
+                                    when (route) {
+                                        Screen.Overview.route -> overviewScrollFlow.tryEmit(Unit)
+                                        Screen.Timeline.route -> timelineScrollFlow.tryEmit(Unit)
+                                        Screen.Records.route -> recordsScrollFlow.tryEmit(Unit)
+                                        Screen.Settings.route -> settingsScrollFlow.tryEmit(Unit)
+                                    }
+                                }
+
+                                fun triggerRefresh(route: String) {
+                                    when (route) {
+                                        Screen.Overview.route -> overviewRefreshFlow.tryEmit(Unit)
+                                        Screen.Timeline.route -> timelineRefreshFlow.tryEmit(Unit)
+                                        Screen.Records.route -> recordsRefreshFlow.tryEmit(Unit)
+                                        Screen.Settings.route -> settingsRefreshFlow.tryEmit(Unit)
+                                    }
+                                }
+
+                                if (selected) {
+                                    if (screen == Screen.Records && currentDestination?.route != Screen.Records.route) {
+                                        val popped = navController.popBackStack(Screen.Records.route, inclusive = false)
+                                        if (!popped) {
+                                            navController.navigate(Screen.Records.route) {
+                                                popUpTo(navController.graph.findStartDestination().id) {
+                                                    saveState = true
+                                                }
+                                                launchSingleTop = true
+                                                restoreState = true
+                                            }
+                                        }
+                                    } else {
+                                        if (activeTabTapJob?.isActive == true) {
+                                            activeTabTapJob?.cancel()
+                                            activeTabTapJob = null
+                                            triggerRefresh(screen.route)
+                                        } else {
+                                            triggerScrollToTop(screen.route)
+                                            activeTabTapJob = coroutineScope.launch {
+                                                kotlinx.coroutines.delay(220L.milliseconds)
+                                                activeTabTapJob = null
+                                            }
+                                        }
+                                    }
+                                } else {
+                                    navController.navigate(screen.route) {
+                                        popUpTo(navController.graph.findStartDestination().id) {
+                                            saveState = true
+                                        }
+                                        launchSingleTop = true
+                                        restoreState = true
+                                    }
+                                }
+                            }
+                        )
+                    }
+                }
             }
         }
     }

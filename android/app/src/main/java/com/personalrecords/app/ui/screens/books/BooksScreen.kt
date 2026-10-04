@@ -1,5 +1,6 @@
 package com.personalrecords.app.ui.screens.books
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -30,9 +31,28 @@ fun BooksScreen(
     onNavigateBack: (() -> Unit)? = null
 ) {
     val state by viewModel.uiState.collectAsState()
+    var showDatePicker by remember { mutableStateOf(false) }
+
+    if (showDatePicker) {
+        ExpressiveDateFilterDialog(
+            initialStartDate = state.selectedDateFilter ?: state.fromDateFilter,
+            initialEndDate = state.toDateFilter,
+            onDismissRequest = { showDatePicker = false },
+            onDateSelected = { date ->
+                viewModel.setDateFilter(date)
+            },
+            onDateRangeSelected = { start, end ->
+                viewModel.setDateRangeFilter(start, end)
+            },
+            onClear = {
+                viewModel.clearDateFilter()
+            }
+        )
+    }
 
     Scaffold(
         modifier = Modifier.fillMaxSize(),
+        contentWindowInsets = WindowInsets.statusBars,
         topBar = {
             TopAppBar(
                 title = {
@@ -71,14 +91,31 @@ fun BooksScreen(
                 .fillMaxSize()
                 .padding(innerPadding)
         ) {
-            val filteredBooks = remember(state.books, state.searchQuery, state.selectedShelf, state.sortBy) {
+            val filteredBooks = remember(
+                state.books,
+                state.searchQuery,
+                state.selectedDateFilter,
+                state.fromDateFilter,
+                state.toDateFilter,
+                state.selectedShelf,
+                state.sortBy
+            ) {
                 var list = state.books.filter { book ->
                     val matchesSearch = state.searchQuery.isBlank() ||
                         book.title.contains(state.searchQuery, ignoreCase = true) ||
                         book.author.contains(state.searchQuery, ignoreCase = true)
                     val matchesShelf = state.selectedShelf == "all" ||
                         book.exclusive_shelf.equals(state.selectedShelf, ignoreCase = true)
-                    matchesSearch && matchesShelf
+                    val bookDate = book.date_read.trim().replace('/', '-')
+                    val matchesDate = when {
+                        state.selectedDateFilter != null -> bookDate.startsWith(state.selectedDateFilter!!)
+                        state.fromDateFilter != null && state.toDateFilter != null ->
+                            bookDate.isNotBlank() && bookDate >= state.fromDateFilter!! && bookDate <= state.toDateFilter!!
+                        state.fromDateFilter != null -> bookDate.isNotBlank() && bookDate >= state.fromDateFilter!!
+                        state.toDateFilter != null -> bookDate.isNotBlank() && bookDate <= state.toDateFilter!!
+                        else -> true
+                    }
+                    matchesSearch && matchesShelf && matchesDate
                 }
 
                 list = when (state.sortBy) {
@@ -95,7 +132,7 @@ fun BooksScreen(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(horizontal = 12.dp),
-                contentPadding = PaddingValues(top = 10.dp, bottom = 12.dp),
+                contentPadding = PaddingValues(top = 10.dp, bottom = 144.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
 
@@ -196,6 +233,43 @@ fun BooksScreen(
                                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
+                                val hasActiveDate = state.selectedDateFilter != null || state.fromDateFilter != null
+                                val dateLabel = formatDateRangeChipLabel(
+                                    singleDate = state.selectedDateFilter,
+                                    fromDate = state.fromDateFilter,
+                                    toDate = state.toDateFilter,
+                                    defaultText = stringResource(R.string.filter_pick_date)
+                                )
+
+                                ExpressiveFilterChip(
+                                    selected = hasActiveDate,
+                                    onClick = { showDatePicker = true },
+                                    leadingIcon = {
+                                        Icon(
+                                            imageVector = if (hasActiveDate) Icons.Default.DateRange else Icons.Default.CalendarMonth,
+                                            contentDescription = null,
+                                            modifier = Modifier.size(FilterChipDefaults.IconSize)
+                                        )
+                                    },
+                                    trailingIcon = if (hasActiveDate) {
+                                        {
+                                            Icon(
+                                                imageVector = Icons.Default.Close,
+                                                contentDescription = null,
+                                                modifier = Modifier
+                                                    .size(14.dp)
+                                                    .clickable { viewModel.clearDateFilter() }
+                                            )
+                                        }
+                                    } else null,
+                                    label = {
+                                        Text(
+                                            text = dateLabel,
+                                            style = MaterialTheme.typography.labelMedium
+                                        )
+                                    }
+                                )
+
                                 listOf(
                                     Triple("all", stringResource(R.string.books_shelf_all), null),
                                     Triple("read", stringResource(R.string.books_shelf_read), Icons.Default.Check),

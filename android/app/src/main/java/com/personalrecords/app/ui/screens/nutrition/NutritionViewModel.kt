@@ -25,6 +25,8 @@ data class NutritionUiState(
     val foodEntries: List<FoodEntryDto> = emptyList(),
     val searchQuery: String = "",
     val selectedDateFilter: String? = null,
+    val fromDateFilter: String? = null,
+    val toDateFilter: String? = null,
     val selectedMeal: String = "all", // "all", "Breakfast", "Lunch", "Dinner", "Other"
     val onlyHighProtein: Boolean = false,
     val error: String? = null
@@ -104,7 +106,27 @@ class NutritionViewModel(
     }
 
     fun setDateFilter(date: String?) {
-        _uiState.value = _uiState.value.copy(selectedDateFilter = date)
+        _uiState.value = _uiState.value.copy(
+            selectedDateFilter = date,
+            fromDateFilter = null,
+            toDateFilter = null
+        )
+    }
+
+    fun setDateRangeFilter(from: String?, to: String?) {
+        _uiState.value = _uiState.value.copy(
+            selectedDateFilter = null,
+            fromDateFilter = from,
+            toDateFilter = to
+        )
+    }
+
+    fun clearDateFilter() {
+        _uiState.value = _uiState.value.copy(
+            selectedDateFilter = null,
+            fromDateFilter = null,
+            toDateFilter = null
+        )
     }
 
     fun setMeal(meal: String) {
@@ -119,6 +141,8 @@ class NutritionViewModel(
         _uiState.value = _uiState.value.copy(
             searchQuery = "",
             selectedDateFilter = null,
+            fromDateFilter = null,
+            toDateFilter = null,
             selectedMeal = "all",
             onlyHighProtein = false
         )

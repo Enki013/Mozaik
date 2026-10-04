@@ -13,7 +13,7 @@ on:
       - "*"
 
 concurrency:
-  group: "release-build"
+  group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -49,7 +49,12 @@ jobs:
           elif [ -n "${{ github.event.inputs.tag }}" ]; then
             RELEASE_TAG="${{ github.event.inputs.tag }}"
           else
-            RELEASE_TAG=""
+            VERSION_NAME="$(sed -n 's/.*versionName = "\(.*\)".*/\1/p' android/app/build.gradle.kts | head -n 1 | tr -d '[:space:]')"
+            if [ -n "$VERSION_NAME" ]; then
+              RELEASE_TAG="v${VERSION_NAME#v}"
+            else
+              RELEASE_TAG="$(git describe --tags --abbrev=0 2>/dev/null || echo "v1.1.0")"
+            fi
           fi
           echo "RELEASE_TAG=$RELEASE_TAG" >> $GITHUB_ENV
           echo "RELEASE_TARGET_SHA=$(git rev-parse HEAD)" >> $GITHUB_ENV
@@ -76,17 +81,16 @@ jobs:
           set -euo pipefail
 
           CURRENT_TAG="${RELEASE_TAG:-}"
-          if [ -z "$CURRENT_TAG" ]; then
-            CURRENT_TAG="HEAD"
-            PREVIOUS_TAG="$(git describe --tags --abbrev=0 2>/dev/null || true)"
-          else
+          if [ -n "$CURRENT_TAG" ] && git rev-parse -q --verify "refs/tags/${CURRENT_TAG}" >/dev/null 2>&1; then
             PREVIOUS_TAG="$(git describe --tags --abbrev=0 "${CURRENT_TAG}^" 2>/dev/null || true)"
+          else
+            PREVIOUS_TAG="$(git describe --tags --abbrev=0 2>/dev/null || true)"
           fi
 
           if [ -n "$PREVIOUS_TAG" ]; then
-            RANGE="${PREVIOUS_TAG}..${CURRENT_TAG}"
+            RANGE="${PREVIOUS_TAG}..HEAD"
           else
-            RANGE="${CURRENT_TAG}"
+            RANGE="HEAD"
           fi
 
           tmpdir="$(mktemp -d)"
@@ -204,23 +208,26 @@ jobs:
           if-no-files-found: error
 
       - name: Create or update GitHub release
-        if: startsWith(github.ref, 'refs/tags/') || (github.event_name == 'workflow_dispatch' && github.event.inputs.tag != '')
+        if: env.RELEASE_TAG != ''
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
             gh release edit "$RELEASE_TAG" \
               --title "Release $RELEASE_TAG" \
-              --notes-file release-artifacts/CHANGELOG.md
+              --notes-file release-artifacts/CHANGELOG.md \
+              --target "$RELEASE_TARGET_SHA"
           else
             gh release create "$RELEASE_TAG" \
               --title "Release $RELEASE_TAG" \
               --notes-file release-artifacts/CHANGELOG.md \
               --target "$RELEASE_TARGET_SHA"
           fi
+          git tag -f "$RELEASE_TAG" "$RELEASE_TARGET_SHA" || true
+          git push origin "refs/tags/$RELEASE_TAG" --force || true
 
       - name: Upload release assets
-        if: startsWith(github.ref, 'refs/tags/') || (github.event_name == 'workflow_dispatch' && github.event.inputs.tag != '')
+        if: env.RELEASE_TAG != ''
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
