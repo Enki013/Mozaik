@@ -124,7 +124,8 @@ fun MainAppHost() {
         Screen.Nutrition.route,
         Screen.Books.route,
         Screen.Movies.route,
-        Screen.Notifications.route
+        Screen.Notifications.route,
+        Screen.Language.route
     )
 
     Box(modifier = Modifier.fillMaxSize()) {
@@ -272,7 +273,18 @@ fun MainAppHost() {
                 SettingsScreen(
                     viewModel = vm,
                     scrollToTopFlow = settingsScrollFlow,
-                    refreshFlow = settingsRefreshFlow
+                    refreshFlow = settingsRefreshFlow,
+                    onNavigateToLanguage = { navController.navigate(Screen.Language.route) }
+                )
+            }
+
+            composable(Screen.Language.route) {
+                val vm: SettingsViewModel = viewModel(factory = AppViewModelFactory())
+                val state by vm.uiState.collectAsState()
+                LanguageSelectionScreen(
+                    currentLanguage = state.appLanguage,
+                    onLanguageSelected = { lang -> vm.setLanguage(lang) },
+                    onNavigateBack = { navController.popBackStack() }
                 )
             }
         }
@@ -307,6 +319,7 @@ fun MainAppHost() {
                     bottomNavScreens.forEach { screen ->
                         val selected = when (screen) {
                             Screen.Records -> currentDestination?.route in recordsSubRoutes
+                            Screen.Settings -> currentDestination?.route == Screen.Settings.route || currentDestination?.route == Screen.Language.route
                             else -> currentDestination?.route == screen.route
                         }
 

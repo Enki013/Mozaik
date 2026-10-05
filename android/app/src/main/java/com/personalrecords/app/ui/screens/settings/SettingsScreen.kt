@@ -56,7 +56,8 @@ import androidx.core.net.toUri
 fun SettingsScreen(
     viewModel: SettingsViewModel,
     scrollToTopFlow: kotlinx.coroutines.flow.Flow<Unit>? = null,
-    refreshFlow: kotlinx.coroutines.flow.Flow<Unit>? = null
+    refreshFlow: kotlinx.coroutines.flow.Flow<Unit>? = null,
+    onNavigateToLanguage: () -> Unit = {}
 ) {
     val state by viewModel.uiState.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
@@ -65,11 +66,6 @@ fun SettingsScreen(
     var showKeyEditor by remember { mutableStateOf(false) }
     var showLetterboxdEditor by remember { mutableStateOf(false) }
     var showGoodreadsEditor by remember { mutableStateOf(false) }
-    var showLanguageSelection by remember { mutableStateOf(false) }
-
-    BackHandler(enabled = showLanguageSelection) {
-        showLanguageSelection = false
-    }
 
     val clipboardManager = LocalClipboardManager.current
 
@@ -183,60 +179,27 @@ fun SettingsScreen(
         contentWindowInsets = WindowInsets.statusBars,
         snackbarHost = { SnackbarHost(snackbarHostState, modifier = Modifier.navigationBarsPadding().padding(bottom = 96.dp)) }
     ) { innerPadding ->
-        AnimatedContent(
-            targetState = showLanguageSelection,
-            transitionSpec = {
-                if (targetState) {
-                    slideInHorizontally(
-                        initialOffsetX = { fullWidth -> fullWidth },
-                        animationSpec = tween(durationMillis = 280, easing = FastOutSlowInEasing)
-                    ) togetherWith slideOutHorizontally(
-                        targetOffsetX = { fullWidth -> -fullWidth / 3 },
-                        animationSpec = tween(durationMillis = 280, easing = FastOutSlowInEasing)
-                    )
-                } else {
-                    slideInHorizontally(
-                        initialOffsetX = { fullWidth -> -fullWidth / 3 },
-                        animationSpec = tween(durationMillis = 280, easing = FastOutSlowInEasing)
-                    ) togetherWith slideOutHorizontally(
-                        targetOffsetX = { fullWidth -> fullWidth },
-                        animationSpec = tween(durationMillis = 280, easing = FastOutSlowInEasing)
-                    )
-                }
+        ExpressivePullToRefreshBox(
+            isRefreshing = isRefreshing,
+            onRefresh = {
+                isRefreshing = true
+                viewModel.testConnection()
+                viewModel.loadAllSettings()
             },
-            label = "LanguageScreenTransition",
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
-        ) { isLanguageScreen ->
-            if (isLanguageScreen) {
-                LanguageSelectionScreen(
-                    currentLanguage = state.appLanguage,
-                    onLanguageSelected = { lang ->
-                        viewModel.setLanguage(lang)
-                    },
-                    onNavigateBack = { showLanguageSelection = false }
-                )
-            } else {
-                ExpressivePullToRefreshBox(
-                    isRefreshing = isRefreshing,
-                    onRefresh = {
-                        isRefreshing = true
-                        viewModel.testConnection()
-                        viewModel.loadAllSettings()
-                    },
-                    modifier = Modifier.fillMaxSize()
-                ) {
-                    LazyColumn(
-                        state = listState,
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .padding(horizontal = 12.dp),
-                        contentPadding = PaddingValues(top = 4.dp, bottom = 144.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        // ==========================================
-                        // SECTION 0: Dil ve Bölge / Language & Region
+        ) {
+            LazyColumn(
+                state = listState,
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(horizontal = 12.dp),
+                contentPadding = PaddingValues(top = 4.dp, bottom = 144.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                // ==========================================
+                // SECTION 0: Dil ve Bölge / Language & Region
                         // ==========================================
                         item {
                             SettingsSectionTitle(title = stringResource(R.string.settings_section_language))
@@ -253,7 +216,7 @@ fun SettingsScreen(
                                     modifier = Modifier
                                         .fillMaxWidth()
                                         .clip(MaterialTheme.shapes.small)
-                                        .clickable { showLanguageSelection = true }
+                                        .clickable { onNavigateToLanguage() }
                                         .padding(vertical = 4.dp),
                                     verticalAlignment = Alignment.CenterVertically,
                                     horizontalArrangement = Arrangement.spacedBy(10.dp)
@@ -1629,8 +1592,6 @@ fun SettingsScreen(
         }
     }
 }
-}
-}
 
 @Composable
 private fun SettingsSectionTitle(title: String) {
@@ -1765,7 +1726,7 @@ private data class LanguageOption(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun LanguageSelectionScreen(
+fun LanguageSelectionScreen(
     currentLanguage: String,
     onLanguageSelected: (String) -> Unit,
     onNavigateBack: () -> Unit
@@ -1809,39 +1770,51 @@ private fun LanguageSelectionScreen(
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(innerPadding),
-            contentPadding = PaddingValues(top = 8.dp, bottom = 144.dp)
+                .padding(innerPadding)
+                .padding(horizontal = 12.dp),
+            contentPadding = PaddingValues(top = 10.dp, bottom = 144.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            items(languages) { item ->
-                val isSelected = currentLanguage == item.code
-                val label = item.labelRes?.let { stringResource(it) } ?: item.rawLabel.orEmpty()
+            item {
+                SettingsCard {
+                    languages.forEachIndexed { index, item ->
+                        val isSelected = currentLanguage == item.code
+                        val label = item.labelRes?.let { stringResource(it) } ?: item.rawLabel.orEmpty()
 
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable { onLanguageSelected(item.code) }
-                        .padding(horizontal = 24.dp, vertical = 16.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text = label,
-                        style = MaterialTheme.typography.bodyLarge.copy(fontSize = 17.sp),
-                        fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
-                    if (isSelected) {
-                        Spacer(modifier = Modifier.width(10.dp))
-                        Box(
+                        Row(
                             modifier = Modifier
-                                .size(20.dp)
-                                .background(Color(0xFF22C55E), CircleShape),
-                            contentAlignment = Alignment.Center
+                                .fillMaxWidth()
+                                .clickable { onLanguageSelected(item.code) }
+                                .padding(horizontal = 16.dp, vertical = 14.dp),
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Icon(
-                                imageVector = Icons.Default.Check,
-                                contentDescription = null,
-                                tint = Color.White,
-                                modifier = Modifier.size(13.dp)
+                            Text(
+                                text = label,
+                                style = MaterialTheme.typography.bodyLarge,
+                                fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
+                                color = MaterialTheme.colorScheme.onSurface,
+                                modifier = Modifier.weight(1f)
+                            )
+                            if (isSelected) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(24.dp)
+                                        .background(MaterialTheme.colorScheme.primary, CircleShape),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Check,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.onPrimary,
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                }
+                            }
+                        }
+                        if (index < languages.lastIndex) {
+                            HorizontalDivider(
+                                modifier = Modifier.padding(horizontal = 16.dp),
+                                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)
                             )
                         }
                     }

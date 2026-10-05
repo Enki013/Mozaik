@@ -25,6 +25,7 @@ sealed class Screen(
     object Books : Screen("books", R.string.title_books, Icons.AutoMirrored.Filled.MenuBook, navLabelRes = R.string.nav_books)
     object Movies : Screen("movies", R.string.title_movies, Icons.Default.Movie, navLabelRes = R.string.nav_movies)
     object Notifications : Screen("notifications", R.string.title_notifications, Icons.Default.Notifications, navLabelRes = R.string.nav_notifications)
+    object Language : Screen("language", R.string.settings_language_screen_title, Icons.Default.Language, navLabelRes = R.string.settings_language_screen_title)
 }
 
 val bottomNavScreens = listOf(
