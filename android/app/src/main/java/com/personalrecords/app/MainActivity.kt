@@ -161,7 +161,7 @@ fun MainAppHost() {
             popEnterTransition = {
                 val initial = initialState.destination.route
                 if (initial in detailSubRoutes) {
-                    EnterTransition.None
+                    fadeIn(animationSpec = tween(160, easing = LinearOutSlowInEasing))
                 } else {
                     fadeIn(animationSpec = tween(220, easing = LinearOutSlowInEasing)) + scaleIn(
                         initialScale = 0.98f,
@@ -172,7 +172,10 @@ fun MainAppHost() {
             popExitTransition = {
                 val initial = initialState.destination.route
                 if (initial in detailSubRoutes) {
-                    ExitTransition.None
+                    scaleOut(
+                        targetScale = 0.94f,
+                        animationSpec = tween(160, easing = FastOutLinearInEasing)
+                    ) + fadeOut(animationSpec = tween(140, easing = FastOutLinearInEasing))
                 } else {
                     fadeOut(animationSpec = tween(180, easing = FastOutLinearInEasing))
                 }
