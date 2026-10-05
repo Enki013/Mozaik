@@ -6,7 +6,6 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -17,7 +16,6 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
@@ -279,7 +277,7 @@ fun MainAppHost() {
             }
         }
 
-        // Floating Bottom Bar Dock (Material 3 Expressive)
+        // Floating Bottom Bar — M3 Expressive Floating Navigation Bar
         Box(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
@@ -291,14 +289,10 @@ fun MainAppHost() {
             Surface(
                 shape = RoundedCornerShape(28.dp),
                 color = MaterialTheme.colorScheme.surfaceContainer,
-                shadowElevation = 2.dp,
                 tonalElevation = 2.dp,
-                border = BorderStroke(
-                    width = 1.dp,
-                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.20f)
-                ),
+                shadowElevation = 0.dp,
                 modifier = Modifier
-                    .widthIn(max = 440.dp)
+                    .widthIn(max = 420.dp)
                     .fillMaxWidth()
             ) {
                 Row(
@@ -318,7 +312,7 @@ fun MainAppHost() {
 
                         // M3 Expressive spring physics bounce on selection/click
                         val iconScale by animateFloatAsState(
-                            targetValue = if (selected) 1.15f else 1.0f,
+                            targetValue = if (selected) 1.12f else 1.0f,
                             animationSpec = spring(
                                 dampingRatio = Spring.DampingRatioMediumBouncy,
                                 stiffness = Spring.StiffnessMediumLow
@@ -326,29 +320,37 @@ fun MainAppHost() {
                             label = "nav_icon_bounce"
                         )
 
-                        // M3 Expressive active indicator pill spring morphing
+                        // M3 Expressive active indicator pill spring animations
                         val indicatorAlpha by animateFloatAsState(
                             targetValue = if (selected) 1f else 0f,
                             animationSpec = spring(
                                 dampingRatio = Spring.DampingRatioNoBouncy,
-                                stiffness = Spring.StiffnessMediumLow
+                                stiffness = Spring.StiffnessMedium
                             ),
                             label = "nav_indicator_alpha"
                         )
-                        val indicatorScale by animateFloatAsState(
-                            targetValue = if (selected) 1f else 0.7f,
+                        val indicatorScaleX by animateFloatAsState(
+                            targetValue = if (selected) 1f else 0.6f,
                             animationSpec = spring(
                                 dampingRatio = Spring.DampingRatioMediumBouncy,
                                 stiffness = Spring.StiffnessMediumLow
                             ),
-                            label = "nav_indicator_scale"
+                            label = "nav_indicator_scale_x"
+                        )
+                        val indicatorScaleY by animateFloatAsState(
+                            targetValue = if (selected) 1f else 0.75f,
+                            animationSpec = spring(
+                                dampingRatio = Spring.DampingRatioMediumBouncy,
+                                stiffness = Spring.StiffnessMediumLow
+                            ),
+                            label = "nav_indicator_scale_y"
                         )
 
                         val iconColor by animateColorAsState(
                             targetValue = if (selected) {
                                 MaterialTheme.colorScheme.onSecondaryContainer
                             } else {
-                                MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f)
+                                MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f)
                             },
                             animationSpec = tween(180),
                             label = "nav_icon_color"
@@ -358,7 +360,7 @@ fun MainAppHost() {
                             targetValue = if (selected) {
                                 MaterialTheme.colorScheme.onSurface
                             } else {
-                                MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f)
+                                MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f)
                             },
                             animationSpec = tween(180),
                             label = "nav_text_color"
@@ -370,7 +372,6 @@ fun MainAppHost() {
                             modifier = Modifier
                                 .weight(1f)
                                 .fillMaxHeight()
-                                .clip(RoundedCornerShape(20.dp))
                                 .clickable(
                                     interactionSource = interactionSource,
                                     indication = null,
@@ -437,14 +438,13 @@ fun MainAppHost() {
                         ) {
                             Column(
                                 modifier = Modifier
-                                    .fillMaxHeight()
-                                    .expressivePressScale(interactionSource, scaleDown = 0.96f),
+                                    .expressivePressScale(interactionSource, scaleDown = 0.94f),
                                 horizontalAlignment = Alignment.CenterHorizontally,
                                 verticalArrangement = Arrangement.Center
                             ) {
                                 // M3 Expressive Active Indicator Pill & Centered Icon
                                 Box(
-                                    modifier = Modifier.size(width = 56.dp, height = 32.dp),
+                                    modifier = Modifier.size(width = 56.dp, height = 30.dp),
                                     contentAlignment = Alignment.Center
                                 ) {
                                     if (indicatorAlpha > 0.005f) {
@@ -452,13 +452,13 @@ fun MainAppHost() {
                                             modifier = Modifier
                                                 .fillMaxSize()
                                                 .graphicsLayer {
-                                                    scaleX = indicatorScale
-                                                    scaleY = indicatorScale
+                                                    scaleX = indicatorScaleX
+                                                    scaleY = indicatorScaleY
                                                     alpha = indicatorAlpha
                                                 }
                                                 .background(
                                                     color = MaterialTheme.colorScheme.secondaryContainer,
-                                                    shape = RoundedCornerShape(16.dp)
+                                                    shape = CircleShape
                                                 )
                                         )
                                     }
@@ -476,14 +476,14 @@ fun MainAppHost() {
                                     )
                                 }
 
-                                Spacer(modifier = Modifier.height(2.dp))
+                                Spacer(modifier = Modifier.height(4.dp))
 
                                 Text(
                                     text = stringResource(screen.navLabelRes),
                                     style = MaterialTheme.typography.labelSmall.copy(
                                         fontSize = 11.sp,
                                         lineHeight = 14.sp,
-                                        fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal
+                                        fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium
                                     ),
                                     color = textColor,
                                     textAlign = TextAlign.Center,
