@@ -12,6 +12,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -288,13 +289,13 @@ fun MainAppHost() {
             contentAlignment = Alignment.Center
         ) {
             Surface(
-                shape = CircleShape,
+                shape = RoundedCornerShape(28.dp),
                 color = MaterialTheme.colorScheme.surfaceContainer,
-                shadowElevation = 8.dp,
-                tonalElevation = 3.dp,
+                shadowElevation = 2.dp,
+                tonalElevation = 2.dp,
                 border = BorderStroke(
                     width = 1.dp,
-                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f)
+                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.20f)
                 ),
                 modifier = Modifier
                     .widthIn(max = 440.dp)
@@ -303,7 +304,7 @@ fun MainAppHost() {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(80.dp)
+                        .height(72.dp)
                         .padding(horizontal = 6.dp),
                     horizontalArrangement = Arrangement.SpaceEvenly,
                     verticalAlignment = Alignment.CenterVertically
@@ -347,7 +348,7 @@ fun MainAppHost() {
                             targetValue = if (selected) {
                                 MaterialTheme.colorScheme.onSecondaryContainer
                             } else {
-                                MaterialTheme.colorScheme.onSurfaceVariant
+                                MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f)
                             },
                             animationSpec = tween(180),
                             label = "nav_icon_color"
@@ -357,7 +358,7 @@ fun MainAppHost() {
                             targetValue = if (selected) {
                                 MaterialTheme.colorScheme.onSurface
                             } else {
-                                MaterialTheme.colorScheme.onSurfaceVariant
+                                MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f)
                             },
                             animationSpec = tween(180),
                             label = "nav_text_color"
@@ -369,7 +370,7 @@ fun MainAppHost() {
                             modifier = Modifier
                                 .weight(1f)
                                 .fillMaxHeight()
-                                .clip(CircleShape)
+                                .clip(RoundedCornerShape(20.dp))
                                 .clickable(
                                     interactionSource = interactionSource,
                                     indication = null,
@@ -437,7 +438,7 @@ fun MainAppHost() {
                             Column(
                                 modifier = Modifier
                                     .fillMaxHeight()
-                                    .expressivePressScale(interactionSource, scaleDown = 0.95f),
+                                    .expressivePressScale(interactionSource, scaleDown = 0.96f),
                                 horizontalAlignment = Alignment.CenterHorizontally,
                                 verticalArrangement = Arrangement.Center
                             ) {
@@ -457,7 +458,7 @@ fun MainAppHost() {
                                                 }
                                                 .background(
                                                     color = MaterialTheme.colorScheme.secondaryContainer,
-                                                    shape = CircleShape
+                                                    shape = RoundedCornerShape(16.dp)
                                                 )
                                         )
                                     }
@@ -475,14 +476,14 @@ fun MainAppHost() {
                                     )
                                 }
 
-                                Spacer(modifier = Modifier.height(4.dp))
+                                Spacer(modifier = Modifier.height(2.dp))
 
                                 Text(
                                     text = stringResource(screen.navLabelRes),
                                     style = MaterialTheme.typography.labelSmall.copy(
                                         fontSize = 11.sp,
                                         lineHeight = 14.sp,
-                                        fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium
+                                        fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal
                                     ),
                                     color = textColor,
                                     textAlign = TextAlign.Center,
