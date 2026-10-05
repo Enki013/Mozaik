@@ -153,10 +153,7 @@ fun MainAppHost() {
             exitTransition = {
                 val target = targetState.destination.route
                 if (target in detailSubRoutes) {
-                    slideOutHorizontally(
-                        targetOffsetX = { -(it * 0.1f).toInt() },
-                        animationSpec = tween(180, easing = FastOutLinearInEasing)
-                    ) + fadeOut(animationSpec = tween(160, easing = FastOutLinearInEasing))
+                    ExitTransition.None
                 } else {
                     fadeOut(animationSpec = tween(180, easing = FastOutLinearInEasing))
                 }
@@ -164,13 +161,7 @@ fun MainAppHost() {
             popEnterTransition = {
                 val initial = initialState.destination.route
                 if (initial in detailSubRoutes) {
-                    slideInHorizontally(
-                        initialOffsetX = { -(it * 0.1f).toInt() },
-                        animationSpec = spring(
-                            dampingRatio = 0.82f,
-                            stiffness = 380f
-                        )
-                    ) + fadeIn(animationSpec = tween(220, easing = LinearOutSlowInEasing))
+                    EnterTransition.None
                 } else {
                     fadeIn(animationSpec = tween(220, easing = LinearOutSlowInEasing)) + scaleIn(
                         initialScale = 0.98f,
@@ -181,13 +172,7 @@ fun MainAppHost() {
             popExitTransition = {
                 val initial = initialState.destination.route
                 if (initial in detailSubRoutes) {
-                    slideOutHorizontally(
-                        targetOffsetX = { (it * 0.22f).toInt() },
-                        animationSpec = spring(
-                            dampingRatio = 0.82f,
-                            stiffness = 380f
-                        )
-                    ) + fadeOut(animationSpec = tween(180, easing = FastOutLinearInEasing))
+                    ExitTransition.None
                 } else {
                     fadeOut(animationSpec = tween(180, easing = FastOutLinearInEasing))
                 }
