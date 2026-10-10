@@ -13,7 +13,9 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.HelpOutline
@@ -22,6 +24,8 @@ import androidx.compose.material.icons.filled.*
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -66,6 +70,7 @@ fun SettingsScreen(
     var showKeyEditor by remember { mutableStateOf(false) }
     var showLetterboxdEditor by remember { mutableStateOf(false) }
     var showGoodreadsEditor by remember { mutableStateOf(false) }
+    var secretVisible by remember { mutableStateOf(false) }
 
     val clipboardManager = LocalClipboardManager.current
 
@@ -200,57 +205,55 @@ fun SettingsScreen(
             ) {
                 // ==========================================
                 // SECTION 0: Dil ve Bölge / Language & Region
-                        // ==========================================
-                        item {
-                            SettingsSectionTitle(title = stringResource(R.string.settings_section_language))
+                // ==========================================
+                item {
+                    SettingsSectionTitle(title = stringResource(R.string.settings_section_language))
+                }
+                item {
+                    SettingsCard {
+                        val currentLanguageLabel = when (state.appLanguage) {
+                            "tr" -> "Türkçe"
+                            "en" -> "English"
+                            else -> stringResource(R.string.settings_language_system)
                         }
-                        item {
-                            SettingsCard {
-                                val currentLanguageLabel = when (state.appLanguage) {
-                                    "tr" -> "Türkçe"
-                                    "en" -> "English"
-                                    else -> stringResource(R.string.settings_language_system)
-                                }
 
-                                Row(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .clip(MaterialTheme.shapes.small)
-                                        .clickable { onNavigateToLanguage() }
-                                        .padding(vertical = 4.dp),
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(10.dp)
-                                ) {
-                                    SettingsIconBox(
-                                        icon = Icons.Default.Language,
-                                        containerColor = MaterialTheme.colorScheme.tertiaryContainer,
-                                        contentColor = MaterialTheme.colorScheme.onTertiaryContainer
-                                    )
-                                    Column(modifier = Modifier.weight(1f)) {
-                                        Text(
-                                            text = stringResource(R.string.settings_language_title),
-                                            style = MaterialTheme.typography.titleMedium,
-                                            fontWeight = FontWeight.SemiBold,
-                                            maxLines = 1,
-                                            overflow = TextOverflow.Ellipsis
-                                        )
-                                        Text(
-                                            text = currentLanguageLabel,
-                                            style = MaterialTheme.typography.bodySmall,
-                                            color = MaterialTheme.colorScheme.primary,
-                                            fontWeight = FontWeight.Medium,
-                                            maxLines = 1,
-                                            overflow = TextOverflow.Ellipsis
-                                        )
-                                    }
-                                    Icon(
-                                        imageVector = Icons.Default.ChevronRight,
-                                        contentDescription = null,
-                                        tint = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                }
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(M3Shapes.CornerMedium)
+                                .clickable { onNavigateToLanguage() }
+                                .padding(vertical = 4.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            SettingsIconBox(
+                                icon = Icons.Default.Language,
+                                containerColor = MaterialTheme.colorScheme.tertiaryContainer,
+                                contentColor = MaterialTheme.colorScheme.onTertiaryContainer
+                            )
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = stringResource(R.string.settings_language_title),
+                                    style = MaterialTheme.typography.titleMediumEmphasized,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                                Text(
+                                    text = currentLanguageLabel,
+                                    style = MaterialTheme.typography.bodySmallEmphasized,
+                                    color = MaterialTheme.colorScheme.primary,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
                             }
+                            Icon(
+                                imageVector = Icons.Default.ChevronRight,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
                         }
+                    }
+                }
 
                 // ==========================================
                 // SECTION 1: Sunucu ve Altyapı
@@ -278,8 +281,7 @@ fun SettingsScreen(
                                 Column(modifier = Modifier.weight(1f, fill = false)) {
                                     Text(
                                         text = stringResource(R.string.settings_server_title),
-                                        style = MaterialTheme.typography.titleMedium,
-                                        fontWeight = FontWeight.SemiBold,
+                                        style = MaterialTheme.typography.titleMediumEmphasized,
                                         maxLines = 1,
                                         overflow = TextOverflow.Ellipsis
                                     )
@@ -298,7 +300,7 @@ fun SettingsScreen(
                                 val statusBg = if (ok) domainNutritionContainer() else MaterialTheme.colorScheme.errorContainer
                                 val statusFg = if (ok) domainNutritionOnContainer() else MaterialTheme.colorScheme.onErrorContainer
                                 Surface(
-                                    shape = CircleShape,
+                                    shape = M3Shapes.CornerFull,
                                     color = statusBg,
                                     modifier = Modifier.padding(start = 8.dp)
                                 ) {
@@ -310,13 +312,12 @@ fun SettingsScreen(
                                         Box(
                                             modifier = Modifier
                                                 .size(6.dp)
-                                                .background(statusFg, CircleShape)
+                                                .background(statusFg, M3Shapes.CornerFull)
                                         )
                                         Text(
                                             text = if (ok) stringResource(R.string.badge_connected) else stringResource(R.string.action_retry),
                                             color = statusFg,
-                                            style = MaterialTheme.typography.labelSmall,
-                                            fontWeight = FontWeight.Bold,
+                                            style = MaterialTheme.typography.labelSmallEmphasized,
                                             maxLines = 1,
                                             softWrap = false
                                         )
@@ -334,7 +335,21 @@ fun SettingsScreen(
                             label = { Text(stringResource(R.string.settings_server_url_label)) },
                             placeholder = { Text("https://personal-records-api.workers.dev") },
                             singleLine = true,
-                            shape = MaterialTheme.shapes.small
+                            leadingIcon = {
+                                Icon(
+                                    imageVector = Icons.Default.Dns,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.primary
+                                )
+                            },
+                            trailingIcon = if (state.serverUrl.isNotBlank()) {
+                                {
+                                    IconButton(onClick = { viewModel.updateServerUrlInput("") }) {
+                                        Icon(Icons.Default.Clear, contentDescription = stringResource(R.string.action_clear))
+                                    }
+                                }
+                            } else null,
+                            shape = M3Shapes.CornerMedium
                         )
 
                         Spacer(modifier = Modifier.height(8.dp))
@@ -345,15 +360,37 @@ fun SettingsScreen(
                         ) {
                             Button(
                                 onClick = { viewModel.saveServerUrl() },
-                                modifier = Modifier.weight(1f)
+                                shape = M3Shapes.CornerMedium,
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .height(42.dp)
+                                    .expressivePressScale(remember { MutableInteractionSource() }),
+                                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp)
                             ) {
-                                Text(stringResource(R.string.action_save), style = MaterialTheme.typography.labelLarge)
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                ) {
+                                    Icon(Icons.Default.Save, contentDescription = null, modifier = Modifier.size(16.dp))
+                                    Text(
+                                        text = stringResource(R.string.action_save),
+                                        style = MaterialTheme.typography.labelLargeEmphasized,
+                                        maxLines = 1,
+                                        softWrap = false,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                }
                             }
 
                             OutlinedButton(
                                 onClick = { viewModel.testConnection() },
                                 enabled = !state.isTestingConnection,
-                                modifier = Modifier.weight(1f)
+                                shape = M3Shapes.CornerMedium,
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .height(42.dp)
+                                    .expressivePressScale(remember { MutableInteractionSource() }),
+                                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp)
                             ) {
                                 if (state.isTestingConnection) {
                                     ExpressiveLoadingIndicator(
@@ -362,7 +399,19 @@ fun SettingsScreen(
                                         color = MaterialTheme.colorScheme.primary
                                     )
                                 } else {
-                                    Text(stringResource(R.string.action_test_connection), style = MaterialTheme.typography.labelLarge)
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                    ) {
+                                        Icon(Icons.Default.NetworkCheck, contentDescription = null, modifier = Modifier.size(16.dp))
+                                        Text(
+                                            text = stringResource(R.string.action_test_connection),
+                                            style = MaterialTheme.typography.labelLarge,
+                                            maxLines = 1,
+                                            softWrap = false,
+                                            overflow = TextOverflow.Ellipsis
+                                        )
+                                    }
                                 }
                             }
                         }
@@ -398,8 +447,7 @@ fun SettingsScreen(
                                 Column(modifier = Modifier.weight(1f, fill = false)) {
                                     Text(
                                         text = stringResource(R.string.settings_webhook_title),
-                                        style = MaterialTheme.typography.titleMedium,
-                                        fontWeight = FontWeight.SemiBold,
+                                        style = MaterialTheme.typography.titleMediumEmphasized,
                                         maxLines = 1,
                                         overflow = TextOverflow.Ellipsis
                                     )
@@ -424,25 +472,23 @@ fun SettingsScreen(
 
                         Spacer(modifier = Modifier.height(10.dp))
 
-                        // Webhook URL display
+                        // Webhook URL display (nested inside 20dp SettingsCard -> 12dp CornerMedium)
                         Surface(
-                            shape = MaterialTheme.shapes.small,
+                            shape = M3Shapes.CornerMedium,
                             color = MaterialTheme.colorScheme.surfaceContainerHighest,
                             modifier = Modifier.fillMaxWidth()
                         ) {
                             Column(modifier = Modifier.padding(10.dp)) {
                                 Text(
                                     text = stringResource(R.string.settings_target_webhook_url),
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    fontWeight = FontWeight.SemiBold
+                                    style = MaterialTheme.typography.labelSmallEmphasized,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                                 Spacer(modifier = Modifier.height(4.dp))
                                 SelectionContainer {
                                     Text(
                                         text = webhookUrl,
-                                        style = MaterialTheme.typography.bodySmall,
-                                        fontWeight = FontWeight.Medium,
+                                        style = MaterialTheme.typography.bodySmallEmphasized,
                                         color = MaterialTheme.colorScheme.primary
                                     )
                                 }
@@ -452,9 +498,7 @@ fun SettingsScreen(
                         Spacer(modifier = Modifier.height(8.dp))
 
                         Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(IntrinsicSize.Min),
+                            modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
                             Button(
@@ -464,11 +508,12 @@ fun SettingsScreen(
                                         snackbarHostState.showSnackbar(context.getString(R.string.toast_webhook_copied))
                                     }
                                 },
+                                shape = M3Shapes.CornerMedium,
                                 modifier = Modifier
                                     .weight(1f)
-                                    .fillMaxHeight()
-                                    .heightIn(min = 44.dp),
-                                contentPadding = PaddingValues(horizontal = 10.dp, vertical = 8.dp)
+                                    .height(42.dp)
+                                    .expressivePressScale(remember { MutableInteractionSource() }),
+                                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp)
                             ) {
                                 Row(
                                     verticalAlignment = Alignment.CenterVertically,
@@ -481,7 +526,7 @@ fun SettingsScreen(
                                     )
                                     Text(
                                         text = stringResource(R.string.action_copy_url),
-                                        style = MaterialTheme.typography.labelLarge,
+                                        style = MaterialTheme.typography.labelLargeEmphasized,
                                         maxLines = 1,
                                         softWrap = false,
                                         overflow = TextOverflow.Ellipsis
@@ -495,11 +540,12 @@ fun SettingsScreen(
                                         "https://github.com/cobanov/notification-relay-webhook/releases".toUri())
                                     context.startActivity(intent)
                                 },
+                                shape = M3Shapes.CornerMedium,
                                 modifier = Modifier
                                     .weight(1f)
-                                    .fillMaxHeight()
-                                    .heightIn(min = 44.dp),
-                                contentPadding = PaddingValues(horizontal = 10.dp, vertical = 8.dp)
+                                    .height(42.dp)
+                                    .expressivePressScale(remember { MutableInteractionSource() }),
+                                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp)
                             ) {
                                 Row(
                                     verticalAlignment = Alignment.CenterVertically,
@@ -524,7 +570,7 @@ fun SettingsScreen(
                         Spacer(modifier = Modifier.height(10.dp))
 
                         Surface(
-                            shape = MaterialTheme.shapes.small,
+                            shape = M3Shapes.CornerMedium,
                             color = MaterialTheme.colorScheme.surfaceContainerHigh,
                             modifier = Modifier.fillMaxWidth()
                         ) {
@@ -541,8 +587,7 @@ fun SettingsScreen(
                                     )
                                     Text(
                                         text = stringResource(R.string.settings_setup_guide_title),
-                                        style = MaterialTheme.typography.labelMedium,
-                                        fontWeight = FontWeight.Bold
+                                        style = MaterialTheme.typography.labelMediumEmphasized
                                     )
                                 }
                                 Spacer(modifier = Modifier.height(6.dp))
@@ -583,8 +628,7 @@ fun SettingsScreen(
                                 Column(modifier = Modifier.weight(1f, fill = false)) {
                                     Text(
                                         text = stringResource(R.string.settings_fatsecret_title),
-                                        style = MaterialTheme.typography.titleMedium,
-                                        fontWeight = FontWeight.SemiBold,
+                                        style = MaterialTheme.typography.titleMediumEmphasized,
                                         maxLines = 1,
                                         overflow = TextOverflow.Ellipsis
                                     )
@@ -600,7 +644,7 @@ fun SettingsScreen(
 
                             if (state.isConnected) {
                                 Surface(
-                                    shape = CircleShape,
+                                    shape = M3Shapes.CornerFull,
                                     color = domainNutritionContainer(),
                                     modifier = Modifier.padding(start = 8.dp)
                                 ) {
@@ -612,13 +656,12 @@ fun SettingsScreen(
                                         Box(
                                             modifier = Modifier
                                                 .size(6.dp)
-                                                .background(domainNutritionOnContainer(), CircleShape)
+                                                .background(domainNutritionOnContainer(), M3Shapes.CornerFull)
                                         )
                                         Text(
                                             text = stringResource(R.string.badge_connected),
                                             color = domainNutritionOnContainer(),
-                                            style = MaterialTheme.typography.labelSmall,
-                                            fontWeight = FontWeight.Bold,
+                                            style = MaterialTheme.typography.labelSmallEmphasized,
                                             maxLines = 1,
                                             softWrap = false
                                         )
@@ -626,15 +669,14 @@ fun SettingsScreen(
                                 }
                             } else if (state.hasKeys) {
                                 Surface(
-                                    shape = CircleShape,
+                                    shape = M3Shapes.CornerFull,
                                     color = MaterialTheme.colorScheme.tertiaryContainer,
                                     modifier = Modifier.padding(start = 8.dp)
                                 ) {
                                     Text(
                                         text = stringResource(R.string.badge_key_ready),
                                         color = MaterialTheme.colorScheme.onTertiaryContainer,
-                                        style = MaterialTheme.typography.labelSmall,
-                                        fontWeight = FontWeight.Bold,
+                                        style = MaterialTheme.typography.labelSmallEmphasized,
                                         maxLines = 1,
                                         softWrap = false,
                                         modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
@@ -643,188 +685,284 @@ fun SettingsScreen(
                             }
                         }
 
-                        // Connected status banner
+                        // Configured Summary Box (nested inside 20dp SettingsCard -> 12dp CornerMedium)
                         if (state.isConnected) {
                             Spacer(modifier = Modifier.height(10.dp))
                             Surface(
-                                shape = MaterialTheme.shapes.small,
-                                color = domainNutritionContainer(),
+                                shape = M3Shapes.CornerMedium,
+                                color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.65f),
                                 modifier = Modifier.fillMaxWidth()
                             ) {
                                 Row(
                                     verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                    modifier = Modifier.padding(10.dp)
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    modifier = Modifier.padding(12.dp)
                                 ) {
-                                    Icon(
-                                        imageVector = Icons.Default.CheckCircle,
-                                        contentDescription = null,
-                                        tint = domainNutritionOnContainer(),
-                                        modifier = Modifier.size(18.dp)
-                                    )
-                                    Column {
-                                        Text(
-                                            text = stringResource(R.string.settings_fatsecret_connected_banner),
-                                            style = MaterialTheme.typography.labelMedium,
-                                            fontWeight = FontWeight.Bold,
-                                            color = domainNutritionOnContainer()
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                                        modifier = Modifier.weight(1f)
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.CheckCircle,
+                                            contentDescription = null,
+                                            tint = domainNutritionColor(),
+                                            modifier = Modifier.size(20.dp)
                                         )
-                                        if (state.maskedKey.isNotBlank()) {
+                                        Column(modifier = Modifier.weight(1f)) {
                                             Text(
-                                                text = stringResource(R.string.badge_active_key, state.maskedKey),
-                                                style = MaterialTheme.typography.bodySmall,
-                                                color = domainNutritionOnContainer().copy(alpha = 0.85f)
+                                                text = stringResource(R.string.settings_fatsecret_connected_banner),
+                                                style = MaterialTheme.typography.titleSmallEmphasized
+                                            )
+                                            if (state.maskedKey.isNotBlank()) {
+                                                Text(
+                                                    text = stringResource(R.string.badge_active_key, state.maskedKey),
+                                                    style = MaterialTheme.typography.bodySmall,
+                                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                    maxLines = 1,
+                                                    overflow = TextOverflow.Ellipsis
+                                                )
+                                            }
+                                        }
+                                    }
+                                    // Nested inside 12dp summary Surface -> 8dp CornerSmall
+                                    FilledTonalButton(
+                                        onClick = { showKeyEditor = !showKeyEditor },
+                                        shape = M3Shapes.CornerSmall,
+                                        modifier = Modifier
+                                            .height(34.dp)
+                                            .expressivePressScale(remember { MutableInteractionSource() }),
+                                        contentPadding = PaddingValues(horizontal = 10.dp, vertical = 0.dp)
+                                    ) {
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                        ) {
+                                            Icon(
+                                                imageVector = if (showKeyEditor) Icons.Default.ExpandLess else Icons.Default.Edit,
+                                                contentDescription = null,
+                                                modifier = Modifier.size(14.dp)
+                                            )
+                                            Text(
+                                                text = if (showKeyEditor) stringResource(R.string.action_cancel) else stringResource(R.string.action_edit),
+                                                style = MaterialTheme.typography.labelMedium,
+                                                maxLines = 1,
+                                                softWrap = false
                                             )
                                         }
                                     }
-                                }
-                            }
-
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.End
-                            ) {
-                                TextButton(
-                                    onClick = { showKeyEditor = !showKeyEditor },
-                                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp)
-                                ) {
-                                    Text(
-                                        text = if (showKeyEditor) stringResource(R.string.settings_fatsecret_close_editor) else stringResource(R.string.settings_fatsecret_change_keys),
-                                        style = MaterialTheme.typography.labelMedium
-                                    )
                                 }
                             }
                         }
 
-                        // Key Inputs (shown if not connected OR user tapped edit)
-                        AnimatedVisibility(visible = !state.isConnected || showKeyEditor) {
-                            Column {
-                                Spacer(modifier = Modifier.height(8.dp))
-                                OutlinedTextField(
-                                    value = state.consumerKey,
-                                    onValueChange = { viewModel.updateConsumerKey(it) },
-                                    modifier = Modifier.fillMaxWidth(),
-                                    label = { Text(stringResource(R.string.settings_consumer_key_label)) },
-                                    placeholder = { Text(stringResource(R.string.settings_consumer_key_label)) },
-                                    singleLine = true,
-                                    shape = MaterialTheme.shapes.small
-                                )
-                                Spacer(modifier = Modifier.height(8.dp))
-
-                                OutlinedTextField(
-                                    value = state.consumerSecret,
-                                    onValueChange = { viewModel.updateConsumerSecret(it) },
-                                    modifier = Modifier.fillMaxWidth(),
-                                    label = { Text(stringResource(R.string.settings_consumer_secret_label)) },
-                                    placeholder = { Text(stringResource(R.string.settings_consumer_secret_label)) },
-                                    singleLine = true,
-                                    shape = MaterialTheme.shapes.small
-                                )
-                                Spacer(modifier = Modifier.height(8.dp))
-
-                                Button(
-                                    onClick = { viewModel.saveFatSecretKeys() },
-                                    enabled = !state.isSavingKeys && state.consumerKey.isNotBlank() && state.consumerSecret.isNotBlank(),
-                                    modifier = Modifier.fillMaxWidth()
-                                ) {
-                                    if (state.isSavingKeys) {
-                                        ExpressiveLoadingIndicator(
-                                            size = 16.dp,
-                                            strokeWidth = 2.dp,
-                                            color = MaterialTheme.colorScheme.onPrimary
-                                        )
-                                    } else {
-                                        Text(stringResource(R.string.settings_btn_save_keys), style = MaterialTheme.typography.labelLarge)
-                                    }
-                                }
-
-                                if (state.hasKeys && !state.isConnected) {
-                                    Spacer(modifier = Modifier.height(8.dp))
-                                    FilledTonalButton(
-                                        onClick = {
-                                            val baseUrl = state.serverUrl.trim().trimEnd('/')
-                                            if (baseUrl.isBlank()) {
-                                                coroutineScope.launch {
-                                                    snackbarHostState.showSnackbar(context.getString(R.string.settings_save_server_first))
-                                                }
-                                            } else {
-                                                val intent = Intent(Intent.ACTION_VIEW,
-                                                    "$baseUrl/fatsecret/connect".toUri())
-                                                context.startActivity(intent)
-                                            }
-                                        },
-                                        modifier = Modifier.fillMaxWidth()
-                                    ) {
-                                        Row(
-                                            verticalAlignment = Alignment.CenterVertically,
-                                            horizontalArrangement = Arrangement.spacedBy(6.dp)
-                                        ) {
+                        // Key Inputs (Spatial spring for height + Effects spring for opacity)
+                        AnimatedVisibility(
+                            visible = !state.isConnected || showKeyEditor,
+                            enter = expandVertically(
+                                animationSpec = M3ExpressiveMotion.defaultSpatial()
+                            ) + fadeIn(animationSpec = M3ExpressiveMotion.defaultEffects()),
+                            exit = shrinkVertically(
+                                animationSpec = M3ExpressiveMotion.defaultSpatial()
+                            ) + fadeOut(animationSpec = M3ExpressiveMotion.fastEffects())
+                        ) {
+                            Surface(
+                                shape = M3Shapes.CornerMedium,
+                                color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.65f),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(top = 8.dp)
+                            ) {
+                                Column(modifier = Modifier.padding(12.dp)) {
+                                    OutlinedTextField(
+                                        value = state.consumerKey,
+                                        onValueChange = { viewModel.updateConsumerKey(it) },
+                                        modifier = Modifier.fillMaxWidth(),
+                                        label = { Text(stringResource(R.string.settings_consumer_key_label)) },
+                                        placeholder = { Text(stringResource(R.string.settings_consumer_key_label)) },
+                                        singleLine = true,
+                                        leadingIcon = {
                                             Icon(
-                                                imageVector = Icons.Default.OpenInBrowser,
+                                                imageVector = Icons.Default.VpnKey,
                                                 contentDescription = null,
-                                                modifier = Modifier.size(18.dp)
-                                            )
-                                            Text(
-                                                text = stringResource(R.string.settings_btn_connect_oauth),
-                                                style = MaterialTheme.typography.labelLarge,
-                                                maxLines = 1,
-                                                overflow = TextOverflow.Ellipsis
-                                            )
-                                        }
-                                    }
-                                }
-
-                                Spacer(modifier = Modifier.height(8.dp))
-                                Surface(
-                                    shape = MaterialTheme.shapes.small,
-                                    color = MaterialTheme.colorScheme.surfaceContainerHigh,
-                                    modifier = Modifier.fillMaxWidth()
-                                ) {
-                                    Column(modifier = Modifier.padding(10.dp)) {
-                                        Row(
-                                            verticalAlignment = Alignment.CenterVertically,
-                                            horizontalArrangement = Arrangement.spacedBy(6.dp)
-                                        ) {
-                                            Icon(
-                                                imageVector = Icons.AutoMirrored.Filled.HelpOutline,
-                                                contentDescription = null,
-                                                modifier = Modifier.size(16.dp),
                                                 tint = MaterialTheme.colorScheme.primary
                                             )
-                                            Text(
-                                                text = stringResource(R.string.settings_fatsecret_help_title),
-                                                style = MaterialTheme.typography.labelMedium,
-                                                fontWeight = FontWeight.Bold
+                                        },
+                                        trailingIcon = if (state.consumerKey.isNotBlank()) {
+                                            {
+                                                IconButton(onClick = { viewModel.updateConsumerKey("") }) {
+                                                    Icon(Icons.Default.Clear, contentDescription = stringResource(R.string.action_clear))
+                                                }
+                                            }
+                                        } else null,
+                                        shape = M3Shapes.CornerSmall
+                                    )
+                                    Spacer(modifier = Modifier.height(8.dp))
+
+                                    OutlinedTextField(
+                                        value = state.consumerSecret,
+                                        onValueChange = { viewModel.updateConsumerSecret(it) },
+                                        modifier = Modifier.fillMaxWidth(),
+                                        label = { Text(stringResource(R.string.settings_consumer_secret_label)) },
+                                        placeholder = { Text(stringResource(R.string.settings_consumer_secret_label)) },
+                                        singleLine = true,
+                                        visualTransformation = if (secretVisible) VisualTransformation.None else PasswordVisualTransformation(),
+                                        leadingIcon = {
+                                            Icon(
+                                                imageVector = Icons.Default.Lock,
+                                                contentDescription = null,
+                                                tint = MaterialTheme.colorScheme.primary
                                             )
+                                        },
+                                        trailingIcon = {
+                                            IconButton(onClick = { secretVisible = !secretVisible }) {
+                                                Icon(
+                                                    imageVector = if (secretVisible) Icons.Default.VisibilityOff else Icons.Default.Visibility,
+                                                    contentDescription = null,
+                                                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                                )
+                                            }
+                                        },
+                                        shape = M3Shapes.CornerSmall
+                                    )
+                                    Spacer(modifier = Modifier.height(10.dp))
+
+                                    Button(
+                                        onClick = {
+                                            viewModel.saveFatSecretKeys()
+                                            showKeyEditor = false
+                                        },
+                                        enabled = !state.isSavingKeys && state.consumerKey.isNotBlank() && state.consumerSecret.isNotBlank(),
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .height(42.dp)
+                                            .expressivePressScale(remember { MutableInteractionSource() }),
+                                        shape = M3Shapes.CornerSmall,
+                                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp)
+                                    ) {
+                                        if (state.isSavingKeys) {
+                                            ExpressiveLoadingIndicator(
+                                                size = 16.dp,
+                                                strokeWidth = 2.dp,
+                                                color = MaterialTheme.colorScheme.onPrimary
+                                            )
+                                        } else {
+                                            Row(
+                                                verticalAlignment = Alignment.CenterVertically,
+                                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                            ) {
+                                                Icon(
+                                                    imageVector = Icons.Default.Check,
+                                                    contentDescription = null,
+                                                    modifier = Modifier.size(16.dp)
+                                                )
+                                                Text(
+                                                    text = stringResource(R.string.settings_btn_save_keys),
+                                                    style = MaterialTheme.typography.labelLargeEmphasized,
+                                                    maxLines = 1,
+                                                    softWrap = false,
+                                                    overflow = TextOverflow.Ellipsis
+                                                )
+                                            }
                                         }
-                                        Spacer(modifier = Modifier.height(4.dp))
-                                        Text(
-                                            text = "${stringResource(R.string.settings_fatsecret_help_step_1)}\n${stringResource(R.string.settings_fatsecret_help_step_2)}\n${stringResource(R.string.settings_fatsecret_help_step_3)}",
-                                            style = MaterialTheme.typography.bodySmall,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                                        )
-                                        Spacer(modifier = Modifier.height(4.dp))
-                                        TextButton(
+                                    }
+
+                                    if (state.hasKeys && !state.isConnected) {
+                                        Spacer(modifier = Modifier.height(8.dp))
+                                        FilledTonalButton(
                                             onClick = {
-                                                val intent = Intent(Intent.ACTION_VIEW,
-                                                    "https://platform.fatsecret.com/".toUri())
-                                                context.startActivity(intent)
+                                                val baseUrl = state.serverUrl.trim().trimEnd('/')
+                                                if (baseUrl.isBlank()) {
+                                                    coroutineScope.launch {
+                                                        snackbarHostState.showSnackbar(context.getString(R.string.settings_save_server_first))
+                                                    }
+                                                } else {
+                                                    val intent = Intent(
+                                                        Intent.ACTION_VIEW,
+                                                        "$baseUrl/fatsecret/connect".toUri()
+                                                    )
+                                                    context.startActivity(intent)
+                                                }
                                             },
-                                            contentPadding = PaddingValues(horizontal = 0.dp, vertical = 0.dp)
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .height(42.dp)
+                                                .expressivePressScale(remember { MutableInteractionSource() }),
+                                            shape = M3Shapes.CornerSmall,
+                                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp)
                                         ) {
                                             Row(
                                                 verticalAlignment = Alignment.CenterVertically,
-                                                horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                                horizontalArrangement = Arrangement.spacedBy(6.dp)
                                             ) {
-                                                Text(
-                                                    text = "platform.fatsecret.com",
-                                                    style = MaterialTheme.typography.labelSmall
-                                                )
                                                 Icon(
-                                                    imageVector = Icons.Default.ArrowOutward,
+                                                    imageVector = Icons.Default.OpenInBrowser,
                                                     contentDescription = null,
-                                                    modifier = Modifier.size(14.dp)
+                                                    modifier = Modifier.size(18.dp)
                                                 )
+                                                Text(
+                                                    text = stringResource(R.string.settings_btn_connect_oauth),
+                                                    style = MaterialTheme.typography.labelLarge,
+                                                    maxLines = 1,
+                                                    softWrap = false,
+                                                    overflow = TextOverflow.Ellipsis
+                                                )
+                                            }
+                                        }
+                                    }
+
+                                    Spacer(modifier = Modifier.height(10.dp))
+                                    Surface(
+                                        shape = M3Shapes.CornerSmall,
+                                        color = MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.8f),
+                                        modifier = Modifier.fillMaxWidth()
+                                    ) {
+                                        Column(modifier = Modifier.padding(10.dp)) {
+                                            Row(
+                                                verticalAlignment = Alignment.CenterVertically,
+                                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                            ) {
+                                                Icon(
+                                                    imageVector = Icons.AutoMirrored.Filled.HelpOutline,
+                                                    contentDescription = null,
+                                                    modifier = Modifier.size(16.dp),
+                                                    tint = MaterialTheme.colorScheme.primary
+                                                )
+                                                Text(
+                                                    text = stringResource(R.string.settings_fatsecret_help_title),
+                                                    style = MaterialTheme.typography.labelMediumEmphasized
+                                                )
+                                            }
+                                            Spacer(modifier = Modifier.height(4.dp))
+                                            Text(
+                                                text = "${stringResource(R.string.settings_fatsecret_help_step_1)}\n${stringResource(R.string.settings_fatsecret_help_step_2)}\n${stringResource(R.string.settings_fatsecret_help_step_3)}",
+                                                style = MaterialTheme.typography.bodySmall,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                            )
+                                            Spacer(modifier = Modifier.height(4.dp))
+                                            TextButton(
+                                                onClick = {
+                                                    val intent = Intent(
+                                                        Intent.ACTION_VIEW,
+                                                        "https://platform.fatsecret.com/".toUri()
+                                                    )
+                                                    context.startActivity(intent)
+                                                },
+                                                contentPadding = PaddingValues(horizontal = 0.dp, vertical = 0.dp)
+                                            ) {
+                                                Row(
+                                                    verticalAlignment = Alignment.CenterVertically,
+                                                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                                ) {
+                                                    Text(
+                                                        text = "platform.fatsecret.com",
+                                                        style = MaterialTheme.typography.labelSmall
+                                                    )
+                                                    Icon(
+                                                        imageVector = Icons.Default.ArrowOutward,
+                                                        contentDescription = null,
+                                                        modifier = Modifier.size(14.dp)
+                                                    )
+                                                }
                                             }
                                         }
                                     }
@@ -834,7 +972,7 @@ fun SettingsScreen(
 
                         // Divider before sync section
                         HorizontalDivider(
-                            color = MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.6f),
+                            color = MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.5f),
                             modifier = Modifier.padding(vertical = 12.dp)
                         )
 
@@ -851,8 +989,7 @@ fun SettingsScreen(
                             )
                             Text(
                                 text = stringResource(R.string.settings_fatsecret_sync_title),
-                                style = MaterialTheme.typography.titleSmall,
-                                fontWeight = FontWeight.SemiBold
+                                style = MaterialTheme.typography.titleSmallEmphasized
                             )
                         }
                         Spacer(modifier = Modifier.height(4.dp))
@@ -868,32 +1005,76 @@ fun SettingsScreen(
                                 FilledTonalButton(
                                     onClick = { viewModel.syncFatSecret(1) },
                                     enabled = state.isSyncing == null,
-                                    modifier = Modifier.weight(1f)
+                                    shape = M3Shapes.CornerMedium,
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .height(40.dp)
+                                        .expressivePressScale(remember { MutableInteractionSource() }),
+                                    contentPadding = PaddingValues(horizontal = 10.dp, vertical = 0.dp)
                                 ) {
-                                    Text(stringResource(R.string.settings_sync_today), style = MaterialTheme.typography.labelMedium)
+                                    Text(
+                                        text = stringResource(R.string.settings_sync_today),
+                                        style = MaterialTheme.typography.labelMedium,
+                                        maxLines = 1,
+                                        softWrap = false,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
                                 }
                                 FilledTonalButton(
                                     onClick = { viewModel.syncFatSecret(30) },
                                     enabled = state.isSyncing == null,
-                                    modifier = Modifier.weight(1f)
+                                    shape = M3Shapes.CornerMedium,
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .height(40.dp)
+                                        .expressivePressScale(remember { MutableInteractionSource() }),
+                                    contentPadding = PaddingValues(horizontal = 10.dp, vertical = 0.dp)
                                 ) {
-                                    Text(stringResource(R.string.settings_sync_30d), style = MaterialTheme.typography.labelMedium)
+                                    Text(
+                                        text = stringResource(R.string.settings_sync_30d),
+                                        style = MaterialTheme.typography.labelMedium,
+                                        maxLines = 1,
+                                        softWrap = false,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
                                 }
                             }
                             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                 FilledTonalButton(
                                     onClick = { viewModel.syncFatSecret(365) },
                                     enabled = state.isSyncing == null,
-                                    modifier = Modifier.weight(1f)
+                                    shape = M3Shapes.CornerMedium,
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .height(40.dp)
+                                        .expressivePressScale(remember { MutableInteractionSource() }),
+                                    contentPadding = PaddingValues(horizontal = 10.dp, vertical = 0.dp)
                                 ) {
-                                    Text(stringResource(R.string.settings_sync_1y), style = MaterialTheme.typography.labelMedium)
+                                    Text(
+                                        text = stringResource(R.string.settings_sync_1y),
+                                        style = MaterialTheme.typography.labelMedium,
+                                        maxLines = 1,
+                                        softWrap = false,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
                                 }
                                 FilledTonalButton(
                                     onClick = { viewModel.syncFatSecret(1095) },
                                     enabled = state.isSyncing == null,
-                                    modifier = Modifier.weight(1f)
+                                    shape = M3Shapes.CornerMedium,
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .height(40.dp)
+                                        .expressivePressScale(remember { MutableInteractionSource() }),
+                                    contentPadding = PaddingValues(horizontal = 10.dp, vertical = 0.dp)
                                 ) {
-                                    Text(stringResource(R.string.settings_sync_all), style = MaterialTheme.typography.labelMedium)
+                                    Text(
+                                        text = stringResource(R.string.settings_sync_all),
+                                        style = MaterialTheme.typography.labelMedium,
+                                        maxLines = 1,
+                                        softWrap = false,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
                                 }
                             }
                         }
@@ -908,7 +1089,7 @@ fun SettingsScreen(
                 }
                 item {
                     SettingsCard {
-                        // Letterboxd Block
+                        // Letterboxd Card Header
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.SpaceBetween,
@@ -927,8 +1108,7 @@ fun SettingsScreen(
                                 Column(modifier = Modifier.weight(1f, fill = false)) {
                                     Text(
                                         text = "Letterboxd",
-                                        style = MaterialTheme.typography.titleMedium,
-                                        fontWeight = FontWeight.SemiBold,
+                                        style = MaterialTheme.typography.titleMediumEmphasized,
                                         maxLines = 1,
                                         overflow = TextOverflow.Ellipsis
                                     )
@@ -944,46 +1124,55 @@ fun SettingsScreen(
 
                             if (state.letterboxdUrl.isNotBlank()) {
                                 Surface(
-                                    shape = CircleShape,
+                                    shape = M3Shapes.CornerFull,
                                     color = domainNutritionContainer(),
                                     modifier = Modifier.padding(start = 8.dp)
                                 ) {
-                                    Text(
-                                        text = stringResource(R.string.badge_connected),
-                                        color = domainNutritionOnContainer(),
-                                        style = MaterialTheme.typography.labelSmall,
-                                        fontWeight = FontWeight.Bold,
-                                        maxLines = 1,
-                                        softWrap = false,
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(4.dp),
                                         modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
-                                    )
+                                    ) {
+                                        Box(
+                                            modifier = Modifier
+                                                .size(6.dp)
+                                                .background(domainNutritionOnContainer(), M3Shapes.CornerFull)
+                                        )
+                                        Text(
+                                            text = stringResource(R.string.badge_connected),
+                                            color = domainNutritionOnContainer(),
+                                            style = MaterialTheme.typography.labelSmallEmphasized,
+                                            maxLines = 1,
+                                            softWrap = false
+                                        )
+                                    }
                                 }
                             }
                         }
 
-                        // Configured Summary & Sync Button (shown when already configured and editor closed)
-                        if (state.letterboxdUrl.isNotBlank() && !showLetterboxdEditor) {
+                        // Configured Summary Box (nested inside 20dp SettingsCard -> 12dp CornerMedium)
+                        if (state.letterboxdUrl.isNotBlank()) {
                             Spacer(modifier = Modifier.height(10.dp))
                             Surface(
-                                shape = MaterialTheme.shapes.small,
-                                color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                                shape = M3Shapes.CornerMedium,
+                                color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.65f),
                                 modifier = Modifier.fillMaxWidth()
                             ) {
                                 Row(
                                     verticalAlignment = Alignment.CenterVertically,
                                     horizontalArrangement = Arrangement.SpaceBetween,
-                                    modifier = Modifier.padding(10.dp)
+                                    modifier = Modifier.padding(12.dp)
                                 ) {
                                     Row(
                                         verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                        horizontalArrangement = Arrangement.spacedBy(10.dp),
                                         modifier = Modifier.weight(1f)
                                     ) {
                                         Icon(
                                             imageVector = Icons.Default.CheckCircle,
                                             contentDescription = null,
                                             tint = domainNutritionColor(),
-                                            modifier = Modifier.size(18.dp)
+                                            modifier = Modifier.size(20.dp)
                                         )
                                         Column(modifier = Modifier.weight(1f)) {
                                             val username = remember(state.letterboxdUrl) {
@@ -991,8 +1180,7 @@ fun SettingsScreen(
                                             }
                                             Text(
                                                 text = "@$username",
-                                                style = MaterialTheme.typography.titleSmall,
-                                                fontWeight = FontWeight.Bold
+                                                style = MaterialTheme.typography.titleSmallEmphasized
                                             )
                                             Text(
                                                 text = state.letterboxdUrl,
@@ -1003,24 +1191,133 @@ fun SettingsScreen(
                                             )
                                         }
                                     }
-                                    TextButton(
-                                        onClick = { showLetterboxdEditor = true },
-                                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp)
+                                    // Nested inside 12dp summary Surface -> 8dp CornerSmall
+                                    FilledTonalButton(
+                                        onClick = { showLetterboxdEditor = !showLetterboxdEditor },
+                                        shape = M3Shapes.CornerSmall,
+                                        modifier = Modifier
+                                            .height(34.dp)
+                                            .expressivePressScale(remember { MutableInteractionSource() }),
+                                        contentPadding = PaddingValues(horizontal = 10.dp, vertical = 0.dp)
                                     ) {
-                                        Text(
-                                            text = stringResource(R.string.action_edit),
-                                            style = MaterialTheme.typography.labelMedium
-                                        )
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                        ) {
+                                            Icon(
+                                                imageVector = if (showLetterboxdEditor) Icons.Default.ExpandLess else Icons.Default.Edit,
+                                                contentDescription = null,
+                                                modifier = Modifier.size(14.dp)
+                                            )
+                                            Text(
+                                                text = if (showLetterboxdEditor) stringResource(R.string.action_cancel) else stringResource(R.string.action_edit),
+                                                style = MaterialTheme.typography.labelMedium,
+                                                maxLines = 1,
+                                                softWrap = false
+                                            )
+                                        }
                                     }
                                 }
                             }
+                        }
 
+                        // Editor / Initial Setup Inputs (Spatial spring for height + Effects spring for opacity)
+                        AnimatedVisibility(
+                            visible = state.letterboxdUrl.isBlank() || showLetterboxdEditor,
+                            enter = expandVertically(
+                                animationSpec = M3ExpressiveMotion.defaultSpatial()
+                            ) + fadeIn(animationSpec = M3ExpressiveMotion.defaultEffects()),
+                            exit = shrinkVertically(
+                                animationSpec = M3ExpressiveMotion.defaultSpatial()
+                            ) + fadeOut(animationSpec = M3ExpressiveMotion.fastEffects())
+                        ) {
+                            Surface(
+                                shape = M3Shapes.CornerMedium,
+                                color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.65f),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(top = 8.dp)
+                            ) {
+                                Column(modifier = Modifier.padding(12.dp)) {
+                                    OutlinedTextField(
+                                        value = state.letterboxdUrl,
+                                        onValueChange = { viewModel.updateLetterboxdUrl(it) },
+                                        modifier = Modifier.fillMaxWidth(),
+                                        label = { Text(stringResource(R.string.settings_letterboxd_user_label)) },
+                                        placeholder = { Text(stringResource(R.string.settings_letterboxd_user_hint)) },
+                                        singleLine = true,
+                                        leadingIcon = {
+                                            Icon(
+                                                imageVector = Icons.Default.AlternateEmail,
+                                                contentDescription = null,
+                                                tint = MaterialTheme.colorScheme.primary
+                                            )
+                                        },
+                                        trailingIcon = if (state.letterboxdUrl.isNotBlank()) {
+                                            {
+                                                IconButton(onClick = { viewModel.updateLetterboxdUrl("") }) {
+                                                    Icon(Icons.Default.Clear, contentDescription = stringResource(R.string.action_clear))
+                                                }
+                                            }
+                                        } else null,
+                                        shape = M3Shapes.CornerSmall,
+                                        supportingText = {
+                                            Text(stringResource(R.string.settings_letterboxd_support))
+                                        }
+                                    )
+
+                                    Spacer(modifier = Modifier.height(8.dp))
+
+                                    Button(
+                                        onClick = {
+                                            viewModel.saveLetterboxdSettings()
+                                            showLetterboxdEditor = false
+                                        },
+                                        enabled = !state.isSavingLetterboxd && state.letterboxdUrl.isNotBlank(),
+                                        shape = M3Shapes.CornerSmall,
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .height(42.dp)
+                                            .expressivePressScale(remember { MutableInteractionSource() }),
+                                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp)
+                                    ) {
+                                        if (state.isSavingLetterboxd) {
+                                            ExpressiveLoadingIndicator(
+                                                size = 16.dp,
+                                                strokeWidth = 2.dp,
+                                                color = MaterialTheme.colorScheme.onPrimary
+                                            )
+                                        } else {
+                                            Row(
+                                                verticalAlignment = Alignment.CenterVertically,
+                                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                            ) {
+                                                Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(16.dp))
+                                                Text(
+                                                    text = stringResource(R.string.action_save),
+                                                    style = MaterialTheme.typography.labelLargeEmphasized,
+                                                    maxLines = 1,
+                                                    softWrap = false,
+                                                    overflow = TextOverflow.Ellipsis
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        if (state.letterboxdUrl.isNotBlank()) {
                             Spacer(modifier = Modifier.height(8.dp))
-
                             FilledTonalButton(
                                 onClick = { viewModel.syncLetterboxd() },
                                 enabled = state.isSyncing == null,
-                                modifier = Modifier.fillMaxWidth()
+                                shape = M3Shapes.CornerMedium,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(42.dp)
+                                    .expressivePressScale(remember { MutableInteractionSource() }),
+                                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp)
                             ) {
                                 if (state.isSyncing == "letterboxd") {
                                     ExpressiveLoadingIndicator(
@@ -1029,7 +1326,13 @@ fun SettingsScreen(
                                         color = MaterialTheme.colorScheme.primary
                                     )
                                     Spacer(modifier = Modifier.width(8.dp))
-                                    Text(stringResource(R.string.action_syncing), style = MaterialTheme.typography.labelLarge)
+                                    Text(
+                                        text = stringResource(R.string.action_syncing),
+                                        style = MaterialTheme.typography.labelLarge,
+                                        maxLines = 1,
+                                        softWrap = false,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
                                 } else {
                                     Row(
                                         verticalAlignment = Alignment.CenterVertically,
@@ -1040,96 +1343,23 @@ fun SettingsScreen(
                                             contentDescription = null,
                                             modifier = Modifier.size(16.dp)
                                         )
-                                        Text(stringResource(R.string.action_sync), style = MaterialTheme.typography.labelLarge)
+                                        Text(
+                                            text = stringResource(R.string.action_sync),
+                                            style = MaterialTheme.typography.labelLarge,
+                                            maxLines = 1,
+                                            softWrap = false,
+                                            overflow = TextOverflow.Ellipsis
+                                        )
                                     }
                                 }
                             }
                         }
+                    }
+                }
 
-                        // Editor / Initial Setup Inputs (shown when blank OR user tapped Edit)
-                        AnimatedVisibility(visible = state.letterboxdUrl.isBlank() || showLetterboxdEditor) {
-                            Column {
-                                if (state.letterboxdUrl.isNotBlank() && showLetterboxdEditor) {
-                                    Row(
-                                        modifier = Modifier.fillMaxWidth(),
-                                        horizontalArrangement = Arrangement.End
-                                    ) {
-                                        TextButton(
-                                            onClick = { showLetterboxdEditor = false },
-                                            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp)
-                                        ) {
-                                            Text(
-                                                text = stringResource(R.string.action_cancel),
-                                                style = MaterialTheme.typography.labelMedium
-                                            )
-                                        }
-                                    }
-                                } else {
-                                    Spacer(modifier = Modifier.height(10.dp))
-                                }
-
-                                OutlinedTextField(
-                                    value = state.letterboxdUrl,
-                                    onValueChange = { viewModel.updateLetterboxdUrl(it) },
-                                    modifier = Modifier.fillMaxWidth(),
-                                    label = { Text(stringResource(R.string.settings_letterboxd_user_label)) },
-                                    placeholder = { Text(stringResource(R.string.settings_letterboxd_user_hint)) },
-                                    singleLine = true,
-                                    shape = MaterialTheme.shapes.small,
-                                    supportingText = {
-                                        Text(stringResource(R.string.settings_letterboxd_support))
-                                    }
-                                )
-
-                                Spacer(modifier = Modifier.height(6.dp))
-
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                                ) {
-                                    Button(
-                                        onClick = { viewModel.saveLetterboxdSettings() },
-                                        enabled = !state.isSavingLetterboxd && state.letterboxdUrl.isNotBlank(),
-                                        modifier = Modifier.weight(1f)
-                                    ) {
-                                        if (state.isSavingLetterboxd) {
-                                            ExpressiveLoadingIndicator(
-                                                size = 16.dp,
-                                                strokeWidth = 2.dp,
-                                                color = MaterialTheme.colorScheme.onPrimary
-                                            )
-                                        } else {
-                                            Text(stringResource(R.string.action_save), style = MaterialTheme.typography.labelLarge)
-                                        }
-                                    }
-
-                                    if (state.letterboxdUrl.isNotBlank()) {
-                                        FilledTonalButton(
-                                            onClick = { viewModel.syncLetterboxd() },
-                                            enabled = state.isSyncing == null,
-                                            modifier = Modifier.weight(1f)
-                                        ) {
-                                            if (state.isSyncing == "letterboxd") {
-                                                ExpressiveLoadingIndicator(
-                                                    size = 16.dp,
-                                                    strokeWidth = 2.dp,
-                                                    color = MaterialTheme.colorScheme.primary
-                                                )
-                                            } else {
-                                                Text(stringResource(R.string.action_sync), style = MaterialTheme.typography.labelLarge)
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
-
-                        HorizontalDivider(
-                            color = MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.6f),
-                            modifier = Modifier.padding(vertical = 12.dp)
-                        )
-
-                        // Goodreads Block
+                item {
+                    SettingsCard {
+                        // Goodreads Card Header
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.SpaceBetween,
@@ -1148,8 +1378,7 @@ fun SettingsScreen(
                                 Column(modifier = Modifier.weight(1f, fill = false)) {
                                     Text(
                                         text = "Goodreads",
-                                        style = MaterialTheme.typography.titleMedium,
-                                        fontWeight = FontWeight.SemiBold,
+                                        style = MaterialTheme.typography.titleMediumEmphasized,
                                         maxLines = 1,
                                         overflow = TextOverflow.Ellipsis
                                     )
@@ -1165,46 +1394,55 @@ fun SettingsScreen(
 
                             if (state.goodreadsUrl.isNotBlank()) {
                                 Surface(
-                                    shape = CircleShape,
+                                    shape = M3Shapes.CornerFull,
                                     color = domainNutritionContainer(),
                                     modifier = Modifier.padding(start = 8.dp)
                                 ) {
-                                    Text(
-                                        text = stringResource(R.string.badge_connected),
-                                        color = domainNutritionOnContainer(),
-                                        style = MaterialTheme.typography.labelSmall,
-                                        fontWeight = FontWeight.Bold,
-                                        maxLines = 1,
-                                        softWrap = false,
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(4.dp),
                                         modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
-                                    )
+                                    ) {
+                                        Box(
+                                            modifier = Modifier
+                                                .size(6.dp)
+                                                .background(domainNutritionOnContainer(), M3Shapes.CornerFull)
+                                        )
+                                        Text(
+                                            text = stringResource(R.string.badge_connected),
+                                            color = domainNutritionOnContainer(),
+                                            style = MaterialTheme.typography.labelSmallEmphasized,
+                                            maxLines = 1,
+                                            softWrap = false
+                                        )
+                                    }
                                 }
                             }
                         }
 
-                        // Configured Summary & Sync Button (shown when already configured and editor closed)
-                        if (state.goodreadsUrl.isNotBlank() && !showGoodreadsEditor) {
+                        // Configured Summary Box (nested inside 20dp SettingsCard -> 12dp CornerMedium)
+                        if (state.goodreadsUrl.isNotBlank()) {
                             Spacer(modifier = Modifier.height(10.dp))
                             Surface(
-                                shape = MaterialTheme.shapes.small,
-                                color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                                shape = M3Shapes.CornerMedium,
+                                color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.65f),
                                 modifier = Modifier.fillMaxWidth()
                             ) {
                                 Row(
                                     verticalAlignment = Alignment.CenterVertically,
                                     horizontalArrangement = Arrangement.SpaceBetween,
-                                    modifier = Modifier.padding(10.dp)
+                                    modifier = Modifier.padding(12.dp)
                                 ) {
                                     Row(
                                         verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                        horizontalArrangement = Arrangement.spacedBy(10.dp),
                                         modifier = Modifier.weight(1f)
                                     ) {
                                         Icon(
                                             imageVector = Icons.Default.CheckCircle,
                                             contentDescription = null,
                                             tint = domainNutritionColor(),
-                                            modifier = Modifier.size(18.dp)
+                                            modifier = Modifier.size(20.dp)
                                         )
                                         Column(modifier = Modifier.weight(1f)) {
                                             val goodreadsId = remember(state.goodreadsUrl) {
@@ -1212,8 +1450,7 @@ fun SettingsScreen(
                                             }
                                             Text(
                                                 text = "ID: $goodreadsId",
-                                                style = MaterialTheme.typography.titleSmall,
-                                                fontWeight = FontWeight.Bold
+                                                style = MaterialTheme.typography.titleSmallEmphasized
                                             )
                                             Text(
                                                 text = state.goodreadsUrl,
@@ -1224,24 +1461,133 @@ fun SettingsScreen(
                                             )
                                         }
                                     }
-                                    TextButton(
-                                        onClick = { showGoodreadsEditor = true },
-                                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp)
+                                    // Nested inside 12dp summary Surface -> 8dp CornerSmall
+                                    FilledTonalButton(
+                                        onClick = { showGoodreadsEditor = !showGoodreadsEditor },
+                                        shape = M3Shapes.CornerSmall,
+                                        modifier = Modifier
+                                            .height(34.dp)
+                                            .expressivePressScale(remember { MutableInteractionSource() }),
+                                        contentPadding = PaddingValues(horizontal = 10.dp, vertical = 0.dp)
                                     ) {
-                                        Text(
-                                            text = stringResource(R.string.action_edit),
-                                            style = MaterialTheme.typography.labelMedium
-                                        )
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                        ) {
+                                            Icon(
+                                                imageVector = if (showGoodreadsEditor) Icons.Default.ExpandLess else Icons.Default.Edit,
+                                                contentDescription = null,
+                                                modifier = Modifier.size(14.dp)
+                                            )
+                                            Text(
+                                                text = if (showGoodreadsEditor) stringResource(R.string.action_cancel) else stringResource(R.string.action_edit),
+                                                style = MaterialTheme.typography.labelMedium,
+                                                maxLines = 1,
+                                                softWrap = false
+                                            )
+                                        }
                                     }
                                 }
                             }
+                        }
 
+                        // Editor / Initial Setup Inputs (Spatial spring for height + Effects spring for opacity)
+                        AnimatedVisibility(
+                            visible = state.goodreadsUrl.isBlank() || showGoodreadsEditor,
+                            enter = expandVertically(
+                                animationSpec = M3ExpressiveMotion.defaultSpatial()
+                            ) + fadeIn(animationSpec = M3ExpressiveMotion.defaultEffects()),
+                            exit = shrinkVertically(
+                                animationSpec = M3ExpressiveMotion.defaultSpatial()
+                            ) + fadeOut(animationSpec = M3ExpressiveMotion.fastEffects())
+                        ) {
+                            Surface(
+                                shape = M3Shapes.CornerMedium,
+                                color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.65f),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(top = 8.dp)
+                            ) {
+                                Column(modifier = Modifier.padding(12.dp)) {
+                                    OutlinedTextField(
+                                        value = state.goodreadsUrl,
+                                        onValueChange = { viewModel.updateGoodreadsUrl(it) },
+                                        modifier = Modifier.fillMaxWidth(),
+                                        label = { Text(stringResource(R.string.settings_goodreads_user_label)) },
+                                        placeholder = { Text(stringResource(R.string.settings_goodreads_user_hint)) },
+                                        singleLine = true,
+                                        leadingIcon = {
+                                            Icon(
+                                                imageVector = Icons.Default.Numbers,
+                                                contentDescription = null,
+                                                tint = MaterialTheme.colorScheme.primary
+                                            )
+                                        },
+                                        trailingIcon = if (state.goodreadsUrl.isNotBlank()) {
+                                            {
+                                                IconButton(onClick = { viewModel.updateGoodreadsUrl("") }) {
+                                                    Icon(Icons.Default.Clear, contentDescription = stringResource(R.string.action_clear))
+                                                }
+                                            }
+                                        } else null,
+                                        shape = M3Shapes.CornerSmall,
+                                        supportingText = {
+                                            Text(stringResource(R.string.settings_goodreads_support))
+                                        }
+                                    )
+
+                                    Spacer(modifier = Modifier.height(8.dp))
+
+                                    Button(
+                                        onClick = {
+                                            viewModel.saveGoodreadsSettings()
+                                            showGoodreadsEditor = false
+                                        },
+                                        enabled = !state.isSavingGoodreads && state.goodreadsUrl.isNotBlank(),
+                                        shape = M3Shapes.CornerSmall,
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .height(42.dp)
+                                            .expressivePressScale(remember { MutableInteractionSource() }),
+                                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp)
+                                    ) {
+                                        if (state.isSavingGoodreads) {
+                                            ExpressiveLoadingIndicator(
+                                                size = 16.dp,
+                                                strokeWidth = 2.dp,
+                                                color = MaterialTheme.colorScheme.onPrimary
+                                            )
+                                        } else {
+                                            Row(
+                                                verticalAlignment = Alignment.CenterVertically,
+                                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                            ) {
+                                                Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(16.dp))
+                                                Text(
+                                                    text = stringResource(R.string.action_save),
+                                                    style = MaterialTheme.typography.labelLargeEmphasized,
+                                                    maxLines = 1,
+                                                    softWrap = false,
+                                                    overflow = TextOverflow.Ellipsis
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        if (state.goodreadsUrl.isNotBlank()) {
                             Spacer(modifier = Modifier.height(8.dp))
-
                             FilledTonalButton(
                                 onClick = { viewModel.syncGoodreads() },
                                 enabled = state.isSyncing == null,
-                                modifier = Modifier.fillMaxWidth()
+                                shape = M3Shapes.CornerMedium,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(42.dp)
+                                    .expressivePressScale(remember { MutableInteractionSource() }),
+                                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp)
                             ) {
                                 if (state.isSyncing == "goodreads") {
                                     ExpressiveLoadingIndicator(
@@ -1250,7 +1596,13 @@ fun SettingsScreen(
                                         color = MaterialTheme.colorScheme.primary
                                     )
                                     Spacer(modifier = Modifier.width(8.dp))
-                                    Text(stringResource(R.string.action_syncing), style = MaterialTheme.typography.labelLarge)
+                                    Text(
+                                        text = stringResource(R.string.action_syncing),
+                                        style = MaterialTheme.typography.labelLarge,
+                                        maxLines = 1,
+                                        softWrap = false,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
                                 } else {
                                     Row(
                                         verticalAlignment = Alignment.CenterVertically,
@@ -1261,85 +1613,13 @@ fun SettingsScreen(
                                             contentDescription = null,
                                             modifier = Modifier.size(16.dp)
                                         )
-                                        Text(stringResource(R.string.action_sync), style = MaterialTheme.typography.labelLarge)
-                                    }
-                                }
-                            }
-                        }
-
-                        // Editor / Initial Setup Inputs (shown when blank OR user tapped Edit)
-                        AnimatedVisibility(visible = state.goodreadsUrl.isBlank() || showGoodreadsEditor) {
-                            Column {
-                                if (state.goodreadsUrl.isNotBlank() && showGoodreadsEditor) {
-                                    Row(
-                                        modifier = Modifier.fillMaxWidth(),
-                                        horizontalArrangement = Arrangement.End
-                                    ) {
-                                        TextButton(
-                                            onClick = { showGoodreadsEditor = false },
-                                            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp)
-                                        ) {
-                                            Text(
-                                                text = stringResource(R.string.action_cancel),
-                                                style = MaterialTheme.typography.labelMedium
-                                            )
-                                        }
-                                    }
-                                } else {
-                                    Spacer(modifier = Modifier.height(10.dp))
-                                }
-
-                                OutlinedTextField(
-                                    value = state.goodreadsUrl,
-                                    onValueChange = { viewModel.updateGoodreadsUrl(it) },
-                                    modifier = Modifier.fillMaxWidth(),
-                                    label = { Text(stringResource(R.string.settings_goodreads_user_label)) },
-                                    placeholder = { Text(stringResource(R.string.settings_goodreads_user_hint)) },
-                                    singleLine = true,
-                                    shape = MaterialTheme.shapes.small,
-                                    supportingText = {
-                                        Text(stringResource(R.string.settings_goodreads_support))
-                                    }
-                                )
-
-                                Spacer(modifier = Modifier.height(6.dp))
-
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                                ) {
-                                    Button(
-                                        onClick = { viewModel.saveGoodreadsSettings() },
-                                        enabled = !state.isSavingGoodreads && state.goodreadsUrl.isNotBlank(),
-                                        modifier = Modifier.weight(1f)
-                                    ) {
-                                        if (state.isSavingGoodreads) {
-                                            ExpressiveLoadingIndicator(
-                                                size = 16.dp,
-                                                strokeWidth = 2.dp,
-                                                color = MaterialTheme.colorScheme.onPrimary
-                                            )
-                                        } else {
-                                            Text(stringResource(R.string.action_save), style = MaterialTheme.typography.labelLarge)
-                                        }
-                                    }
-
-                                    if (state.goodreadsUrl.isNotBlank()) {
-                                        FilledTonalButton(
-                                            onClick = { viewModel.syncGoodreads() },
-                                            enabled = state.isSyncing == null,
-                                            modifier = Modifier.weight(1f)
-                                        ) {
-                                            if (state.isSyncing == "goodreads") {
-                                                ExpressiveLoadingIndicator(
-                                                    size = 16.dp,
-                                                    strokeWidth = 2.dp,
-                                                    color = MaterialTheme.colorScheme.primary
-                                                )
-                                            } else {
-                                                Text(stringResource(R.string.action_sync), style = MaterialTheme.typography.labelLarge)
-                                            }
-                                        }
+                                        Text(
+                                            text = stringResource(R.string.action_sync),
+                                            style = MaterialTheme.typography.labelLarge,
+                                            maxLines = 1,
+                                            softWrap = false,
+                                            overflow = TextOverflow.Ellipsis
+                                        )
                                     }
                                 }
                             }
@@ -1348,97 +1628,7 @@ fun SettingsScreen(
                 }
 
                 // ==========================================
-                // SECTION 5: Hibrit Mimari & Eklenti Sistemi
-                // ==========================================
-                item {
-                    SettingsSectionTitle(title = stringResource(R.string.settings_section_architecture))
-                }
-                item {
-                    SettingsCard {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(10.dp)
-                        ) {
-                            SettingsIconBox(
-                                icon = Icons.Default.Hub,
-                                containerColor = MaterialTheme.colorScheme.primaryContainer,
-                                contentColor = MaterialTheme.colorScheme.onPrimaryContainer
-                            )
-                            Column {
-                                Text(
-                                    text = stringResource(R.string.settings_architecture_title),
-                                    style = MaterialTheme.typography.titleMedium,
-                                    fontWeight = FontWeight.SemiBold
-                                )
-                                Text(
-                                    text = stringResource(R.string.settings_architecture_subtitle),
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
-                        }
-
-                        Spacer(modifier = Modifier.height(10.dp))
-
-                        Text(
-                            text = stringResource(R.string.settings_architecture_desc),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-
-                        Spacer(modifier = Modifier.height(12.dp))
-
-                        Surface(
-                            shape = MaterialTheme.shapes.medium,
-                            color = MaterialTheme.colorScheme.surfaceContainerHigh,
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Column {
-                                HybridArchitecturePluginItem(
-                                    icon = Icons.Default.Sensors,
-                                    iconContainerColor = MaterialTheme.colorScheme.primaryContainer,
-                                    iconColor = MaterialTheme.colorScheme.primary,
-                                    title = stringResource(R.string.settings_plugin_webhook_title),
-                                    description = stringResource(R.string.settings_plugin_webhook_desc),
-                                    badgeText = "Push",
-                                    badgeContainerColor = MaterialTheme.colorScheme.primaryContainer,
-                                    badgeContentColor = MaterialTheme.colorScheme.primary
-                                )
-                                HorizontalDivider(
-                                    modifier = Modifier.padding(horizontal = 12.dp),
-                                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)
-                                )
-                                HybridArchitecturePluginItem(
-                                    icon = Icons.Default.RssFeed,
-                                    iconContainerColor = MaterialTheme.colorScheme.secondaryContainer,
-                                    iconColor = MaterialTheme.colorScheme.secondary,
-                                    title = stringResource(R.string.settings_plugin_rss_title),
-                                    description = stringResource(R.string.settings_plugin_rss_desc),
-                                    badgeText = "Pull",
-                                    badgeContainerColor = MaterialTheme.colorScheme.secondaryContainer,
-                                    badgeContentColor = MaterialTheme.colorScheme.secondary
-                                )
-                                HorizontalDivider(
-                                    modifier = Modifier.padding(horizontal = 12.dp),
-                                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)
-                                )
-                                HybridArchitecturePluginItem(
-                                    icon = Icons.Default.VpnKey,
-                                    iconContainerColor = MaterialTheme.colorScheme.tertiaryContainer,
-                                    iconColor = MaterialTheme.colorScheme.tertiary,
-                                    title = stringResource(R.string.settings_plugin_api_title),
-                                    description = stringResource(R.string.settings_plugin_api_desc),
-                                    badgeText = "BYOK",
-                                    badgeContainerColor = MaterialTheme.colorScheme.tertiaryContainer,
-                                    badgeContentColor = MaterialTheme.colorScheme.tertiary
-                                )
-                            }
-                        }
-                    }
-                }
-
-                // ==========================================
-                // SECTION 4: Veri Egemenliği & Yedekleme
+                // SECTION 5: Veri Egemenliği & Yedekleme
                 // ==========================================
                 item {
                     SettingsSectionTitle(title = stringResource(R.string.settings_section_export))
@@ -1457,8 +1647,7 @@ fun SettingsScreen(
                             Column {
                                 Text(
                                     text = stringResource(R.string.settings_export_title),
-                                    style = MaterialTheme.typography.titleMedium,
-                                    fontWeight = FontWeight.SemiBold
+                                    style = MaterialTheme.typography.titleMediumEmphasized
                                 )
                                 Text(
                                     text = stringResource(R.string.settings_export_desc),
@@ -1486,7 +1675,12 @@ fun SettingsScreen(
                                         triggerDownload("$baseUrl/api/export/all", "personal_records_$timestamp.json")
                                     }
                                 },
-                                modifier = Modifier.weight(1f)
+                                shape = M3Shapes.CornerMedium,
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .height(42.dp)
+                                    .expressivePressScale(remember { MutableInteractionSource() }),
+                                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp)
                             ) {
                                 Row(
                                     verticalAlignment = Alignment.CenterVertically,
@@ -1497,7 +1691,13 @@ fun SettingsScreen(
                                         contentDescription = null,
                                         modifier = Modifier.size(16.dp)
                                     )
-                                    Text(stringResource(R.string.settings_btn_export_json), style = MaterialTheme.typography.labelMedium)
+                                    Text(
+                                        text = stringResource(R.string.settings_btn_export_json),
+                                        style = MaterialTheme.typography.labelMedium,
+                                        maxLines = 1,
+                                        softWrap = false,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
                                 }
                             }
 
@@ -1513,7 +1713,12 @@ fun SettingsScreen(
                                         triggerDownload("$baseUrl/api/export/db", "personal_records_$timestamp.sqlite3")
                                     }
                                 },
-                                modifier = Modifier.weight(1f)
+                                shape = M3Shapes.CornerMedium,
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .height(42.dp)
+                                    .expressivePressScale(remember { MutableInteractionSource() }),
+                                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp)
                             ) {
                                 Row(
                                     verticalAlignment = Alignment.CenterVertically,
@@ -1524,7 +1729,13 @@ fun SettingsScreen(
                                         contentDescription = null,
                                         modifier = Modifier.size(16.dp)
                                     )
-                                    Text(stringResource(R.string.settings_btn_export_sqlite), style = MaterialTheme.typography.labelMedium)
+                                    Text(
+                                        text = stringResource(R.string.settings_btn_export_sqlite),
+                                        style = MaterialTheme.typography.labelMedium,
+                                        maxLines = 1,
+                                        softWrap = false,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
                                 }
                             }
                         }
@@ -1550,40 +1761,26 @@ fun SettingsScreen(
                 }
 
                 // ==========================================
-                // SECTION 5: Uygulama Bilgisi
+                // SECTION 6: Uygulama Bilgisi (Simple Text Footer)
                 // ==========================================
                 item {
-                    SettingsSectionTitle(title = stringResource(R.string.settings_section_app_info))
-                }
-                item {
-                    SettingsCard {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(12.dp)
-                        ) {
-                            SettingsIconBox(
-                                icon = Icons.Default.Tune,
-                                containerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
-                                contentColor = MaterialTheme.colorScheme.primary
-                            )
-                            Column {
-                                Text(
-                                    text = stringResource(R.string.app_name),
-                                    style = MaterialTheme.typography.titleMedium,
-                                    fontWeight = FontWeight.Bold
-                                )
-                                Text(
-                                    text = stringResource(R.string.app_version_info),
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                                Text(
-                                    text = stringResource(R.string.app_description),
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f)
-                                )
-                            }
-                        }
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 12.dp, bottom = 20.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(2.dp)
+                    ) {
+                        Text(
+                            text = "${stringResource(R.string.app_name)} • ${stringResource(R.string.app_version_info)}",
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+                        )
+                        Text(
+                            text = stringResource(R.string.app_description),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+                        )
                     }
                 }
 
@@ -1597,8 +1794,7 @@ fun SettingsScreen(
 private fun SettingsSectionTitle(title: String) {
     Text(
         text = title,
-        style = MaterialTheme.typography.labelLarge,
-        fontWeight = FontWeight.Bold,
+        style = MaterialTheme.typography.labelLargeEmphasized,
         color = MaterialTheme.colorScheme.primary,
         modifier = Modifier.padding(start = 4.dp, top = 8.dp, bottom = 2.dp)
     )
@@ -1608,9 +1804,10 @@ private fun SettingsSectionTitle(title: String) {
 private fun SettingsCard(
     content: @Composable ColumnScope.() -> Unit
 ) {
+    // Outer card uses M3 Expressive CornerLargeIncreased (20dp); nested children use 12dp/8dp per optical roundness rule
     Card(
         modifier = Modifier.fillMaxWidth(),
-        shape = MaterialTheme.shapes.medium,
+        shape = M3Shapes.CornerLargeIncreased,
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surfaceContainerLow
         ),
@@ -1630,10 +1827,11 @@ private fun SettingsIconBox(
     containerColor: Color,
     contentColor: Color
 ) {
+    // Nested inside 20dp SettingsCard (with 14dp padding) -> 12dp CornerMedium
     Box(
         modifier = Modifier
             .size(40.dp)
-            .clip(MaterialTheme.shapes.small)
+            .clip(M3Shapes.CornerMedium)
             .background(containerColor),
         contentAlignment = Alignment.Center
     ) {
@@ -1646,77 +1844,6 @@ private fun SettingsIconBox(
     }
 }
 
-@Composable
-private fun HybridArchitecturePluginItem(
-    icon: ImageVector,
-    iconContainerColor: Color,
-    iconColor: Color,
-    title: String,
-    description: String,
-    badgeText: String,
-    badgeContainerColor: Color,
-    badgeContentColor: Color
-) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 12.dp, vertical = 10.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(10.dp)
-    ) {
-        Box(
-            modifier = Modifier
-                .size(36.dp)
-                .clip(MaterialTheme.shapes.small)
-                .background(iconContainerColor),
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(
-                imageVector = icon,
-                contentDescription = null,
-                tint = iconColor,
-                modifier = Modifier.size(18.dp)
-            )
-        }
-
-        Column(
-            modifier = Modifier.weight(1f)
-        ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Text(
-                    text = title,
-                    style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.SemiBold,
-                    color = MaterialTheme.colorScheme.onSurface,
-                    modifier = Modifier.weight(1f, fill = false)
-                )
-                Spacer(modifier = Modifier.width(6.dp))
-                Surface(
-                    shape = CircleShape,
-                    color = badgeContainerColor,
-                    contentColor = badgeContentColor
-                ) {
-                    Text(
-                        text = badgeText,
-                        style = MaterialTheme.typography.labelSmall,
-                        fontWeight = FontWeight.Bold,
-                        modifier = Modifier.padding(horizontal = 7.dp, vertical = 2.dp)
-                    )
-                }
-            }
-            Spacer(modifier = Modifier.height(2.dp))
-            Text(
-                text = description,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-        }
-    }
-}
 
 private data class LanguageOption(
     val code: String,
@@ -1747,8 +1874,7 @@ fun LanguageSelectionScreen(
                 title = {
                     Text(
                         text = stringResource(R.string.settings_language_screen_title),
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.Bold
+                        style = MaterialTheme.typography.titleLargeEmphasized
                     )
                 },
                 navigationIcon = {
@@ -1784,14 +1910,14 @@ fun LanguageSelectionScreen(
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
+                                .clip(M3Shapes.CornerSmall)
                                 .clickable { onLanguageSelected(item.code) }
                                 .padding(horizontal = 16.dp, vertical = 14.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Text(
                                 text = label,
-                                style = MaterialTheme.typography.bodyLarge,
-                                fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
+                                style = if (isSelected) MaterialTheme.typography.bodyLargeEmphasized else MaterialTheme.typography.bodyLarge,
                                 color = MaterialTheme.colorScheme.onSurface,
                                 modifier = Modifier.weight(1f)
                             )
@@ -1799,7 +1925,7 @@ fun LanguageSelectionScreen(
                                 Box(
                                     modifier = Modifier
                                         .size(24.dp)
-                                        .background(MaterialTheme.colorScheme.primary, CircleShape),
+                                        .background(MaterialTheme.colorScheme.primary, M3Shapes.CornerFull),
                                     contentAlignment = Alignment.Center
                                 ) {
                                     Icon(
@@ -1814,7 +1940,7 @@ fun LanguageSelectionScreen(
                         if (index < languages.lastIndex) {
                             HorizontalDivider(
                                 modifier = Modifier.padding(horizontal = 16.dp),
-                                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)
+                                color = MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.5f)
                             )
                         }
                     }

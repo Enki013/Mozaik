@@ -29,7 +29,10 @@ import androidx.compose.ui.unit.sp
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.*
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.personalrecords.app.core.theme.M3ExpressiveMotion
+import com.personalrecords.app.core.theme.M3Shapes
 import com.personalrecords.app.core.theme.PersonalRecordsTheme
+import com.personalrecords.app.core.theme.labelSmallEmphasized
 import com.personalrecords.app.ui.AppViewModelFactory
 import com.personalrecords.app.ui.navigation.Screen
 import com.personalrecords.app.ui.navigation.bottomNavScreens
@@ -138,15 +141,12 @@ fun MainAppHost() {
                 if (target in detailSubRoutes) {
                     slideInHorizontally(
                         initialOffsetX = { (it * 0.18f).toInt() },
-                        animationSpec = spring(
-                            dampingRatio = 0.82f,
-                            stiffness = 380f
-                        )
-                    ) + fadeIn(animationSpec = tween(220, easing = LinearOutSlowInEasing))
+                        animationSpec = M3ExpressiveMotion.defaultSpatial()
+                    ) + fadeIn(animationSpec = M3ExpressiveMotion.defaultEffects())
                 } else {
-                    fadeIn(animationSpec = tween(220, easing = LinearOutSlowInEasing)) + scaleIn(
+                    fadeIn(animationSpec = M3ExpressiveMotion.defaultEffects()) + scaleIn(
                         initialScale = 0.98f,
-                        animationSpec = tween(220, easing = LinearOutSlowInEasing)
+                        animationSpec = M3ExpressiveMotion.defaultSpatial()
                     )
                 }
             },
@@ -155,17 +155,17 @@ fun MainAppHost() {
                 if (target in detailSubRoutes) {
                     ExitTransition.None
                 } else {
-                    fadeOut(animationSpec = tween(180, easing = FastOutLinearInEasing))
+                    fadeOut(animationSpec = M3ExpressiveMotion.fastEffects())
                 }
             },
             popEnterTransition = {
                 val initial = initialState.destination.route
                 if (initial in detailSubRoutes) {
-                    fadeIn(animationSpec = tween(160, easing = LinearOutSlowInEasing))
+                    fadeIn(animationSpec = M3ExpressiveMotion.defaultEffects())
                 } else {
-                    fadeIn(animationSpec = tween(220, easing = LinearOutSlowInEasing)) + scaleIn(
+                    fadeIn(animationSpec = M3ExpressiveMotion.defaultEffects()) + scaleIn(
                         initialScale = 0.98f,
-                        animationSpec = tween(220, easing = LinearOutSlowInEasing)
+                        animationSpec = M3ExpressiveMotion.defaultSpatial()
                     )
                 }
             },
@@ -174,10 +174,10 @@ fun MainAppHost() {
                 if (initial in detailSubRoutes) {
                     scaleOut(
                         targetScale = 0.94f,
-                        animationSpec = tween(160, easing = FastOutLinearInEasing)
-                    ) + fadeOut(animationSpec = tween(140, easing = FastOutLinearInEasing))
+                        animationSpec = M3ExpressiveMotion.fastSpatial()
+                    ) + fadeOut(animationSpec = M3ExpressiveMotion.fastEffects())
                 } else {
-                    fadeOut(animationSpec = tween(180, easing = FastOutLinearInEasing))
+                    fadeOut(animationSpec = M3ExpressiveMotion.fastEffects())
                 }
             }
         ) {
@@ -287,7 +287,7 @@ fun MainAppHost() {
             contentAlignment = Alignment.Center
         ) {
             Surface(
-                shape = RoundedCornerShape(28.dp),
+                shape = M3Shapes.CornerExtraLarge,
                 color = MaterialTheme.colorScheme.surfaceContainer,
                 tonalElevation = 2.dp,
                 shadowElevation = 0.dp,
@@ -311,49 +311,38 @@ fun MainAppHost() {
                             else -> currentDestination?.route == screen.route
                         }
 
-                        // M3 Expressive spring physics bounce on selection/click
+                        // Spatial spring (fast: 0.6 damping / 800 stiffness) for icon bounce & pill geometry
                         val iconScale by animateFloatAsState(
                             targetValue = if (selected) 1.12f else 1.0f,
-                            animationSpec = spring(
-                                dampingRatio = Spring.DampingRatioMediumBouncy,
-                                stiffness = Spring.StiffnessMediumLow
-                            ),
+                            animationSpec = M3ExpressiveMotion.fastSpatial(),
                             label = "nav_icon_bounce"
                         )
 
-                        // M3 Expressive active indicator pill spring animations
+                        // Effects spring (damping 1.0, no overshoot) for indicator opacity
                         val indicatorAlpha by animateFloatAsState(
                             targetValue = if (selected) 1f else 0f,
-                            animationSpec = spring(
-                                dampingRatio = Spring.DampingRatioNoBouncy,
-                                stiffness = Spring.StiffnessMedium
-                            ),
+                            animationSpec = M3ExpressiveMotion.fastEffects(),
                             label = "nav_indicator_alpha"
                         )
                         val indicatorScaleX by animateFloatAsState(
                             targetValue = if (selected) 1f else 0.6f,
-                            animationSpec = spring(
-                                dampingRatio = Spring.DampingRatioMediumBouncy,
-                                stiffness = Spring.StiffnessMediumLow
-                            ),
+                            animationSpec = M3ExpressiveMotion.fastSpatial(),
                             label = "nav_indicator_scale_x"
                         )
                         val indicatorScaleY by animateFloatAsState(
                             targetValue = if (selected) 1f else 0.75f,
-                            animationSpec = spring(
-                                dampingRatio = Spring.DampingRatioMediumBouncy,
-                                stiffness = Spring.StiffnessMediumLow
-                            ),
+                            animationSpec = M3ExpressiveMotion.fastSpatial(),
                             label = "nav_indicator_scale_y"
                         )
 
+                        // Effects spring (damping 1.0, no overshoot) for color transitions
                         val iconColor by animateColorAsState(
                             targetValue = if (selected) {
                                 MaterialTheme.colorScheme.onSecondaryContainer
                             } else {
                                 MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f)
                             },
-                            animationSpec = tween(180),
+                            animationSpec = M3ExpressiveMotion.fastEffects(),
                             label = "nav_icon_color"
                         )
 
@@ -363,7 +352,7 @@ fun MainAppHost() {
                             } else {
                                 MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f)
                             },
-                            animationSpec = tween(180),
+                            animationSpec = M3ExpressiveMotion.fastEffects(),
                             label = "nav_text_color"
                         )
 
@@ -459,7 +448,7 @@ fun MainAppHost() {
                                                 }
                                                 .background(
                                                     color = MaterialTheme.colorScheme.secondaryContainer,
-                                                    shape = CircleShape
+                                                    shape = M3Shapes.CornerFull
                                                 )
                                         )
                                     }
@@ -481,11 +470,11 @@ fun MainAppHost() {
 
                                 Text(
                                     text = stringResource(screen.navLabelRes),
-                                    style = MaterialTheme.typography.labelSmall.copy(
-                                        fontSize = 11.sp,
-                                        lineHeight = 14.sp,
-                                        fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium
-                                    ),
+                                    style = if (selected) {
+                                        MaterialTheme.typography.labelSmallEmphasized.copy(lineHeight = 14.sp)
+                                    } else {
+                                        MaterialTheme.typography.labelSmall.copy(lineHeight = 14.sp)
+                                    },
                                     color = textColor,
                                     textAlign = TextAlign.Center,
                                     maxLines = 1,

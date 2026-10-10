@@ -95,7 +95,7 @@ fun RecordsScreen(
                 item {
                     Card(
                         modifier = Modifier.fillMaxWidth(),
-                        shape = MaterialTheme.shapes.medium,
+                        shape = M3Shapes.CornerLarge,
                         colors = CardDefaults.cardColors(
                             containerColor = MaterialTheme.colorScheme.surfaceContainerLow
                         ),
@@ -140,7 +140,7 @@ fun RecordsScreen(
                 item {
                     Card(
                         modifier = Modifier.fillMaxWidth(),
-                        shape = MaterialTheme.shapes.medium,
+                        shape = M3Shapes.CornerLarge,
                         colors = CardDefaults.cardColors(
                             containerColor = MaterialTheme.colorScheme.surfaceContainerLow
                         ),
@@ -197,7 +197,7 @@ fun RecordsScreen(
                 item {
                     Card(
                         modifier = Modifier.fillMaxWidth(),
-                        shape = MaterialTheme.shapes.medium,
+                        shape = M3Shapes.CornerLarge,
                         colors = CardDefaults.cardColors(
                             containerColor = MaterialTheme.colorScheme.surfaceContainerLow
                         ),
@@ -225,8 +225,7 @@ fun RecordsScreen(
 private fun SectionTitle(title: String) {
     Text(
         text = title,
-        style = MaterialTheme.typography.labelLarge,
-        fontWeight = FontWeight.Bold,
+        style = MaterialTheme.typography.labelLargeEmphasized,
         color = MaterialTheme.colorScheme.primary,
         modifier = Modifier.padding(start = 4.dp, top = 6.dp, bottom = 2.dp)
     )
@@ -249,11 +248,11 @@ private fun RecordItemRow(
             .padding(horizontal = 12.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        // Leading Icon Box
+        // Leading Icon Box (optical roundness: 8.dp CornerSmall inside 16.dp CornerLarge card)
         Box(
             modifier = Modifier
                 .size(42.dp)
-                .clip(MaterialTheme.shapes.small)
+                .clip(M3Shapes.CornerSmall)
                 .background(iconBg),
             contentAlignment = Alignment.Center
         ) {
@@ -271,8 +270,7 @@ private fun RecordItemRow(
         Column(modifier = Modifier.weight(1f)) {
             Text(
                 text = title,
-                style = MaterialTheme.typography.titleSmall,
-                fontWeight = FontWeight.SemiBold,
+                style = MaterialTheme.typography.titleSmallEmphasized,
                 color = MaterialTheme.colorScheme.onSurface,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
@@ -292,15 +290,14 @@ private fun RecordItemRow(
         // Trailing Badge or Chevron
         if (badgeText != null) {
             Surface(
-                shape = CircleShape,
+                shape = M3Shapes.CornerFull,
                 color = MaterialTheme.colorScheme.surfaceContainerHighest
             ) {
                 Text(
                     text = badgeText,
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.5.dp),
-                    fontWeight = FontWeight.Medium
+                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.5.dp)
                 )
             }
         } else {

@@ -10,7 +10,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
@@ -30,7 +30,11 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.personalrecords.app.R
 import com.personalrecords.app.core.network.model.NotificationDto
+import com.personalrecords.app.core.theme.*
 import com.personalrecords.app.ui.components.*
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.withContext
 import java.time.LocalDate
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
@@ -43,6 +47,47 @@ fun NotificationsScreen(
     val context = LocalContext.current
     var selectedNotification by remember { mutableStateOf<NotificationDto?>(null) }
     var showDatePicker by remember { mutableStateOf(false) }
+    var filteredList by remember { mutableStateOf<List<NotificationDto>>(emptyList()) }
+    var isFiltering by remember { mutableStateOf(false) }
+
+    LaunchedEffect(
+        state.notifications,
+        state.selectedApp,
+        state.searchQuery,
+        state.selectedDateFilter,
+        state.fromDateFilter,
+        state.toDateFilter
+    ) {
+        if (state.notifications.isEmpty()) {
+            filteredList = emptyList()
+            isFiltering = false
+            return@LaunchedEffect
+        }
+        if (isFiltering) {
+            delay(160)
+        }
+        val computed = withContext(Dispatchers.Default) {
+            state.notifications.filter { item ->
+                val matchesApp = state.selectedApp == null || item.displayAppName == state.selectedApp
+                val matchesSearch = state.searchQuery.isBlank() ||
+                    item.displayTitle.contains(state.searchQuery, ignoreCase = true) ||
+                    item.displayBody.contains(state.searchQuery, ignoreCase = true) ||
+                    item.displayAppName.contains(state.searchQuery, ignoreCase = true)
+                val notifDate = item.formattedDate.ifBlank { item.created_at.take(10) }
+                val matchesDate = when {
+                    state.selectedDateFilter != null -> notifDate.startsWith(state.selectedDateFilter!!)
+                    state.fromDateFilter != null && state.toDateFilter != null ->
+                        notifDate.isNotBlank() && notifDate >= state.fromDateFilter!! && notifDate <= state.toDateFilter!!
+                    state.fromDateFilter != null -> notifDate.isNotBlank() && notifDate >= state.fromDateFilter!!
+                    state.toDateFilter != null -> notifDate.isNotBlank() && notifDate <= state.toDateFilter!!
+                    else -> true
+                }
+                matchesApp && matchesSearch && matchesDate
+            }
+        }
+        filteredList = computed
+        isFiltering = false
+    }
 
     if (showDatePicker) {
         ExpressiveDateFilterDialog(
@@ -50,12 +95,15 @@ fun NotificationsScreen(
             initialEndDate = state.toDateFilter,
             onDismissRequest = { showDatePicker = false },
             onDateSelected = { date ->
+                isFiltering = true
                 viewModel.setDateFilter(date)
             },
             onDateRangeSelected = { start, end ->
+                isFiltering = true
                 viewModel.setDateRangeFilter(start, end)
             },
             onClear = {
+                isFiltering = true
                 viewModel.clearDateFilter()
             }
         )
@@ -69,8 +117,7 @@ fun NotificationsScreen(
                 title = {
                     Text(
                         text = stringResource(R.string.title_notifications),
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.Bold
+                        style = MaterialTheme.typography.titleLargeEmphasized
                     )
                 },
                 navigationIcon = {
@@ -109,39 +156,12 @@ fun NotificationsScreen(
                     .sorted()
             }
 
-            val filteredList = remember(
-                state.notifications,
-                state.selectedApp,
-                state.searchQuery,
-                state.selectedDateFilter,
-                state.fromDateFilter,
-                state.toDateFilter
-            ) {
-                state.notifications.filter { item ->
-                    val matchesApp = state.selectedApp == null || item.displayAppName == state.selectedApp
-                    val matchesSearch = state.searchQuery.isBlank() ||
-                        item.displayTitle.contains(state.searchQuery, ignoreCase = true) ||
-                        item.displayBody.contains(state.searchQuery, ignoreCase = true) ||
-                        item.displayAppName.contains(state.searchQuery, ignoreCase = true)
-                    val notifDate = item.formattedDate.ifBlank { item.created_at.take(10) }
-                    val matchesDate = when {
-                        state.selectedDateFilter != null -> notifDate.startsWith(state.selectedDateFilter!!)
-                        state.fromDateFilter != null && state.toDateFilter != null ->
-                            notifDate.isNotBlank() && notifDate >= state.fromDateFilter!! && notifDate <= state.toDateFilter!!
-                        state.fromDateFilter != null -> notifDate.isNotBlank() && notifDate >= state.fromDateFilter!!
-                        state.toDateFilter != null -> notifDate.isNotBlank() && notifDate <= state.toDateFilter!!
-                        else -> true
-                    }
-                    matchesApp && matchesSearch && matchesDate
-                }
-            }
-
             LazyColumn(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(horizontal = 12.dp),
                 contentPadding = PaddingValues(top = 10.dp, bottom = 144.dp),
-                verticalArrangement = Arrangement.spacedBy(6.dp)
+                verticalArrangement = Arrangement.Top
             ) {
                 // Stats Row
                 item {
@@ -151,7 +171,9 @@ fun NotificationsScreen(
                     val appCount = appList.size
 
                     Row(
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(bottom = 6.dp),
                         horizontalArrangement = Arrangement.spacedBy(6.dp)
                     ) {
                         MetricCard(
@@ -175,7 +197,9 @@ fun NotificationsScreen(
                 stickyHeader {
                     Surface(
                         color = MaterialTheme.colorScheme.surface,
-                        modifier = Modifier.fillMaxWidth()
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(bottom = 6.dp)
                     ) {
                         Column(
                             modifier = Modifier
@@ -204,7 +228,10 @@ fun NotificationsScreen(
                                 },
                                 trailingIcon = {
                                     if (state.searchQuery.isNotEmpty()) {
-                                        IconButton(onClick = { viewModel.setSearchQuery("") }) {
+                                        IconButton(onClick = {
+                                            isFiltering = true
+                                            viewModel.setSearchQuery("")
+                                        }) {
                                             Icon(
                                                 Icons.Default.Clear,
                                                 contentDescription = stringResource(R.string.action_clear),
@@ -214,7 +241,7 @@ fun NotificationsScreen(
                                         }
                                     }
                                 },
-                                shape = CircleShape,
+                                shape = M3Shapes.CornerFull,
                                 colors = OutlinedTextFieldDefaults.colors(
                                     focusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
                                     unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainerLow,
@@ -256,7 +283,10 @@ fun NotificationsScreen(
                                                 contentDescription = null,
                                                 modifier = Modifier
                                                     .size(14.dp)
-                                                    .clickable { viewModel.clearDateFilter() }
+                                                    .clickable {
+                                                        isFiltering = true
+                                                        viewModel.clearDateFilter()
+                                                    }
                                             )
                                         }
                                     } else null,
@@ -270,7 +300,12 @@ fun NotificationsScreen(
 
                                 ExpressiveFilterChip(
                                     selected = state.selectedApp == null,
-                                    onClick = { viewModel.setAppFilter(null) },
+                                    onClick = {
+                                        if (state.selectedApp != null) {
+                                            isFiltering = true
+                                            viewModel.setAppFilter(null)
+                                        }
+                                    },
                                     label = { Text(stringResource(R.string.filter_all), style = MaterialTheme.typography.labelMedium) }
                                 )
 
@@ -278,7 +313,10 @@ fun NotificationsScreen(
                                     val isSelected = state.selectedApp == appName
                                     ExpressiveFilterChip(
                                         selected = isSelected,
-                                        onClick = { viewModel.setAppFilter(if (isSelected) null else appName) },
+                                        onClick = {
+                                            isFiltering = true
+                                            viewModel.setAppFilter(if (isSelected) null else appName)
+                                        },
                                         label = { Text(appName, style = MaterialTheme.typography.labelMedium) }
                                     )
                                 }
@@ -286,6 +324,7 @@ fun NotificationsScreen(
                                 if (state.selectedApp != null || state.searchQuery.isNotEmpty() || hasActiveDate) {
                                     AssistChip(
                                         onClick = {
+                                            isFiltering = true
                                             viewModel.setAppFilter(null)
                                             viewModel.setSearchQuery("")
                                             viewModel.clearDateFilter()
@@ -293,11 +332,11 @@ fun NotificationsScreen(
                                         label = {
                                             Text(
                                                 text = stringResource(R.string.action_clear),
-                                                style = MaterialTheme.typography.labelMedium,
+                                                style = MaterialTheme.typography.labelMediumEmphasized,
                                                 color = MaterialTheme.colorScheme.error
                                             )
                                         },
-                                        shape = MaterialTheme.shapes.small,
+                                        shape = M3Shapes.CornerSmall,
                                         border = null,
                                         colors = borderlessAssistChipColors(
                                             labelColor = MaterialTheme.colorScheme.error
@@ -310,7 +349,7 @@ fun NotificationsScreen(
                 }
 
                 // Loading or Empty State
-                if (state.isLoading && state.notifications.isEmpty()) {
+                if ((state.isLoading && state.notifications.isEmpty()) || isFiltering) {
                     item {
                         Box(
                             modifier = Modifier
@@ -331,7 +370,7 @@ fun NotificationsScreen(
                                 colors = CardDefaults.cardColors(
                                     containerColor = MaterialTheme.colorScheme.surfaceContainerLow
                                 ),
-                                shape = MaterialTheme.shapes.medium
+                                shape = M3Shapes.CornerLarge
                             ) {
                                 Column(
                                     modifier = Modifier
@@ -341,7 +380,7 @@ fun NotificationsScreen(
                                     verticalArrangement = Arrangement.spacedBy(10.dp)
                                 ) {
                                     Surface(
-                                        shape = CircleShape,
+                                        shape = M3Shapes.CornerFull,
                                         color = MaterialTheme.colorScheme.tertiaryContainer,
                                         modifier = Modifier.size(56.dp)
                                     ) {
@@ -356,8 +395,7 @@ fun NotificationsScreen(
                                     }
                                     Text(
                                         text = stringResource(R.string.notifications_empty),
-                                        style = MaterialTheme.typography.titleMedium,
-                                        fontWeight = FontWeight.Bold
+                                        style = MaterialTheme.typography.titleMediumEmphasized
                                     )
                                     Text(
                                         text = stringResource(R.string.notifications_empty_guide),
@@ -383,30 +421,18 @@ fun NotificationsScreen(
                         }
                     }
                 } else {
-                    item {
-                        Card(
-                            modifier = Modifier.fillMaxWidth(),
-                            shape = MaterialTheme.shapes.medium,
-                            colors = CardDefaults.cardColors(
-                                containerColor = MaterialTheme.colorScheme.surfaceContainerLow
-                            ),
-                            elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
-                            border = null
+                    itemsIndexed(
+                        items = filteredList,
+                        key = { index, notif -> "${notif.id}_${notif.created_at}_$index" }
+                    ) { index, notif ->
+                        LazyCardRowContainer(
+                            index = index,
+                            totalCount = filteredList.size
                         ) {
-                            Column {
-                                filteredList.forEachIndexed { index, notif ->
-                                    if (index > 0) {
-                                        HorizontalDivider(
-                                            color = MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.5f),
-                                            modifier = Modifier.padding(horizontal = 12.dp)
-                                        )
-                                    }
-                                    NotificationRowItem(
-                                        notification = notif,
-                                        onClick = { selectedNotification = notif }
-                                    )
-                                }
-                            }
+                            NotificationRowItem(
+                                notification = notif,
+                                onClick = { selectedNotification = notif }
+                            )
                         }
                     }
                 }
@@ -416,132 +442,11 @@ fun NotificationsScreen(
         }
     }
 
-    // ModalBottomSheet for detailed view
     selectedNotification?.let { notif ->
-        val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-        ModalBottomSheet(
-            onDismissRequest = { selectedNotification = null },
-            sheetState = sheetState,
-            containerColor = MaterialTheme.colorScheme.surfaceContainerLow
-        ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 20.dp, vertical = 8.dp)
-                    .navigationBarsPadding(),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                // Header row: App Name pill, Category pill, Date/Time
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    Surface(
-                        shape = CircleShape,
-                        color = MaterialTheme.colorScheme.secondaryContainer
-                    ) {
-                        Text(
-                            text = notif.displayAppName,
-                            style = MaterialTheme.typography.labelMedium,
-                            color = MaterialTheme.colorScheme.onSecondaryContainer,
-                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
-                            fontWeight = FontWeight.SemiBold
-                        )
-                    }
-                    if (notif.category.isNotBlank()) {
-                        Surface(
-                            shape = CircleShape,
-                            color = MaterialTheme.colorScheme.surfaceContainerHighest
-                        ) {
-                            Text(
-                                text = notif.category,
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
-                            )
-                        }
-                    }
-                    Spacer(modifier = Modifier.weight(1f))
-                    Text(
-                        text = "${notif.formattedDate} · ${notif.formattedTime}",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-
-                // Title
-                Text(
-                    text = notif.displayTitle,
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onSurface
-                )
-
-                // Message Body
-                if (notif.displayBody.isNotBlank()) {
-                    Text(
-                        text = notif.displayBody,
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-
-                // Subtext if distinct
-                if (notif.sub_text.isNotBlank() && notif.sub_text != notif.displayBody) {
-                    Text(
-                        text = notif.sub_text,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.outline
-                    )
-                }
-
-                // Package name info
-                if (notif.package_name.isNotBlank()) {
-                    Text(
-                        text = "Paket: ${notif.package_name}",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.outline
-                    )
-                }
-
-                Spacer(modifier = Modifier.height(4.dp))
-
-                // Actions: Copy & Close
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    OutlinedButton(
-                        onClick = {
-                            val textToCopy = "${notif.displayTitle}\n${notif.displayBody}".trim()
-                            val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-                            val clip = ClipData.newPlainText("Bildirim", textToCopy)
-                            clipboard.setPrimaryClip(clip)
-                            Toast.makeText(context, context.getString(R.string.action_copied), Toast.LENGTH_SHORT).show()
-                        },
-                        modifier = Modifier.weight(1f)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.ContentCopy,
-                            contentDescription = null,
-                            modifier = Modifier.size(16.dp)
-                        )
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text(stringResource(R.string.notifications_copy_text))
-                    }
-
-                    Button(
-                        onClick = { selectedNotification = null },
-                        modifier = Modifier.weight(1f)
-                    ) {
-                        Text(stringResource(R.string.action_close))
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(12.dp))
-            }
-        }
+        NotificationDetailBottomSheet(
+            notif = notif,
+            onDismiss = { selectedNotification = null }
+        )
     }
 }
 
@@ -561,7 +466,7 @@ fun NotificationRowItem(
         Box(
             modifier = Modifier
                 .size(40.dp)
-                .clip(CircleShape)
+                .clip(M3Shapes.CornerFull)
                 .background(MaterialTheme.colorScheme.secondaryContainer),
             contentAlignment = Alignment.Center
         ) {
@@ -578,8 +483,7 @@ fun NotificationRowItem(
         Column(modifier = Modifier.weight(1f)) {
             Text(
                 text = notification.displayTitle,
-                style = MaterialTheme.typography.titleSmall,
-                fontWeight = FontWeight.SemiBold,
+                style = MaterialTheme.typography.titleSmallEmphasized,
                 color = MaterialTheme.colorScheme.onSurface,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
@@ -598,7 +502,7 @@ fun NotificationRowItem(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Surface(
-                    shape = CircleShape,
+                    shape = M3Shapes.CornerFull,
                     color = MaterialTheme.colorScheme.secondaryContainer
                 ) {
                     Text(
@@ -606,14 +510,13 @@ fun NotificationRowItem(
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSecondaryContainer,
                         modifier = Modifier.padding(horizontal = 7.dp, vertical = 2.dp),
-                        fontWeight = FontWeight.Medium,
                         maxLines = 1,
                         softWrap = false
                     )
                 }
                 if (notification.category.isNotBlank()) {
                     Surface(
-                        shape = CircleShape,
+                        shape = M3Shapes.CornerFull,
                         color = MaterialTheme.colorScheme.surfaceContainerHighest
                     ) {
                         Text(

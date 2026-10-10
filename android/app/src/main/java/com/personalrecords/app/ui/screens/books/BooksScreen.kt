@@ -4,7 +4,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
@@ -23,6 +23,9 @@ import com.personalrecords.app.R
 import com.personalrecords.app.core.network.model.BookDto
 import com.personalrecords.app.core.theme.*
 import com.personalrecords.app.ui.components.*
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.withContext
 
 @OptIn(ExperimentalMaterial3Api::class, androidx.compose.foundation.ExperimentalFoundationApi::class)
 @Composable
@@ -32,6 +35,58 @@ fun BooksScreen(
 ) {
     val state by viewModel.uiState.collectAsState()
     var showDatePicker by remember { mutableStateOf(false) }
+    var selectedBook by remember { mutableStateOf<BookDto?>(null) }
+    var filteredBooks by remember { mutableStateOf<List<BookDto>>(emptyList()) }
+    var isFiltering by remember { mutableStateOf(false) }
+
+    LaunchedEffect(
+        state.books,
+        state.searchQuery,
+        state.selectedDateFilter,
+        state.fromDateFilter,
+        state.toDateFilter,
+        state.selectedShelf,
+        state.sortBy
+    ) {
+        if (state.books.isEmpty()) {
+            filteredBooks = emptyList()
+            isFiltering = false
+            return@LaunchedEffect
+        }
+        if (isFiltering) {
+            delay(160)
+        }
+        val computed = withContext(Dispatchers.Default) {
+            var list = state.books.filter { book ->
+                val matchesSearch = state.searchQuery.isBlank() ||
+                    book.title.contains(state.searchQuery, ignoreCase = true) ||
+                    book.author.contains(state.searchQuery, ignoreCase = true)
+                val matchesShelf = state.selectedShelf == "all" ||
+                    book.exclusive_shelf.equals(state.selectedShelf, ignoreCase = true)
+                val bookDate = book.date_read.trim().replace('/', '-')
+                val matchesDate = when {
+                    state.selectedDateFilter != null -> bookDate.startsWith(state.selectedDateFilter!!)
+                    state.fromDateFilter != null && state.toDateFilter != null ->
+                        bookDate.isNotBlank() && bookDate >= state.fromDateFilter!! && bookDate <= state.toDateFilter!!
+                    state.fromDateFilter != null -> bookDate.isNotBlank() && bookDate >= state.fromDateFilter!!
+                    state.toDateFilter != null -> bookDate.isNotBlank() && bookDate <= state.toDateFilter!!
+                    else -> true
+                }
+                matchesSearch && matchesShelf && matchesDate
+            }
+
+            list = when (state.sortBy) {
+                "rating_desc" -> list.sortedByDescending { it.my_rating }
+                "rating_asc" -> list.sortedBy { it.my_rating }
+                "title" -> list.sortedBy { it.title.lowercase() }
+                "date" -> list.sortedByDescending { it.date_read }
+                else -> list
+            }
+            list
+        }
+        filteredBooks = computed
+        isFiltering = false
+    }
 
     if (showDatePicker) {
         ExpressiveDateFilterDialog(
@@ -39,12 +94,15 @@ fun BooksScreen(
             initialEndDate = state.toDateFilter,
             onDismissRequest = { showDatePicker = false },
             onDateSelected = { date ->
+                isFiltering = true
                 viewModel.setDateFilter(date)
             },
             onDateRangeSelected = { start, end ->
+                isFiltering = true
                 viewModel.setDateRangeFilter(start, end)
             },
             onClear = {
+                isFiltering = true
                 viewModel.clearDateFilter()
             }
         )
@@ -58,8 +116,7 @@ fun BooksScreen(
                 title = {
                     Text(
                         text = stringResource(R.string.title_books),
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.Bold
+                        style = MaterialTheme.typography.titleLargeEmphasized
                     )
                 },
                 navigationIcon = {
@@ -91,49 +148,12 @@ fun BooksScreen(
                 .fillMaxSize()
                 .padding(innerPadding)
         ) {
-            val filteredBooks = remember(
-                state.books,
-                state.searchQuery,
-                state.selectedDateFilter,
-                state.fromDateFilter,
-                state.toDateFilter,
-                state.selectedShelf,
-                state.sortBy
-            ) {
-                var list = state.books.filter { book ->
-                    val matchesSearch = state.searchQuery.isBlank() ||
-                        book.title.contains(state.searchQuery, ignoreCase = true) ||
-                        book.author.contains(state.searchQuery, ignoreCase = true)
-                    val matchesShelf = state.selectedShelf == "all" ||
-                        book.exclusive_shelf.equals(state.selectedShelf, ignoreCase = true)
-                    val bookDate = book.date_read.trim().replace('/', '-')
-                    val matchesDate = when {
-                        state.selectedDateFilter != null -> bookDate.startsWith(state.selectedDateFilter!!)
-                        state.fromDateFilter != null && state.toDateFilter != null ->
-                            bookDate.isNotBlank() && bookDate >= state.fromDateFilter!! && bookDate <= state.toDateFilter!!
-                        state.fromDateFilter != null -> bookDate.isNotBlank() && bookDate >= state.fromDateFilter!!
-                        state.toDateFilter != null -> bookDate.isNotBlank() && bookDate <= state.toDateFilter!!
-                        else -> true
-                    }
-                    matchesSearch && matchesShelf && matchesDate
-                }
-
-                list = when (state.sortBy) {
-                    "rating_desc" -> list.sortedByDescending { it.my_rating }
-                    "rating_asc" -> list.sortedBy { it.my_rating }
-                    "title" -> list.sortedBy { it.title.lowercase() }
-                    "date" -> list.sortedByDescending { it.date_read }
-                    else -> list
-                }
-                list
-            }
-
             LazyColumn(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(horizontal = 12.dp),
                 contentPadding = PaddingValues(top = 10.dp, bottom = 144.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
+                verticalArrangement = Arrangement.Top
             ) {
 
                 // Stats Row
@@ -147,7 +167,9 @@ fun BooksScreen(
                     } else "0.0"
 
                     Row(
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(bottom = 8.dp),
                         horizontalArrangement = Arrangement.spacedBy(6.dp)
                     ) {
                         MetricCard(
@@ -177,7 +199,9 @@ fun BooksScreen(
                 stickyHeader {
                     Surface(
                         color = MaterialTheme.colorScheme.surface,
-                        modifier = Modifier.fillMaxWidth()
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(bottom = 8.dp)
                     ) {
                         Column(
                             modifier = Modifier
@@ -206,7 +230,10 @@ fun BooksScreen(
                                 },
                                 trailingIcon = {
                                     if (state.searchQuery.isNotEmpty()) {
-                                        IconButton(onClick = { viewModel.setSearchQuery("") }) {
+                                        IconButton(onClick = {
+                                            isFiltering = true
+                                            viewModel.setSearchQuery("")
+                                        }) {
                                             Icon(
                                                 Icons.Default.Clear,
                                                 contentDescription = stringResource(R.string.action_clear),
@@ -216,7 +243,7 @@ fun BooksScreen(
                                         }
                                     }
                                 },
-                                shape = CircleShape,
+                                shape = M3Shapes.CornerFull,
                                 colors = OutlinedTextFieldDefaults.colors(
                                     focusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
                                     unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainerLow,
@@ -258,7 +285,10 @@ fun BooksScreen(
                                                 contentDescription = null,
                                                 modifier = Modifier
                                                     .size(14.dp)
-                                                    .clickable { viewModel.clearDateFilter() }
+                                                    .clickable {
+                                                        isFiltering = true
+                                                        viewModel.clearDateFilter()
+                                                    }
                                             )
                                         }
                                     } else null,
@@ -278,7 +308,12 @@ fun BooksScreen(
                                 ).forEach { (shelf, label, icon) ->
                                     ExpressiveFilterChip(
                                         selected = state.selectedShelf == shelf,
-                                        onClick = { viewModel.setShelf(shelf) },
+                                        onClick = {
+                                            if (state.selectedShelf != shelf) {
+                                                isFiltering = true
+                                                viewModel.setShelf(shelf)
+                                            }
+                                        },
                                         leadingIcon = icon?.let {
                                             {
                                                 Icon(
@@ -307,6 +342,7 @@ fun BooksScreen(
                                             "title" -> "date"
                                             else -> "rating_desc"
                                         }
+                                        isFiltering = true
                                         viewModel.setSortBy(nextSort)
                                     },
                                     leadingIcon = {
@@ -320,12 +356,11 @@ fun BooksScreen(
                                     label = {
                                         Text(
                                             text = sortLabel,
-                                            style = MaterialTheme.typography.labelMedium,
-                                            fontWeight = FontWeight.SemiBold,
+                                            style = MaterialTheme.typography.labelMediumEmphasized,
                                             color = MaterialTheme.colorScheme.primary
                                         )
                                     },
-                                    shape = MaterialTheme.shapes.small,
+                                    shape = M3Shapes.CornerSmall,
                                     border = null,
                                     colors = borderlessAssistChipColors()
                                 )
@@ -334,7 +369,7 @@ fun BooksScreen(
                     }
                 }
 
-                if (state.isLoading && state.books.isEmpty()) {
+                if ((state.isLoading && state.books.isEmpty()) || isFiltering) {
                     item {
                         Box(
                             modifier = Modifier
@@ -361,27 +396,18 @@ fun BooksScreen(
                         }
                     }
                 } else {
-                    item {
-                        Card(
-                            modifier = Modifier.fillMaxWidth(),
-                            shape = MaterialTheme.shapes.medium,
-                            colors = CardDefaults.cardColors(
-                                containerColor = MaterialTheme.colorScheme.surfaceContainerLow
-                            ),
-                            elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
-                            border = null
+                    itemsIndexed(
+                        items = filteredBooks,
+                        key = { index, book -> "${book.book_id}_${book.title}_$index" }
+                    ) { index, book ->
+                        LazyCardRowContainer(
+                            index = index,
+                            totalCount = filteredBooks.size
                         ) {
-                            Column {
-                                filteredBooks.forEachIndexed { index, book ->
-                                    if (index > 0) {
-                                        HorizontalDivider(
-                                            color = MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.5f),
-                                            modifier = Modifier.padding(horizontal = 12.dp)
-                                        )
-                                    }
-                                    BookRowItem(book = book)
-                                }
-                            }
+                            BookRowItem(
+                                book = book,
+                                onClick = { selectedBook = book }
+                            )
                         }
                     }
                 }
@@ -390,10 +416,20 @@ fun BooksScreen(
             }
         }
     }
+
+    selectedBook?.let { book ->
+        BookDetailBottomSheet(
+            book = book,
+            onDismiss = { selectedBook = null }
+        )
+    }
 }
 
 @Composable
-fun BookRowItem(book: BookDto) {
+fun BookRowItem(
+    book: BookDto,
+    onClick: () -> Unit = {}
+) {
     val shelfLabel = when (book.exclusive_shelf.lowercase()) {
         "read" -> stringResource(R.string.books_shelf_read)
         "to-read" -> stringResource(R.string.books_shelf_to_read)
@@ -404,6 +440,7 @@ fun BookRowItem(book: BookDto) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
+            .expressiveBounceClick(onClick = onClick)
             .padding(horizontal = 12.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -413,8 +450,7 @@ fun BookRowItem(book: BookDto) {
         Column(modifier = Modifier.weight(1f)) {
             Text(
                 text = book.title,
-                style = MaterialTheme.typography.titleSmall,
-                fontWeight = FontWeight.SemiBold,
+                style = MaterialTheme.typography.titleSmallEmphasized,
                 color = MaterialTheme.colorScheme.onSurface,
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis
@@ -433,7 +469,7 @@ fun BookRowItem(book: BookDto) {
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Surface(
-                    shape = CircleShape,
+                    shape = M3Shapes.CornerFull,
                     color = domainBooksContainer()
                 ) {
                     Text(
@@ -441,7 +477,6 @@ fun BookRowItem(book: BookDto) {
                         style = MaterialTheme.typography.labelSmall,
                         color = domainBooksOnContainer(),
                         modifier = Modifier.padding(horizontal = 6.dp, vertical = 1.5.dp),
-                        fontWeight = FontWeight.Medium,
                         maxLines = 1,
                         softWrap = false
                     )

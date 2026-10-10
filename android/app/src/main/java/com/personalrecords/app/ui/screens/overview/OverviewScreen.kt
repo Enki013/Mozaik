@@ -35,6 +35,7 @@ fun OverviewScreen(
 ) {
     val state by viewModel.uiState.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
+    var selectedActivity by remember { mutableStateOf<com.personalrecords.app.core.network.model.ActivityItemDto?>(null) }
 
     LaunchedEffect(state.syncMessage) {
         state.syncMessage?.let {
@@ -155,7 +156,7 @@ fun OverviewScreen(
                 item {
                     Card(
                         modifier = Modifier.fillMaxWidth(),
-                        shape = MaterialTheme.shapes.medium,
+                        shape = M3Shapes.CornerLarge,
                         colors = CardDefaults.cardColors(
                             containerColor = MaterialTheme.colorScheme.surfaceContainerLow
                         ),
@@ -165,8 +166,7 @@ fun OverviewScreen(
                         Column(modifier = Modifier.padding(14.dp)) {
                             Text(
                                 text = stringResource(R.string.overview_integrations_title),
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.SemiBold,
+                                style = MaterialTheme.typography.titleMediumEmphasized,
                                 color = MaterialTheme.colorScheme.onSurface
                             )
                             Text(
@@ -215,7 +215,7 @@ fun OverviewScreen(
                 item {
                     Card(
                         modifier = Modifier.fillMaxWidth(),
-                        shape = MaterialTheme.shapes.medium,
+                        shape = M3Shapes.CornerLarge,
                         colors = CardDefaults.cardColors(
                             containerColor = MaterialTheme.colorScheme.surfaceContainerLow
                         ),
@@ -234,8 +234,7 @@ fun OverviewScreen(
                                 Column {
                                     Text(
                                         text = stringResource(R.string.overview_recent_activities_title),
-                                        style = MaterialTheme.typography.titleMedium,
-                                        fontWeight = FontWeight.SemiBold,
+                                        style = MaterialTheme.typography.titleMediumEmphasized,
                                         color = MaterialTheme.colorScheme.onSurface
                                     )
                                     Text(
@@ -254,9 +253,8 @@ fun OverviewScreen(
                                     ) {
                                         Text(
                                             text = stringResource(R.string.action_see_all),
-                                            style = MaterialTheme.typography.labelLarge,
-                                            color = MaterialTheme.colorScheme.primary,
-                                            fontWeight = FontWeight.SemiBold
+                                            style = MaterialTheme.typography.labelLargeEmphasized,
+                                            color = MaterialTheme.colorScheme.primary
                                         )
                                         Icon(
                                             imageVector = Icons.AutoMirrored.Filled.ArrowForward,
@@ -297,14 +295,7 @@ fun OverviewScreen(
                                     }
                                     ActivityRowItem(
                                         item = item,
-                                        onClick = {
-                                            when (item.source) {
-                                                "fatsecret" -> onNavigateToNutrition()
-                                                "goodreads" -> onNavigateToBooks()
-                                                "letterboxd" -> onNavigateToMovies()
-                                                else -> onNavigateToTimeline()
-                                            }
-                                        }
+                                        onClick = { selectedActivity = item }
                                     )
                                 }
                             }
@@ -316,6 +307,13 @@ fun OverviewScreen(
             }
         }
       }
+    }
+
+    selectedActivity?.let { activity ->
+        ActivityItemDetailBottomSheet(
+            item = activity,
+            onDismiss = { selectedActivity = null }
+        )
     }
 }
 
@@ -334,8 +332,7 @@ fun SyncRow(
         Column(modifier = Modifier.weight(1f)) {
             Text(
                 text = title,
-                style = MaterialTheme.typography.bodyMedium,
-                fontWeight = FontWeight.SemiBold,
+                style = MaterialTheme.typography.bodyMediumEmphasized,
                 color = MaterialTheme.colorScheme.onSurface
             )
             Text(
@@ -347,6 +344,7 @@ fun SyncRow(
         FilledTonalButton(
             onClick = onSync,
             enabled = !isSyncing,
+            shape = M3Shapes.CornerSmall,
             contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
             modifier = Modifier.height(32.dp)
         ) {
@@ -365,7 +363,7 @@ fun SyncRow(
                 Spacer(modifier = Modifier.width(4.dp))
                 Text(
                     text = stringResource(R.string.action_sync),
-                    style = MaterialTheme.typography.labelMedium
+                    style = MaterialTheme.typography.labelMediumEmphasized
                 )
             }
         }
@@ -392,13 +390,13 @@ fun ActivityRowItem(
             .padding(horizontal = 12.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        // Leading Media / Icon Avatar
+        // Leading Media / Icon Avatar (optical roundness: 8.dp CornerSmall inside 16.dp CornerLarge card)
         when (item.source) {
             "notification" -> {
                 Box(
                     modifier = Modifier
                         .size(38.dp)
-                        .clip(CircleShape)
+                        .clip(M3Shapes.CornerFull)
                         .background(MaterialTheme.colorScheme.secondaryContainer),
                     contentAlignment = Alignment.Center
                 ) {
@@ -414,7 +412,7 @@ fun ActivityRowItem(
                 Box(
                     modifier = Modifier
                         .size(38.dp)
-                        .clip(MaterialTheme.shapes.small)
+                        .clip(M3Shapes.CornerSmall)
                         .background(domainNutritionContainer()),
                     contentAlignment = Alignment.Center
                 ) {
@@ -442,8 +440,7 @@ fun ActivityRowItem(
         Column(modifier = Modifier.weight(1f)) {
             Text(
                 text = item.title,
-                style = MaterialTheme.typography.bodyMedium,
-                fontWeight = FontWeight.SemiBold,
+                style = MaterialTheme.typography.bodyMediumEmphasized,
                 color = MaterialTheme.colorScheme.onSurface,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
@@ -472,8 +469,7 @@ fun ActivityRowItem(
                 if (cal != null && cal != "0" && cal != "null") {
                     Text(
                         text = "$cal kcal",
-                        style = MaterialTheme.typography.labelSmall,
-                        fontWeight = FontWeight.SemiBold,
+                        style = MaterialTheme.typography.labelSmallEmphasized,
                         color = MaterialTheme.colorScheme.primary,
                         maxLines = 1,
                         softWrap = false

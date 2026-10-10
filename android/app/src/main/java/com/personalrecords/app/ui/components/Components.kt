@@ -53,8 +53,23 @@ import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.automirrored.filled.MenuBook
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontStyle
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.content.Context
+import android.widget.Toast
 import com.personalrecords.app.R
+import com.personalrecords.app.core.network.model.ActivityItemDto
+import com.personalrecords.app.core.network.model.BookDto
+import com.personalrecords.app.core.network.model.FilmDto
+import com.personalrecords.app.core.network.model.FoodEntryDto
+import com.personalrecords.app.core.network.model.NotificationDto
+import com.personalrecords.app.core.theme.*
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -101,9 +116,7 @@ fun MetricCard(
             ) {
                 Text(
                     text = title,
-                    style = MaterialTheme.typography.labelSmall.copy(
-                        fontWeight = FontWeight.SemiBold
-                    ),
+                    style = MaterialTheme.typography.labelSmallEmphasized,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
@@ -112,14 +125,13 @@ fun MetricCard(
                 if (badgeText.isNotBlank()) {
                     Spacer(modifier = Modifier.width(4.dp))
                     Surface(
-                        shape = CircleShape,
+                        shape = M3Shapes.CornerFull,
                         color = badgeBg
                     ) {
                         Text(
                             text = badgeText,
                             modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp),
                             style = MaterialTheme.typography.labelSmall,
-                            fontWeight = FontWeight.Medium,
                             color = badgeColor,
                             maxLines = 1,
                             softWrap = false
@@ -142,8 +154,7 @@ fun MetricCard(
                 }
                 Text(
                     text = value,
-                    style = MaterialTheme.typography.headlineSmall,
-                    fontWeight = FontWeight.Bold,
+                    style = MaterialTheme.typography.headlineSmallEmphasized,
                     color = MaterialTheme.colorScheme.onSurface,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
@@ -238,7 +249,7 @@ fun RatingBadge(
 ) {
     if (rating > 0) {
         Surface(
-            shape = CircleShape,
+            shape = M3Shapes.CornerFull,
             color = domainRatingContainer(),
             modifier = modifier
         ) {
@@ -255,8 +266,7 @@ fun RatingBadge(
                 )
                 Text(
                     text = if (rating % 1.0 == 0.0) rating.toInt().toString() else String.format("%.1f", rating),
-                    style = MaterialTheme.typography.labelSmall,
-                    fontWeight = FontWeight.Bold,
+                    style = MaterialTheme.typography.labelSmallEmphasized,
                     color = domainRatingOnContainer(),
                     maxLines = 1,
                     softWrap = false
@@ -370,8 +380,8 @@ fun borderlessAssistChipColors(
 /**
  * MD3 Expressive Filter Chip.
  *
- * Morphs corner curvature (8dp squircle to 20dp pill) and applies a playful spring scale pop
- * on selection, accompanied by subtle tactile haptic feedback.
+ * Morphs corner curvature (`CornerSmall` 8dp -> `CornerLargeIncreased` 20dp) and applies a
+ * fast spatial spring scale pop on selection, accompanied by subtle tactile haptic feedback.
  */
 @Composable
 fun ExpressiveFilterChip(
@@ -385,19 +395,13 @@ fun ExpressiveFilterChip(
 ) {
     val haptic = LocalHapticFeedback.current
     val animatedCorner by animateDpAsState(
-        targetValue = if (selected) 20.dp else 8.dp,
-        animationSpec = spring(
-            dampingRatio = Spring.DampingRatioMediumBouncy,
-            stiffness = Spring.StiffnessMediumLow
-        ),
+        targetValue = if (selected) M3CornerRadius.LargeIncreased else M3CornerRadius.Small,
+        animationSpec = M3ExpressiveMotion.fastSpatial(),
         label = "chip_corner"
     )
     val animatedScale by animateFloatAsState(
         targetValue = if (selected) 1.04f else 1f,
-        animationSpec = spring(
-            dampingRatio = Spring.DampingRatioMediumBouncy,
-            stiffness = Spring.StiffnessMediumLow
-        ),
+        animationSpec = M3ExpressiveMotion.fastSpatial(),
         label = "chip_scale"
     )
 
@@ -552,11 +556,8 @@ fun ExpressivePullToRefreshIndicator(
     }
 
     val animatedCorner by animateDpAsState(
-        targetValue = if (isRefreshing) 20.dp else 14.dp,
-        animationSpec = spring(
-            dampingRatio = Spring.DampingRatioMediumBouncy,
-            stiffness = Spring.StiffnessMediumLow
-        ),
+        targetValue = if (isRefreshing) M3CornerRadius.LargeIncreased else M3CornerRadius.Medium,
+        animationSpec = M3ExpressiveMotion.defaultSpatial(),
         label = "ptr_corner"
     )
 
@@ -572,9 +573,10 @@ fun ExpressivePullToRefreshIndicator(
             ),
         contentAlignment = Alignment.Center
     ) {
+        // Opacity transition uses M3 Expressive Effects spring (damping 1.0, no overshoot)
         Crossfade(
             targetState = isRefreshing,
-            animationSpec = tween(durationMillis = 250),
+            animationSpec = M3ExpressiveMotion.defaultEffects(),
             label = "ptr_crossfade"
         ) { refreshing ->
             if (refreshing) {
@@ -655,10 +657,7 @@ fun ExpressivePullToRefreshBox(
 
     val animatedContentTranslationY by animateFloatAsState(
         targetValue = targetTranslation,
-        animationSpec = spring(
-            dampingRatio = Spring.DampingRatioMediumBouncy,
-            stiffness = if (isRefreshing || state.isAnimating) Spring.StiffnessMediumLow else Spring.StiffnessMedium
-        ),
+        animationSpec = M3ExpressiveMotion.defaultSpatial(),
         label = "ptr_content_shift"
     )
 
@@ -690,8 +689,8 @@ fun ExpressivePullToRefreshBox(
 /**
  * MD3 Expressive spring bounce click modifier.
  *
- * Applies a tactile compression scale down on press (e.g. 0.96f) and a playful spring bounce
- * return upon release using Material 3 Expressive spring physics.
+ * Uses M3 Expressive Fast Spatial spring (`damping = 0.6f, stiffness = 800f`) for small/interactive
+ * component scale compression and bounce recovery.
  */
 fun Modifier.expressiveBounceClick(
     scaleDown: Float = 0.96f,
@@ -702,10 +701,7 @@ fun Modifier.expressiveBounceClick(
     val isPressed by interactionSource.collectIsPressedAsState()
     val scale by animateFloatAsState(
         targetValue = if (isPressed && enabled) scaleDown else 1f,
-        animationSpec = spring(
-            dampingRatio = Spring.DampingRatioMediumBouncy,
-            stiffness = Spring.StiffnessLow
-        ),
+        animationSpec = M3ExpressiveMotion.fastSpatial(),
         label = "expressive_bounce"
     )
 
@@ -724,6 +720,7 @@ fun Modifier.expressiveBounceClick(
 
 /**
  * MD3 Expressive spring press scale modifier for components that already manage their own interaction source.
+ * Uses M3 Expressive Fast Spatial spring (`damping = 0.6f, stiffness = 800f`).
  */
 fun Modifier.expressivePressScale(
     interactionSource: InteractionSource,
@@ -732,10 +729,7 @@ fun Modifier.expressivePressScale(
     val isPressed by interactionSource.collectIsPressedAsState()
     val scale by animateFloatAsState(
         targetValue = if (isPressed) scaleDown else 1f,
-        animationSpec = spring(
-            dampingRatio = Spring.DampingRatioMediumBouncy,
-            stiffness = Spring.StiffnessLow
-        ),
+        animationSpec = M3ExpressiveMotion.fastSpatial(),
         label = "expressive_press_scale"
     )
     this.graphicsLayer {
@@ -746,7 +740,7 @@ fun Modifier.expressivePressScale(
 
 /**
  * MD3 Expressive spring scroll to top extension for [LazyListState].
- * Smoothly scrolls the list to the top with a playful M3 Expressive spring bounce effect.
+ * Smoothly scrolls the list to the top with an M3 Expressive Slow Spatial spring (`damping = 0.8f, stiffness = 200f`).
  */
 suspend fun LazyListState.expressiveScrollToTop() {
     if (firstVisibleItemIndex > 8) {
@@ -762,10 +756,7 @@ suspend fun LazyListState.expressiveScrollToTop() {
     if (totalDistance > 0f) {
         animateScrollBy(
             value = -totalDistance,
-            animationSpec = spring(
-                dampingRatio = 0.65f,
-                stiffness = 180f
-            )
+            animationSpec = M3ExpressiveMotion.slowSpatial()
         )
     }
     scrollToItem(0, 0)
@@ -871,134 +862,1176 @@ fun ExpressiveDateFilterDialog(
     )
 
     val haptic = LocalHapticFeedback.current
+    val pickerColors = DatePickerDefaults.colors(
+        containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
+    )
 
-    DatePickerDialog(
+    BasicAlertDialog(
         onDismissRequest = onDismissRequest,
-        confirmButton = {
-            TextButton(
-                onClick = {
-                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                    if (selectionMode == DateSelectionMode.SINGLE) {
-                        singleDatePickerState.selectedDateMillis?.let { millis ->
-                            onDateSelected(formatMillisToIsoDate(millis))
-                        }
-                    } else {
-                        val startMillis = dateRangePickerState.selectedStartDateMillis
-                        val endMillis = dateRangePickerState.selectedEndDateMillis
-                        if (startMillis != null && endMillis != null) {
-                            onDateRangeSelected(
-                                formatMillisToIsoDate(startMillis),
-                                formatMillisToIsoDate(endMillis)
-                            )
-                        } else if (startMillis != null) {
-                            onDateSelected(formatMillisToIsoDate(startMillis))
-                        }
-                    }
-                    onDismissRequest()
-                }
+        properties = androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth = false)
+    ) {
+        Surface(
+            modifier = Modifier
+                .requiredWidth(360.dp)
+                .wrapContentHeight(),
+            shape = MaterialTheme.shapes.extraLarge,
+            color = MaterialTheme.colorScheme.surfaceContainerHigh,
+            tonalElevation = DatePickerDefaults.TonalElevation
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 14.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                Text(
-                    text = stringResource(R.string.date_picker_apply),
-                    style = MaterialTheme.typography.labelLarge,
-                    fontWeight = FontWeight.Bold
-                )
-            }
-        },
-        dismissButton = {
-            Row {
-                if (!initialStartDate.isNullOrBlank() || !initialEndDate.isNullOrBlank()) {
+                // Segmented mode toggle
+                SingleChoiceSegmentedButtonRow(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 20.dp, vertical = 4.dp)
+                ) {
+                    SegmentedButton(
+                        selected = selectionMode == DateSelectionMode.SINGLE,
+                        onClick = {
+                            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                            selectionMode = DateSelectionMode.SINGLE
+                        },
+                        shape = SegmentedButtonDefaults.itemShape(index = 0, count = 2)
+                    ) {
+                        Text(
+                            text = stringResource(R.string.date_picker_single_day),
+                            style = if (selectionMode == DateSelectionMode.SINGLE) MaterialTheme.typography.labelMediumEmphasized else MaterialTheme.typography.labelMedium
+                        )
+                    }
+                    SegmentedButton(
+                        selected = selectionMode == DateSelectionMode.RANGE,
+                        onClick = {
+                            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                            selectionMode = DateSelectionMode.RANGE
+                        },
+                        shape = SegmentedButtonDefaults.itemShape(index = 1, count = 2)
+                    ) {
+                        Text(
+                            text = stringResource(R.string.date_picker_date_range),
+                            style = if (selectionMode == DateSelectionMode.RANGE) MaterialTheme.typography.labelMediumEmphasized else MaterialTheme.typography.labelMedium
+                        )
+                    }
+                }
+
+                // Opacity crossfade must use an Effects spring (damping 1.0, no overshoot) per motion.md
+                Crossfade(
+                    targetState = selectionMode,
+                    animationSpec = M3ExpressiveMotion.defaultEffects(),
+                    label = "date_picker_mode_fade"
+                ) { mode ->
+                    if (mode == DateSelectionMode.SINGLE) {
+                        val selectedIso = singleDatePickerState.selectedDateMillis?.let { formatMillisToIsoDate(it) }
+                        val headlineText = if (selectedIso != null) {
+                            formatIsoToReadableDate(selectedIso)
+                        } else {
+                            stringResource(R.string.filter_pick_date)
+                        }
+                        DatePicker(
+                            state = singleDatePickerState,
+                            title = null,
+                            headline = {
+                                Text(
+                                    text = headlineText,
+                                    style = MaterialTheme.typography.headlineSmallEmphasized,
+                                    color = MaterialTheme.colorScheme.onSurface,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                    modifier = Modifier.padding(
+                                        start = 24.dp,
+                                        end = 16.dp,
+                                        top = 8.dp,
+                                        bottom = 12.dp
+                                    )
+                                )
+                            },
+                            showModeToggle = false,
+                            colors = pickerColors
+                        )
+                    } else {
+                        val startIso = dateRangePickerState.selectedStartDateMillis?.let { formatMillisToIsoDate(it) }
+                        val endIso = dateRangePickerState.selectedEndDateMillis?.let { formatMillisToIsoDate(it) }
+                        val rangeHeadline = formatDateRangeChipLabel(
+                            singleDate = null,
+                            fromDate = startIso,
+                            toDate = endIso,
+                            defaultText = stringResource(R.string.date_picker_date_range)
+                        )
+                        DateRangePicker(
+                            state = dateRangePickerState,
+                            title = null,
+                            headline = {
+                                Text(
+                                    text = rangeHeadline,
+                                    style = MaterialTheme.typography.titleLargeEmphasized,
+                                    color = MaterialTheme.colorScheme.onSurface,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                    modifier = Modifier.padding(
+                                        start = 24.dp,
+                                        end = 16.dp,
+                                        top = 8.dp,
+                                        bottom = 12.dp
+                                    )
+                                )
+                            },
+                            showModeToggle = false,
+                            colors = pickerColors,
+                            modifier = Modifier.height(420.dp)
+                        )
+                    }
+                }
+
+                // Dialog Actions Row
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(start = 12.dp, end = 12.dp, bottom = 10.dp, top = 2.dp),
+                    horizontalArrangement = Arrangement.End,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    val hasAnySelection = !initialStartDate.isNullOrBlank() ||
+                        !initialEndDate.isNullOrBlank() ||
+                        singleDatePickerState.selectedDateMillis != null ||
+                        dateRangePickerState.selectedStartDateMillis != null
+
+                    if (hasAnySelection) {
+                        TextButton(
+                            onClick = {
+                                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                onClear()
+                                onDismissRequest()
+                            }
+                        ) {
+                            Text(
+                                text = stringResource(R.string.date_picker_clear),
+                                color = MaterialTheme.colorScheme.error,
+                                style = MaterialTheme.typography.labelLarge
+                            )
+                        }
+                        Spacer(modifier = Modifier.weight(1f))
+                    }
+
+                    TextButton(onClick = onDismissRequest) {
+                        Text(
+                            text = stringResource(R.string.action_cancel),
+                            style = MaterialTheme.typography.labelLarge
+                        )
+                    }
+                    Spacer(modifier = Modifier.width(4.dp))
                     TextButton(
                         onClick = {
                             haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                            onClear()
+                            if (selectionMode == DateSelectionMode.SINGLE) {
+                                singleDatePickerState.selectedDateMillis?.let { millis ->
+                                    onDateSelected(formatMillisToIsoDate(millis))
+                                }
+                            } else {
+                                val startMillis = dateRangePickerState.selectedStartDateMillis
+                                val endMillis = dateRangePickerState.selectedEndDateMillis
+                                if (startMillis != null && endMillis != null) {
+                                    onDateRangeSelected(
+                                        formatMillisToIsoDate(startMillis),
+                                        formatMillisToIsoDate(endMillis)
+                                    )
+                                } else if (startMillis != null) {
+                                    onDateSelected(formatMillisToIsoDate(startMillis))
+                                }
+                            }
                             onDismissRequest()
                         }
                     ) {
                         Text(
-                            text = stringResource(R.string.date_picker_clear),
-                            color = MaterialTheme.colorScheme.error,
-                            style = MaterialTheme.typography.labelLarge
+                            text = stringResource(R.string.date_picker_apply),
+                            style = MaterialTheme.typography.labelLargeEmphasized
                         )
                     }
-                }
-                TextButton(onClick = onDismissRequest) {
-                    Text(
-                        text = stringResource(R.string.action_cancel),
-                        style = MaterialTheme.typography.labelLarge
-                    )
-                }
-            }
-        },
-        shape = MaterialTheme.shapes.extraLarge,
-        colors = DatePickerDefaults.colors(
-            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
-        )
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(top = 8.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            // Segmented mode toggle
-            SingleChoiceSegmentedButtonRow(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 4.dp)
-            ) {
-                SegmentedButton(
-                    selected = selectionMode == DateSelectionMode.SINGLE,
-                    onClick = {
-                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                        selectionMode = DateSelectionMode.SINGLE
-                    },
-                    shape = SegmentedButtonDefaults.itemShape(index = 0, count = 2)
-                ) {
-                    Text(
-                        text = stringResource(R.string.date_picker_single_day),
-                        style = MaterialTheme.typography.labelMedium
-                    )
-                }
-                SegmentedButton(
-                    selected = selectionMode == DateSelectionMode.RANGE,
-                    onClick = {
-                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                        selectionMode = DateSelectionMode.RANGE
-                    },
-                    shape = SegmentedButtonDefaults.itemShape(index = 1, count = 2)
-                ) {
-                    Text(
-                        text = stringResource(R.string.date_picker_date_range),
-                        style = MaterialTheme.typography.labelMedium
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.height(4.dp))
-
-            Crossfade(
-                targetState = selectionMode,
-                animationSpec = spring(
-                    dampingRatio = Spring.DampingRatioLowBouncy,
-                    stiffness = Spring.StiffnessMediumLow
-                ),
-                label = "date_picker_mode_fade"
-            ) { mode ->
-                if (mode == DateSelectionMode.SINGLE) {
-                    DatePicker(
-                        state = singleDatePickerState,
-                        showModeToggle = false
-                    )
-                } else {
-                    DateRangePicker(
-                        state = dateRangePickerState,
-                        showModeToggle = false,
-                        modifier = Modifier.heightIn(max = 440.dp)
-                    )
                 }
             }
         }
     }
 }
+
+private fun copyToClipboard(context: Context, label: String, text: String) {
+    val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+    val clip = ClipData.newPlainText(label, text.trim())
+    clipboard.setPrimaryClip(clip)
+    Toast.makeText(context, context.getString(R.string.action_copied), Toast.LENGTH_SHORT).show()
+}
+
+@Composable
+private fun localizedMealName(meal: String): String {
+    return when (meal.trim().lowercase()) {
+        "breakfast" -> stringResource(R.string.nutrition_filter_breakfast)
+        "lunch" -> stringResource(R.string.nutrition_filter_lunch)
+        "dinner" -> stringResource(R.string.nutrition_filter_dinner)
+        "snack", "other" -> stringResource(R.string.nutrition_filter_snack)
+        else -> meal.ifBlank { stringResource(R.string.nutrition_filter_all_meals) }
+    }
+}
+
+private fun mealIconFor(meal: String): ImageVector {
+    return when (meal.trim().lowercase()) {
+        "breakfast" -> Icons.Default.BakeryDining
+        "lunch" -> Icons.Default.LunchDining
+        "dinner" -> Icons.Default.DinnerDining
+        else -> Icons.Default.Restaurant
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun FoodEntryDetailBottomSheet(
+    item: FoodEntryDto,
+    onDismiss: () -> Unit
+) {
+    val context = LocalContext.current
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val mealLabel = localizedMealName(item.meal)
+    val mealIcon = mealIconFor(item.meal)
+
+    val carbKcal = item.carbohydrate * 4
+    val protKcal = item.protein * 4
+    val fatKcal = item.fat * 9
+    val totalMacroKcal = carbKcal + protKcal + fatKcal
+    val carbPct = if (totalMacroKcal > 0) (carbKcal / totalMacroKcal).toFloat() else 0.33f
+    val protPct = if (totalMacroKcal > 0) (protKcal / totalMacroKcal).toFloat() else 0.33f
+    val fatPct = if (totalMacroKcal > 0) (fatKcal / totalMacroKcal).toFloat() else 0.34f
+
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = sheetState,
+        shape = M3Shapes.CornerExtraLarge,
+        containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 20.dp, vertical = 8.dp)
+                .navigationBarsPadding(),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            // Header row: Meal badge pill + Date
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Surface(
+                    shape = M3Shapes.CornerFull,
+                    color = domainNutritionContainer()
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(5.dp)
+                    ) {
+                        Icon(
+                            imageVector = mealIcon,
+                            contentDescription = null,
+                            tint = domainNutritionOnContainer(),
+                            modifier = Modifier.size(14.dp)
+                        )
+                        Text(
+                            text = mealLabel,
+                            style = MaterialTheme.typography.labelMediumEmphasized,
+                            color = domainNutritionOnContainer()
+                        )
+                    }
+                }
+                Spacer(modifier = Modifier.weight(1f))
+                if (item.displayDate.isNotBlank()) {
+                    Text(
+                        text = item.displayDate,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+
+            // Food Name & Portion
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text(
+                    text = item.displayName,
+                    style = MaterialTheme.typography.titleLargeEmphasized,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+                if (item.displayAmount.isNotBlank()) {
+                    Text(
+                        text = item.displayAmount,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+
+            // Calorie & Macro Summary Card (Optical roundness: 12.dp CornerMedium inside 28.dp sheet)
+            Surface(
+                shape = M3Shapes.CornerMedium,
+                color = MaterialTheme.colorScheme.surfaceContainer,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(
+                    modifier = Modifier.padding(14.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = stringResource(R.string.nutrition_macro_title),
+                            style = MaterialTheme.typography.labelLargeEmphasized,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Text(
+                            text = "${item.calories.toInt()} kcal",
+                            style = MaterialTheme.typography.headlineSmallEmphasized,
+                            color = domainNutritionColor()
+                        )
+                    }
+
+                    // 3-segment macro bar
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(8.dp)
+                            .clip(M3Shapes.CornerFull)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxHeight()
+                                .weight(carbPct.coerceAtLeast(0.01f))
+                                .background(domainBooksColor())
+                        )
+                        Box(
+                            modifier = Modifier
+                                .fillMaxHeight()
+                                .weight(protPct.coerceAtLeast(0.01f))
+                                .background(domainNutritionColor())
+                        )
+                        Box(
+                            modifier = Modifier
+                                .fillMaxHeight()
+                                .weight(fatPct.coerceAtLeast(0.01f))
+                                .background(domainRatingColor())
+                        )
+                    }
+
+                    // 3 Macro columns
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        MacroDetailStat(
+                            color = domainBooksColor(),
+                            label = stringResource(R.string.nutrition_label_carb),
+                            grams = item.carbohydrate,
+                            pct = (carbPct * 100).toInt()
+                        )
+                        MacroDetailStat(
+                            color = domainNutritionColor(),
+                            label = stringResource(R.string.nutrition_label_protein),
+                            grams = item.protein,
+                            pct = (protPct * 100).toInt()
+                        )
+                        MacroDetailStat(
+                            color = domainRatingColor(),
+                            label = stringResource(R.string.nutrition_label_fat),
+                            grams = item.fat,
+                            pct = (fatPct * 100).toInt()
+                        )
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(4.dp))
+
+            // Actions: Copy & Close
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                OutlinedButton(
+                    onClick = {
+                        val copyStr = buildString {
+                            append(item.displayName)
+                            if (item.displayAmount.isNotBlank()) append(" (${item.displayAmount})")
+                            append("\n${item.calories.toInt()} kcal · ")
+                            append("K:${item.carbohydrate.toInt()}g P:${item.protein.toInt()}g Y:${item.fat.toInt()}g")
+                        }
+                        copyToClipboard(context, item.displayName, copyStr)
+                    },
+                    shape = M3Shapes.CornerSmall,
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(42.dp),
+                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.ContentCopy,
+                        contentDescription = null,
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(
+                        text = stringResource(R.string.notifications_copy_text),
+                        style = MaterialTheme.typography.labelLargeEmphasized,
+                        maxLines = 1,
+                        softWrap = false,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+
+                Button(
+                    onClick = onDismiss,
+                    shape = M3Shapes.CornerSmall,
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(42.dp),
+                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp)
+                ) {
+                    Text(
+                        text = stringResource(R.string.action_close),
+                        style = MaterialTheme.typography.labelLargeEmphasized,
+                        maxLines = 1,
+                        softWrap = false,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+        }
+    }
+}
+
+@Composable
+private fun MacroDetailStat(color: Color, label: String, grams: Double, pct: Int) {
+    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(8.dp)
+                    .clip(M3Shapes.CornerFull)
+                    .background(color)
+            )
+            Text(
+                text = label,
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+        Text(
+            text = "${String.format(Locale.US, "%.1f", grams)}g",
+            style = MaterialTheme.typography.titleSmallEmphasized,
+            color = MaterialTheme.colorScheme.onSurface
+        )
+        Text(
+            text = "%$pct",
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun FilmDetailBottomSheet(
+    film: FilmDto,
+    onDismiss: () -> Unit
+) {
+    val context = LocalContext.current
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val watchedDate = film.safeWatchedDate.ifBlank { film.diary_date ?: "" }
+
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = sheetState,
+        shape = M3Shapes.CornerExtraLarge,
+        containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 20.dp, vertical = 8.dp)
+                .navigationBarsPadding(),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            // Top Row: Poster + Title & Badges
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(14.dp),
+                verticalAlignment = Alignment.Top
+            ) {
+                PosterThumbnail(
+                    imageUrl = film.image_url,
+                    fallbackIcon = Icons.Default.Movie,
+                    width = 72,
+                    height = 104
+                )
+
+                Column(
+                    modifier = Modifier.weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    // Badges
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Surface(
+                            shape = M3Shapes.CornerFull,
+                            color = domainCinemaContainer()
+                        ) {
+                            Text(
+                                text = stringResource(R.string.movies_badge_letterboxd),
+                                style = MaterialTheme.typography.labelSmallEmphasized,
+                                color = domainCinemaOnContainer(),
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.5.dp)
+                            )
+                        }
+                        if (film.safeYear > 0) {
+                            Surface(
+                                shape = M3Shapes.CornerFull,
+                                color = MaterialTheme.colorScheme.surfaceContainerHighest
+                            ) {
+                                Text(
+                                    text = "${film.safeYear}",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.padding(horizontal = 7.dp, vertical = 2.5.dp)
+                                )
+                            }
+                        }
+                        if (film.rewatch) {
+                            Surface(
+                                shape = M3Shapes.CornerFull,
+                                color = domainCinemaContainer()
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(horizontal = 7.dp, vertical = 2.5.dp),
+                                    horizontalArrangement = Arrangement.spacedBy(3.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Repeat,
+                                        contentDescription = null,
+                                        tint = domainCinemaOnContainer(),
+                                        modifier = Modifier.size(11.dp)
+                                    )
+                                    Text(
+                                        text = stringResource(R.string.movies_rewatch_badge),
+                                        style = MaterialTheme.typography.labelSmallEmphasized,
+                                        color = domainCinemaOnContainer()
+                                    )
+                                }
+                            }
+                        }
+                    }
+
+                    Text(
+                        text = film.displayTitle,
+                        style = MaterialTheme.typography.titleLargeEmphasized,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        if (film.safeRating > 0) {
+                            RatingBadge(rating = film.safeRating)
+                        }
+                        if (watchedDate.isNotBlank()) {
+                            Text(
+                                text = watchedDate,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                }
+            }
+
+            // Full Review Box if available
+            if (film.safeReview.isNotBlank()) {
+                Surface(
+                    shape = M3Shapes.CornerMedium,
+                    color = MaterialTheme.colorScheme.surfaceContainer,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(max = 220.dp)
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .padding(14.dp)
+                            .verticalScroll(rememberScrollState())
+                    ) {
+                        Text(
+                            text = "“${film.safeReview}”",
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontStyle = FontStyle.Italic,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(4.dp))
+
+            // Actions: Copy & Close
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                OutlinedButton(
+                    onClick = {
+                        val copyStr = buildString {
+                            append(film.displayTitle)
+                            if (film.safeYear > 0) append(" (${film.safeYear})")
+                            if (film.safeRating > 0) append(" · ★ ${film.safeRating}")
+                            if (film.safeReview.isNotBlank()) append("\n\n${film.safeReview}")
+                        }
+                        copyToClipboard(context, film.displayTitle, copyStr)
+                    },
+                    shape = M3Shapes.CornerSmall,
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(42.dp),
+                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.ContentCopy,
+                        contentDescription = null,
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(
+                        text = stringResource(R.string.notifications_copy_text),
+                        style = MaterialTheme.typography.labelLargeEmphasized,
+                        maxLines = 1,
+                        softWrap = false,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+
+                Button(
+                    onClick = onDismiss,
+                    shape = M3Shapes.CornerSmall,
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(42.dp),
+                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp)
+                ) {
+                    Text(
+                        text = stringResource(R.string.action_close),
+                        style = MaterialTheme.typography.labelLargeEmphasized,
+                        maxLines = 1,
+                        softWrap = false,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun BookDetailBottomSheet(
+    book: BookDto,
+    onDismiss: () -> Unit
+) {
+    val context = LocalContext.current
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val shelfLabel = when (book.exclusive_shelf.lowercase()) {
+        "read" -> stringResource(R.string.books_shelf_read)
+        "to-read" -> stringResource(R.string.books_shelf_to_read)
+        "currently-reading" -> stringResource(R.string.books_shelf_currently_reading)
+        else -> book.exclusive_shelf.ifBlank { stringResource(R.string.books_badge_book) }
+    }
+
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = sheetState,
+        shape = M3Shapes.CornerExtraLarge,
+        containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 20.dp, vertical = 8.dp)
+                .navigationBarsPadding(),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            // Top Row: Cover + Title, Author, Badges
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(14.dp),
+                verticalAlignment = Alignment.Top
+            ) {
+                PosterThumbnail(
+                    imageUrl = book.image_url,
+                    fallbackIcon = Icons.AutoMirrored.Filled.MenuBook,
+                    width = 72,
+                    height = 104
+                )
+
+                Column(
+                    modifier = Modifier.weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Surface(
+                            shape = M3Shapes.CornerFull,
+                            color = domainBooksContainer()
+                        ) {
+                            Text(
+                                text = shelfLabel,
+                                style = MaterialTheme.typography.labelSmallEmphasized,
+                                color = domainBooksOnContainer(),
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.5.dp)
+                            )
+                        }
+                        if (book.year_published > 0) {
+                            Surface(
+                                shape = M3Shapes.CornerFull,
+                                color = MaterialTheme.colorScheme.surfaceContainerHighest
+                            ) {
+                                Text(
+                                    text = "${book.year_published}",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.padding(horizontal = 7.dp, vertical = 2.5.dp)
+                                )
+                            }
+                        }
+                    }
+
+                    Text(
+                        text = book.title,
+                        style = MaterialTheme.typography.titleLargeEmphasized,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+
+                    if (book.author.isNotBlank()) {
+                        Text(
+                            text = book.author,
+                            style = MaterialTheme.typography.bodyMediumEmphasized,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        if (book.my_rating > 0) {
+                            RatingBadge(rating = book.my_rating)
+                        }
+                        if (book.average_rating > 0) {
+                            Text(
+                                text = "${stringResource(R.string.badge_avg)} ★ ${String.format(Locale.US, "%.2f", book.average_rating)}",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                }
+            }
+
+            // Metadata surface if pages or date_read exist
+            if (book.number_of_pages > 0 || book.date_read.isNotBlank()) {
+                Surface(
+                    shape = M3Shapes.CornerMedium,
+                    color = MaterialTheme.colorScheme.surfaceContainer,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 14.dp, vertical = 10.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        if (book.number_of_pages > 0) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.AutoMirrored.Filled.MenuBook,
+                                    contentDescription = null,
+                                    tint = domainBooksColor(),
+                                    modifier = Modifier.size(16.dp)
+                                )
+                                Text(
+                                    text = stringResource(R.string.books_pages, book.number_of_pages),
+                                    style = MaterialTheme.typography.bodySmallEmphasized,
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                            }
+                        }
+                        if (book.date_read.isNotBlank()) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.CalendarMonth,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                                Text(
+                                    text = book.date_read,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(4.dp))
+
+            // Actions: Copy & Close
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                OutlinedButton(
+                    onClick = {
+                        val copyStr = buildString {
+                            append(book.title)
+                            if (book.author.isNotBlank()) append(" — ${book.author}")
+                            if (book.my_rating > 0) append(" (★ ${book.my_rating})")
+                        }
+                        copyToClipboard(context, book.title, copyStr)
+                    },
+                    shape = M3Shapes.CornerSmall,
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(42.dp),
+                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.ContentCopy,
+                        contentDescription = null,
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(
+                        text = stringResource(R.string.notifications_copy_text),
+                        style = MaterialTheme.typography.labelLargeEmphasized,
+                        maxLines = 1,
+                        softWrap = false,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+
+                Button(
+                    onClick = onDismiss,
+                    shape = M3Shapes.CornerSmall,
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(42.dp),
+                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp)
+                ) {
+                    Text(
+                        text = stringResource(R.string.action_close),
+                        style = MaterialTheme.typography.labelLargeEmphasized,
+                        maxLines = 1,
+                        softWrap = false,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun NotificationDetailBottomSheet(
+    notif: NotificationDto,
+    onDismiss: () -> Unit
+) {
+    val context = LocalContext.current
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = sheetState,
+        shape = M3Shapes.CornerExtraLarge,
+        containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 20.dp, vertical = 8.dp)
+                .navigationBarsPadding(),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            // Header row: App Name pill, Category pill, Date/Time
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Surface(
+                    shape = M3Shapes.CornerFull,
+                    color = MaterialTheme.colorScheme.secondaryContainer
+                ) {
+                    Text(
+                        text = notif.displayAppName,
+                        style = MaterialTheme.typography.labelMediumEmphasized,
+                        color = MaterialTheme.colorScheme.onSecondaryContainer,
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
+                    )
+                }
+                if (notif.category.isNotBlank()) {
+                    Surface(
+                        shape = M3Shapes.CornerFull,
+                        color = MaterialTheme.colorScheme.surfaceContainerHighest
+                    ) {
+                        Text(
+                            text = notif.category,
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                        )
+                    }
+                }
+                Spacer(modifier = Modifier.weight(1f))
+                val dateTimeText = listOf(notif.formattedDate, notif.formattedTime)
+                    .filter { it.isNotBlank() }
+                    .joinToString(" · ")
+                if (dateTimeText.isNotBlank()) {
+                    Text(
+                        text = dateTimeText,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+
+            // Title
+            Text(
+                text = notif.displayTitle,
+                style = MaterialTheme.typography.titleMediumEmphasized,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+
+            // Message Body
+            if (notif.displayBody.isNotBlank()) {
+                Text(
+                    text = notif.displayBody,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+
+            // Subtext if distinct
+            if (notif.sub_text.isNotBlank() && notif.sub_text != notif.displayBody) {
+                Text(
+                    text = notif.sub_text,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+
+            // Package name info
+            if (notif.package_name.isNotBlank()) {
+                Text(
+                    text = "Paket: ${notif.package_name}",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+
+            Spacer(modifier = Modifier.height(4.dp))
+
+            // Actions: Copy & Close
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                OutlinedButton(
+                    onClick = {
+                        val textToCopy = "${notif.displayTitle}\n${notif.displayBody}".trim()
+                        copyToClipboard(context, "Bildirim", textToCopy)
+                    },
+                    shape = M3Shapes.CornerSmall,
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(42.dp),
+                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.ContentCopy,
+                        contentDescription = null,
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(
+                        text = stringResource(R.string.notifications_copy_text),
+                        style = MaterialTheme.typography.labelLargeEmphasized,
+                        maxLines = 1,
+                        softWrap = false,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+
+                Button(
+                    onClick = onDismiss,
+                    shape = M3Shapes.CornerSmall,
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(42.dp),
+                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp)
+                ) {
+                    Text(
+                        text = stringResource(R.string.action_close),
+                        style = MaterialTheme.typography.labelLargeEmphasized,
+                        maxLines = 1,
+                        softWrap = false,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+        }
+    }
+}
+
+private fun Map<String, kotlinx.serialization.json.JsonElement>.str(key: String): String {
+    return this[key]?.toString()?.removeSurrounding("\"")?.takeIf { it != "null" } ?: ""
+}
+
+private fun Map<String, kotlinx.serialization.json.JsonElement>.dbl(key: String): Double {
+    return str(key).toDoubleOrNull() ?: 0.0
+}
+
+private fun Map<String, kotlinx.serialization.json.JsonElement>.intVal(key: String): Int {
+    return str(key).toIntOrNull() ?: 0
+}
+
+@Composable
+fun ActivityItemDetailBottomSheet(
+    item: ActivityItemDto,
+    onDismiss: () -> Unit
+) {
+    val d = item.details
+    when (item.source) {
+        "fatsecret" -> {
+            val food = FoodEntryDto(
+                food_entry_id = d.str("food_entry_id").ifBlank { item.id },
+                date = item.date,
+                meal = d.str("meal").ifBlank { item.subtitle },
+                food_entry_name = item.title,
+                food_entry_description = d.str("description").ifBlank { item.subtitle },
+                calories = d.dbl("calories"),
+                carbohydrate = d.dbl("carbohydrate"),
+                protein = d.dbl("protein"),
+                fat = d.dbl("fat")
+            )
+            FoodEntryDetailBottomSheet(item = food, onDismiss = onDismiss)
+        }
+        "letterboxd" -> {
+            val film = FilmDto(
+                film_key = d.str("film_key").ifBlank { item.id },
+                name = item.title,
+                year = d.intVal("year").takeIf { it > 0 } ?: item.subtitle.toIntOrNull(),
+                rating = d.dbl("rating").takeIf { it > 0 },
+                rewatch = item.rewatch || d.str("rewatch").equals("true", ignoreCase = true) || d.str("rewatch") == "1",
+                review = d.str("review"),
+                image_url = item.image_url ?: d.str("image_url").ifBlank { null },
+                watched_date = item.date
+            )
+            FilmDetailBottomSheet(film = film, onDismiss = onDismiss)
+        }
+        "goodreads" -> {
+            val book = BookDto(
+                book_id = d.str("book_id").ifBlank { item.id },
+                title = item.title,
+                author = d.str("author").ifBlank { item.subtitle },
+                my_rating = d.dbl("my_rating").takeIf { it > 0 } ?: d.dbl("rating"),
+                average_rating = d.dbl("average_rating"),
+                number_of_pages = d.intVal("number_of_pages"),
+                exclusive_shelf = d.str("exclusive_shelf"),
+                image_url = item.image_url ?: d.str("image_url").ifBlank { null },
+                date_read = item.date
+            )
+            BookDetailBottomSheet(book = book, onDismiss = onDismiss)
+        }
+        else -> {
+            val postTime = item.timestamp?.takeIf { it.length >= 16 }
+                ?: if (!item.time.isNullOrBlank()) "${item.date}T${item.time}" else item.date
+            val notif = NotificationDto(
+                id = item.id,
+                package_name = d.str("package_name"),
+                app_name = d.str("app_name"),
+                title = item.title,
+                text = item.subtitle,
+                sub_text = d.str("sub_text"),
+                big_text = d.str("big_text"),
+                category = d.str("category"),
+                post_time = postTime
+            )
+            NotificationDetailBottomSheet(notif = notif, onDismiss = onDismiss)
+        }
+    }
+}
+
+@Composable
+fun LazyCardRowContainer(
+    index: Int,
+    totalCount: Int,
+    modifier: Modifier = Modifier,
+    showDivider: Boolean = index > 0,
+    content: @Composable () -> Unit
+) {
+    val shape = when {
+        totalCount <= 1 -> M3Shapes.CornerLarge
+        index == 0 -> RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp)
+        index == totalCount - 1 -> RoundedCornerShape(bottomStart = 16.dp, bottomEnd = 16.dp)
+        else -> RoundedCornerShape(0.dp)
+    }
+    Surface(
+        modifier = modifier.fillMaxWidth(),
+        shape = shape,
+        color = MaterialTheme.colorScheme.surfaceContainerLow
+    ) {
+        Column {
+            if (showDivider) {
+                HorizontalDivider(
+                    color = MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.5f),
+                    modifier = Modifier.padding(horizontal = 12.dp)
+                )
+            }
+            content()
+        }
+    }
+}
+
+
 
 

@@ -179,3 +179,79 @@ fun domainCinemaColor(): androidx.compose.ui.graphics.Color =
 fun domainRatingColor(): androidx.compose.ui.graphics.Color =
     if (isSystemInDarkTheme()) RatingGoldDark else RatingGold
 
+// ==========================================
+// M3 Expressive Motion Physics Tokens
+// Source: .agent/skills/m3-expressive/references/tokens.md
+// Spatial = position, size, rotation, corner radius (bounces)
+// Effects = opacity, color (damping 1.0, never overshoots)
+// ==========================================
+
+object M3ExpressiveMotion {
+    // --- Expressive Scheme (Material's recommended default) ---
+    const val EXPRESSIVE_DEFAULT_SPATIAL_DAMPING = 0.8f
+    const val EXPRESSIVE_DEFAULT_SPATIAL_STIFFNESS = 380f
+
+    const val EXPRESSIVE_FAST_SPATIAL_DAMPING = 0.6f
+    const val EXPRESSIVE_FAST_SPATIAL_STIFFNESS = 800f
+
+    const val EXPRESSIVE_SLOW_SPATIAL_DAMPING = 0.8f
+    const val EXPRESSIVE_SLOW_SPATIAL_STIFFNESS = 200f
+
+    // --- Effects Springs (Identical in Expressive & Standard; never overshoot) ---
+    const val EFFECTS_DAMPING = 1.0f
+    const val DEFAULT_EFFECTS_STIFFNESS = 1600f
+    const val FAST_EFFECTS_STIFFNESS = 3800f
+    const val SLOW_EFFECTS_STIFFNESS = 800f
+
+    // --- Standard Scheme (Utilitarian fallback) ---
+    const val STANDARD_DEFAULT_SPATIAL_DAMPING = 0.9f
+    const val STANDARD_DEFAULT_SPATIAL_STIFFNESS = 700f
+    const val STANDARD_FAST_SPATIAL_DAMPING = 0.9f
+    const val STANDARD_FAST_SPATIAL_STIFFNESS = 1400f
+    const val STANDARD_SLOW_SPATIAL_DAMPING = 0.9f
+    const val STANDARD_SLOW_SPATIAL_STIFFNESS = 300f
+
+    fun <T> defaultSpatial(visibilityThreshold: T? = null): androidx.compose.animation.core.SpringSpec<T> =
+        androidx.compose.animation.core.spring(
+            dampingRatio = EXPRESSIVE_DEFAULT_SPATIAL_DAMPING,
+            stiffness = EXPRESSIVE_DEFAULT_SPATIAL_STIFFNESS,
+            visibilityThreshold = visibilityThreshold
+        )
+
+    fun <T> fastSpatial(visibilityThreshold: T? = null): androidx.compose.animation.core.SpringSpec<T> =
+        androidx.compose.animation.core.spring(
+            dampingRatio = EXPRESSIVE_FAST_SPATIAL_DAMPING,
+            stiffness = EXPRESSIVE_FAST_SPATIAL_STIFFNESS,
+            visibilityThreshold = visibilityThreshold
+        )
+
+    fun <T> slowSpatial(visibilityThreshold: T? = null): androidx.compose.animation.core.SpringSpec<T> =
+        androidx.compose.animation.core.spring(
+            dampingRatio = EXPRESSIVE_SLOW_SPATIAL_DAMPING,
+            stiffness = EXPRESSIVE_SLOW_SPATIAL_STIFFNESS,
+            visibilityThreshold = visibilityThreshold
+        )
+
+    fun <T> defaultEffects(visibilityThreshold: T? = null): androidx.compose.animation.core.SpringSpec<T> =
+        androidx.compose.animation.core.spring(
+            dampingRatio = EFFECTS_DAMPING,
+            stiffness = DEFAULT_EFFECTS_STIFFNESS,
+            visibilityThreshold = visibilityThreshold
+        )
+
+    fun <T> fastEffects(visibilityThreshold: T? = null): androidx.compose.animation.core.SpringSpec<T> =
+        androidx.compose.animation.core.spring(
+            dampingRatio = EFFECTS_DAMPING,
+            stiffness = FAST_EFFECTS_STIFFNESS,
+            visibilityThreshold = visibilityThreshold
+        )
+
+    fun <T> slowEffects(visibilityThreshold: T? = null): androidx.compose.animation.core.SpringSpec<T> =
+        androidx.compose.animation.core.spring(
+            dampingRatio = EFFECTS_DAMPING,
+            stiffness = SLOW_EFFECTS_STIFFNESS,
+            visibilityThreshold = visibilityThreshold
+        )
+}
+
+

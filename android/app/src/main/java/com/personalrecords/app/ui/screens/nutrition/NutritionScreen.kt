@@ -8,6 +8,7 @@ import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
@@ -29,6 +30,9 @@ import com.personalrecords.app.R
 import com.personalrecords.app.core.network.model.FoodEntryDto
 import com.personalrecords.app.core.theme.*
 import com.personalrecords.app.ui.components.*
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.withContext
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -43,6 +47,55 @@ fun NutritionScreen(
     val state by viewModel.uiState.collectAsState()
     var showTargetDialog by remember { mutableStateOf(false) }
     var showDatePicker by remember { mutableStateOf(false) }
+    var selectedFood by remember { mutableStateOf<FoodEntryDto?>(null) }
+    var filteredFoods by remember { mutableStateOf<List<FoodEntryDto>>(emptyList()) }
+    var isFiltering by remember { mutableStateOf(false) }
+
+    LaunchedEffect(
+        state.foodEntries,
+        state.searchQuery,
+        state.selectedDateFilter,
+        state.fromDateFilter,
+        state.toDateFilter,
+        state.selectedMeal,
+        state.onlyHighProtein
+    ) {
+        if (state.foodEntries.isEmpty()) {
+            filteredFoods = emptyList()
+            isFiltering = false
+            return@LaunchedEffect
+        }
+        val entries = state.foodEntries
+        val query = state.searchQuery
+        val singleDate = state.selectedDateFilter
+        val fromDate = state.fromDateFilter
+        val toDate = state.toDateFilter
+        val meal = state.selectedMeal
+        val highProt = state.onlyHighProtein
+
+        if (isFiltering) {
+            delay(160)
+        }
+        val result = withContext(Dispatchers.Default) {
+            entries.filter { item ->
+                val matchesSearch = query.isBlank() ||
+                    item.displayName.contains(query, ignoreCase = true) ||
+                    item.displayAmount.contains(query, ignoreCase = true)
+                val matchesDate = when {
+                    singleDate != null -> item.displayDate == singleDate
+                    fromDate != null && toDate != null -> item.displayDate in fromDate..toDate
+                    fromDate != null -> item.displayDate >= fromDate
+                    toDate != null -> item.displayDate <= toDate
+                    else -> true
+                }
+                val matchesMeal = meal == "all" || item.meal.equals(meal, ignoreCase = true)
+                val matchesProtein = !highProt || item.protein >= 20.0
+                matchesSearch && matchesDate && matchesMeal && matchesProtein
+            }
+        }
+        filteredFoods = result
+        isFiltering = false
+    }
 
     if (showDatePicker) {
         ExpressiveDateFilterDialog(
@@ -50,12 +103,15 @@ fun NutritionScreen(
             initialEndDate = state.toDateFilter,
             onDismissRequest = { showDatePicker = false },
             onDateSelected = { date ->
+                isFiltering = true
                 viewModel.setDateFilter(date)
             },
             onDateRangeSelected = { start, end ->
+                isFiltering = true
                 viewModel.setDateRangeFilter(start, end)
             },
             onClear = {
+                isFiltering = true
                 viewModel.clearDateFilter()
             }
         )
@@ -65,10 +121,11 @@ fun NutritionScreen(
         var tempTarget by remember { mutableStateOf(state.calorieTarget?.toString() ?: "") }
         AlertDialog(
             onDismissRequest = { showTargetDialog = false },
+            shape = M3Shapes.CornerExtraLarge,
             title = {
                 Text(
                     text = stringResource(R.string.nutrition_target_dialog_title),
-                    style = MaterialTheme.typography.headlineSmall
+                    style = MaterialTheme.typography.headlineSmallEmphasized
                 )
             },
             text = {
@@ -77,7 +134,7 @@ fun NutritionScreen(
                     onValueChange = { tempTarget = it },
                     label = { Text(stringResource(R.string.nutrition_target_dialog_label)) },
                     singleLine = true,
-                    shape = MaterialTheme.shapes.small
+                    shape = M3Shapes.CornerSmall
                 )
             },
             confirmButton = {
@@ -90,7 +147,7 @@ fun NutritionScreen(
                         showTargetDialog = false
                     }
                 ) {
-                    Text(stringResource(R.string.action_save), style = MaterialTheme.typography.labelLarge)
+                    Text(stringResource(R.string.action_save), style = MaterialTheme.typography.labelLargeEmphasized)
                 }
             },
             dismissButton = {
@@ -109,8 +166,7 @@ fun NutritionScreen(
                 title = {
                     Text(
                         text = stringResource(R.string.title_nutrition),
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.Bold
+                        style = MaterialTheme.typography.titleLargeEmphasized
                     )
                 },
                 navigationIcon = {
@@ -130,33 +186,6 @@ fun NutritionScreen(
             )
         }
     ) { innerPadding ->
-        val filteredFoods = remember(
-            state.foodEntries,
-            state.searchQuery,
-            state.selectedDateFilter,
-            state.fromDateFilter,
-            state.toDateFilter,
-            state.selectedMeal,
-            state.onlyHighProtein
-        ) {
-            state.foodEntries.filter { item ->
-                val matchesSearch = state.searchQuery.isBlank() ||
-                    item.displayName.contains(state.searchQuery, ignoreCase = true) ||
-                    item.displayAmount.contains(state.searchQuery, ignoreCase = true)
-                val matchesDate = when {
-                    state.selectedDateFilter != null -> item.displayDate == state.selectedDateFilter
-                    state.fromDateFilter != null && state.toDateFilter != null ->
-                        item.displayDate in state.fromDateFilter!!..state.toDateFilter!!
-                    state.fromDateFilter != null -> item.displayDate >= state.fromDateFilter!!
-                    state.toDateFilter != null -> item.displayDate <= state.toDateFilter!!
-                    else -> true
-                }
-                val matchesMeal = state.selectedMeal == "all" || item.meal.equals(state.selectedMeal, ignoreCase = true)
-                val matchesProtein = !state.onlyHighProtein || item.protein >= 20.0
-                matchesSearch && matchesDate && matchesMeal && matchesProtein
-            }
-        }
-
         var isRefreshing by remember { mutableStateOf(false) }
         LaunchedEffect(state.isLoading) {
             if (!state.isLoading) isRefreshing = false
@@ -174,13 +203,15 @@ fun NutritionScreen(
                     .fillMaxSize()
                     .padding(horizontal = 12.dp),
                 contentPadding = PaddingValues(top = 10.dp, bottom = 144.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
+                verticalArrangement = Arrangement.Top
             ) {
             // Calorie Budget Card (Card MD3)
             item {
                 Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = MaterialTheme.shapes.medium,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 8.dp),
+                    shape = M3Shapes.CornerLarge,
                     colors = CardDefaults.cardColors(
                         containerColor = MaterialTheme.colorScheme.surfaceContainerLow
                     ),
@@ -205,13 +236,13 @@ fun NutritionScreen(
                                 )
                                 Text(
                                     text = stringResource(R.string.nutrition_calorie_target_title),
-                                    style = MaterialTheme.typography.titleMedium,
-                                    fontWeight = FontWeight.Bold,
+                                    style = MaterialTheme.typography.titleMediumEmphasized,
                                     color = MaterialTheme.colorScheme.onSurface
                                 )
                             }
                             FilledTonalButton(
                                 onClick = { showTargetDialog = true },
+                                shape = M3Shapes.CornerSmall,
                                 contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
                                 modifier = Modifier.height(30.dp)
                             ) {
@@ -226,8 +257,7 @@ fun NutritionScreen(
                                     )
                                     Text(
                                         text = state.calorieTarget?.let { "$it kcal" } ?: "---",
-                                        style = MaterialTheme.typography.labelMedium,
-                                        fontWeight = FontWeight.SemiBold
+                                        style = MaterialTheme.typography.labelMediumEmphasized
                                     )
                                 }
                             }
@@ -238,7 +268,11 @@ fun NutritionScreen(
                         val progressPct = if (target != null && target > 0) {
                             (state.todayCalories / target).toFloat().coerceIn(0f, 1f)
                         } else 0f
-                        val animatedProgress by animateFloatAsState(targetValue = progressPct, label = "prog")
+                        val animatedProgress by animateFloatAsState(
+                            targetValue = progressPct,
+                            animationSpec = M3ExpressiveMotion.defaultSpatial(),
+                            label = "prog"
+                        )
 
                         val barColor = when {
                             progressPct >= 1f -> MaterialTheme.colorScheme.error
@@ -252,7 +286,7 @@ fun NutritionScreen(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .height(8.dp)
-                                .clip(CircleShape),
+                                .clip(M3Shapes.CornerFull),
                             color = barColor,
                             trackColor = MaterialTheme.colorScheme.surfaceContainerHighest
                         )
@@ -277,8 +311,7 @@ fun NutritionScreen(
                             )
                             Text(
                                 text = remText,
-                                style = MaterialTheme.typography.bodySmall,
-                                fontWeight = FontWeight.Bold,
+                                style = MaterialTheme.typography.bodySmallEmphasized,
                                 color = if (rem >= 0) domainNutritionColor() else MaterialTheme.colorScheme.error
                             )
                         }
@@ -289,8 +322,10 @@ fun NutritionScreen(
             // Macro Breakdown Card (MD3 Card)
             item {
                 Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = MaterialTheme.shapes.medium,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 8.dp),
+                    shape = M3Shapes.CornerLarge,
                     colors = CardDefaults.cardColors(
                         containerColor = MaterialTheme.colorScheme.surfaceContainerLow
                     ),
@@ -300,8 +335,7 @@ fun NutritionScreen(
                     Column(modifier = Modifier.padding(12.dp)) {
                         Text(
                             text = stringResource(R.string.nutrition_macro_title),
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold,
+                            style = MaterialTheme.typography.titleMediumEmphasized,
                             color = MaterialTheme.colorScheme.onSurface
                         )
                         Text(
@@ -329,7 +363,7 @@ fun NutritionScreen(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .height(8.dp)
-                                .clip(CircleShape)
+                                .clip(M3Shapes.CornerFull)
                         ) {
                             Box(modifier = Modifier.fillMaxHeight().weight(carbPct.coerceAtLeast(0.01f)).background(carbColor))
                             Box(modifier = Modifier.fillMaxHeight().weight(protPct.coerceAtLeast(0.01f)).background(protColor))
@@ -353,7 +387,9 @@ fun NutritionScreen(
             stickyHeader {
                 Surface(
                     color = MaterialTheme.colorScheme.surface,
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 8.dp)
                 ) {
                     Column(
                         modifier = Modifier
@@ -383,7 +419,10 @@ fun NutritionScreen(
                             },
                             trailingIcon = {
                                 if (state.searchQuery.isNotEmpty()) {
-                                    IconButton(onClick = { viewModel.setSearchQuery("") }) {
+                                    IconButton(onClick = {
+                                        isFiltering = true
+                                        viewModel.setSearchQuery("")
+                                    }) {
                                         Icon(
                                             Icons.Default.Clear,
                                             contentDescription = stringResource(R.string.action_clear),
@@ -393,7 +432,7 @@ fun NutritionScreen(
                                     }
                                 }
                             },
-                            shape = CircleShape,
+                            shape = M3Shapes.CornerFull,
                             colors = OutlinedTextFieldDefaults.colors(
                                 focusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
                                 unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainerLow,
@@ -436,7 +475,10 @@ fun NutritionScreen(
                                             contentDescription = null,
                                             modifier = Modifier
                                                 .size(14.dp)
-                                                .clickable { viewModel.clearDateFilter() }
+                                                .clickable {
+                                                    isFiltering = true
+                                                    viewModel.clearDateFilter()
+                                                }
                                         )
                                     }
                                 } else null,
@@ -458,7 +500,12 @@ fun NutritionScreen(
                             ).forEach { (mealKey, label, icon) ->
                                 ExpressiveFilterChip(
                                     selected = state.selectedMeal == mealKey,
-                                    onClick = { viewModel.setMeal(mealKey) },
+                                    onClick = {
+                                        if (state.selectedMeal != mealKey) {
+                                            isFiltering = true
+                                            viewModel.setMeal(mealKey)
+                                        }
+                                    },
                                     leadingIcon = icon?.let {
                                         {
                                             Icon(
@@ -475,7 +522,10 @@ fun NutritionScreen(
                             // High protein
                             ExpressiveFilterChip(
                                 selected = state.onlyHighProtein,
-                                onClick = { viewModel.toggleHighProtein() },
+                                onClick = {
+                                    isFiltering = true
+                                    viewModel.toggleHighProtein()
+                                },
                                 leadingIcon = {
                                     Icon(
                                         imageVector = Icons.Default.FitnessCenter,
@@ -489,15 +539,18 @@ fun NutritionScreen(
                             // Clear filter button
                             if (state.selectedDateFilter != null || state.selectedMeal != "all" || state.onlyHighProtein || state.searchQuery.isNotEmpty()) {
                                 AssistChip(
-                                    onClick = { viewModel.resetFilters() },
+                                    onClick = {
+                                        isFiltering = true
+                                        viewModel.resetFilters()
+                                    },
                                     label = {
                                         Text(
                                             text = stringResource(R.string.action_clear),
-                                            style = MaterialTheme.typography.labelMedium,
+                                            style = MaterialTheme.typography.labelMediumEmphasized,
                                             color = MaterialTheme.colorScheme.error
                                         )
                                     },
-                                    shape = MaterialTheme.shapes.small,
+                                    shape = M3Shapes.CornerSmall,
                                     border = null,
                                     colors = borderlessAssistChipColors(
                                         labelColor = MaterialTheme.colorScheme.error
@@ -509,11 +562,9 @@ fun NutritionScreen(
                 }
             }
 
-
-
             // Food Items List
-            if (state.isLoading && state.foodEntries.isEmpty()) {
-                item {
+            if ((state.isLoading && state.foodEntries.isEmpty()) || isFiltering) {
+                item(key = "nutrition_loading") {
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -527,7 +578,7 @@ fun NutritionScreen(
                     }
                 }
             } else if (filteredFoods.isEmpty()) {
-                item {
+                item(key = "nutrition_empty") {
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -542,27 +593,18 @@ fun NutritionScreen(
                     }
                 }
             } else {
-                item {
-                    Card(
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = MaterialTheme.shapes.medium,
-                        colors = CardDefaults.cardColors(
-                            containerColor = MaterialTheme.colorScheme.surfaceContainerLow
-                        ),
-                        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
-                        border = null
+                itemsIndexed(
+                    items = filteredFoods,
+                    key = { index, food -> "${food.food_entry_id}_$index" }
+                ) { index, food ->
+                    LazyCardRowContainer(
+                        index = index,
+                        totalCount = filteredFoods.size
                     ) {
-                        Column {
-                            filteredFoods.forEachIndexed { index, food ->
-                                if (index > 0) {
-                                    HorizontalDivider(
-                                        color = MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.5f),
-                                        modifier = Modifier.padding(horizontal = 12.dp)
-                                    )
-                                }
-                                FoodEntryRowItem(item = food)
-                            }
-                        }
+                        FoodEntryRowItem(
+                            item = food,
+                            onClick = { selectedFood = food }
+                        )
                     }
                 }
             }
@@ -570,6 +612,13 @@ fun NutritionScreen(
             item { Spacer(modifier = Modifier.height(24.dp)) }
           }
         }
+    }
+
+    selectedFood?.let { food ->
+        FoodEntryDetailBottomSheet(
+            item = food,
+            onDismiss = { selectedFood = null }
+        )
     }
 }
 
@@ -599,7 +648,7 @@ fun MacroLegendItem(color: Color, label: String, grams: Int, pct: Int) {
         Box(
             modifier = Modifier
                 .size(8.dp)
-                .clip(CircleShape)
+                .clip(M3Shapes.CornerFull)
                 .background(color)
         )
         Spacer(modifier = Modifier.width(4.dp))
@@ -614,21 +663,25 @@ fun MacroLegendItem(color: Color, label: String, grams: Int, pct: Int) {
 }
 
 @Composable
-fun FoodEntryRowItem(item: FoodEntryDto) {
+fun FoodEntryRowItem(
+    item: FoodEntryDto,
+    onClick: () -> Unit = {}
+) {
     val mealIcon = getMealIcon(item.meal)
     val mealLabel = formatMealName(item.meal)
 
     Row(
         modifier = Modifier
             .fillMaxWidth()
+            .expressiveBounceClick(onClick = onClick)
             .padding(horizontal = 12.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        // M3 Meal Avatar Container (40dp)
+        // M3 Meal Avatar Container (40dp, optical roundness: 8.dp CornerSmall inside 16.dp CornerLarge card)
         Box(
             modifier = Modifier
                 .size(40.dp)
-                .clip(MaterialTheme.shapes.small)
+                .clip(M3Shapes.CornerSmall)
                 .background(domainNutritionContainer()),
             contentAlignment = Alignment.Center
         ) {
@@ -649,15 +702,14 @@ fun FoodEntryRowItem(item: FoodEntryDto) {
             ) {
                 Text(
                     text = item.displayName,
-                    style = MaterialTheme.typography.bodyMedium,
-                    fontWeight = FontWeight.SemiBold,
+                    style = MaterialTheme.typography.bodyMediumEmphasized,
                     color = MaterialTheme.colorScheme.onSurface,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.weight(1f, fill = false)
                 )
                 Surface(
-                    shape = CircleShape,
+                    shape = M3Shapes.CornerFull,
                     color = MaterialTheme.colorScheme.surfaceContainerHigh
                 ) {
                     Text(
@@ -685,8 +737,7 @@ fun FoodEntryRowItem(item: FoodEntryDto) {
         Column(horizontalAlignment = Alignment.End) {
             Text(
                 text = "${item.calories.toInt()} kcal",
-                style = MaterialTheme.typography.titleSmall,
-                fontWeight = FontWeight.Bold,
+                style = MaterialTheme.typography.titleSmallEmphasized,
                 color = domainNutritionColor(),
                 maxLines = 1,
                 softWrap = false

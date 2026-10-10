@@ -181,14 +181,14 @@
     <string name="settings_section_goodreads">Goodreads Integration</string>
     <string name="settings_goodreads_title">Goodreads RSS URL</string>
     <string name="settings_goodreads_desc">Books you have read and want to read</string>
-    <string name="settings_goodreads_user_label">Goodreads User ID or RSS</string>
+    <string name="settings_goodreads_user_label">User Identifier or RSS</string>
     <string name="settings_goodreads_user_hint">e.g.: 12345678 or https://goodreads.com/user/show/12345678</string>
-    <string name="settings_goodreads_support">Enter your profile RSS link or Goodreads user ID.</string>
+    <string name="settings_goodreads_support">Enter your profile RSS link or Goodreads user identifier.</string>
 
     <string name="settings_section_letterboxd">Letterboxd Integration</string>
     <string name="settings_letterboxd_title">Letterboxd RSS URL</string>
     <string name="settings_letterboxd_desc">Watched films, diary and movie ratings</string>
-    <string name="settings_letterboxd_user_label">Letterboxd Username or RSS</string>
+    <string name="settings_letterboxd_user_label">User Identifier or RSS</string>
     <string name="settings_letterboxd_user_hint">e.g.: username or https://letterboxd.com/username/rss/</string>
     <string name="settings_letterboxd_support">Entering your username automatically generates the RSS feed link.</string>
 

@@ -181,14 +181,14 @@
     <string name="settings_section_goodreads">Goodreads Entegrasyonu</string>
     <string name="settings_goodreads_title">Goodreads RSS URL</string>
     <string name="settings_goodreads_desc">Okuduğunuz ve listenizdeki kitaplar</string>
-    <string name="settings_goodreads_user_label">Goodreads Kullanıcı ID veya RSS</string>
+    <string name="settings_goodreads_user_label">Kullanıcı Kimliği veya RSS</string>
     <string name="settings_goodreads_user_hint">Örn: 12345678 veya https://goodreads.com/user/show/12345678</string>
-    <string name="settings_goodreads_support">goodreads.com profilinizdeki RSS bağlantısını veya kullanıcı numaranızı girin.</string>
+    <string name="settings_goodreads_support">goodreads.com profilinizdeki RSS bağlantısını veya kullanıcı kimliğinizi girin.</string>
 
     <string name="settings_section_letterboxd">Letterboxd Entegrasyonu</string>
     <string name="settings_letterboxd_title">Letterboxd RSS URL</string>
     <string name="settings_letterboxd_desc">İzlediğiniz filmler ve verdiğiniz puanlar</string>
-    <string name="settings_letterboxd_user_label">Letterboxd Kullanıcı Adı veya RSS</string>
+    <string name="settings_letterboxd_user_label">Kullanıcı Kimliği veya RSS</string>
     <string name="settings_letterboxd_user_hint">Örn: username veya https://letterboxd.com/username/rss/</string>
     <string name="settings_letterboxd_support">Kullanıcı adınızı girdiğinizde RSS bağlantısı otomatik oluşturulur.</string>
 

@@ -5,6 +5,7 @@ import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
@@ -24,6 +25,9 @@ import com.personalrecords.app.R
 import com.personalrecords.app.core.network.model.FilmDto
 import com.personalrecords.app.core.theme.*
 import com.personalrecords.app.ui.components.*
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.withContext
 
 @OptIn(ExperimentalMaterial3Api::class, androidx.compose.foundation.ExperimentalFoundationApi::class)
 @Composable
@@ -33,6 +37,65 @@ fun MoviesScreen(
 ) {
     val state by viewModel.uiState.collectAsState()
     var showDatePicker by remember { mutableStateOf(false) }
+    var selectedFilm by remember { mutableStateOf<FilmDto?>(null) }
+    var filteredFilms by remember { mutableStateOf<List<FilmDto>>(emptyList()) }
+    var isFiltering by remember { mutableStateOf(false) }
+
+    LaunchedEffect(
+        state.films,
+        state.searchQuery,
+        state.selectedDateFilter,
+        state.fromDateFilter,
+        state.toDateFilter,
+        state.onlyRewatches,
+        state.sortBy
+    ) {
+        if (state.films.isEmpty()) {
+            filteredFilms = emptyList()
+            isFiltering = false
+            return@LaunchedEffect
+        }
+        val films = state.films
+        val query = state.searchQuery
+        val singleDate = state.selectedDateFilter
+        val fromDate = state.fromDateFilter
+        val toDate = state.toDateFilter
+        val rewatchesOnly = state.onlyRewatches
+        val sort = state.sortBy
+
+        if (isFiltering) {
+            delay(160)
+        }
+        val result = withContext(Dispatchers.Default) {
+            var list = films.filter { film ->
+                val matchesSearch = query.isBlank() ||
+                    film.displayTitle.contains(query, ignoreCase = true)
+                val matchesRewatch = !rewatchesOnly || film.rewatch
+                val filmDate = film.safeWatchedDate.ifBlank { film.diary_date ?: "" }
+                val matchesDate = when {
+                    singleDate != null -> filmDate.startsWith(singleDate)
+                    fromDate != null && toDate != null ->
+                        filmDate.isNotBlank() && filmDate >= fromDate && filmDate <= toDate
+                    fromDate != null -> filmDate.isNotBlank() && filmDate >= fromDate
+                    toDate != null -> filmDate.isNotBlank() && filmDate <= toDate
+                    else -> true
+                }
+                matchesSearch && matchesRewatch && matchesDate
+            }
+
+            list = when (sort) {
+                "rating_desc" -> list.sortedByDescending { it.safeRating }
+                "rating_asc" -> list.sortedBy { it.safeRating }
+                "year" -> list.sortedByDescending { it.safeYear }
+                "date" -> list.sortedByDescending { it.safeWatchedDate }
+                "title" -> list.sortedBy { it.displayTitle.lowercase() }
+                else -> list
+            }
+            list
+        }
+        filteredFilms = result
+        isFiltering = false
+    }
 
     if (showDatePicker) {
         ExpressiveDateFilterDialog(
@@ -40,12 +103,15 @@ fun MoviesScreen(
             initialEndDate = state.toDateFilter,
             onDismissRequest = { showDatePicker = false },
             onDateSelected = { date ->
+                isFiltering = true
                 viewModel.setDateFilter(date)
             },
             onDateRangeSelected = { start, end ->
+                isFiltering = true
                 viewModel.setDateRangeFilter(start, end)
             },
             onClear = {
+                isFiltering = true
                 viewModel.clearDateFilter()
             }
         )
@@ -59,8 +125,7 @@ fun MoviesScreen(
                 title = {
                     Text(
                         text = stringResource(R.string.title_movies),
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.Bold
+                        style = MaterialTheme.typography.titleLargeEmphasized
                     )
                 },
                 navigationIcon = {
@@ -92,48 +157,12 @@ fun MoviesScreen(
                 .fillMaxSize()
                 .padding(innerPadding)
         ) {
-            val filteredFilms = remember(
-                state.films,
-                state.searchQuery,
-                state.selectedDateFilter,
-                state.fromDateFilter,
-                state.toDateFilter,
-                state.onlyRewatches,
-                state.sortBy
-            ) {
-                var list = state.films.filter { film ->
-                    val matchesSearch = state.searchQuery.isBlank() ||
-                        film.displayTitle.contains(state.searchQuery, ignoreCase = true)
-                    val matchesRewatch = !state.onlyRewatches || film.rewatch
-                    val filmDate = film.safeWatchedDate.ifBlank { film.diary_date ?: "" }
-                    val matchesDate = when {
-                        state.selectedDateFilter != null -> filmDate.startsWith(state.selectedDateFilter!!)
-                        state.fromDateFilter != null && state.toDateFilter != null ->
-                            filmDate.isNotBlank() && filmDate >= state.fromDateFilter!! && filmDate <= state.toDateFilter!!
-                        state.fromDateFilter != null -> filmDate.isNotBlank() && filmDate >= state.fromDateFilter!!
-                        state.toDateFilter != null -> filmDate.isNotBlank() && filmDate <= state.toDateFilter!!
-                        else -> true
-                    }
-                    matchesSearch && matchesRewatch && matchesDate
-                }
-
-                list = when (state.sortBy) {
-                    "rating_desc" -> list.sortedByDescending { it.safeRating }
-                    "rating_asc" -> list.sortedBy { it.safeRating }
-                    "year" -> list.sortedByDescending { it.safeYear }
-                    "date" -> list.sortedByDescending { it.safeWatchedDate }
-                    "title" -> list.sortedBy { it.displayTitle.lowercase() }
-                    else -> list
-                }
-                list
-            }
-
             LazyColumn(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(horizontal = 12.dp),
                 contentPadding = PaddingValues(top = 10.dp, bottom = 144.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
+                verticalArrangement = Arrangement.Top
             ) {
 
                 // Stats Row
@@ -146,7 +175,9 @@ fun MoviesScreen(
                     } else "0.0"
 
                     Row(
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(bottom = 8.dp),
                         horizontalArrangement = Arrangement.spacedBy(6.dp)
                     ) {
                         MetricCard(
@@ -177,8 +208,10 @@ fun MoviesScreen(
                     item {
                         Surface(
                             color = MaterialTheme.colorScheme.errorContainer,
-                            shape = MaterialTheme.shapes.small,
-                            modifier = Modifier.fillMaxWidth()
+                            shape = M3Shapes.CornerSmall,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(bottom = 8.dp)
                         ) {
                             Row(
                                 modifier = Modifier.padding(12.dp),
@@ -193,9 +226,8 @@ fun MoviesScreen(
                                 TextButton(onClick = { viewModel.loadData() }) {
                                     Text(
                                         text = stringResource(R.string.action_retry),
-                                        style = MaterialTheme.typography.labelMedium,
-                                        color = MaterialTheme.colorScheme.error,
-                                        fontWeight = FontWeight.Bold
+                                        style = MaterialTheme.typography.labelMediumEmphasized,
+                                        color = MaterialTheme.colorScheme.error
                                     )
                                 }
                             }
@@ -207,7 +239,9 @@ fun MoviesScreen(
                 stickyHeader {
                     Surface(
                         color = MaterialTheme.colorScheme.surface,
-                        modifier = Modifier.fillMaxWidth()
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(bottom = 8.dp)
                     ) {
                         Column(
                             modifier = Modifier
@@ -236,7 +270,10 @@ fun MoviesScreen(
                                 },
                                 trailingIcon = {
                                     if (state.searchQuery.isNotEmpty()) {
-                                        IconButton(onClick = { viewModel.setSearchQuery("") }) {
+                                        IconButton(onClick = {
+                                            isFiltering = true
+                                            viewModel.setSearchQuery("")
+                                        }) {
                                             Icon(
                                                 Icons.Default.Clear,
                                                 contentDescription = stringResource(R.string.action_clear),
@@ -246,7 +283,7 @@ fun MoviesScreen(
                                         }
                                     }
                                 },
-                                shape = CircleShape,
+                                shape = M3Shapes.CornerFull,
                                 colors = OutlinedTextFieldDefaults.colors(
                                     focusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
                                     unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainerLow,
@@ -290,7 +327,10 @@ fun MoviesScreen(
                                                 contentDescription = null,
                                                 modifier = Modifier
                                                     .size(14.dp)
-                                                    .clickable { viewModel.clearDateFilter() }
+                                                    .clickable {
+                                                        isFiltering = true
+                                                        viewModel.clearDateFilter()
+                                                    }
                                             )
                                         }
                                     } else null,
@@ -303,7 +343,10 @@ fun MoviesScreen(
                                 )
                                 ExpressiveFilterChip(
                                     selected = state.onlyRewatches,
-                                    onClick = { viewModel.toggleRewatches() },
+                                    onClick = {
+                                        isFiltering = true
+                                        viewModel.toggleRewatches()
+                                    },
                                     label = {
                                         Text(
                                             text = "$rewatchLabel ($rewatchFilms)",
@@ -336,6 +379,7 @@ fun MoviesScreen(
                                             "date" -> "title"
                                             else -> "rating_desc"
                                         }
+                                        isFiltering = true
                                         viewModel.setSortBy(nextSort)
                                     },
                                     leadingIcon = {
@@ -349,12 +393,11 @@ fun MoviesScreen(
                                     label = {
                                         Text(
                                             text = sortLabel,
-                                            style = MaterialTheme.typography.labelMedium,
-                                            fontWeight = FontWeight.SemiBold,
+                                            style = MaterialTheme.typography.labelMediumEmphasized,
                                             color = MaterialTheme.colorScheme.primary
                                         )
                                     },
-                                    shape = MaterialTheme.shapes.small,
+                                    shape = M3Shapes.CornerSmall,
                                     border = null,
                                     colors = borderlessAssistChipColors()
                                 )
@@ -363,8 +406,8 @@ fun MoviesScreen(
                     }
                 }
 
-                if (state.isLoading && state.films.isEmpty()) {
-                    item {
+                if ((state.isLoading && state.films.isEmpty()) || isFiltering) {
+                    item(key = "movies_loading") {
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -375,7 +418,7 @@ fun MoviesScreen(
                         }
                     }
                 } else if (filteredFilms.isEmpty()) {
-                    item {
+                    item(key = "movies_empty") {
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -390,27 +433,18 @@ fun MoviesScreen(
                         }
                     }
                 } else {
-                    item {
-                        Card(
-                            modifier = Modifier.fillMaxWidth(),
-                            shape = MaterialTheme.shapes.medium,
-                            colors = CardDefaults.cardColors(
-                                containerColor = MaterialTheme.colorScheme.surfaceContainerLow
-                            ),
-                            elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
-                            border = null
+                    itemsIndexed(
+                        items = filteredFilms,
+                        key = { index, film -> "${film.film_key ?: film.displayTitle}_$index" }
+                    ) { index, film ->
+                        LazyCardRowContainer(
+                            index = index,
+                            totalCount = filteredFilms.size
                         ) {
-                            Column {
-                                filteredFilms.forEachIndexed { index, film ->
-                                    if (index > 0) {
-                                        HorizontalDivider(
-                                            color = MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.5f),
-                                            modifier = Modifier.padding(horizontal = 12.dp)
-                                        )
-                                    }
-                                    FilmRowItem(film = film)
-                                }
-                            }
+                            FilmRowItem(
+                                film = film,
+                                onClick = { selectedFilm = film }
+                            )
                         }
                     }
                 }
@@ -419,13 +453,24 @@ fun MoviesScreen(
             }
         }
     }
+
+    selectedFilm?.let { film ->
+        FilmDetailBottomSheet(
+            film = film,
+            onDismiss = { selectedFilm = null }
+        )
+    }
 }
 
 @Composable
-fun FilmRowItem(film: FilmDto) {
+fun FilmRowItem(
+    film: FilmDto,
+    onClick: () -> Unit = {}
+) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
+            .expressiveBounceClick(onClick = onClick)
             .padding(horizontal = 12.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -435,8 +480,7 @@ fun FilmRowItem(film: FilmDto) {
         Column(modifier = Modifier.weight(1f)) {
             Text(
                 text = film.displayTitle,
-                style = MaterialTheme.typography.titleSmall,
-                fontWeight = FontWeight.SemiBold,
+                style = MaterialTheme.typography.titleSmallEmphasized,
                 color = MaterialTheme.colorScheme.onSurface,
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis
@@ -466,7 +510,7 @@ fun FilmRowItem(film: FilmDto) {
                 }
                 if (film.rewatch) {
                     Surface(
-                        shape = CircleShape,
+                        shape = M3Shapes.CornerFull,
                         color = domainCinemaContainer()
                     ) {
                         Row(
@@ -482,9 +526,8 @@ fun FilmRowItem(film: FilmDto) {
                             )
                             Text(
                                 text = stringResource(R.string.movies_rewatch_badge),
-                                style = MaterialTheme.typography.labelSmall,
+                                style = MaterialTheme.typography.labelSmallEmphasized,
                                 color = domainCinemaOnContainer(),
-                                fontWeight = FontWeight.Bold,
                                 maxLines = 1,
                                 softWrap = false
                             )

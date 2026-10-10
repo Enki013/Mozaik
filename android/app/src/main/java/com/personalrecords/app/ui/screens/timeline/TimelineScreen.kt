@@ -27,6 +27,9 @@ import com.personalrecords.app.core.network.model.ActivityDayGroupDto
 import com.personalrecords.app.core.network.model.ActivityItemDto
 import com.personalrecords.app.core.theme.*
 import com.personalrecords.app.ui.components.*
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.withContext
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -44,6 +47,34 @@ fun TimelineScreen(
 ) {
     val state by viewModel.uiState.collectAsState()
     var showDatePicker by remember { mutableStateOf(false) }
+    var selectedActivity by remember { mutableStateOf<ActivityItemDto?>(null) }
+    var filteredGroups by remember { mutableStateOf<List<ActivityDayGroupDto>>(emptyList()) }
+    var isFiltering by remember { mutableStateOf(false) }
+
+    LaunchedEffect(state.dayGroups, state.selectedSource, state.searchQuery) {
+        if (state.dayGroups.isEmpty()) {
+            filteredGroups = emptyList()
+            isFiltering = false
+            return@LaunchedEffect
+        }
+        if (isFiltering) {
+            delay(160)
+        }
+        val computed = withContext(Dispatchers.Default) {
+            state.dayGroups.mapNotNull { group ->
+                val filteredItems = group.items.filter { item ->
+                    val matchesSource = state.selectedSource == "all" || item.source == state.selectedSource
+                    val matchesSearch = state.searchQuery.isBlank() ||
+                        item.title.contains(state.searchQuery, ignoreCase = true) ||
+                        item.subtitle.contains(state.searchQuery, ignoreCase = true)
+                    matchesSource && matchesSearch
+                }
+                if (filteredItems.isNotEmpty()) group.copy(items = filteredItems) else null
+            }
+        }
+        filteredGroups = computed
+        isFiltering = false
+    }
 
     if (showDatePicker) {
         ExpressiveDateFilterDialog(
@@ -96,19 +127,6 @@ fun TimelineScreen(
                 .fillMaxSize()
                 .padding(innerPadding)
         ) {
-            val filteredGroups = remember(state.dayGroups, state.selectedSource, state.searchQuery) {
-                state.dayGroups.mapNotNull { group ->
-                    val filteredItems = group.items.filter { item ->
-                        val matchesSource = state.selectedSource == "all" || item.source == state.selectedSource
-                        val matchesSearch = state.searchQuery.isBlank() ||
-                            item.title.contains(state.searchQuery, ignoreCase = true) ||
-                            item.subtitle.contains(state.searchQuery, ignoreCase = true)
-                        matchesSource && matchesSearch
-                    }
-                    if (filteredItems.isNotEmpty()) group.copy(items = filteredItems) else null
-                }
-            }
-
             LazyColumn(
                 state = listState,
                 modifier = Modifier
@@ -140,7 +158,10 @@ fun TimelineScreen(
                         },
                         trailingIcon = {
                             if (state.searchQuery.isNotEmpty()) {
-                                IconButton(onClick = { viewModel.setSearchQuery("") }) {
+                                IconButton(onClick = {
+                                    isFiltering = true
+                                    viewModel.setSearchQuery("")
+                                }) {
                                     Icon(
                                         Icons.Default.Clear,
                                         contentDescription = stringResource(R.string.action_clear),
@@ -214,7 +235,7 @@ fun TimelineScreen(
                         AssistChip(
                             onClick = { viewModel.setToday() },
                             label = { Text(stringResource(R.string.timeline_today), style = MaterialTheme.typography.labelMedium) },
-                            shape = MaterialTheme.shapes.small,
+                            shape = M3Shapes.CornerSmall,
                             border = null,
                             colors = borderlessAssistChipColors()
                         )
@@ -225,11 +246,11 @@ fun TimelineScreen(
                                 label = {
                                     Text(
                                         text = stringResource(R.string.timeline_filter_reset),
-                                        style = MaterialTheme.typography.labelMedium,
+                                        style = MaterialTheme.typography.labelMediumEmphasized,
                                         color = MaterialTheme.colorScheme.error
                                     )
                                 },
-                                shape = MaterialTheme.shapes.small,
+                                shape = M3Shapes.CornerSmall,
                                 border = null,
                                 colors = borderlessAssistChipColors(
                                     labelColor = MaterialTheme.colorScheme.error
@@ -262,7 +283,12 @@ fun TimelineScreen(
                                 val isSelected = state.selectedSource == key
                                 ExpressiveFilterChip(
                                     selected = isSelected,
-                                    onClick = { viewModel.setSource(key) },
+                                    onClick = {
+                                        if (state.selectedSource != key) {
+                                            isFiltering = true
+                                            viewModel.setSource(key)
+                                        }
+                                    },
                                     leadingIcon = icon?.let {
                                         {
                                             Icon(
@@ -284,7 +310,7 @@ fun TimelineScreen(
                     item {
                         Surface(
                             color = MaterialTheme.colorScheme.secondaryContainer,
-                            shape = MaterialTheme.shapes.small,
+                            shape = M3Shapes.CornerSmall,
                             modifier = Modifier.padding(vertical = 4.dp)
                         ) {
                             Row(
@@ -301,15 +327,14 @@ fun TimelineScreen(
                                 Text(
                                     text = stringResource(R.string.timeline_selected_date, date),
                                     color = MaterialTheme.colorScheme.onSecondaryContainer,
-                                    style = MaterialTheme.typography.labelMedium,
-                                    fontWeight = FontWeight.SemiBold
+                                    style = MaterialTheme.typography.labelMediumEmphasized
                                 )
                             }
                         }
                     }
                 }
 
-                if (state.isLoading && !isRefreshing) {
+                if ((state.isLoading && !isRefreshing) || isFiltering) {
                     item {
                         Box(
                             modifier = Modifier
@@ -339,9 +364,13 @@ fun TimelineScreen(
                         }
                     }
                 } else {
-                    items(filteredGroups) { group ->
+                    items(
+                        items = filteredGroups,
+                        key = { group -> group.date }
+                    ) { group ->
                         DayGroupCard(
                             group = group,
+                            onItemClick = { selectedActivity = it },
                             onNavigateToNutrition = onNavigateToNutrition,
                             onNavigateToBooks = onNavigateToBooks,
                             onNavigateToMovies = onNavigateToMovies
@@ -353,11 +382,19 @@ fun TimelineScreen(
             }
         }
     }
+
+    selectedActivity?.let { activity ->
+        ActivityItemDetailBottomSheet(
+            item = activity,
+            onDismiss = { selectedActivity = null }
+        )
+    }
 }
 
 @Composable
 fun DayGroupCard(
     group: ActivityDayGroupDto,
+    onItemClick: (ActivityItemDto) -> Unit = {},
     onNavigateToNutrition: () -> Unit = {},
     onNavigateToBooks: () -> Unit = {},
     onNavigateToMovies: () -> Unit = {}
@@ -377,7 +414,7 @@ fun DayGroupCard(
 
     Card(
         modifier = Modifier.fillMaxWidth(),
-        shape = MaterialTheme.shapes.medium,
+        shape = M3Shapes.CornerLarge,
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surfaceContainerLow
         ),
@@ -396,8 +433,7 @@ fun DayGroupCard(
                 Column {
                     Text(
                         text = group.label.ifBlank { group.date },
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold,
+                        style = MaterialTheme.typography.titleMediumEmphasized,
                         color = MaterialTheme.colorScheme.onSurface
                     )
                     if (group.label.isNotBlank() && group.label != group.date) {
@@ -415,27 +451,25 @@ fun DayGroupCard(
                 // Specific single domains (notifications, books, movies) show their own specific count badges.
                 if (isOnlyFood && totalCal != null && totalCal != "0") {
                     Surface(
-                        shape = CircleShape,
+                        shape = M3Shapes.CornerFull,
                         color = domainNutritionContainer()
                     ) {
                         Text(
                             text = "$totalCal kcal",
                             color = domainNutritionOnContainer(),
-                            style = MaterialTheme.typography.labelSmall,
-                            fontWeight = FontWeight.SemiBold,
+                            style = MaterialTheme.typography.labelSmallEmphasized,
                             modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
                         )
                     }
                 } else if (hasMultipleSections) {
                     Surface(
-                        shape = CircleShape,
+                        shape = M3Shapes.CornerFull,
                         color = MaterialTheme.colorScheme.surfaceContainerHigh
                     ) {
                         Text(
                             text = stringResource(R.string.timeline_items_count, group.items.size),
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             style = MaterialTheme.typography.labelSmall,
-                            fontWeight = FontWeight.Medium,
                             modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
                         )
                     }
@@ -448,13 +482,13 @@ fun DayGroupCard(
                         )
                         "letterboxd" -> Triple(
                             stringResource(R.string.timeline_count_films, group.items.size),
-                            CinemaAccentContainer,
-                            CinemaAccentOnContainer
+                            domainCinemaContainer(),
+                            domainCinemaOnContainer()
                         )
                         "goodreads" -> Triple(
                             stringResource(R.string.timeline_count_books, group.items.size),
-                            MaterialTheme.colorScheme.tertiaryContainer,
-                            MaterialTheme.colorScheme.onTertiaryContainer
+                            domainBooksContainer(),
+                            domainBooksOnContainer()
                         )
                         else -> Triple(
                             stringResource(R.string.timeline_items_count, group.items.size),
@@ -463,14 +497,13 @@ fun DayGroupCard(
                         )
                     }
                     Surface(
-                        shape = CircleShape,
+                        shape = M3Shapes.CornerFull,
                         color = badgeBg
                     ) {
                         Text(
                             text = badgeText,
                             color = badgeFg,
                             style = MaterialTheme.typography.labelSmall,
-                            fontWeight = FontWeight.Medium,
                             modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
                         )
                     }
@@ -503,10 +536,10 @@ fun DayGroupCard(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         val (icon, title, color) = when (source) {
-                            "fatsecret" -> Triple(Icons.Default.Restaurant, stringResource(R.string.timeline_filter_nutrition), MaterialTheme.colorScheme.primary)
+                            "fatsecret" -> Triple(Icons.Default.Restaurant, stringResource(R.string.timeline_filter_nutrition), domainNutritionColor())
                             "notification" -> Triple(Icons.Default.Notifications, stringResource(R.string.timeline_filter_notifications), MaterialTheme.colorScheme.secondary)
-                            "letterboxd" -> Triple(Icons.Default.Movie, stringResource(R.string.timeline_filter_movies), CinemaAccent)
-                            "goodreads" -> Triple(Icons.AutoMirrored.Filled.MenuBook, stringResource(R.string.timeline_filter_books), BooksAccent)
+                            "letterboxd" -> Triple(Icons.Default.Movie, stringResource(R.string.timeline_filter_movies), domainCinemaColor())
+                            "goodreads" -> Triple(Icons.AutoMirrored.Filled.MenuBook, stringResource(R.string.timeline_filter_books), domainBooksColor())
                             else -> Triple(Icons.Default.Bookmark, stringResource(R.string.common_other), MaterialTheme.colorScheme.onSurfaceVariant)
                         }
 
@@ -522,8 +555,7 @@ fun DayGroupCard(
                             )
                             Text(
                                 text = title,
-                                style = MaterialTheme.typography.labelMedium,
-                                fontWeight = FontWeight.Bold,
+                                style = MaterialTheme.typography.labelMediumEmphasized,
                                 color = color
                             )
                         }
@@ -531,53 +563,49 @@ fun DayGroupCard(
                         // Category specific summary badge
                         if (source == "fatsecret" && totalCal != null && totalCal != "0") {
                             Surface(
-                                shape = CircleShape,
+                                shape = M3Shapes.CornerFull,
                                 color = domainNutritionContainer()
                             ) {
                                 Text(
                                     text = "$totalCal kcal",
                                     color = domainNutritionOnContainer(),
-                                    style = MaterialTheme.typography.labelSmall,
-                                    fontWeight = FontWeight.SemiBold,
+                                    style = MaterialTheme.typography.labelSmallEmphasized,
                                     modifier = Modifier.padding(horizontal = 7.dp, vertical = 2.dp)
                                 )
                             }
                         } else if (source == "notification") {
                             Surface(
-                                shape = CircleShape,
+                                shape = M3Shapes.CornerFull,
                                 color = MaterialTheme.colorScheme.secondaryContainer
                             ) {
                                 Text(
                                     text = stringResource(R.string.timeline_count_notifications, items.size),
                                     color = MaterialTheme.colorScheme.onSecondaryContainer,
                                     style = MaterialTheme.typography.labelSmall,
-                                    fontWeight = FontWeight.Medium,
                                     modifier = Modifier.padding(horizontal = 7.dp, vertical = 2.dp)
                                 )
                             }
                         } else if (source == "letterboxd") {
                             Surface(
-                                shape = CircleShape,
-                                color = CinemaAccentContainer
+                                shape = M3Shapes.CornerFull,
+                                color = domainCinemaContainer()
                             ) {
                                 Text(
                                     text = stringResource(R.string.timeline_count_films, items.size),
-                                    color = CinemaAccentOnContainer,
+                                    color = domainCinemaOnContainer(),
                                     style = MaterialTheme.typography.labelSmall,
-                                    fontWeight = FontWeight.Medium,
                                     modifier = Modifier.padding(horizontal = 7.dp, vertical = 2.dp)
                                 )
                             }
                         } else if (source == "goodreads") {
                             Surface(
-                                shape = CircleShape,
-                                color = MaterialTheme.colorScheme.tertiaryContainer
+                                shape = M3Shapes.CornerFull,
+                                color = domainBooksContainer()
                             ) {
                                 Text(
                                     text = stringResource(R.string.timeline_count_books, items.size),
-                                    color = MaterialTheme.colorScheme.onTertiaryContainer,
+                                    color = domainBooksOnContainer(),
                                     style = MaterialTheme.typography.labelSmall,
-                                    fontWeight = FontWeight.Medium,
                                     modifier = Modifier.padding(horizontal = 7.dp, vertical = 2.dp)
                                 )
                             }
@@ -600,14 +628,7 @@ fun DayGroupCard(
                     }
                     TimelineItemCard(
                         item = item,
-                        onClick = {
-                            when (item.source) {
-                                "fatsecret" -> onNavigateToNutrition()
-                                "goodreads" -> onNavigateToBooks()
-                                "letterboxd" -> onNavigateToMovies()
-                                else -> {}
-                            }
-                        }
+                        onClick = { onItemClick(item) }
                     )
                 }
             }
@@ -635,13 +656,13 @@ fun TimelineItemCard(
             .padding(horizontal = 12.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        // Leading Icon / Thumbnail
+        // Leading Icon / Thumbnail (optical roundness: 8.dp CornerSmall inside 16.dp CornerLarge card)
         when (item.source) {
             "notification" -> {
                 Box(
                     modifier = Modifier
                         .size(38.dp)
-                        .clip(CircleShape)
+                        .clip(M3Shapes.CornerFull)
                         .background(MaterialTheme.colorScheme.secondaryContainer),
                     contentAlignment = Alignment.Center
                 ) {
@@ -657,7 +678,7 @@ fun TimelineItemCard(
                 Box(
                     modifier = Modifier
                         .size(38.dp)
-                        .clip(MaterialTheme.shapes.small)
+                        .clip(M3Shapes.CornerSmall)
                         .background(domainNutritionContainer()),
                     contentAlignment = Alignment.Center
                 ) {
@@ -684,8 +705,7 @@ fun TimelineItemCard(
         Column(modifier = Modifier.weight(1f)) {
             Text(
                 text = item.title,
-                style = MaterialTheme.typography.bodyMedium,
-                fontWeight = FontWeight.SemiBold,
+                style = MaterialTheme.typography.bodyMediumEmphasized,
                 color = MaterialTheme.colorScheme.onSurface,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
@@ -713,8 +733,8 @@ fun TimelineItemCard(
             }
             if (item.rewatch) {
                 Surface(
-                    shape = CircleShape,
-                    color = CinemaAccentContainer
+                    shape = M3Shapes.CornerFull,
+                    color = domainCinemaContainer()
                 ) {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
@@ -724,14 +744,13 @@ fun TimelineItemCard(
                         Icon(
                             imageVector = Icons.Default.Repeat,
                             contentDescription = null,
-                            tint = CinemaAccentOnContainer,
+                            tint = domainCinemaOnContainer(),
                             modifier = Modifier.size(10.dp)
                         )
                         Text(
                             text = "Tekrar",
-                            color = CinemaAccentOnContainer,
-                            style = MaterialTheme.typography.labelSmall,
-                            fontWeight = FontWeight.Bold,
+                            color = domainCinemaOnContainer(),
+                            style = MaterialTheme.typography.labelSmallEmphasized,
                             maxLines = 1,
                             softWrap = false
                         )
@@ -742,8 +761,7 @@ fun TimelineItemCard(
             if (item.source == "fatsecret" && cal != null && cal != "0" && cal != "null") {
                 Text(
                     text = "$cal kcal",
-                    style = MaterialTheme.typography.labelSmall,
-                    fontWeight = FontWeight.SemiBold,
+                    style = MaterialTheme.typography.labelSmallEmphasized,
                     color = MaterialTheme.colorScheme.primary,
                     maxLines = 1,
                     softWrap = false
