@@ -226,6 +226,9 @@
     <string name="nutrition_label_carb">Carb</string>
     <string name="nutrition_label_protein">Protein</string>
     <string name="nutrition_label_fat">Fat</string>
+    <string name="nutrition_label_carb_short">C</string>
+    <string name="nutrition_label_protein_short">P</string>
+    <string name="nutrition_label_fat_short">F</string>
     <string name="nutrition_search_placeholder">Search food or portion…</string>
     <string name="nutrition_filter_all_meals">All Meals</string>
     <string name="nutrition_filter_breakfast">Breakfast</string>

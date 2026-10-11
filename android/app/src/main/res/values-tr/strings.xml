@@ -226,6 +226,9 @@
     <string name="nutrition_label_carb">Karb</string>
     <string name="nutrition_label_protein">Protein</string>
     <string name="nutrition_label_fat">Yağ</string>
+    <string name="nutrition_label_carb_short">K</string>
+    <string name="nutrition_label_protein_short">P</string>
+    <string name="nutrition_label_fat_short">Y</string>
     <string name="nutrition_search_placeholder">Yemek veya porsiyon ara…</string>
     <string name="nutrition_filter_all_meals">Tüm Öğünler</string>
     <string name="nutrition_filter_breakfast">Kahvaltı</string>

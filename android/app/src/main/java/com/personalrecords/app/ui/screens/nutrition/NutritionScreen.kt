@@ -338,19 +338,19 @@ fun NutritionScreen(
                         ) {
                             MacroLegendItem(
                                 color = domainBooksColor(),
-                                label = stringResource(R.string.nutrition_label_carb),
+                                label = stringResource(R.string.nutrition_label_carb_short),
                                 grams = state.todayCarb.toInt(),
                                 pct = todayCarbPct
                             )
                             MacroLegendItem(
                                 color = domainNutritionColor(),
-                                label = stringResource(R.string.nutrition_label_protein),
+                                label = stringResource(R.string.nutrition_label_protein_short),
                                 grams = state.todayProtein.toInt(),
                                 pct = todayProtPct
                             )
                             MacroLegendItem(
                                 color = domainRatingColor(),
-                                label = stringResource(R.string.nutrition_label_fat),
+                                label = stringResource(R.string.nutrition_label_fat_short),
                                 grams = state.todayFat.toInt(),
                                 pct = todayFatPct
                             )
@@ -415,9 +415,9 @@ fun NutritionScreen(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
-                            MacroLegendItem(color = carbColor, label = stringResource(R.string.nutrition_label_carb), grams = state.totalCarb.toInt(), pct = (carbPct * 100).toInt())
-                            MacroLegendItem(color = protColor, label = stringResource(R.string.nutrition_label_protein), grams = state.totalProtein.toInt(), pct = (protPct * 100).toInt())
-                            MacroLegendItem(color = fatColor, label = stringResource(R.string.nutrition_label_fat), grams = state.totalFat.toInt(), pct = (fatPct * 100).toInt())
+                            MacroLegendItem(color = carbColor, label = stringResource(R.string.nutrition_label_carb_short), grams = state.totalCarb.toInt(), pct = (carbPct * 100).toInt())
+                            MacroLegendItem(color = protColor, label = stringResource(R.string.nutrition_label_protein_short), grams = state.totalProtein.toInt(), pct = (protPct * 100).toInt())
+                            MacroLegendItem(color = fatColor, label = stringResource(R.string.nutrition_label_fat_short), grams = state.totalFat.toInt(), pct = (fatPct * 100).toInt())
                         }
                     }
                 }
