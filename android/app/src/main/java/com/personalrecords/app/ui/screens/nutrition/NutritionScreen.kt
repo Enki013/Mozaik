@@ -150,7 +150,7 @@ fun NutritionScreen(
                 verticalArrangement = Arrangement.Top
             ) {
             // Calorie Budget Card (Card MD3)
-            item {
+            item(key = "nutrition_budget_card", contentType = "budget_card") {
                 Card(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -317,7 +317,7 @@ fun NutritionScreen(
             }
 
             // Macro Breakdown Card (MD3 Card)
-            item {
+            item(key = "nutrition_macro_card", contentType = "macro_card") {
                 Card(
                     modifier = Modifier
                         .fillMaxWidth()

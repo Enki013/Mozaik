@@ -12,6 +12,112 @@ class PersonalRecordsRepository(
     private val api: ApiService,
     private val db: PersonalRecordsDatabase
 ) {
+    @Volatile
+    var cachedDashboard: DashboardDto? = null
+        private set
+
+    @Volatile
+    var cachedDefaultActivity: ActivityResponseDto? = null
+        private set
+
+    @Volatile
+    var cachedBooks: List<BookDto>? = null
+        private set
+
+    @Volatile
+    var cachedFilms: List<FilmDto>? = null
+        private set
+
+    @Volatile
+    var cachedFoods: List<FoodEntryDto>? = null
+        private set
+
+    @Volatile
+    var cachedDailySummaries: List<DailySummaryDto>? = null
+        private set
+
+    @Volatile
+    var cachedNotifications: List<NotificationDto>? = null
+        private set
+
+    suspend fun getCachedBooks(): List<BookDto> = withContext(Dispatchers.IO) {
+        cachedBooks?.let { if (it.isNotEmpty()) return@withContext it }
+        try {
+            val cached = db.bookDao().getAllBooksList()
+            if (cached.isNotEmpty()) {
+                val dtos = cached.map {
+                    BookDto(
+                        book_id = it.bookId,
+                        title = it.title,
+                        author = it.author,
+                        my_rating = it.myRating,
+                        average_rating = it.averageRating,
+                        number_of_pages = it.numberOfPages,
+                        exclusive_shelf = it.exclusiveShelf,
+                        image_url = it.imageUrl,
+                        date_read = it.dateRead,
+                        year_published = it.yearPublished
+                    )
+                }
+                cachedBooks = dtos
+                return@withContext dtos
+            }
+        } catch (_: Exception) {}
+        emptyList()
+    }
+
+    suspend fun getCachedFilms(): List<FilmDto> = withContext(Dispatchers.IO) {
+        cachedFilms?.let { if (it.isNotEmpty()) return@withContext it }
+        try {
+            val cached = db.filmDao().getAllFilmsList()
+            if (cached.isNotEmpty()) {
+                val dtos = cached.map {
+                    FilmDto(
+                        film_key = it.filmKey,
+                        name = it.title,
+                        year = it.year,
+                        rating = it.rating,
+                        rewatch = it.rewatch,
+                        review = it.review,
+                        image_url = it.imageUrl,
+                        watched_date = it.watchedDate,
+                        imported_at = it.createdAt
+                    )
+                }
+                cachedFilms = dtos
+                return@withContext dtos
+            }
+        } catch (_: Exception) {}
+        emptyList()
+    }
+
+    suspend fun getCachedFoodEntries(): List<FoodEntryDto> = withContext(Dispatchers.IO) {
+        cachedFoods?.let { if (it.isNotEmpty()) return@withContext it }
+        try {
+            val cached = db.foodDao().getAllFoodsList()
+            if (cached.isNotEmpty()) {
+                val dtos = cached.map {
+                    FoodEntryDto(
+                        food_entry_id = it.foodEntryId,
+                        date_int = it.dateInt,
+                        date = it.dateStr,
+                        date_str = it.dateStr,
+                        meal = it.meal,
+                        name = it.name,
+                        amount = it.amount,
+                        calories = it.calories,
+                        carbohydrate = it.carbohydrate,
+                        protein = it.protein,
+                        fat = it.fat
+                    )
+                }
+                cachedFoods = dtos
+                return@withContext dtos
+            }
+        } catch (_: Exception) {}
+        emptyList()
+    }
+
     suspend fun checkHealth(): Boolean = withContext(Dispatchers.IO) {
         try {
             api.checkHealth().ok
@@ -23,8 +129,10 @@ class PersonalRecordsRepository(
     suspend fun getDashboard(): Resource<DashboardDto> = withContext(Dispatchers.IO) {
         try {
             val response = api.getDashboard()
+            cachedDashboard = response
             Resource.Success(response)
         } catch (e: Exception) {
+            cachedDashboard?.let { return@withContext Resource.Success(it) }
             Resource.Error(e.localizedMessage ?: "Sunucuya ulaşılamadı", e)
         }
     }
@@ -38,6 +146,9 @@ class PersonalRecordsRepository(
     ): Resource<ActivityResponseDto> = withContext(Dispatchers.IO) {
         try {
             val response = api.getActivity(days, from, to, date, limit)
+            if (days == 14 && from == null && to == null && date == null && (limit ?: 0) >= 100) {
+                cachedDefaultActivity = response
+            }
             try {
                 val entities = response.items.map { dto ->
                     CachedActivityEntity(
@@ -70,6 +181,7 @@ class PersonalRecordsRepository(
     suspend fun getFoodEntries(limit: Int = 500): Resource<List<FoodEntryDto>> = withContext(Dispatchers.IO) {
         try {
             val response = api.getFoodEntries(limit)
+            cachedFoods = response.items
             try {
                 val entities = response.items.map { dto ->
                     CachedFoodEntity(
@@ -94,27 +206,10 @@ class PersonalRecordsRepository(
             Resource.Success(response.items)
         } catch (e: Exception) {
             android.util.Log.e("PersonalRecords", "getFoodEntries error: ${e.message}", e)
-            try {
-                val cached = db.foodDao().getAllFoodsList()
-                if (cached.isNotEmpty()) {
-                    val dtos = cached.map {
-                        FoodEntryDto(
-                            food_entry_id = it.foodEntryId,
-                            date_int = it.dateInt,
-                            date = it.dateStr,
-                            date_str = it.dateStr,
-                            meal = it.meal,
-                            name = it.name,
-                            amount = it.amount,
-                            calories = it.calories,
-                            carbohydrate = it.carbohydrate,
-                            protein = it.protein,
-                            fat = it.fat
-                        )
-                    }
-                    return@withContext Resource.Success(dtos)
-                }
-            } catch (_: Exception) {}
+            val fallback = getCachedFoodEntries()
+            if (fallback.isNotEmpty()) {
+                return@withContext Resource.Success(fallback)
+            }
             Resource.Error(e.localizedMessage ?: "Öğünler getirilemedi", e)
         }
     }
@@ -122,8 +217,10 @@ class PersonalRecordsRepository(
     suspend fun getDailySummary(limit: Int = 30): Resource<List<DailySummaryDto>> = withContext(Dispatchers.IO) {
         try {
             val response = api.getDailySummary(limit)
+            cachedDailySummaries = response.items
             Resource.Success(response.items)
         } catch (e: Exception) {
+            cachedDailySummaries?.let { if (it.isNotEmpty()) return@withContext Resource.Success(it) }
             Resource.Error(e.localizedMessage ?: "Günlük özet getirilemedi", e)
         }
     }
@@ -131,6 +228,9 @@ class PersonalRecordsRepository(
     suspend fun getBooks(query: String? = null, shelf: String? = null, limit: Int = 500): Resource<List<BookDto>> = withContext(Dispatchers.IO) {
         try {
             val response = api.getBooks(query, shelf, limit)
+            if (query == null && shelf == null) {
+                cachedBooks = response.items
+            }
             try {
                 val entities = response.items.map { dto ->
                     CachedBookEntity(
@@ -155,26 +255,10 @@ class PersonalRecordsRepository(
             Resource.Success(response.items)
         } catch (e: Exception) {
             android.util.Log.e("PersonalRecords", "getBooks error: ${e.message}", e)
-            try {
-                val cached = db.bookDao().getAllBooksList()
-                if (cached.isNotEmpty()) {
-                    val dtos = cached.map {
-                        BookDto(
-                            book_id = it.bookId,
-                            title = it.title,
-                            author = it.author,
-                            my_rating = it.myRating,
-                            average_rating = it.averageRating,
-                            number_of_pages = it.numberOfPages,
-                            exclusive_shelf = it.exclusiveShelf,
-                            image_url = it.imageUrl,
-                            date_read = it.dateRead,
-                            year_published = it.yearPublished
-                        )
-                    }
-                    return@withContext Resource.Success(dtos)
-                }
-            } catch (_: Exception) {}
+            val fallback = getCachedBooks()
+            if (fallback.isNotEmpty()) {
+                return@withContext Resource.Success(fallback)
+            }
             Resource.Error(e.localizedMessage ?: "Kitaplar getirilemedi", e)
         }
     }
@@ -182,6 +266,7 @@ class PersonalRecordsRepository(
     suspend fun getFilms(limit: Int = 500): Resource<List<FilmDto>> = withContext(Dispatchers.IO) {
         try {
             val response = api.getFilms(limit)
+            cachedFilms = response.items
             try {
                 val entities = response.items.map { dto ->
                     CachedFilmEntity(
@@ -205,25 +290,10 @@ class PersonalRecordsRepository(
             Resource.Success(response.items)
         } catch (e: Exception) {
             android.util.Log.e("PersonalRecords", "getFilms error: ${e.message}", e)
-            try {
-                val cached = db.filmDao().getAllFilmsList()
-                if (cached.isNotEmpty()) {
-                    val dtos = cached.map {
-                        FilmDto(
-                            film_key = it.filmKey,
-                            name = it.title,
-                            year = it.year,
-                            rating = it.rating,
-                            rewatch = it.rewatch,
-                            review = it.review,
-                            image_url = it.imageUrl,
-                            watched_date = it.watchedDate,
-                            imported_at = it.createdAt
-                        )
-                    }
-                    return@withContext Resource.Success(dtos)
-                }
-            } catch (_: Exception) {}
+            val fallback = getCachedFilms()
+            if (fallback.isNotEmpty()) {
+                return@withContext Resource.Success(fallback)
+            }
             Resource.Error(e.localizedMessage ?: "Filmler getirilemedi: ${e.message}", e)
         }
     }
@@ -327,12 +397,24 @@ class PersonalRecordsRepository(
         }
     }
 
-    suspend fun getNotifications(limit: Int = 100, packageName: String? = null): Resource<List<NotificationDto>> {
-        return try {
+    suspend fun getNotifications(limit: Int = 100, packageName: String? = null): Resource<List<NotificationDto>> = withContext(Dispatchers.IO) {
+        try {
             val response = api.getNotifications(limit, packageName)
+            if (packageName == null) {
+                cachedNotifications = response.items
+            }
             Resource.Success(response.items)
         } catch (e: Exception) {
+            if (packageName == null) {
+                cachedNotifications?.let { if (it.isNotEmpty()) return@withContext Resource.Success(it) }
+            }
             Resource.Error(e.localizedMessage ?: "Bildirimler alınamadı", e)
         }
+    }
+
+    suspend fun prewarmRoomCaches() = withContext(Dispatchers.IO) {
+        getCachedBooks()
+        getCachedFilms()
+        getCachedFoodEntries()
     }
 }

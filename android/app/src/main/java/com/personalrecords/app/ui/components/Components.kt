@@ -21,7 +21,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.composed
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -34,14 +33,19 @@ import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.graphics.drawscope.scale
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.pointer.PointerEvent
+import androidx.compose.ui.input.pointer.PointerEventPass
+import androidx.compose.ui.input.pointer.PointerEventType
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.node.DrawModifierNode
 import androidx.compose.ui.node.ModifierNodeElement
+import androidx.compose.ui.node.PointerInputModifierNode
 import androidx.compose.ui.node.invalidateDraw
 import androidx.compose.ui.platform.InspectorInfo
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
@@ -866,18 +870,23 @@ fun LinearWavyProgressIndicator(
     wavelength: Dp = 24.dp,
     amplitude: Dp = 2.8.dp,
     strokeWidth: Dp = 4.dp,
-    trackGap: Dp = 6.dp
+    trackGap: Dp = 6.dp,
+    animateWave: Boolean = false
 ) {
-    val infiniteTransition = rememberInfiniteTransition(label = "wavy_progress_phase")
-    val phaseState = infiniteTransition.animateFloat(
-        initialValue = 0f,
-        targetValue = (2f * Math.PI).toFloat(),
-        animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 1100, easing = LinearEasing),
-            repeatMode = RepeatMode.Restart
-        ),
-        label = "wave_phase"
-    )
+    val phaseState = if (animateWave) {
+        val infiniteTransition = rememberInfiniteTransition(label = "wavy_progress_phase")
+        infiniteTransition.animateFloat(
+            initialValue = 0f,
+            targetValue = (2f * Math.PI).toFloat(),
+            animationSpec = infiniteRepeatable(
+                animation = tween(durationMillis = 1100, easing = LinearEasing),
+                repeatMode = RepeatMode.Restart
+            ),
+            label = "wave_phase"
+        )
+    } else {
+        null
+    }
 
     val wavePath = remember { Path() }
     val activeSegments = remember(segments) {
@@ -909,7 +918,7 @@ fun LinearWavyProgressIndicator(
         val gapPx = trackGap.toPx()
         val waveLenPx = wavelength.toPx().coerceAtLeast(8f)
         val ampPx = amplitude.toPx() * edgeEnvelope
-        val phase = phaseState.value
+        val phase = phaseState?.value ?: 0f
 
         val activeEndX = (w * p).coerceIn(0f, w)
 
@@ -1082,13 +1091,8 @@ fun ExpressivePullToRefreshBox(
     val density = LocalDensity.current
     val maxShiftPx = with(density) { 108.dp.toPx() }
 
-    val targetTranslation = when {
-        isRefreshing -> maxShiftPx
-        else -> (state.distanceFraction * maxShiftPx).coerceAtLeast(0f)
-    }
-
-    val animatedContentTranslationYState = animateFloatAsState(
-        targetValue = targetTranslation,
+    val refreshShiftState = animateFloatAsState(
+        targetValue = if (isRefreshing) maxShiftPx else 0f,
         animationSpec = M3ExpressiveMotion.defaultSpatial(),
         label = "ptr_content_shift"
     )
@@ -1105,7 +1109,8 @@ fun ExpressivePullToRefreshBox(
             modifier = Modifier
                 .fillMaxSize()
                 .graphicsLayer {
-                    translationY = animatedContentTranslationYState.value
+                    val dragShift = (state.distanceFraction * maxShiftPx).coerceAtLeast(0f)
+                    translationY = maxOf(refreshShiftState.value, dragShift)
                 },
             content = content
         )
@@ -1122,27 +1127,22 @@ fun ExpressivePullToRefreshBox(
  * MD3 Expressive spring bounce click modifier.
  *
  * Uses M3 Expressive Fast Spatial spring (`damping = 0.6f, stiffness = 800f`) for small/interactive
- * component scale compression and bounce recovery via [ExpressivePressScaleNode].
+ * component scale compression and bounce recovery via [ExpressivePressScaleNode] without `Modifier.composed`.
  */
 fun Modifier.expressiveBounceClick(
     scaleDown: Float = 0.96f,
     enabled: Boolean = true,
     onClick: () -> Unit
-): Modifier = composed {
-    val interactionSource = remember { MutableInteractionSource() }
-    this
-        .expressivePressScale(
-            interactionSource = interactionSource,
-            scaleDown = scaleDown,
-            enabled = enabled
-        )
-        .clickable(
-            interactionSource = interactionSource,
-            indication = ripple(),
-            enabled = enabled,
-            onClick = onClick
-        )
-}
+): Modifier = this
+    .expressivePressScale(
+        interactionSource = null,
+        scaleDown = scaleDown,
+        enabled = enabled
+    )
+    .clickable(
+        enabled = enabled,
+        onClick = onClick
+    )
 
 /**
  * MD3 Expressive spring press scale modifier implemented via [ModifierNodeElement] and [Modifier.Node]
@@ -1150,7 +1150,7 @@ fun Modifier.expressiveBounceClick(
  * Uses M3 Expressive Fast Spatial spring (`damping = 0.6f, stiffness = 800f`).
  */
 fun Modifier.expressivePressScale(
-    interactionSource: InteractionSource,
+    interactionSource: InteractionSource? = null,
     scaleDown: Float = 0.96f,
     enabled: Boolean = true
 ): Modifier = this then ExpressivePressScaleElement(
@@ -1160,15 +1160,15 @@ fun Modifier.expressivePressScale(
 )
 
 private data class ExpressivePressScaleElement(
-    val interactionSource: InteractionSource,
+    val interactionSource: InteractionSource?,
     val scaleDown: Float,
     val enabled: Boolean
 ) : ModifierNodeElement<ExpressivePressScaleNode>() {
     override fun create(): ExpressivePressScaleNode =
-        ExpressivePressScaleNode(interactionSource, scaleDown, enabled)
+        ExpressivePressScaleNode(scaleDown, enabled)
 
     override fun update(node: ExpressivePressScaleNode) {
-        node.updateNode(interactionSource, scaleDown, enabled)
+        node.updateNode(scaleDown, enabled)
     }
 
     override fun InspectorInfo.inspectableProperties() {
@@ -1179,61 +1179,65 @@ private data class ExpressivePressScaleElement(
 }
 
 private class ExpressivePressScaleNode(
-    private var interactionSource: InteractionSource,
     private var scaleDown: Float,
     private var enabled: Boolean
-) : Modifier.Node(), DrawModifierNode {
+) : Modifier.Node(), PointerInputModifierNode, DrawModifierNode {
     private var scaleAnimatable: Animatable<Float, AnimationVector1D>? = null
-    private var collectJob: Job? = null
     private var animJob: Job? = null
+    private var isPointerPressed: Boolean = false
 
     fun updateNode(
-        newSource: InteractionSource,
         newScaleDown: Float,
         newEnabled: Boolean
     ) {
-        val sourceChanged = interactionSource !== newSource
-        interactionSource = newSource
         scaleDown = newScaleDown
         enabled = newEnabled
-        if (sourceChanged && isAttached) {
-            observeInteractions()
+        if (!enabled && isPointerPressed) {
+            isPointerPressed = false
+            animateToScale(1f)
         }
     }
 
-    override fun onAttach() {
-        observeInteractions()
-    }
-
-    override fun onDetach() {
-        collectJob?.cancel()
-        collectJob = null
-        animJob?.cancel()
-        animJob = null
-        scaleAnimatable = null
-    }
-
-    private fun observeInteractions() {
-        collectJob?.cancel()
-        collectJob = coroutineScope.launch {
-            var pressCount = 0
-            interactionSource.interactions.collect { interaction ->
-                when (interaction) {
-                    is PressInteraction.Press -> {
-                        pressCount++
-                        if (pressCount == 1 && enabled) {
-                            animateToScale(scaleDown)
-                        }
-                    }
-                    is PressInteraction.Release, is PressInteraction.Cancel -> {
-                        if (pressCount > 0) pressCount--
-                        if (pressCount == 0) {
-                            animateToScale(1f)
-                        }
-                    }
+    override fun onPointerEvent(
+        pointerEvent: PointerEvent,
+        pass: PointerEventPass,
+        bounds: IntSize
+    ) {
+        if (pass != PointerEventPass.Main || !enabled) return
+        when (pointerEvent.type) {
+            PointerEventType.Press -> {
+                if (!isPointerPressed && pointerEvent.changes.any { it.pressed && !it.isConsumed }) {
+                    isPointerPressed = true
+                    animateToScale(scaleDown)
+                }
+            }
+            PointerEventType.Move -> {
+                if (isPointerPressed && pointerEvent.changes.any { it.isConsumed || !it.pressed }) {
+                    isPointerPressed = false
+                    animateToScale(1f)
+                }
+            }
+            PointerEventType.Release, PointerEventType.Exit -> {
+                if (isPointerPressed && pointerEvent.changes.none { it.pressed }) {
+                    isPointerPressed = false
+                    animateToScale(1f)
                 }
             }
         }
+    }
+
+    override fun onCancelPointerInput() {
+        if (isPointerPressed) {
+            isPointerPressed = false
+            animateToScale(1f)
+        }
+    }
+
+    override fun onDetach() {
+        isPointerPressed = false
+        animJob?.cancel()
+        animJob = null
+        scaleAnimatable = null
     }
 
     private fun animateToScale(target: Float) {

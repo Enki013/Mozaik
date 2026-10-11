@@ -81,92 +81,126 @@ class NutritionViewModel(
     private var filterJob: Job? = null
 
     init {
-        loadData()
+        loadInitialData()
+    }
+
+    private suspend fun applyNutritionData(
+        foods: List<FoodEntryDto>,
+        summaries: List<DailySummaryDto>,
+        activeTarget: Int?
+    ) {
+        val snap = _uiState.value
+        val computed = withContext(Dispatchers.Default) {
+            val todayIso = java.time.LocalDate.now().toString()
+            val todaySummary = summaries.firstOrNull { it.displayDate == todayIso }
+            val todayFoods = foods.filter { it.displayDate == todayIso }
+            val todayCal = todaySummary?.displayCalories ?: todayFoods.sumOf { it.calories }
+            val todayCount = todaySummary?.displayCount ?: todayFoods.size
+            val todayCarb = todayFoods.sumOf { it.carbohydrate }
+            val todayProt = todayFoods.sumOf { it.protein }
+            val todayFat = todayFoods.sumOf { it.fat }
+
+            var carb = 0.0
+            var prot = 0.0
+            var fat = 0.0
+            for (entry in foods) {
+                carb += entry.carbohydrate
+                prot += entry.protein
+                fat += entry.fat
+            }
+
+            val filtered = filterFoodEntries(
+                entries = foods,
+                query = snap.searchQuery,
+                singleDate = snap.selectedDateFilter,
+                fromDate = snap.fromDateFilter,
+                toDate = snap.toDateFilter,
+                meal = snap.selectedMeal,
+                highProt = snap.onlyHighProtein
+            )
+
+            NutritionComputedResult(
+                todayCalories = todayCal,
+                todayEntriesCount = todayCount,
+                todayCarb = todayCarb,
+                todayProtein = todayProt,
+                todayFat = todayFat,
+                totalCarb = carb,
+                totalProtein = prot,
+                totalFat = fat,
+                filteredFoods = filtered
+            )
+        }
+
+        _uiState.value = _uiState.value.copy(
+            isLoading = false,
+            isFiltering = false,
+            calorieTarget = activeTarget,
+            todayCalories = computed.todayCalories,
+            todayEntriesCount = computed.todayEntriesCount,
+            todayCarb = computed.todayCarb,
+            todayProtein = computed.todayProtein,
+            todayFat = computed.todayFat,
+            totalCarb = computed.totalCarb,
+            totalProtein = computed.totalProtein,
+            totalFat = computed.totalFat,
+            dailySummaries = summaries,
+            foodEntries = foods,
+            filteredFoods = computed.filteredFoods
+        )
+    }
+
+    private fun loadInitialData() {
+        viewModelScope.launch {
+            val savedTarget = preferences.calorieTarget.first()
+            val cachedFoods = repository.getCachedFoodEntries()
+            val cachedSummaries = repository.cachedDailySummaries ?: emptyList()
+            if (cachedFoods.isNotEmpty()) {
+                applyNutritionData(cachedFoods, cachedSummaries, savedTarget)
+            }
+            // Wait for NavHost enter transition (~320ms) to finish before network + SQLite write
+            delay(340L)
+            fetchRemoteNutrition(showLoadingIfEmpty = cachedFoods.isEmpty())
+        }
     }
 
     fun loadData() {
         viewModelScope.launch {
+            fetchRemoteNutrition(showLoadingIfEmpty = true)
+        }
+    }
+
+    private suspend fun fetchRemoteNutrition(showLoadingIfEmpty: Boolean) {
+        if (showLoadingIfEmpty) {
             _uiState.value = _uiState.value.copy(isLoading = true, error = null)
-            val savedTarget = preferences.calorieTarget.first()
+        }
+        val savedTarget = preferences.calorieTarget.first()
 
-            val (summaryRes, foodsRes, targetRes) = coroutineScope {
-                val sDeferred = async { repository.getDailySummary(30) }
-                val fDeferred = async { repository.getFoodEntries(500) }
-                val tDeferred = async { repository.getCalorieTarget() }
-                Triple(sDeferred.await(), fDeferred.await(), tDeferred.await())
+        val (summaryRes, foodsRes, targetRes) = coroutineScope {
+            val sDeferred = async { repository.getDailySummary(30) }
+            val fDeferred = async { repository.getFoodEntries(500) }
+            val tDeferred = async { repository.getCalorieTarget() }
+            Triple(sDeferred.await(), fDeferred.await(), tDeferred.await())
+        }
+
+        var activeTarget = savedTarget
+        if (targetRes is Resource.Success) {
+            val serverTarget = targetRes.data.target ?: targetRes.data.calorieTarget
+            if (serverTarget != null && serverTarget > 0) {
+                activeTarget = serverTarget
+                preferences.setCalorieTarget(serverTarget)
             }
+        }
 
-            var activeTarget = savedTarget
-            if (targetRes is Resource.Success) {
-                val serverTarget = targetRes.data.target ?: targetRes.data.calorieTarget
-                if (serverTarget != null && serverTarget > 0) {
-                    activeTarget = serverTarget
-                    preferences.setCalorieTarget(serverTarget)
-                }
-            }
+        val summaries = if (summaryRes is Resource.Success) summaryRes.data else _uiState.value.dailySummaries
+        val foods = if (foodsRes is Resource.Success) foodsRes.data else _uiState.value.foodEntries
 
-            val summaries = if (summaryRes is Resource.Success) summaryRes.data else emptyList()
-            val foods = if (foodsRes is Resource.Success) foodsRes.data else emptyList()
-            val snap = _uiState.value
-
-            val computed = withContext(Dispatchers.Default) {
-                val todayIso = java.time.LocalDate.now().toString()
-                val todaySummary = summaries.firstOrNull { it.displayDate == todayIso }
-                val todayFoods = foods.filter { it.displayDate == todayIso }
-                val todayCal = todaySummary?.displayCalories ?: todayFoods.sumOf { it.calories }
-                val todayCount = todaySummary?.displayCount ?: todayFoods.size
-                val todayCarb = todayFoods.sumOf { it.carbohydrate }
-                val todayProt = todayFoods.sumOf { it.protein }
-                val todayFat = todayFoods.sumOf { it.fat }
-
-                var carb = 0.0
-                var prot = 0.0
-                var fat = 0.0
-                for (entry in foods) {
-                    carb += entry.carbohydrate
-                    prot += entry.protein
-                    fat += entry.fat
-                }
-
-                val filtered = filterFoodEntries(
-                    entries = foods,
-                    query = snap.searchQuery,
-                    singleDate = snap.selectedDateFilter,
-                    fromDate = snap.fromDateFilter,
-                    toDate = snap.toDateFilter,
-                    meal = snap.selectedMeal,
-                    highProt = snap.onlyHighProtein
-                )
-
-                NutritionComputedResult(
-                    todayCalories = todayCal,
-                    todayEntriesCount = todayCount,
-                    todayCarb = todayCarb,
-                    todayProtein = todayProt,
-                    todayFat = todayFat,
-                    totalCarb = carb,
-                    totalProtein = prot,
-                    totalFat = fat,
-                    filteredFoods = filtered
-                )
-            }
-
-            _uiState.value = _uiState.value.copy(
-                isLoading = false,
-                isFiltering = false,
-                calorieTarget = activeTarget,
-                todayCalories = computed.todayCalories,
-                todayEntriesCount = computed.todayEntriesCount,
-                todayCarb = computed.todayCarb,
-                todayProtein = computed.todayProtein,
-                todayFat = computed.todayFat,
-                totalCarb = computed.totalCarb,
-                totalProtein = computed.totalProtein,
-                totalFat = computed.totalFat,
-                dailySummaries = summaries,
-                foodEntries = foods,
-                filteredFoods = computed.filteredFoods
-            )
+        if (foods != _uiState.value.foodEntries ||
+            summaries != _uiState.value.dailySummaries ||
+            activeTarget != _uiState.value.calorieTarget ||
+            _uiState.value.isLoading
+        ) {
+            applyNutritionData(foods, summaries, activeTarget)
         }
     }
 

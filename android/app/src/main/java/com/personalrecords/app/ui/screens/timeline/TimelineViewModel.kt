@@ -46,6 +46,7 @@ sealed interface TimelineFlatEntry {
         override val contentType: String = "section_header"
     }
 
+    @Immutable
     data class ActivityRow(
         val date: String,
         val item: ActivityItemDto,
@@ -174,12 +175,16 @@ class TimelineViewModel(
     private val _uiState = MutableStateFlow(TimelineUiState())
     val uiState: StateFlow<TimelineUiState> = _uiState.asStateFlow()
     private var filterJob: Job? = null
+    private var hasInitialized = false
 
-    init {
+    fun ensureLoaded() {
+        if (hasInitialized) return
+        hasInitialized = true
         loadData()
     }
 
     fun loadData() {
+        hasInitialized = true
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isLoading = true, error = null)
             val currentState = _uiState.value

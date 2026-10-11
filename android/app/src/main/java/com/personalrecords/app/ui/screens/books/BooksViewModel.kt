@@ -79,53 +79,78 @@ class BooksViewModel(
     private var filterJob: Job? = null
 
     init {
-        loadData()
+        loadInitialData()
+    }
+
+    private suspend fun applyBooksList(books: List<BookDto>) {
+        val snap = _uiState.value
+        val (filtered, readCount, toReadCount, avgText) = withContext(Dispatchers.Default) {
+            val list = filterAndSortBooks(
+                books = books,
+                searchQuery = snap.searchQuery,
+                selectedShelf = snap.selectedShelf,
+                selectedDateFilter = snap.selectedDateFilter,
+                fromDateFilter = snap.fromDateFilter,
+                toDateFilter = snap.toDateFilter,
+                sortBy = snap.sortBy
+            )
+            val read = books.count { it.exclusive_shelf.equals("read", ignoreCase = true) }
+            val toRead = books.count { it.exclusive_shelf.equals("to-read", ignoreCase = true) }
+            val rated = books.filter { it.my_rating > 0 }
+            val avg = if (rated.isNotEmpty()) {
+                String.format(Locale.US, "%.1f", rated.map { it.my_rating }.average())
+            } else "0.0"
+            Quadruple(list, read, toRead, avg)
+        }
+        _uiState.value = _uiState.value.copy(
+            isLoading = false,
+            isFiltering = false,
+            books = books,
+            filteredBooks = filtered,
+            readBooksCount = readCount,
+            toReadBooksCount = toReadCount,
+            avgRatingText = avgText,
+            error = null
+        )
+    }
+
+    private fun loadInitialData() {
+        viewModelScope.launch {
+            val cached = repository.getCachedBooks()
+            if (cached.isNotEmpty()) {
+                applyBooksList(cached)
+            }
+            // Wait for NavHost enter transition (~320ms) to finish before network + SQLite write
+            delay(340L)
+            fetchRemoteBooks(showLoadingIfEmpty = cached.isEmpty())
+        }
     }
 
     fun loadData() {
         viewModelScope.launch {
+            fetchRemoteBooks(showLoadingIfEmpty = true)
+        }
+    }
+
+    private suspend fun fetchRemoteBooks(showLoadingIfEmpty: Boolean) {
+        if (showLoadingIfEmpty) {
             _uiState.value = _uiState.value.copy(isLoading = true, error = null)
-            when (val result = repository.getBooks()) {
-                is Resource.Success -> {
-                    val books = result.data
-                    val snap = _uiState.value
-                    val (filtered, readCount, toReadCount, avgText) = withContext(Dispatchers.Default) {
-                        val list = filterAndSortBooks(
-                            books = books,
-                            searchQuery = snap.searchQuery,
-                            selectedShelf = snap.selectedShelf,
-                            selectedDateFilter = snap.selectedDateFilter,
-                            fromDateFilter = snap.fromDateFilter,
-                            toDateFilter = snap.toDateFilter,
-                            sortBy = snap.sortBy
-                        )
-                        val read = books.count { it.exclusive_shelf.equals("read", ignoreCase = true) }
-                        val toRead = books.count { it.exclusive_shelf.equals("to-read", ignoreCase = true) }
-                        val rated = books.filter { it.my_rating > 0 }
-                        val avg = if (rated.isNotEmpty()) {
-                            String.format(Locale.US, "%.1f", rated.map { it.my_rating }.average())
-                        } else "0.0"
-                        Quadruple(list, read, toRead, avg)
-                    }
-                    _uiState.value = _uiState.value.copy(
-                        isLoading = false,
-                        isFiltering = false,
-                        books = books,
-                        filteredBooks = filtered,
-                        readBooksCount = readCount,
-                        toReadBooksCount = toReadCount,
-                        avgRatingText = avgText
-                    )
+        }
+        when (val result = repository.getBooks()) {
+            is Resource.Success -> {
+                val books = result.data
+                if (books != _uiState.value.books || _uiState.value.isLoading) {
+                    applyBooksList(books)
                 }
-                is Resource.Error -> {
-                    _uiState.value = _uiState.value.copy(
-                        isLoading = false,
-                        isFiltering = false,
-                        error = result.message
-                    )
-                }
-                else -> Unit
             }
+            is Resource.Error -> {
+                _uiState.value = _uiState.value.copy(
+                    isLoading = false,
+                    isFiltering = false,
+                    error = if (_uiState.value.books.isEmpty()) result.message else null
+                )
+            }
+            else -> Unit
         }
     }
 

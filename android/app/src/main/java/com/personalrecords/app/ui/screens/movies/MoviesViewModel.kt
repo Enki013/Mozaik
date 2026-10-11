@@ -78,52 +78,77 @@ class MoviesViewModel(
     private var filterJob: Job? = null
 
     init {
-        loadData()
+        loadInitialData()
+    }
+
+    private suspend fun applyFilmsList(films: List<FilmDto>) {
+        val snap = _uiState.value
+        val (filtered, ratedCount, rewatchCount, avgText) = withContext(Dispatchers.Default) {
+            val list = filterAndSortFilms(
+                films = films,
+                query = snap.searchQuery,
+                singleDate = snap.selectedDateFilter,
+                fromDate = snap.fromDateFilter,
+                toDate = snap.toDateFilter,
+                rewatchesOnly = snap.onlyRewatches,
+                sort = snap.sortBy
+            )
+            val rated = films.filter { it.safeRating > 0 }
+            val rewatches = films.count { it.rewatch }
+            val avg = if (rated.isNotEmpty()) {
+                String.format(Locale.US, "%.1f", rated.map { it.safeRating }.average())
+            } else "0.0"
+            MoviesStatsResult(list, rated.size, rewatches, avg)
+        }
+        _uiState.value = _uiState.value.copy(
+            isLoading = false,
+            isFiltering = false,
+            films = films,
+            filteredFilms = filtered,
+            ratedFilmsCount = ratedCount,
+            rewatchFilmsCount = rewatchCount,
+            avgRatingText = avgText,
+            error = null
+        )
+    }
+
+    private fun loadInitialData() {
+        viewModelScope.launch {
+            val cached = repository.getCachedFilms()
+            if (cached.isNotEmpty()) {
+                applyFilmsList(cached)
+            }
+            // Wait for NavHost enter transition (~320ms) to finish before network + SQLite write
+            delay(340L)
+            fetchRemoteFilms(showLoadingIfEmpty = cached.isEmpty())
+        }
     }
 
     fun loadData() {
         viewModelScope.launch {
+            fetchRemoteFilms(showLoadingIfEmpty = true)
+        }
+    }
+
+    private suspend fun fetchRemoteFilms(showLoadingIfEmpty: Boolean) {
+        if (showLoadingIfEmpty) {
             _uiState.value = _uiState.value.copy(isLoading = true, error = null)
-            when (val result = repository.getFilms()) {
-                is Resource.Success -> {
-                    val films = result.data
-                    val snap = _uiState.value
-                    val (filtered, ratedCount, rewatchCount, avgText) = withContext(Dispatchers.Default) {
-                        val list = filterAndSortFilms(
-                            films = films,
-                            query = snap.searchQuery,
-                            singleDate = snap.selectedDateFilter,
-                            fromDate = snap.fromDateFilter,
-                            toDate = snap.toDateFilter,
-                            rewatchesOnly = snap.onlyRewatches,
-                            sort = snap.sortBy
-                        )
-                        val rated = films.filter { it.safeRating > 0 }
-                        val rewatches = films.count { it.rewatch }
-                        val avg = if (rated.isNotEmpty()) {
-                            String.format(Locale.US, "%.1f", rated.map { it.safeRating }.average())
-                        } else "0.0"
-                        MoviesStatsResult(list, rated.size, rewatches, avg)
-                    }
-                    _uiState.value = _uiState.value.copy(
-                        isLoading = false,
-                        isFiltering = false,
-                        films = films,
-                        filteredFilms = filtered,
-                        ratedFilmsCount = ratedCount,
-                        rewatchFilmsCount = rewatchCount,
-                        avgRatingText = avgText
-                    )
+        }
+        when (val result = repository.getFilms()) {
+            is Resource.Success -> {
+                val films = result.data
+                if (films != _uiState.value.films || _uiState.value.isLoading) {
+                    applyFilmsList(films)
                 }
-                is Resource.Error -> {
-                    _uiState.value = _uiState.value.copy(
-                        isLoading = false,
-                        isFiltering = false,
-                        error = result.message
-                    )
-                }
-                else -> Unit
             }
+            is Resource.Error -> {
+                _uiState.value = _uiState.value.copy(
+                    isLoading = false,
+                    isFiltering = false,
+                    error = if (_uiState.value.films.isEmpty()) result.message else null
+                )
+            }
+            else -> Unit
         }
     }
 

@@ -47,18 +47,24 @@ class SettingsViewModel(
 
     private val _uiState = MutableStateFlow(SettingsUiState())
     val uiState: StateFlow<SettingsUiState> = _uiState.asStateFlow()
+    private var hasInitialized = false
 
     init {
         viewModelScope.launch {
             val url = preferences.serverBaseUrl.first()
             _uiState.value = _uiState.value.copy(serverUrl = url)
-            loadAllSettings()
         }
         viewModelScope.launch {
             preferences.appLanguage.collect { lang ->
                 _uiState.value = _uiState.value.copy(appLanguage = lang)
             }
         }
+    }
+
+    fun ensureLoaded() {
+        if (hasInitialized) return
+        hasInitialized = true
+        loadAllSettings()
     }
 
     fun setLanguage(language: String) {
@@ -68,6 +74,7 @@ class SettingsViewModel(
     }
 
     fun loadAllSettings() {
+        hasInitialized = true
         loadFatSecretSettings()
         loadLetterboxdSettings()
         loadGoodreadsSettings()

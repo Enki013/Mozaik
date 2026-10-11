@@ -149,11 +149,9 @@ fun MainAppHost() {
         )
     }
 
-    var arePeerTabsPrewarmed by remember { mutableStateOf(false) }
-    LaunchedEffect(Unit) {
-        kotlinx.coroutines.delay(350L)
-        arePeerTabsPrewarmed = true
-    }
+    var isRecordsWarm by remember { mutableStateOf(false) }
+    var isTimelineWarm by remember { mutableStateOf(false) }
+    var isSettingsWarm by remember { mutableStateOf(false) }
 
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route ?: Screen.Overview.route
@@ -164,19 +162,46 @@ fun MainAppHost() {
         lastActivePeerTab = currentRoute
     }
 
+    LaunchedEffect(lastActivePeerTab) {
+        when (lastActivePeerTab) {
+            Screen.Timeline.route -> timelineVm.ensureLoaded()
+            Screen.Records.route -> recordsVm.ensureLoaded()
+            Screen.Settings.route -> settingsVm.ensureLoaded()
+        }
+    }
+
+    LaunchedEffect(Unit) {
+        // Allow initial startup and OverviewScreen animations to settle first
+        kotlinx.coroutines.delay(550L)
+        PersonalRecordsApp.instance.repository.prewarmRoomCaches()
+        recordsVm.ensureLoaded()
+        kotlinx.coroutines.delay(220L)
+        isRecordsWarm = true
+        kotlinx.coroutines.delay(250L)
+        timelineVm.ensureLoaded()
+        kotlinx.coroutines.delay(450L)
+        isTimelineWarm = true
+        kotlinx.coroutines.delay(300L)
+        settingsVm.ensureLoaded()
+        isSettingsWarm = true
+    }
+
     Box(modifier = Modifier.fillMaxSize()) {
         // Persistent Peer Tabs Layer: keeps Overview, Timeline, Records, and Settings
         // warm in memory (measured once, unplaced when inactive so 0 GPU/touch/recomposition cost).
+        // Keeping the active peer tab placed during detail route transitions prevents a Frame-1
+        // layout invalidation and blank background flash while the detail screen slides/fades in.
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .keepWarmTab(visible = !isDetailRoute && lastActivePeerTab == Screen.Overview.route)
+                .keepWarmTab(visible = lastActivePeerTab == Screen.Overview.route)
         ) {
             OverviewScreen(
                 viewModel = overviewVm,
                 scrollToTopFlow = overviewScrollFlow,
                 refreshFlow = overviewRefreshFlow,
                 onNavigateToTimeline = {
+                    timelineVm.ensureLoaded()
                     navController.navigate(Screen.Timeline.route) {
                         popUpTo(navController.graph.findStartDestination().id) { saveState = true }
                         launchSingleTop = true
@@ -189,11 +214,11 @@ fun MainAppHost() {
             )
         }
 
-        if (arePeerTabsPrewarmed || lastActivePeerTab == Screen.Timeline.route) {
+        if (isTimelineWarm || lastActivePeerTab == Screen.Timeline.route) {
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .keepWarmTab(visible = !isDetailRoute && lastActivePeerTab == Screen.Timeline.route)
+                    .keepWarmTab(visible = lastActivePeerTab == Screen.Timeline.route)
             ) {
                 TimelineScreen(
                     viewModel = timelineVm,
@@ -206,11 +231,11 @@ fun MainAppHost() {
             }
         }
 
-        if (arePeerTabsPrewarmed || lastActivePeerTab == Screen.Records.route) {
+        if (isRecordsWarm || lastActivePeerTab == Screen.Records.route) {
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .keepWarmTab(visible = !isDetailRoute && lastActivePeerTab == Screen.Records.route)
+                    .keepWarmTab(visible = lastActivePeerTab == Screen.Records.route)
             ) {
                 RecordsScreen(
                     viewModel = recordsVm,
@@ -224,11 +249,11 @@ fun MainAppHost() {
             }
         }
 
-        if (arePeerTabsPrewarmed || lastActivePeerTab == Screen.Settings.route) {
+        if (isSettingsWarm || lastActivePeerTab == Screen.Settings.route) {
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .keepWarmTab(visible = !isDetailRoute && lastActivePeerTab == Screen.Settings.route)
+                    .keepWarmTab(visible = lastActivePeerTab == Screen.Settings.route)
             ) {
                 SettingsScreen(
                     viewModel = settingsVm,
@@ -413,17 +438,13 @@ private fun ExpressiveFloatingBottomBar(
                 }
             }
         } else {
-            // Start bottom bar pill animation immediately on this frame, then navigate
             optimisticRoute = screen.route
-            coroutineScope.launch {
-                kotlinx.coroutines.yield()
-                navController.navigate(screen.route) {
-                    popUpTo(navController.graph.findStartDestination().id) {
-                        saveState = true
-                    }
-                    launchSingleTop = true
-                    restoreState = true
+            navController.navigate(screen.route) {
+                popUpTo(navController.graph.findStartDestination().id) {
+                    saveState = true
                 }
+                launchSingleTop = true
+                restoreState = true
             }
         }
     }

@@ -68,48 +68,72 @@ class NotificationsViewModel(
     private var filterJob: Job? = null
 
     init {
-        loadData()
+        loadInitialData()
+    }
+
+    private suspend fun applyNotificationsList(notifs: List<NotificationDto>) {
+        val snap = _uiState.value
+        val (filtered, apps, todayCnt) = withContext(Dispatchers.Default) {
+            val list = filterNotifications(
+                notifications = notifs,
+                selectedApp = snap.selectedApp,
+                searchQuery = snap.searchQuery,
+                selectedDateFilter = snap.selectedDateFilter,
+                fromDateFilter = snap.fromDateFilter,
+                toDateFilter = snap.toDateFilter
+            )
+            val distinctApps = notifs.map { it.displayAppName }.distinct().sorted()
+            val todayISO = LocalDate.now().toString()
+            val today = notifs.count { it.formattedDate == todayISO }
+            Triple(list, distinctApps, today)
+        }
+        _uiState.value = _uiState.value.copy(
+            isLoading = false,
+            isFiltering = false,
+            notifications = notifs,
+            filteredNotifications = filtered,
+            appList = apps,
+            todayCount = todayCnt,
+            error = null
+        )
+    }
+
+    private fun loadInitialData() {
+        viewModelScope.launch {
+            val cached = repository.cachedNotifications ?: emptyList()
+            if (cached.isNotEmpty()) {
+                applyNotificationsList(cached)
+            }
+            delay(340L)
+            fetchRemoteNotifications(showLoadingIfEmpty = cached.isEmpty())
+        }
     }
 
     fun loadData() {
         viewModelScope.launch {
+            fetchRemoteNotifications(showLoadingIfEmpty = true)
+        }
+    }
+
+    private suspend fun fetchRemoteNotifications(showLoadingIfEmpty: Boolean) {
+        if (showLoadingIfEmpty) {
             _uiState.value = _uiState.value.copy(isLoading = true, error = null)
-            when (val result = repository.getNotifications(limit = 200)) {
-                is Resource.Success -> {
-                    val notifs = result.data
-                    val snap = _uiState.value
-                    val (filtered, apps, todayCnt) = withContext(Dispatchers.Default) {
-                        val list = filterNotifications(
-                            notifications = notifs,
-                            selectedApp = snap.selectedApp,
-                            searchQuery = snap.searchQuery,
-                            selectedDateFilter = snap.selectedDateFilter,
-                            fromDateFilter = snap.fromDateFilter,
-                            toDateFilter = snap.toDateFilter
-                        )
-                        val distinctApps = notifs.map { it.displayAppName }.distinct().sorted()
-                        val todayISO = LocalDate.now().toString()
-                        val today = notifs.count { it.formattedDate == todayISO }
-                        Triple(list, distinctApps, today)
-                    }
-                    _uiState.value = _uiState.value.copy(
-                        isLoading = false,
-                        isFiltering = false,
-                        notifications = notifs,
-                        filteredNotifications = filtered,
-                        appList = apps,
-                        todayCount = todayCnt
-                    )
+        }
+        when (val result = repository.getNotifications(limit = 200)) {
+            is Resource.Success -> {
+                val notifs = result.data
+                if (notifs != _uiState.value.notifications || _uiState.value.isLoading) {
+                    applyNotificationsList(notifs)
                 }
-                is Resource.Error -> {
-                    _uiState.value = _uiState.value.copy(
-                        isLoading = false,
-                        isFiltering = false,
-                        error = result.message
-                    )
-                }
-                else -> Unit
             }
+            is Resource.Error -> {
+                _uiState.value = _uiState.value.copy(
+                    isLoading = false,
+                    isFiltering = false,
+                    error = if (_uiState.value.notifications.isEmpty()) result.message else null
+                )
+            }
+            else -> Unit
         }
     }
 
