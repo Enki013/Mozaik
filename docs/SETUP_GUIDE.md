@@ -62,7 +62,7 @@ Eğer kendi sunucunuzda (Raspberry Pi, ev sunucusu, VPS veya yerel PC) çalışt
 4. Tarayıcınızdan `http://localhost:8787` adresini açarak çalıştığını doğrulayabilirsiniz.
 5. Mobil uygulamadan erişmek için yerel ağdaki IP adresinizi kullanabilirsiniz (Örn: `http://192.168.1.50:8787`).
 
-*(Docker kullanmadan doğrudan Go ile çalıştırmak isterseniz: `cp .env.example .env && go run ./cmd/personal-records`)*
+*(Docker kullanmadan doğrudan Go ile çalıştırmak isterseniz: `cd backend && cp .env.example .env && go run ./cmd/personal-records`)*
 
 ---
 

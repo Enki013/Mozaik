@@ -107,7 +107,7 @@ func TestActivityEndpointWithData(t *testing.T) {
 	}
 
 	// 2. Add Goodreads book via CSV import
-	sampleCSVPath := filepath.Join("..", "..", "work", "sample_goodreads.csv")
+	sampleCSVPath := filepath.Join("..", "..", "..", "work", "sample_goodreads.csv")
 	if csvBytes, err := os.ReadFile(sampleCSVPath); err == nil {
 		_, err = services.ImportGoodreadsCSV(ctx, string(csvBytes))
 		if err != nil {

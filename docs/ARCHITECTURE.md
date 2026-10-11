@@ -94,13 +94,13 @@ Both backend implementations expose identical REST endpoints and data structures
 
 ## 4. Go Backend Clean Architecture
 
-The self-hosted Go backend (`cmd/personal-records`) follows Clean Architecture:
+The self-hosted Go backend (`backend/cmd/personal-records`) follows Clean Architecture:
 
-- `internal/application/`: Business rules, activity timeline merging, and sync coordinators.
-- `internal/infrastructure/sqlite/`: SQLite schema migration, store connection, directory guarantee, and repositories.
-- `internal/integrations/fatsecret/`: OAuth 1.0a signing and HTTP client.
-- `internal/presentation/http/`: REST JSON API handlers and HTML views.
-- `internal/config/`: Environment variable parsing (`PORT`, `HOST`, `DB_PATH`, `APP_BASE_URL`).
+- `backend/internal/application/`: Business rules, activity timeline merging, and sync coordinators.
+- `backend/internal/infrastructure/sqlite/`: SQLite schema migration, store connection, directory guarantee, and repositories.
+- `backend/internal/integrations/fatsecret/`: OAuth 1.0a signing and HTTP client.
+- `backend/internal/presentation/http/`: REST JSON API handlers and HTML views.
+- `backend/internal/config/`: Environment variable parsing (`PORT`, `HOST`, `DB_PATH`, `APP_BASE_URL`).
 
 ---
 

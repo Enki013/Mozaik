@@ -1,7 +1,7 @@
 services:
   personal-records:
     build:
-      context: .
+      context: ./backend
       dockerfile: Dockerfile
     image: personal-records:latest
     container_name: personal-records

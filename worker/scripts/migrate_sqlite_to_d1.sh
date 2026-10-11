@@ -7,7 +7,13 @@ WORKER_DIR="$(dirname "$SCRIPT_DIR")"
 ROOT_DIR="$(dirname "$WORKER_DIR")"
 
 echo "==> Step 1: Exporting SQLite to SQL..."
-python3 "$SCRIPT_DIR/export_sqlite_to_sql.py" "$ROOT_DIR/personal_records.sqlite3" "$WORKER_DIR/migration_data.sql"
+DB_PATH="${2:-$ROOT_DIR/backend/personal_records.sqlite3}"
+if [ ! -f "$DB_PATH" ] && [ -f "$ROOT_DIR/data/personal_records.sqlite3" ]; then
+  DB_PATH="$ROOT_DIR/data/personal_records.sqlite3"
+elif [ ! -f "$DB_PATH" ] && [ -f "$ROOT_DIR/personal_records.sqlite3" ]; then
+  DB_PATH="$ROOT_DIR/personal_records.sqlite3"
+fi
+python3 "$SCRIPT_DIR/export_sqlite_to_sql.py" "$DB_PATH" "$WORKER_DIR/migration_data.sql"
 
 echo "==> Step 2: Applying Schema to D1 ($MODE)..."
 if [ "$MODE" = "remote" ]; then

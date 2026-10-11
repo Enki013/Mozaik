@@ -20,6 +20,7 @@ data/
 # Go
 .gocache/
 /personal-records
+/backend/personal-records
 *.exe
 *.test
 
