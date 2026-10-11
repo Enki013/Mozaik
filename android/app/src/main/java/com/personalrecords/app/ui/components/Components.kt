@@ -50,6 +50,7 @@ import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalDensity
@@ -1175,26 +1176,99 @@ fun Modifier.expressivePressScale(
 
 /**
  * MD3 Expressive spring scroll to top extension for [LazyListState].
- * Smoothly scrolls the list to the top with an M3 Expressive Slow Spatial spring (`damping = 0.8f, stiffness = 200f`).
+ * Smoothly scrolls the list to the exact top (`index = 0, offset = 0`) using a live
+ * critically-damped spring that dynamically tracks item heights as they enter the viewport,
+ * preventing premature stopping, downward bounce-back, or un-animated jumps at the end.
  */
 suspend fun LazyListState.expressiveScrollToTop() {
+    if (firstVisibleItemIndex == 0 && firstVisibleItemScrollOffset == 0) return
+
     if (firstVisibleItemIndex > 8) {
         scrollToItem(8)
     }
-    val visibleItems = layoutInfo.visibleItemsInfo
-    val firstVisible = firstVisibleItemIndex
-    val firstOffset = firstVisibleItemScrollOffset
 
-    val averageItemHeight = if (visibleItems.isNotEmpty()) visibleItems.sumOf { it.size }.toFloat() / visibleItems.size else 200f
-    val totalDistance = (firstVisible * averageItemHeight) + firstOffset
+    scroll {
+        val omega = 15f // Natural frequency (rad/s) for smooth M3 Expressive deceleration
+        var velocity = 0f
+        var lastFrameNanos = 0L
+        var estimatedItemSize = (
+            layoutInfo.visibleItemsInfo
+                .map { it.size }
+                .average()
+                .takeIf { !it.isNaN() && it > 0.0 }
+                ?.toFloat() ?: 240f
+            ).coerceAtLeast(240f) + layoutInfo.mainAxisItemSpacing
 
-    if (totalDistance > 0f) {
-        animateScrollBy(
-            value = -totalDistance,
-            animationSpec = M3ExpressiveMotion.slowSpatial()
-        )
+        fun computeStep(x0: Float, dt: Float): Float {
+            val maxCriticalVelocity = omega * x0 * 1.15f
+            if (velocity > maxCriticalVelocity) {
+                velocity = maxCriticalVelocity
+            }
+            val expTerm = kotlin.math.exp(-omega * dt)
+            val nextX = (x0 + (omega * x0 - velocity) * dt) * expTerm
+            velocity = (velocity + omega * (omega * x0 - velocity) * dt) * expTerm
+            return (x0 - nextX).coerceIn(1.5f, x0)
+        }
+
+        while (canScrollBackward && (firstVisibleItemIndex > 0 || firstVisibleItemScrollOffset > 0)) {
+            val dt = withFrameNanos { frameNanos ->
+                val deltaSec = if (lastFrameNanos == 0L) {
+                    1f / 60f
+                } else {
+                    ((frameNanos - lastFrameNanos) / 1_000_000_000f).coerceIn(1f / 240f, 0.05f)
+                }
+                lastFrameNanos = frameNanos
+                deltaSec
+            }
+
+            if (!canScrollBackward || (firstVisibleItemIndex == 0 && firstVisibleItemScrollOffset == 0)) {
+                break
+            }
+
+            val visible = layoutInfo.visibleItemsInfo
+            if (visible.isNotEmpty()) {
+                val currentAvg = visible.sumOf { it.size }.toFloat() / visible.size + layoutInfo.mainAxisItemSpacing
+                estimatedItemSize = maxOf(estimatedItemSize * 0.7f + currentAvg * 0.3f, 180f)
+            }
+
+            val x0 = if (firstVisibleItemIndex == 0) {
+                firstVisibleItemScrollOffset.toFloat()
+            } else {
+                firstVisibleItemScrollOffset.toFloat() + (firstVisibleItemIndex * estimatedItemSize)
+            }
+
+            if (x0 <= 0.5f) break
+
+            val step = computeStep(x0, dt)
+            val boundaryDist = firstVisibleItemScrollOffset.toFloat()
+
+            // If crossing from item k > 0 into item k - 1, cross the boundary first so LazyColumn
+            // synchronously measures item k - 1 and we use its true height for the remainder of the frame.
+            if (firstVisibleItemIndex > 0 && step > boundaryDist + 1f) {
+                val crossStep = boundaryDist + 1f
+                val consumed1 = -scrollBy(-crossStep)
+                if (consumed1 < 0.5f && !canScrollBackward) break
+
+                val remainingRatio = ((step - crossStep) / step).coerceIn(0f, 1f)
+                val dtRem = dt * remainingRatio
+                if (dtRem > 0.0005f && (firstVisibleItemIndex > 0 || firstVisibleItemScrollOffset > 0)) {
+                    val xAfter = if (firstVisibleItemIndex == 0) {
+                        firstVisibleItemScrollOffset.toFloat()
+                    } else {
+                        firstVisibleItemScrollOffset.toFloat() + (firstVisibleItemIndex * estimatedItemSize)
+                    }
+                    if (xAfter > 0.5f) {
+                        val step2 = computeStep(xAfter, dtRem)
+                        val consumed2 = -scrollBy(-step2)
+                        if (consumed2 < 0.5f && !canScrollBackward) break
+                    }
+                }
+            } else {
+                val consumed = -scrollBy(-step)
+                if (consumed < 0.5f && !canScrollBackward) break
+            }
+        }
     }
-    scrollToItem(0, 0)
 }
 
 enum class DateSelectionMode {
