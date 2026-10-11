@@ -191,14 +191,13 @@ fun TimelineScreen(
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        listOf(7 to "7G", 14 to "14G", 30 to "30G", 90 to "90G").forEach { (days, label) ->
-                            val isSelected = state.selectedDays == days && state.selectedDate == null && state.fromDate == null
-                            ExpressiveFilterChip(
-                                selected = isSelected,
-                                onClick = { viewModel.setDays(days) },
-                                label = { Text(label, style = MaterialTheme.typography.labelMedium) }
-                            )
-                        }
+                        val activeDayOption = if (state.selectedDate == null && state.fromDate == null) state.selectedDays else -1
+                        ExpressiveConnectedButtonGroup(
+                            items = listOf(7, 14, 30, 90),
+                            selectedItem = activeDayOption,
+                            onItemSelected = { days -> viewModel.setDays(days) },
+                            labelProvider = { days -> "${days}G" }
+                        )
 
                         val hasCustomDate = state.selectedDate != null || state.fromDate != null
                         val dateLabel = formatDateRangeChipLabel(
@@ -232,16 +231,14 @@ fun TimelineScreen(
                             label = { Text(dateLabel, style = MaterialTheme.typography.labelMedium) }
                         )
 
-                        AssistChip(
+                        ExpressiveAssistChip(
                             onClick = { viewModel.setToday() },
                             label = { Text(stringResource(R.string.timeline_today), style = MaterialTheme.typography.labelMedium) },
-                            shape = M3Shapes.CornerSmall,
-                            border = null,
                             colors = borderlessAssistChipColors()
                         )
 
                         if (state.selectedDate != null || state.fromDate != null || state.selectedDays != 14) {
-                            AssistChip(
+                            ExpressiveAssistChip(
                                 onClick = { viewModel.resetFilters() },
                                 label = {
                                     Text(
@@ -250,8 +247,6 @@ fun TimelineScreen(
                                         color = MaterialTheme.colorScheme.error
                                     )
                                 },
-                                shape = M3Shapes.CornerSmall,
-                                border = null,
                                 colors = borderlessAssistChipColors(
                                     labelColor = MaterialTheme.colorScheme.error
                                 )
@@ -342,10 +337,7 @@ fun TimelineScreen(
                                 .height(240.dp),
                             contentAlignment = Alignment.Center
                         ) {
-                            ExpressiveLoadingIndicator(
-                                color = MaterialTheme.colorScheme.primary,
-                                size = 40.dp
-                            )
+                            ContainedLoadingIndicator(size = 44.dp)
                         }
                     }
                 } else if (filteredGroups.isEmpty()) {

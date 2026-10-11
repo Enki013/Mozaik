@@ -358,13 +358,19 @@ fun SettingsScreen(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
+                            val saveBtnInteraction = remember { MutableInteractionSource() }
                             Button(
                                 onClick = { viewModel.saveServerUrl() },
-                                shape = M3Shapes.CornerMedium,
+                                interactionSource = saveBtnInteraction,
+                                shape = rememberExpressiveButtonShape(
+                                    interactionSource = saveBtnInteraction,
+                                    restingCorner = M3CornerRadius.Medium,
+                                    pressedCorner = M3CornerRadius.ExtraSmall
+                                ),
                                 modifier = Modifier
                                     .weight(1f)
                                     .height(42.dp)
-                                    .expressivePressScale(remember { MutableInteractionSource() }),
+                                    .expressivePressScale(saveBtnInteraction),
                                 contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp)
                             ) {
                                 Row(
@@ -382,14 +388,20 @@ fun SettingsScreen(
                                 }
                             }
 
+                            val testBtnInteraction = remember { MutableInteractionSource() }
                             OutlinedButton(
                                 onClick = { viewModel.testConnection() },
                                 enabled = !state.isTestingConnection,
-                                shape = M3Shapes.CornerMedium,
+                                interactionSource = testBtnInteraction,
+                                shape = rememberExpressiveButtonShape(
+                                    interactionSource = testBtnInteraction,
+                                    restingCorner = M3CornerRadius.Medium,
+                                    pressedCorner = M3CornerRadius.ExtraSmall
+                                ),
                                 modifier = Modifier
                                     .weight(1f)
                                     .height(42.dp)
-                                    .expressivePressScale(remember { MutableInteractionSource() }),
+                                    .expressivePressScale(testBtnInteraction),
                                 contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp)
                             ) {
                                 if (state.isTestingConnection) {

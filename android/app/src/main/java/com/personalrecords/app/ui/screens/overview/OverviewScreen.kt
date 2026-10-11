@@ -2,6 +2,7 @@ package com.personalrecords.app.ui.screens.overview
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -80,7 +81,7 @@ fun OverviewScreen(
                     modifier = Modifier.fillMaxSize(),
                     contentAlignment = Alignment.Center
                 ) {
-                    ExpressiveLoadingIndicator(color = MaterialTheme.colorScheme.primary)
+                    ContainedLoadingIndicator(size = 48.dp)
                 }
             } else {
                 LazyColumn(
@@ -341,18 +342,26 @@ fun SyncRow(
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
+        val syncBtnInteraction = remember { MutableInteractionSource() }
         FilledTonalButton(
             onClick = onSync,
             enabled = !isSyncing,
-            shape = M3Shapes.CornerSmall,
+            interactionSource = syncBtnInteraction,
+            shape = rememberExpressiveButtonShape(
+                interactionSource = syncBtnInteraction,
+                restingCorner = M3CornerRadius.Full,
+                pressedCorner = M3CornerRadius.ExtraSmall
+            ),
             contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
-            modifier = Modifier.height(32.dp)
+            modifier = Modifier
+                .height(32.dp)
+                .expressivePressScale(syncBtnInteraction)
         ) {
             if (isSyncing) {
                 ExpressiveLoadingIndicator(
-                    size = 14.dp,
+                    size = 15.dp,
                     strokeWidth = 2.dp,
-                    color = MaterialTheme.colorScheme.primary
+                    color = MaterialTheme.colorScheme.onSecondaryContainer
                 )
             } else {
                 Icon(

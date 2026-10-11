@@ -334,7 +334,7 @@ fun BooksScreen(
                                     "date" -> stringResource(R.string.sort_date_read) to Icons.Default.CalendarMonth
                                     else -> stringResource(R.string.action_sort) to Icons.AutoMirrored.Filled.Sort
                                 }
-                                AssistChip(
+                                ExpressiveAssistChip(
                                     onClick = {
                                         val nextSort = when (state.sortBy) {
                                             "rating_desc" -> "rating_asc"
@@ -360,8 +360,6 @@ fun BooksScreen(
                                             color = MaterialTheme.colorScheme.primary
                                         )
                                     },
-                                    shape = M3Shapes.CornerSmall,
-                                    border = null,
                                     colors = borderlessAssistChipColors()
                                 )
                             }
@@ -377,7 +375,7 @@ fun BooksScreen(
                                 .height(200.dp),
                             contentAlignment = Alignment.Center
                         ) {
-                            ExpressiveLoadingIndicator(color = MaterialTheme.colorScheme.primary)
+                            ContainedLoadingIndicator(size = 44.dp)
                         }
                     }
                 } else if (filteredBooks.isEmpty()) {

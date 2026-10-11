@@ -9,6 +9,7 @@ import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -357,6 +358,12 @@ fun MainAppHost() {
                         )
 
                         val interactionSource = remember { MutableInteractionSource() }
+                        val isNavPressed by interactionSource.collectIsPressedAsState()
+                        val indicatorCorner by animateDpAsState(
+                            targetValue = if (isNavPressed) 8.dp else 15.dp,
+                            animationSpec = M3ExpressiveMotion.fastSpatial(),
+                            label = "nav_indicator_corner"
+                        )
 
                         Box(
                             modifier = Modifier
@@ -448,7 +455,7 @@ fun MainAppHost() {
                                                 }
                                                 .background(
                                                     color = MaterialTheme.colorScheme.secondaryContainer,
-                                                    shape = M3Shapes.CornerFull
+                                                    shape = RoundedCornerShape(indicatorCorner)
                                                 )
                                         )
                                     }

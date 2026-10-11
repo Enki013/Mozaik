@@ -322,7 +322,7 @@ fun NotificationsScreen(
                                 }
 
                                 if (state.selectedApp != null || state.searchQuery.isNotEmpty() || hasActiveDate) {
-                                    AssistChip(
+                                    ExpressiveAssistChip(
                                         onClick = {
                                             isFiltering = true
                                             viewModel.setAppFilter(null)
@@ -336,8 +336,6 @@ fun NotificationsScreen(
                                                 color = MaterialTheme.colorScheme.error
                                             )
                                         },
-                                        shape = M3Shapes.CornerSmall,
-                                        border = null,
                                         colors = borderlessAssistChipColors(
                                             labelColor = MaterialTheme.colorScheme.error
                                         )
@@ -357,7 +355,7 @@ fun NotificationsScreen(
                                 .height(200.dp),
                             contentAlignment = Alignment.Center
                         ) {
-                            ExpressiveLoadingIndicator(color = MaterialTheme.colorScheme.primary)
+                            ContainedLoadingIndicator(size = 44.dp)
                         }
                     }
                 } else if (filteredList.isEmpty()) {

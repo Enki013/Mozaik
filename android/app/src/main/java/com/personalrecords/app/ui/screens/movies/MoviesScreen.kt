@@ -370,7 +370,7 @@ fun MoviesScreen(
                                     "title" -> stringResource(R.string.sort_movie_title) to Icons.Default.SortByAlpha
                                     else -> stringResource(R.string.action_sort) to Icons.AutoMirrored.Filled.Sort
                                 }
-                                AssistChip(
+                                ExpressiveAssistChip(
                                     onClick = {
                                         val nextSort = when (state.sortBy) {
                                             "rating_desc" -> "rating_asc"
@@ -397,8 +397,6 @@ fun MoviesScreen(
                                             color = MaterialTheme.colorScheme.primary
                                         )
                                     },
-                                    shape = M3Shapes.CornerSmall,
-                                    border = null,
                                     colors = borderlessAssistChipColors()
                                 )
                             }
@@ -414,7 +412,7 @@ fun MoviesScreen(
                                 .height(200.dp),
                             contentAlignment = Alignment.Center
                         ) {
-                            ExpressiveLoadingIndicator(color = MaterialTheme.colorScheme.primary)
+                            ContainedLoadingIndicator(size = 44.dp)
                         }
                     }
                 } else if (filteredFilms.isEmpty()) {

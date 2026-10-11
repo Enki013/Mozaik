@@ -4,7 +4,7 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
-
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -240,11 +240,19 @@ fun NutritionScreen(
                                     color = MaterialTheme.colorScheme.onSurface
                                 )
                             }
+                            val targetBtnInteraction = remember { MutableInteractionSource() }
                             FilledTonalButton(
                                 onClick = { showTargetDialog = true },
-                                shape = M3Shapes.CornerSmall,
+                                interactionSource = targetBtnInteraction,
+                                shape = rememberExpressiveButtonShape(
+                                    interactionSource = targetBtnInteraction,
+                                    restingCorner = M3CornerRadius.Full,
+                                    pressedCorner = M3CornerRadius.ExtraSmall
+                                ),
                                 contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
-                                modifier = Modifier.height(30.dp)
+                                modifier = Modifier
+                                    .height(30.dp)
+                                    .expressivePressScale(targetBtnInteraction)
                             ) {
                                 Row(
                                     verticalAlignment = Alignment.CenterVertically,
@@ -280,13 +288,10 @@ fun NutritionScreen(
                             else -> domainNutritionColor()
                         }
 
-                        // MD3 Linear Progress Indicator
-                        LinearProgressIndicator(
+                        // MD3 Expressive Wavy Linear Progress Indicator
+                        LinearWavyProgressIndicator(
                             progress = { animatedProgress },
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(8.dp)
-                                .clip(M3Shapes.CornerFull),
+                            modifier = Modifier.fillMaxWidth(),
                             color = barColor,
                             trackColor = MaterialTheme.colorScheme.surfaceContainerHighest
                         )
@@ -538,7 +543,7 @@ fun NutritionScreen(
 
                             // Clear filter button
                             if (state.selectedDateFilter != null || state.selectedMeal != "all" || state.onlyHighProtein || state.searchQuery.isNotEmpty()) {
-                                AssistChip(
+                                ExpressiveAssistChip(
                                     onClick = {
                                         isFiltering = true
                                         viewModel.resetFilters()
@@ -550,8 +555,6 @@ fun NutritionScreen(
                                             color = MaterialTheme.colorScheme.error
                                         )
                                     },
-                                    shape = M3Shapes.CornerSmall,
-                                    border = null,
                                     colors = borderlessAssistChipColors(
                                         labelColor = MaterialTheme.colorScheme.error
                                     )
@@ -571,10 +574,7 @@ fun NutritionScreen(
                             .padding(48.dp),
                         contentAlignment = Alignment.Center
                     ) {
-                        ExpressiveLoadingIndicator(
-                            color = MaterialTheme.colorScheme.primary,
-                            size = 40.dp
-                        )
+                        ContainedLoadingIndicator(size = 44.dp)
                     }
                 }
             } else if (filteredFoods.isEmpty()) {

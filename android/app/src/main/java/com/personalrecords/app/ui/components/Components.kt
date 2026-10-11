@@ -36,6 +36,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.SubcomposeAsyncImage
 import androidx.compose.animation.Crossfade
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -378,10 +380,34 @@ fun borderlessAssistChipColors(
 )
 
 /**
- * MD3 Expressive Filter Chip.
+ * MD3 Expressive Interactive Button Shape helper (`ButtonDefaults.shapes()`).
  *
- * Morphs corner curvature (`CornerSmall` 8dp -> `CornerLargeIncreased` 20dp) and applies a
- * fast spatial spring scale pop on selection, accompanied by subtle tactile haptic feedback.
+ * Morphs button corner radius between [restingCorner] and [pressedCorner] (sharper squircle)
+ * while pressed using the M3 Expressive Fast Spatial spring (`damping = 0.6f, stiffness = 800f`).
+ */
+@Composable
+fun rememberExpressiveButtonShape(
+    interactionSource: InteractionSource,
+    restingCorner: Dp = M3CornerRadius.Medium,
+    pressedCorner: Dp = M3CornerRadius.ExtraSmall
+): RoundedCornerShape {
+    val isPressed by interactionSource.collectIsPressedAsState()
+    val corner by animateDpAsState(
+        targetValue = if (isPressed) pressedCorner else restingCorner,
+        animationSpec = M3ExpressiveMotion.fastSpatial(),
+        label = "expressive_btn_corner"
+    )
+    return RoundedCornerShape(corner)
+}
+
+/**
+ * MD3 Expressive Filter Chip (`FilterChipDefaults.shapes()`).
+ *
+ * Implements authentic M3 Expressive 3-state corner morphing from `ChipSamples.kt`:
+ * - Unselected resting: `CornerSmall` (8dp)
+ * - Pressed (`isPressed`): `CornerExtraSmall` (4dp sharp squircle)
+ * - Selected (`selected`): `CornerFull` (24dp full pill)
+ * Accompanied by Fast Spatial spring scale physics and optional animated checkmark when no custom [leadingIcon] is supplied.
  */
 @Composable
 fun ExpressiveFilterChip(
@@ -391,19 +417,46 @@ fun ExpressiveFilterChip(
     modifier: Modifier = Modifier,
     leadingIcon: (@Composable () -> Unit)? = null,
     trailingIcon: (@Composable () -> Unit)? = null,
+    showCheckmarkWhenSelected: Boolean = true,
     colors: SelectableChipColors = borderlessFilterChipColors()
 ) {
     val haptic = LocalHapticFeedback.current
+    val interactionSource = remember { MutableInteractionSource() }
+    val isPressed by interactionSource.collectIsPressedAsState()
+
+    val targetCorner = when {
+        isPressed -> M3CornerRadius.ExtraSmall
+        selected -> M3CornerRadius.Full
+        else -> M3CornerRadius.Small
+    }
     val animatedCorner by animateDpAsState(
-        targetValue = if (selected) M3CornerRadius.LargeIncreased else M3CornerRadius.Small,
+        targetValue = targetCorner,
         animationSpec = M3ExpressiveMotion.fastSpatial(),
-        label = "chip_corner"
+        label = "chip_corner_morph"
     )
     val animatedScale by animateFloatAsState(
-        targetValue = if (selected) 1.04f else 1f,
+        targetValue = when {
+            isPressed -> 0.95f
+            selected -> 1.03f
+            else -> 1f
+        },
         animationSpec = M3ExpressiveMotion.fastSpatial(),
-        label = "chip_scale"
+        label = "chip_scale_morph"
     )
+
+    val resolvedLeadingIcon: (@Composable () -> Unit)? = when {
+        leadingIcon != null -> leadingIcon
+        selected && showCheckmarkWhenSelected -> {
+            {
+                Icon(
+                    imageVector = Icons.Filled.Check,
+                    contentDescription = null,
+                    modifier = Modifier.size(FilterChipDefaults.IconSize)
+                )
+            }
+        }
+        else -> null
+    }
 
     FilterChip(
         selected = selected,
@@ -413,23 +466,294 @@ fun ExpressiveFilterChip(
         },
         label = label,
         shape = RoundedCornerShape(animatedCorner),
+        interactionSource = interactionSource,
         modifier = modifier.graphicsLayer {
             scaleX = animatedScale
             scaleY = animatedScale
         },
         border = null,
         colors = colors,
-        leadingIcon = leadingIcon,
+        leadingIcon = resolvedLeadingIcon,
         trailingIcon = trailingIcon
     )
 }
 
 /**
- * MD3 Expressive Shape-Morphing Loading Indicator.
+ * MD3 Expressive Assist Chip (`AssistChipDefaults` with interactive press corner morphing).
  *
- * Pixel-faithful implementation of Google's official Material 3 Expressive loading indicator:
- * Organically morphs between a 12-point floral sunburst, a rounded circle, a 4-lobed clover/squircle,
- * and a 5-point organic flower with continuous spring-like motion and dynamic rotation.
+ * Morphs corner curvature from `CornerSmall` (8dp) to `CornerExtraSmall` (4dp) on press
+ * with M3 Expressive Fast Spatial spring bounce and tactile feedback.
+ */
+@Composable
+fun ExpressiveAssistChip(
+    onClick: () -> Unit,
+    label: @Composable () -> Unit,
+    modifier: Modifier = Modifier,
+    leadingIcon: (@Composable () -> Unit)? = null,
+    trailingIcon: (@Composable () -> Unit)? = null,
+    colors: ChipColors = borderlessAssistChipColors()
+) {
+    val haptic = LocalHapticFeedback.current
+    val interactionSource = remember { MutableInteractionSource() }
+    val isPressed by interactionSource.collectIsPressedAsState()
+
+    val animatedCorner by animateDpAsState(
+        targetValue = if (isPressed) M3CornerRadius.ExtraSmall else M3CornerRadius.Small,
+        animationSpec = M3ExpressiveMotion.fastSpatial(),
+        label = "assist_chip_corner"
+    )
+    val animatedScale by animateFloatAsState(
+        targetValue = if (isPressed) 0.95f else 1f,
+        animationSpec = M3ExpressiveMotion.fastSpatial(),
+        label = "assist_chip_scale"
+    )
+
+    AssistChip(
+        onClick = {
+            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+            onClick()
+        },
+        label = label,
+        leadingIcon = leadingIcon,
+        trailingIcon = trailingIcon,
+        interactionSource = interactionSource,
+        shape = RoundedCornerShape(animatedCorner),
+        border = null,
+        colors = colors,
+        modifier = modifier.graphicsLayer {
+            scaleX = animatedScale
+            scaleY = animatedScale
+        }
+    )
+}
+
+/**
+ * MD3 Expressive Connected Button Group (`SingleSelectConnectedButtonGroupSample` from `ButtonGroupSamples.kt`).
+ *
+ * Implements `ButtonGroupDefaults.connectedLeadingButtonShapes()`, `connectedMiddleButtonShapes()`,
+ * and `connectedTrailingButtonShapes()`:
+ * - Outer group ends have `CornerFull` (24dp)
+ * - Inner adjacent edges have `CornerSmall` (8dp) when unselected
+ * - Selected button (`checked = true`) morphs all 4 corners to `CornerFull` (24dp pill)
+ * - Pressed button (`isPressed = true`) morphs inner corners to `CornerExtraSmall` (4dp)
+ */
+@Composable
+fun <T> ExpressiveConnectedButtonGroup(
+    items: List<T>,
+    selectedItem: T,
+    onItemSelected: (T) -> Unit,
+    labelProvider: @Composable (T) -> String,
+    modifier: Modifier = Modifier,
+    fillWidth: Boolean = false,
+    iconProvider: (@Composable (T, Boolean) -> ImageVector?)? = null
+) {
+    val haptic = LocalHapticFeedback.current
+    Row(
+        modifier = modifier,
+        horizontalArrangement = Arrangement.spacedBy(2.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        items.forEachIndexed { index, item ->
+            val selected = item == selectedItem
+            val interactionSource = remember { MutableInteractionSource() }
+            val isPressed by interactionSource.collectIsPressedAsState()
+
+            val outerStart = index == 0
+            val outerEnd = index == items.lastIndex
+
+            val targetStartCorner = when {
+                selected -> 20.dp
+                outerStart -> 20.dp
+                isPressed -> 4.dp
+                else -> 8.dp
+            }
+            val targetEndCorner = when {
+                selected -> 20.dp
+                outerEnd -> 20.dp
+                isPressed -> 4.dp
+                else -> 8.dp
+            }
+
+            val startCorner by animateDpAsState(
+                targetValue = targetStartCorner,
+                animationSpec = M3ExpressiveMotion.fastSpatial(),
+                label = "connected_start_corner"
+            )
+            val endCorner by animateDpAsState(
+                targetValue = targetEndCorner,
+                animationSpec = M3ExpressiveMotion.fastSpatial(),
+                label = "connected_end_corner"
+            )
+            val scale by animateFloatAsState(
+                targetValue = if (isPressed) 0.95f else 1f,
+                animationSpec = M3ExpressiveMotion.fastSpatial(),
+                label = "connected_scale"
+            )
+            val weightAnim by animateFloatAsState(
+                targetValue = if (selected) 1.12f else 1f,
+                animationSpec = M3ExpressiveMotion.fastSpatial(),
+                label = "connected_weight"
+            )
+            val horizPad by animateDpAsState(
+                targetValue = if (selected) 14.dp else 11.dp,
+                animationSpec = M3ExpressiveMotion.fastSpatial(),
+                label = "connected_pad"
+            )
+            val containerColor by animateColorAsState(
+                targetValue = if (selected) {
+                    MaterialTheme.colorScheme.secondaryContainer
+                } else {
+                    MaterialTheme.colorScheme.surfaceContainer
+                },
+                animationSpec = M3ExpressiveMotion.fastEffects(),
+                label = "connected_bg"
+            )
+            val contentColor by animateColorAsState(
+                targetValue = if (selected) {
+                    MaterialTheme.colorScheme.onSecondaryContainer
+                } else {
+                    MaterialTheme.colorScheme.onSurfaceVariant
+                },
+                animationSpec = M3ExpressiveMotion.fastEffects(),
+                label = "connected_fg"
+            )
+
+            val shape = RoundedCornerShape(
+                topStart = startCorner,
+                bottomStart = startCorner,
+                topEnd = endCorner,
+                bottomEnd = endCorner
+            )
+
+            val itemModifier = if (fillWidth) {
+                Modifier.weight(weightAnim)
+            } else {
+                Modifier
+            }
+
+            Surface(
+                shape = shape,
+                color = containerColor,
+                contentColor = contentColor,
+                modifier = itemModifier
+                    .height(32.dp)
+                    .graphicsLayer {
+                        scaleX = scale
+                        scaleY = scale
+                    }
+                    .clip(shape)
+                    .clickable(
+                        interactionSource = interactionSource,
+                        indication = ripple(),
+                        onClick = {
+                            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                            onItemSelected(item)
+                        }
+                    )
+            ) {
+                Row(
+                    modifier = Modifier.padding(horizontal = horizPad),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.Center
+                ) {
+                    val icon = iconProvider?.invoke(item, selected)
+                    if (icon != null) {
+                        Icon(
+                            imageVector = icon,
+                            contentDescription = null,
+                            modifier = Modifier.size(15.dp)
+                        )
+                        Spacer(modifier = Modifier.width(5.dp))
+                    }
+                    Text(
+                        text = labelProvider(item),
+                        style = if (selected) MaterialTheme.typography.labelMediumEmphasized else MaterialTheme.typography.labelMedium,
+                        maxLines = 1,
+                        softWrap = false
+                    )
+                }
+            }
+        }
+    }
+}
+
+/**
+ * Evaluates the polar radius (normalized around `1.0f`) for each of the 7 official
+ * Material 3 Expressive `LoadingIndicatorDefaults.IndeterminateIndicatorPolygons` shapes
+ * from `MaterialShapes`:
+ * 0 -> `SoftBurst` (10-pointed soft starburst)
+ * 1 -> `Cookie9Sided` (9-sided scalloped cookie)
+ * 2 -> `Pentagon` (rounded 5-sided regular polygon)
+ * 3 -> `Pill` (tilted stadium / capsule)
+ * 4 -> `Sunny` (8-pointed warm sun star)
+ * 5 -> `Cookie4Sided` (4-lobed clover / squircle)
+ * 6 -> `Cookie7Sided` (7-sided scalloped flower)
+ */
+private fun m3ExpressivePolygonRadius(shapeIndex: Int, theta: Float): Float {
+    return when (shapeIndex % 7) {
+        0 -> {
+            // SoftBurst: 10-pointed soft starburst
+            1f + 0.14f * kotlin.math.cos(10f * theta) - 0.03f * kotlin.math.cos(20f * theta)
+        }
+        1 -> {
+            // Cookie9Sided: 9-sided rounded cookie
+            1f + 0.13f * kotlin.math.cos(9f * theta) + 0.02f * kotlin.math.cos(18f * theta)
+        }
+        2 -> {
+            // Pentagon: rounded 5-sided regular pentagon
+            1f + 0.15f * kotlin.math.cos(5f * theta) - 0.035f * kotlin.math.cos(10f * theta)
+        }
+        3 -> {
+            // Pill: stadium / elongated 2-lobe capsule
+            val c = kotlin.math.cos(theta)
+            val s = kotlin.math.sin(theta)
+            val rx = 1.18f
+            val ry = 0.78f
+            (rx * ry) / kotlin.math.sqrt((ry * c) * (ry * c) + (rx * s) * (rx * s))
+        }
+        4 -> {
+            // Sunny: 8-pointed sunny star
+            1f + 0.17f * kotlin.math.cos(8f * theta) - 0.025f * kotlin.math.cos(16f * theta)
+        }
+        5 -> {
+            // Cookie4Sided: 4-lobed clover / cookie
+            1f + 0.22f * kotlin.math.cos(4f * theta) - 0.03f * kotlin.math.cos(8f * theta)
+        }
+        else -> {
+            // Cookie7Sided: 7-sided scalloped flower
+            1f + 0.15f * kotlin.math.cos(7f * theta) + 0.02f * kotlin.math.cos(14f * theta)
+        }
+    }
+}
+
+/**
+ * Spring-like morph curve for M3 Expressive polygon-to-polygon transitions:
+ * Quickly snaps from 0 -> 1 with slight spatial spring overshoot (~1.08) in the first 68%
+ * of each step, then settles cleanly to 1.0 so each polygon silhouette is crisp and legible.
+ */
+private fun m3ExpressiveStepSpringProgress(rawT: Float): Float {
+    val t = rawT.coerceIn(0f, 1f)
+    return if (t < 0.68f) {
+        val u = t / 0.68f
+        val base = 1f - (1f - u) * (1f - u) * (1f - u)
+        val overshoot = 0.09f * kotlin.math.sin(u * Math.PI.toFloat())
+        base + overshoot
+    } else {
+        val v = (t - 0.68f) / 0.32f
+        1f + 0.03f * kotlin.math.sin(v * Math.PI.toFloat()) * (1f - v)
+    }
+}
+
+/**
+ * MD3 Expressive Shape-Morphing Loading Indicator (`LoadingIndicator` & `ContainedLoadingIndicator`
+ * from `LoadingIndicatorSamples.kt` + `MaterialShapesSamples.kt`).
+ *
+ * Morphs **directly** from polygon to polygon across the 7 official M3 Expressive `MaterialShapes`
+ * (`SoftBurst` -> `Cookie9Sided` -> `Pentagon` -> `Pill` -> `Sunny` -> `Cookie4Sided` -> `Cookie7Sided`)
+ * without collapsing to a circle, accompanied by stepped 90° spring rotation bursts.
+ *
+ * Supports both indeterminate mode (`progress == null`) and determinate mode (`progress != null`).
+ * Set [contained] to `true` (or use [ContainedLoadingIndicator]) to render inside a `primaryContainer` circle.
  */
 @Composable
 fun ExpressiveLoadingIndicator(
@@ -438,73 +762,100 @@ fun ExpressiveLoadingIndicator(
     @Suppress("UNUSED_PARAMETER") strokeWidth: Dp = (size / 10).coerceIn(2.dp, 4.dp),
     color: Color = MaterialTheme.colorScheme.primary,
     @Suppress("UNUSED_PARAMETER") secondaryColor: Color = MaterialTheme.colorScheme.tertiary,
-    @Suppress("UNUSED_PARAMETER") trackColor: Color = MaterialTheme.colorScheme.surfaceContainerHighest
+    @Suppress("UNUSED_PARAMETER") trackColor: Color = MaterialTheme.colorScheme.surfaceContainerHighest,
+    contained: Boolean = false,
+    containerColor: Color = MaterialTheme.colorScheme.primaryContainer,
+    progress: (() -> Float)? = null
 ) {
-    val infiniteTransition = rememberInfiniteTransition(label = "expressive_morph_loading")
-
-    val rotation by infiniteTransition.animateFloat(
-        initialValue = 0f,
-        targetValue = 360f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 2600, easing = LinearEasing),
-            repeatMode = RepeatMode.Restart
-        ),
-        label = "rotation"
-    )
-
-    val cycleProgress by infiniteTransition.animateFloat(
-        initialValue = 0f,
-        targetValue = 3f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 3600, easing = FastOutSlowInEasing),
-            repeatMode = RepeatMode.Restart
-        ),
-        label = "cycleProgress"
-    )
-
-    val breathingScale by infiniteTransition.animateFloat(
-        initialValue = 0.93f,
-        targetValue = 1.07f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 900, easing = FastOutSlowInEasing),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = "breathingScale"
-    )
-
-    // Calculate current morphing parameters based on cycleProgress (0..3)
-    val segment = cycleProgress.toInt().coerceIn(0, 2)
-    val t = cycleProgress - segment
-    val sinT = kotlin.math.sin(t * Math.PI).toFloat() // 0 at circle endpoints, peak in middle
-    val (nLobes, maxAmp) = when (segment) {
-        0 -> 12f to 0.16f // 12-point floral sunburst
-        1 -> 4f to 0.32f  // 4-lobed clover / squircle
-        else -> 5f to 0.22f // 5-point organic flower
+    val activePolygonColor = if (contained && color == MaterialTheme.colorScheme.primary) {
+        MaterialTheme.colorScheme.onPrimaryContainer
+    } else {
+        color
     }
-    val amplitude = maxAmp * sinT
+
+    val shapeStepProgress: Float
+    val totalRotationDeg: Float
+    val morphScale: Float
+
+    if (progress != null) {
+        val p = progress().coerceIn(0f, 1f)
+        shapeStepProgress = p * 6f
+        totalRotationDeg = p * 360f
+        morphScale = (0.35f + 0.65f * LinearOutSlowInEasing.transform(p)).coerceIn(0.25f, 1f)
+    } else {
+        val infiniteTransition = rememberInfiniteTransition(label = "m3_expressive_loading")
+        val rawCycle by infiniteTransition.animateFloat(
+            initialValue = 0f,
+            targetValue = 7f,
+            animationSpec = infiniteRepeatable(
+                animation = tween(durationMillis = 4550, easing = LinearEasing),
+                repeatMode = RepeatMode.Restart
+            ),
+            label = "polygon_cycle"
+        )
+        val continuousSpin by infiniteTransition.animateFloat(
+            initialValue = 0f,
+            targetValue = 360f,
+            animationSpec = infiniteRepeatable(
+                animation = tween(durationMillis = 4550, easing = LinearEasing),
+                repeatMode = RepeatMode.Restart
+            ),
+            label = "continuous_spin"
+        )
+
+        val stepIndex = rawCycle.toInt().coerceIn(0, 6)
+        val localT = rawCycle - stepIndex
+        val springAlpha = m3ExpressiveStepSpringProgress(localT)
+
+        shapeStepProgress = stepIndex + springAlpha
+        // Stepped 90-degree spring rotation bursts per polygon + continuous rotation
+        totalRotationDeg = (stepIndex + springAlpha.coerceIn(0f, 1.1f)) * 51.42857f + continuousSpin * 0.5f
+        morphScale = 1f + 0.06f * kotlin.math.sin(localT.coerceIn(0f, 1f) * Math.PI.toFloat())
+    }
+
+    val fromIndex = shapeStepProgress.toInt().coerceAtLeast(0) % 7
+    val toIndex = (fromIndex + 1) % 7
+    val morphFraction = (shapeStepProgress - shapeStepProgress.toInt())
 
     Box(
         modifier = modifier
             .size(size)
-            .graphicsLayer {
-                scaleX = breathingScale
-                scaleY = breathingScale
-                rotationZ = rotation
-            },
+            .then(
+                if (contained) {
+                    Modifier
+                        .clip(CircleShape)
+                        .background(containerColor)
+                } else {
+                    Modifier
+                }
+            ),
         contentAlignment = Alignment.Center
     ) {
-        Canvas(modifier = Modifier.fillMaxSize().padding((size * 0.08f).coerceAtLeast(1.dp))) {
+        val innerSize = if (contained) size * 0.74f else size
+        Canvas(
+            modifier = Modifier
+                .size(innerSize)
+                .padding((innerSize * 0.08f).coerceAtLeast(1.dp))
+                .graphicsLayer {
+                    scaleX = morphScale
+                    scaleY = morphScale
+                    rotationZ = totalRotationDeg
+                }
+        ) {
             val canvasW = this.size.width
             val canvasH = this.size.height
             val cx = canvasW / 2f
             val cy = canvasH / 2f
-            val baseRadius = (minOf(canvasW, canvasH) / 2f) * 0.88f
+            val baseRadius = (minOf(canvasW, canvasH) / 2f) * 0.84f
 
             val path = Path()
-            val points = 96
+            val points = 120
             for (i in 0 until points) {
                 val theta = (i.toFloat() / points) * 2f * Math.PI.toFloat()
-                val r = baseRadius * (1f + amplitude * kotlin.math.cos(nLobes * theta))
+                val rFrom = m3ExpressivePolygonRadius(fromIndex, theta)
+                val rTo = m3ExpressivePolygonRadius(toIndex, theta)
+                val rNorm = rFrom + (rTo - rFrom) * morphFraction
+                val r = baseRadius * rNorm
                 val x = cx + r * kotlin.math.cos(theta)
                 val y = cy + r * kotlin.math.sin(theta)
                 if (i == 0) {
@@ -517,21 +868,143 @@ fun ExpressiveLoadingIndicator(
 
             drawPath(
                 path = path,
-                color = color
+                color = activePolygonColor
             )
         }
     }
 }
 
 /**
- * MD3 Expressive Pull-To-Refresh Indicator.
+ * MD3 Expressive Contained Loading Indicator (`ContainedLoadingIndicatorSample` from `LoadingIndicatorSamples.kt`).
  *
- * During drag gestures, the indicator smoothly blooms an organic 12-point floral star that
- * scales, rotates with gesture physics, and triggers a tactile haptic click when crossing
- * the activation threshold.
+ * Wraps the 7-polygon morphing [ExpressiveLoadingIndicator] inside a circular `primaryContainer` disc
+ * with `onPrimaryContainer` polygon color for high-contrast list and screen loading states.
+ */
+@Composable
+fun ContainedLoadingIndicator(
+    modifier: Modifier = Modifier,
+    size: Dp = 48.dp,
+    containerColor: Color = MaterialTheme.colorScheme.primaryContainer,
+    indicatorColor: Color = MaterialTheme.colorScheme.onPrimaryContainer,
+    progress: (() -> Float)? = null
+) {
+    ExpressiveLoadingIndicator(
+        modifier = modifier,
+        size = size,
+        color = indicatorColor,
+        contained = true,
+        containerColor = containerColor,
+        progress = progress
+    )
+}
+
+/**
+ * MD3 Expressive Wavy Linear Progress Indicator (`LinearWavyProgressIndicatorSample` from `ProgressIndicatorSamples.kt`).
  *
- * During refreshing, it smoothly morphs into Google's official Material 3 Expressive
- * shape-morphing animation with spring-like continuous motion and breathing pulse.
+ * Draws an animated sinusoidal wave along the active progress segment with rounded stroke caps,
+ * a clean separation gap (`trackGap`), and a stop indicator dot at the end of the inactive track.
+ */
+@Composable
+fun LinearWavyProgressIndicator(
+    progress: () -> Float,
+    modifier: Modifier = Modifier,
+    color: Color = MaterialTheme.colorScheme.primary,
+    trackColor: Color = MaterialTheme.colorScheme.surfaceContainerHighest,
+    wavelength: Dp = 24.dp,
+    amplitude: Dp = 2.8.dp,
+    strokeWidth: Dp = 4.dp,
+    trackGap: Dp = 6.dp
+) {
+    val infiniteTransition = rememberInfiniteTransition(label = "wavy_progress_phase")
+    val phase by infiniteTransition.animateFloat(
+        initialValue = 0f,
+        targetValue = (2f * Math.PI).toFloat(),
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 1100, easing = LinearEasing),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "wave_phase"
+    )
+
+    val p = progress().coerceIn(0f, 1f)
+    // Smoothly ramp wave amplitude to 0 at 0% and 100% per M3 Expressive ProgressIndicatorDefaults
+    val edgeEnvelope = when {
+        p <= 0.01f || p >= 0.99f -> 0f
+        p < 0.08f -> (p - 0.01f) / 0.07f
+        p > 0.92f -> (0.99f - p) / 0.07f
+        else -> 1f
+    }
+
+    Canvas(
+        modifier = modifier
+            .fillMaxWidth()
+            .height(14.dp)
+    ) {
+        val w = size.width
+        val h = size.height
+        val cy = h / 2f
+        val strokePx = strokeWidth.toPx()
+        val halfStroke = strokePx / 2f
+        val gapPx = trackGap.toPx()
+        val waveLenPx = wavelength.toPx().coerceAtLeast(8f)
+        val ampPx = amplitude.toPx() * edgeEnvelope
+
+        val activeEndX = (w * p).coerceIn(0f, w)
+
+        // 1. Active Wavy Segment
+        if (p > 0.005f) {
+            val startX = halfStroke
+            val endX = (activeEndX - halfStroke).coerceAtLeast(startX)
+            val wavePath = Path()
+            val steps = ((endX - startX) / 2f).toInt().coerceAtLeast(2)
+            for (i in 0..steps) {
+                val x = startX + (endX - startX) * (i.toFloat() / steps)
+                val angle = (x / waveLenPx) * (2f * Math.PI.toFloat()) - phase
+                val y = cy + ampPx * kotlin.math.sin(angle)
+                if (i == 0) {
+                    wavePath.moveTo(x, y)
+                } else {
+                    wavePath.lineTo(x, y)
+                }
+            }
+            drawPath(
+                path = wavePath,
+                color = color,
+                style = Stroke(width = strokePx, cap = StrokeCap.Round)
+            )
+        }
+
+        // 2. Inactive Track + Stop Indicator Dot
+        val trackStartX = if (p > 0.005f) {
+            (activeEndX + gapPx + halfStroke)
+        } else {
+            halfStroke
+        }
+        val trackEndX = w - halfStroke
+        if (trackStartX < trackEndX) {
+            drawLine(
+                color = trackColor,
+                start = Offset(trackStartX, cy),
+                end = Offset(trackEndX, cy),
+                strokeWidth = strokePx,
+                cap = StrokeCap.Round
+            )
+            // M3 Expressive stop indicator dot at end of track
+            drawCircle(
+                color = color,
+                radius = halfStroke,
+                center = Offset(trackEndX, cy)
+            )
+        }
+    }
+}
+
+/**
+ * MD3 Expressive Pull-To-Refresh Indicator (`PullToRefreshWithLoadingIndicatorSample` from `PullToRefreshSamples.kt`).
+ *
+ * Uses a circular container (`CircleShape`) that scales with `LinearOutSlowInEasing` during pull,
+ * transitions to `primaryContainer` / `onPrimaryContainer` at threshold and during refresh, and
+ * morphs determinately through the 7 M3 Expressive polygons as the user drags down.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -539,8 +1012,8 @@ fun ExpressivePullToRefreshIndicator(
     state: PullToRefreshState,
     isRefreshing: Boolean,
     modifier: Modifier = Modifier,
-    containerColor: Color = MaterialTheme.colorScheme.surfaceContainerHigh,
-    color: Color = MaterialTheme.colorScheme.primary,
+    containerColor: Color = MaterialTheme.colorScheme.primaryContainer,
+    color: Color = MaterialTheme.colorScheme.onPrimaryContainer,
     threshold: Dp = PullToRefreshDefaults.PositionalThreshold,
 ) {
     val haptic = LocalHapticFeedback.current
@@ -548,17 +1021,31 @@ fun ExpressivePullToRefreshIndicator(
 
     LaunchedEffect(state.distanceFraction) {
         if (state.distanceFraction >= 1f && !hasHapticTriggered) {
-            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
             hasHapticTriggered = true
         } else if (state.distanceFraction < 0.2f) {
             hasHapticTriggered = false
         }
     }
 
-    val animatedCorner by animateDpAsState(
-        targetValue = if (isRefreshing) M3CornerRadius.LargeIncreased else M3CornerRadius.Medium,
-        animationSpec = M3ExpressiveMotion.defaultSpatial(),
-        label = "ptr_corner"
+    val activeContainerColor by animateColorAsState(
+        targetValue = if (isRefreshing || state.distanceFraction >= 1f) {
+            containerColor
+        } else {
+            MaterialTheme.colorScheme.surfaceContainerHigh
+        },
+        animationSpec = M3ExpressiveMotion.fastEffects(),
+        label = "ptr_container_color"
+    )
+
+    val activeIndicatorColor by animateColorAsState(
+        targetValue = if (isRefreshing || state.distanceFraction >= 1f) {
+            color
+        } else {
+            MaterialTheme.colorScheme.primary
+        },
+        animationSpec = M3ExpressiveMotion.fastEffects(),
+        label = "ptr_indicator_color"
     )
 
     Box(
@@ -566,14 +1053,13 @@ fun ExpressivePullToRefreshIndicator(
             .pullToRefreshIndicator(
                 state = state,
                 isRefreshing = isRefreshing,
-                containerColor = containerColor,
+                containerColor = activeContainerColor,
                 threshold = threshold,
-                shape = RoundedCornerShape(animatedCorner),
-                elevation = 6.dp
+                shape = CircleShape,
+                elevation = PullToRefreshDefaults.Elevation
             ),
         contentAlignment = Alignment.Center
     ) {
-        // Opacity transition uses M3 Expressive Effects spring (damping 1.0, no overshoot)
         Crossfade(
             targetState = isRefreshing,
             animationSpec = M3ExpressiveMotion.defaultEffects(),
@@ -581,51 +1067,15 @@ fun ExpressivePullToRefreshIndicator(
         ) { refreshing ->
             if (refreshing) {
                 ExpressiveLoadingIndicator(
-                    size = 24.dp,
-                    color = color
+                    size = 28.dp,
+                    color = activeIndicatorColor
                 )
             } else {
-                val fraction = state.distanceFraction.coerceIn(0f, 1.3f)
-                val pullScale = (fraction * 0.85f + 0.15f).coerceIn(0.2f, 1.15f)
-                val pullRotation = fraction * 270f
-                val amplitude = 0.24f * fraction.coerceAtMost(1f)
-
-                Canvas(
-                    modifier = Modifier
-                        .size(24.dp)
-                        .graphicsLayer {
-                            scaleX = pullScale
-                            scaleY = pullScale
-                            rotationZ = pullRotation
-                        }
-                ) {
-                    val w = size.width
-                    val h = size.height
-                    val cx = w / 2f
-                    val cy = h / 2f
-                    val baseRadius = (minOf(w, h) / 2f) * 0.82f
-
-                    val path = Path()
-                    val points = 72
-                    val nLobes = 12f
-                    for (i in 0 until points) {
-                        val theta = (i.toFloat() / points) * 2f * Math.PI.toFloat()
-                        val r = baseRadius * (1f + amplitude * kotlin.math.cos(nLobes * theta))
-                        val x = cx + r * kotlin.math.cos(theta)
-                        val y = cy + r * kotlin.math.sin(theta)
-                        if (i == 0) {
-                            path.moveTo(x, y)
-                        } else {
-                            path.lineTo(x, y)
-                        }
-                    }
-                    path.close()
-
-                    drawPath(
-                        path = path,
-                        color = color
-                    )
-                }
+                ExpressiveLoadingIndicator(
+                    size = 28.dp,
+                    color = activeIndicatorColor,
+                    progress = { state.distanceFraction }
+                )
             }
         }
     }
@@ -635,7 +1085,7 @@ fun ExpressivePullToRefreshIndicator(
  * MD3 Expressive PullToRefreshBox.
  *
  * Drop-in container supporting swipe-to-refresh with the Material 3 Expressive
- * blooming flower drag gesture, haptic threshold pop, and shape-morphing loader.
+ * 7-polygon determinate drag morph, haptic threshold pop, and ContainedLoadingIndicator refresh state.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -884,39 +1334,30 @@ fun ExpressiveDateFilterDialog(
                     .padding(top = 14.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                // Segmented mode toggle
-                SingleChoiceSegmentedButtonRow(
+                // M3 Expressive Connected Button Group mode toggle
+                ExpressiveConnectedButtonGroup(
+                    items = listOf(DateSelectionMode.SINGLE, DateSelectionMode.RANGE),
+                    selectedItem = selectionMode,
+                    onItemSelected = { selectionMode = it },
+                    fillWidth = true,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 20.dp, vertical = 4.dp)
-                ) {
-                    SegmentedButton(
-                        selected = selectionMode == DateSelectionMode.SINGLE,
-                        onClick = {
-                            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                            selectionMode = DateSelectionMode.SINGLE
-                        },
-                        shape = SegmentedButtonDefaults.itemShape(index = 0, count = 2)
-                    ) {
-                        Text(
-                            text = stringResource(R.string.date_picker_single_day),
-                            style = if (selectionMode == DateSelectionMode.SINGLE) MaterialTheme.typography.labelMediumEmphasized else MaterialTheme.typography.labelMedium
-                        )
+                        .padding(horizontal = 20.dp, vertical = 4.dp),
+                    iconProvider = { mode, selected ->
+                        when {
+                            selected -> Icons.Filled.Check
+                            mode == DateSelectionMode.SINGLE -> Icons.Default.CalendarToday
+                            else -> Icons.Default.DateRange
+                        }
+                    },
+                    labelProvider = { mode ->
+                        if (mode == DateSelectionMode.SINGLE) {
+                            stringResource(R.string.date_picker_single_day)
+                        } else {
+                            stringResource(R.string.date_picker_date_range)
+                        }
                     }
-                    SegmentedButton(
-                        selected = selectionMode == DateSelectionMode.RANGE,
-                        onClick = {
-                            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                            selectionMode = DateSelectionMode.RANGE
-                        },
-                        shape = SegmentedButtonDefaults.itemShape(index = 1, count = 2)
-                    ) {
-                        Text(
-                            text = stringResource(R.string.date_picker_date_range),
-                            style = if (selectionMode == DateSelectionMode.RANGE) MaterialTheme.typography.labelMediumEmphasized else MaterialTheme.typography.labelMedium
-                        )
-                    }
-                }
+                )
 
                 // Opacity crossfade must use an Effects spring (damping 1.0, no overshoot) per motion.md
                 Crossfade(
