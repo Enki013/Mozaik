@@ -947,7 +947,7 @@ fun LinearWavyProgressIndicator(
             val steps = ((endX - startX) / 2f).toInt().coerceAtLeast(2)
             for (i in 0..steps) {
                 val x = startX + (endX - startX) * (i.toFloat() / steps)
-                val angle = (x / waveLenPx) * (2f * Math.PI.toFloat()) - phase
+                val angle = (x / waveLenPx) * (2f * Math.PI.toFloat()) + phase
                 val y = cy + ampPx * kotlin.math.sin(angle)
                 if (i == 0) {
                     wavePath.moveTo(x, y)
