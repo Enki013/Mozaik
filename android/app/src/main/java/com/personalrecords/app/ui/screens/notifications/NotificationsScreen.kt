@@ -421,7 +421,8 @@ fun NotificationsScreen(
                 } else {
                     itemsIndexed(
                         items = filteredList,
-                        key = { index, notif -> "${notif.id}_${notif.created_at}_$index" }
+                        key = { index, notif -> "${notif.id}_${notif.created_at}_$index" },
+                        contentType = { _, _ -> "notification_row" }
                     ) { index, notif ->
                         LazyCardRowContainer(
                             index = index,

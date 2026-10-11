@@ -36,7 +36,7 @@ fun BooksScreen(
     val state by viewModel.uiState.collectAsState()
     var showDatePicker by remember { mutableStateOf(false) }
     var selectedBook by remember { mutableStateOf<BookDto?>(null) }
-    var filteredBooks by remember { mutableStateOf(state.books) }
+    var filteredBooks by remember { mutableStateOf<List<BookDto>>(emptyList()) }
     var isFiltering by remember { mutableStateOf(false) }
 
     LaunchedEffect(
@@ -389,7 +389,8 @@ fun BooksScreen(
                 } else {
                     itemsIndexed(
                         items = filteredBooks,
-                        key = { index, book -> "${book.book_id}_${book.title}_$index" }
+                        key = { index, book -> "${book.book_id}_${book.title}_$index" },
+                        contentType = { _, _ -> "book_row" }
                     ) { index, book ->
                         LazyCardRowContainer(
                             index = index,

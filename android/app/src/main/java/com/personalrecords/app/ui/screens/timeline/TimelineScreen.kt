@@ -8,6 +8,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.*
 import androidx.compose.material.icons.filled.*
@@ -35,6 +36,103 @@ import java.util.Date
 import java.util.Locale
 import java.util.TimeZone
 
+private sealed interface TimelineFlatEntry {
+    val key: String
+    val contentType: String
+
+    data class DayHeader(
+        val date: String,
+        val label: String,
+        val totalCal: String?,
+        val hasMultipleSections: Boolean,
+        val singleSource: String?,
+        val totalItemCount: Int,
+        val isLastInDay: Boolean
+    ) : TimelineFlatEntry {
+        override val key: String = "day_hdr_$date"
+        override val contentType: String = "day_header"
+    }
+
+    data class SectionHeader(
+        val date: String,
+        val source: String,
+        val itemCount: Int,
+        val totalCal: String?
+    ) : TimelineFlatEntry {
+        override val key: String = "sec_hdr_${date}_$source"
+        override val contentType: String = "section_header"
+    }
+
+    data class ActivityRow(
+        val date: String,
+        val item: ActivityItemDto,
+        val indexInDay: Int,
+        val isLastInDay: Boolean
+    ) : TimelineFlatEntry {
+        override val key: String = "act_${date}_${item.source}_${item.id}_$indexInDay"
+        override val contentType: String = "activity_item"
+    }
+}
+
+private fun buildTimelineFlatEntries(groups: List<ActivityDayGroupDto>): List<TimelineFlatEntry> {
+    if (groups.isEmpty()) return emptyList()
+    val result = ArrayList<TimelineFlatEntry>(groups.size * 6)
+    for (group in groups) {
+        if (group.items.isEmpty()) continue
+        val sections = LinkedHashMap<String, MutableList<ActivityItemDto>>()
+        for (item in group.items) {
+            sections.getOrPut(item.source) { mutableListOf() }.add(item)
+        }
+        val totalCal = group.summary["total_calories"]?.toString()?.replace("\"", "")
+        val hasMultipleSections = sections.size > 1
+        val singleSource = sections.keys.firstOrNull()
+        val totalCount = group.items.size
+
+        result.add(
+            TimelineFlatEntry.DayHeader(
+                date = group.date,
+                label = group.label,
+                totalCal = totalCal,
+                hasMultipleSections = hasMultipleSections,
+                singleSource = singleSource,
+                totalItemCount = totalCount,
+                isLastInDay = false
+            )
+        )
+
+        var indexInDay = 0
+        for ((source, sectionItems) in sections) {
+            if (hasMultipleSections) {
+                result.add(
+                    TimelineFlatEntry.SectionHeader(
+                        date = group.date,
+                        source = source,
+                        itemCount = sectionItems.size,
+                        totalCal = totalCal
+                    )
+                )
+            }
+            for (item in sectionItems) {
+                val isLastInDay = indexInDay == totalCount - 1
+                result.add(
+                    TimelineFlatEntry.ActivityRow(
+                        date = group.date,
+                        item = item,
+                        indexInDay = indexInDay,
+                        isLastInDay = isLastInDay
+                    )
+                )
+                indexInDay++
+            }
+        }
+    }
+    return result
+}
+
+private val DayCardTopShape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp)
+private val DayCardMiddleShape = RoundedCornerShape(0.dp)
+private val DayCardBottomShape = RoundedCornerShape(bottomStart = 16.dp, bottomEnd = 16.dp)
+
 @OptIn(ExperimentalMaterial3Api::class, androidx.compose.foundation.ExperimentalFoundationApi::class)
 @Composable
 fun TimelineScreen(
@@ -48,7 +146,7 @@ fun TimelineScreen(
     val state by viewModel.uiState.collectAsState()
     var showDatePicker by remember { mutableStateOf(false) }
     var selectedActivity by remember { mutableStateOf<ActivityItemDto?>(null) }
-    var filteredGroups by remember { mutableStateOf<List<ActivityDayGroupDto>>(emptyList()) }
+    var flatEntries by remember { mutableStateOf<List<TimelineFlatEntry>>(emptyList()) }
     var isFiltering by remember { mutableStateOf(false) }
     var isNavTransitionSettled by remember { mutableStateOf(false) }
 
@@ -59,7 +157,7 @@ fun TimelineScreen(
 
     LaunchedEffect(state.dayGroups, state.selectedSource, state.searchQuery) {
         if (state.dayGroups.isEmpty()) {
-            filteredGroups = emptyList()
+            flatEntries = emptyList()
             isFiltering = false
             return@LaunchedEffect
         }
@@ -67,7 +165,7 @@ fun TimelineScreen(
             delay(160L)
         }
         val computed = withContext(Dispatchers.Default) {
-            if (state.selectedSource == "all" && state.searchQuery.isBlank()) {
+            val filteredGroups = if (state.selectedSource == "all" && state.searchQuery.isBlank()) {
                 state.dayGroups
             } else {
                 state.dayGroups.mapNotNull { group ->
@@ -81,8 +179,9 @@ fun TimelineScreen(
                     if (filteredItems.isNotEmpty()) group.copy(items = filteredItems) else null
                 }
             }
+            buildTimelineFlatEntries(filteredGroups)
         }
-        filteredGroups = computed
+        flatEntries = computed
         isFiltering = false
     }
 
@@ -143,14 +242,16 @@ fun TimelineScreen(
                     .fillMaxSize()
                     .padding(horizontal = 12.dp),
                 contentPadding = PaddingValues(top = 10.dp, bottom = 144.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
+                verticalArrangement = Arrangement.Top
             ) {
                 // MD3 Search Bar (scrollable)
-                item {
+                item(key = "timeline_search_bar", contentType = "search_bar") {
                     OutlinedTextField(
                         value = state.searchQuery,
                         onValueChange = { viewModel.setSearchQuery(it) },
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(bottom = 8.dp),
                         placeholder = {
                             Text(
                                 text = stringResource(R.string.timeline_search_placeholder),
@@ -193,11 +294,12 @@ fun TimelineScreen(
                 }
 
                 // Date Range & Quick Chips Bar (scrollable)
-                item {
+                item(key = "timeline_date_chips", contentType = "date_chips") {
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .horizontalScroll(rememberScrollState()),
+                            .horizontalScroll(rememberScrollState())
+                            .padding(bottom = 8.dp),
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
@@ -266,10 +368,12 @@ fun TimelineScreen(
                 }
 
                 // Source Filter Chips Bar (Sticky Header)
-                stickyHeader {
+                stickyHeader(key = "timeline_source_sticky_header", contentType = "sticky_header") {
                     Surface(
                         color = MaterialTheme.colorScheme.surface,
-                        modifier = Modifier.fillMaxWidth()
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(bottom = 8.dp)
                     ) {
                         Row(
                             modifier = Modifier
@@ -304,11 +408,11 @@ fun TimelineScreen(
 
                 // Active date indicator
                 state.selectedDate?.let { date ->
-                    item {
+                    item(key = "timeline_selected_date_badge", contentType = "selected_date") {
                         Surface(
                             color = MaterialTheme.colorScheme.secondaryContainer,
                             shape = M3Shapes.CornerSmall,
-                            modifier = Modifier.padding(vertical = 4.dp)
+                            modifier = Modifier.padding(top = 4.dp, bottom = 12.dp)
                         ) {
                             Row(
                                 verticalAlignment = Alignment.CenterVertically,
@@ -342,7 +446,7 @@ fun TimelineScreen(
                             ContainedLoadingIndicator(size = 44.dp)
                         }
                     }
-                } else if (filteredGroups.isEmpty()) {
+                } else if (flatEntries.isEmpty()) {
                     item(key = "empty_state", contentType = "empty") {
                         Box(
                             modifier = Modifier
@@ -359,21 +463,30 @@ fun TimelineScreen(
                     }
                 } else {
                     items(
-                        items = filteredGroups,
-                        key = { group -> group.date },
-                        contentType = { "day_group" }
-                    ) { group ->
-                        DayGroupCard(
-                            group = group,
-                            onItemClick = { selectedActivity = it },
-                            onNavigateToNutrition = onNavigateToNutrition,
-                            onNavigateToBooks = onNavigateToBooks,
-                            onNavigateToMovies = onNavigateToMovies
-                        )
+                        items = flatEntries,
+                        key = { entry -> entry.key },
+                        contentType = { entry -> entry.contentType }
+                    ) { entry ->
+                        when (entry) {
+                            is TimelineFlatEntry.DayHeader -> {
+                                TimelineDayHeaderItem(entry = entry)
+                            }
+                            is TimelineFlatEntry.SectionHeader -> {
+                                TimelineSectionHeaderItem(entry = entry)
+                            }
+                            is TimelineFlatEntry.ActivityRow -> {
+                                TimelineActivityRowItem(
+                                    entry = entry,
+                                    onItemClick = { selectedActivity = it }
+                                )
+                            }
+                        }
                     }
                 }
 
-                item { Spacer(modifier = Modifier.height(20.dp)) }
+                item(key = "timeline_bottom_spacer", contentType = "spacer") {
+                    Spacer(modifier = Modifier.height(20.dp))
+                }
             }
         }
     }
@@ -387,248 +500,227 @@ fun TimelineScreen(
 }
 
 @Composable
-fun DayGroupCard(
-    group: ActivityDayGroupDto,
-    onItemClick: (ActivityItemDto) -> Unit = {},
-    onNavigateToNutrition: () -> Unit = {},
-    onNavigateToBooks: () -> Unit = {},
-    onNavigateToMovies: () -> Unit = {}
+private fun TimelineDayHeaderItem(
+    entry: TimelineFlatEntry.DayHeader
 ) {
-    val sections = remember(group.items) {
-        val map = LinkedHashMap<String, MutableList<ActivityItemDto>>()
-        group.items.forEach { item ->
-            map.getOrPut(item.source) { mutableListOf() }.add(item)
+    val isOnlyFood = !entry.hasMultipleSections && entry.singleSource == "fatsecret"
+    val shape = if (entry.isLastInDay) M3Shapes.CornerLarge else DayCardTopShape
+
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .then(if (entry.isLastInDay) Modifier.padding(bottom = 8.dp) else Modifier),
+        shape = shape,
+        color = MaterialTheme.colorScheme.surfaceContainerLow
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 14.dp, vertical = 10.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column {
+                Text(
+                    text = entry.label.ifBlank { entry.date },
+                    style = MaterialTheme.typography.titleMediumEmphasized,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+                if (entry.label.isNotBlank() && entry.label != entry.date) {
+                    Text(
+                        text = entry.date,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+
+            if (isOnlyFood && entry.totalCal != null && entry.totalCal != "0") {
+                Surface(
+                    shape = M3Shapes.CornerFull,
+                    color = domainNutritionContainer()
+                ) {
+                    Text(
+                        text = "${entry.totalCal} kcal",
+                        color = domainNutritionOnContainer(),
+                        style = MaterialTheme.typography.labelSmallEmphasized,
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
+                    )
+                }
+            } else if (entry.hasMultipleSections) {
+                Surface(
+                    shape = M3Shapes.CornerFull,
+                    color = MaterialTheme.colorScheme.surfaceContainerHigh
+                ) {
+                    Text(
+                        text = stringResource(R.string.timeline_items_count, entry.totalItemCount),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        style = MaterialTheme.typography.labelSmall,
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
+                    )
+                }
+            } else if (entry.singleSource != null && entry.singleSource != "fatsecret") {
+                val (badgeText, badgeBg, badgeFg) = when (entry.singleSource) {
+                    "notification" -> Triple(
+                        stringResource(R.string.timeline_count_notifications, entry.totalItemCount),
+                        MaterialTheme.colorScheme.secondaryContainer,
+                        MaterialTheme.colorScheme.onSecondaryContainer
+                    )
+                    "letterboxd" -> Triple(
+                        stringResource(R.string.timeline_count_films, entry.totalItemCount),
+                        domainCinemaContainer(),
+                        domainCinemaOnContainer()
+                    )
+                    "goodreads" -> Triple(
+                        stringResource(R.string.timeline_count_books, entry.totalItemCount),
+                        domainBooksContainer(),
+                        domainBooksOnContainer()
+                    )
+                    else -> Triple(
+                        stringResource(R.string.timeline_items_count, entry.totalItemCount),
+                        MaterialTheme.colorScheme.surfaceContainerHigh,
+                        MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                Surface(
+                    shape = M3Shapes.CornerFull,
+                    color = badgeBg
+                ) {
+                    Text(
+                        text = badgeText,
+                        color = badgeFg,
+                        style = MaterialTheme.typography.labelSmall,
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
+                    )
+                }
+            }
         }
-        map
     }
+}
 
-    val totalCal = group.summary["total_calories"]?.toString()?.replace("\"", "")
-    val hasMultipleSections = sections.size > 1
-    val singleSource = sections.keys.firstOrNull()
-    val isOnlyFood = !hasMultipleSections && singleSource == "fatsecret"
-
-    Card(
+@Composable
+private fun TimelineSectionHeaderItem(
+    entry: TimelineFlatEntry.SectionHeader
+) {
+    Surface(
         modifier = Modifier.fillMaxWidth(),
-        shape = M3Shapes.CornerLarge,
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceContainerLow
-        ),
-        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
-        border = null
+        shape = DayCardMiddleShape,
+        color = MaterialTheme.colorScheme.surfaceContainerLow
     ) {
         Column {
-            // Day Header
+            HorizontalDivider(
+                color = MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.5f),
+                modifier = Modifier.padding(horizontal = 12.dp)
+            )
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 14.dp, vertical = 10.dp),
+                    .padding(horizontal = 14.dp, vertical = 8.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Column {
-                    Text(
-                        text = group.label.ifBlank { group.date },
-                        style = MaterialTheme.typography.titleMediumEmphasized,
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
-                    if (group.label.isNotBlank() && group.label != group.date) {
-                        Text(
-                            text = group.date,
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
+                val (icon, title, color) = when (entry.source) {
+                    "fatsecret" -> Triple(Icons.Default.Restaurant, stringResource(R.string.timeline_filter_nutrition), domainNutritionColor())
+                    "notification" -> Triple(Icons.Default.Notifications, stringResource(R.string.timeline_filter_notifications), MaterialTheme.colorScheme.secondary)
+                    "letterboxd" -> Triple(Icons.Default.Movie, stringResource(R.string.timeline_filter_movies), domainCinemaColor())
+                    "goodreads" -> Triple(Icons.AutoMirrored.Filled.MenuBook, stringResource(R.string.timeline_filter_books), domainBooksColor())
+                    else -> Triple(Icons.Default.Bookmark, stringResource(R.string.common_other), MaterialTheme.colorScheme.onSurfaceVariant)
                 }
 
-                // Header Badges:
-                // Calories are ONLY shown if this day only contains food.
-                // Mixed days show overall activity count.
-                // Specific single domains (notifications, books, movies) show their own specific count badges.
-                if (isOnlyFood && totalCal != null && totalCal != "0") {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    Icon(
+                        imageVector = icon,
+                        contentDescription = null,
+                        tint = color,
+                        modifier = Modifier.size(15.dp)
+                    )
+                    Text(
+                        text = title,
+                        style = MaterialTheme.typography.labelMediumEmphasized,
+                        color = color
+                    )
+                }
+
+                if (entry.source == "fatsecret" && entry.totalCal != null && entry.totalCal != "0") {
                     Surface(
                         shape = M3Shapes.CornerFull,
                         color = domainNutritionContainer()
                     ) {
                         Text(
-                            text = "$totalCal kcal",
+                            text = "${entry.totalCal} kcal",
                             color = domainNutritionOnContainer(),
                             style = MaterialTheme.typography.labelSmallEmphasized,
-                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
+                            modifier = Modifier.padding(horizontal = 7.dp, vertical = 2.dp)
                         )
                     }
-                } else if (hasMultipleSections) {
+                } else if (entry.source == "notification") {
                     Surface(
                         shape = M3Shapes.CornerFull,
-                        color = MaterialTheme.colorScheme.surfaceContainerHigh
+                        color = MaterialTheme.colorScheme.secondaryContainer
                     ) {
                         Text(
-                            text = stringResource(R.string.timeline_items_count, group.items.size),
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            text = stringResource(R.string.timeline_count_notifications, entry.itemCount),
+                            color = MaterialTheme.colorScheme.onSecondaryContainer,
                             style = MaterialTheme.typography.labelSmall,
-                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
+                            modifier = Modifier.padding(horizontal = 7.dp, vertical = 2.dp)
                         )
                     }
-                } else if (singleSource != null && singleSource != "fatsecret") {
-                    val (badgeText, badgeBg, badgeFg) = when (singleSource) {
-                        "notification" -> Triple(
-                            stringResource(R.string.timeline_count_notifications, group.items.size),
-                            MaterialTheme.colorScheme.secondaryContainer,
-                            MaterialTheme.colorScheme.onSecondaryContainer
-                        )
-                        "letterboxd" -> Triple(
-                            stringResource(R.string.timeline_count_films, group.items.size),
-                            domainCinemaContainer(),
-                            domainCinemaOnContainer()
-                        )
-                        "goodreads" -> Triple(
-                            stringResource(R.string.timeline_count_books, group.items.size),
-                            domainBooksContainer(),
-                            domainBooksOnContainer()
-                        )
-                        else -> Triple(
-                            stringResource(R.string.timeline_items_count, group.items.size),
-                            MaterialTheme.colorScheme.surfaceContainerHigh,
-                            MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
+                } else if (entry.source == "letterboxd") {
                     Surface(
                         shape = M3Shapes.CornerFull,
-                        color = badgeBg
+                        color = domainCinemaContainer()
                     ) {
                         Text(
-                            text = badgeText,
-                            color = badgeFg,
+                            text = stringResource(R.string.timeline_count_films, entry.itemCount),
+                            color = domainCinemaOnContainer(),
                             style = MaterialTheme.typography.labelSmall,
-                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
+                            modifier = Modifier.padding(horizontal = 7.dp, vertical = 2.dp)
+                        )
+                    }
+                } else if (entry.source == "goodreads") {
+                    Surface(
+                        shape = M3Shapes.CornerFull,
+                        color = domainBooksContainer()
+                    ) {
+                        Text(
+                            text = stringResource(R.string.timeline_count_books, entry.itemCount),
+                            color = domainBooksOnContainer(),
+                            style = MaterialTheme.typography.labelSmall,
+                            modifier = Modifier.padding(horizontal = 7.dp, vertical = 2.dp)
                         )
                     }
                 }
             }
+        }
+    }
+}
 
+@Composable
+private fun TimelineActivityRowItem(
+    entry: TimelineFlatEntry.ActivityRow,
+    onItemClick: (ActivityItemDto) -> Unit
+) {
+    val shape = if (entry.isLastInDay) DayCardBottomShape else DayCardMiddleShape
+
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .then(if (entry.isLastInDay) Modifier.padding(bottom = 8.dp) else Modifier),
+        shape = shape,
+        color = MaterialTheme.colorScheme.surfaceContainerLow
+    ) {
+        Column {
             HorizontalDivider(
                 color = MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.5f),
                 modifier = Modifier.padding(horizontal = 12.dp)
             )
-
-            // Sub-sections by domain
-            var isFirstSection = true
-            sections.forEach { (source, items) ->
-                if (!isFirstSection) {
-                    HorizontalDivider(
-                        color = MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.5f),
-                        modifier = Modifier.padding(horizontal = 12.dp)
-                    )
-                }
-                isFirstSection = false
-
-                // Sub-section Header (shown when there are multiple domains on the same day)
-                if (hasMultipleSections) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 14.dp, vertical = 8.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        val (icon, title, color) = when (source) {
-                            "fatsecret" -> Triple(Icons.Default.Restaurant, stringResource(R.string.timeline_filter_nutrition), domainNutritionColor())
-                            "notification" -> Triple(Icons.Default.Notifications, stringResource(R.string.timeline_filter_notifications), MaterialTheme.colorScheme.secondary)
-                            "letterboxd" -> Triple(Icons.Default.Movie, stringResource(R.string.timeline_filter_movies), domainCinemaColor())
-                            "goodreads" -> Triple(Icons.AutoMirrored.Filled.MenuBook, stringResource(R.string.timeline_filter_books), domainBooksColor())
-                            else -> Triple(Icons.Default.Bookmark, stringResource(R.string.common_other), MaterialTheme.colorScheme.onSurfaceVariant)
-                        }
-
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(6.dp)
-                        ) {
-                            Icon(
-                                imageVector = icon,
-                                contentDescription = null,
-                                tint = color,
-                                modifier = Modifier.size(15.dp)
-                            )
-                            Text(
-                                text = title,
-                                style = MaterialTheme.typography.labelMediumEmphasized,
-                                color = color
-                            )
-                        }
-
-                        // Category specific summary badge
-                        if (source == "fatsecret" && totalCal != null && totalCal != "0") {
-                            Surface(
-                                shape = M3Shapes.CornerFull,
-                                color = domainNutritionContainer()
-                            ) {
-                                Text(
-                                    text = "$totalCal kcal",
-                                    color = domainNutritionOnContainer(),
-                                    style = MaterialTheme.typography.labelSmallEmphasized,
-                                    modifier = Modifier.padding(horizontal = 7.dp, vertical = 2.dp)
-                                )
-                            }
-                        } else if (source == "notification") {
-                            Surface(
-                                shape = M3Shapes.CornerFull,
-                                color = MaterialTheme.colorScheme.secondaryContainer
-                            ) {
-                                Text(
-                                    text = stringResource(R.string.timeline_count_notifications, items.size),
-                                    color = MaterialTheme.colorScheme.onSecondaryContainer,
-                                    style = MaterialTheme.typography.labelSmall,
-                                    modifier = Modifier.padding(horizontal = 7.dp, vertical = 2.dp)
-                                )
-                            }
-                        } else if (source == "letterboxd") {
-                            Surface(
-                                shape = M3Shapes.CornerFull,
-                                color = domainCinemaContainer()
-                            ) {
-                                Text(
-                                    text = stringResource(R.string.timeline_count_films, items.size),
-                                    color = domainCinemaOnContainer(),
-                                    style = MaterialTheme.typography.labelSmall,
-                                    modifier = Modifier.padding(horizontal = 7.dp, vertical = 2.dp)
-                                )
-                            }
-                        } else if (source == "goodreads") {
-                            Surface(
-                                shape = M3Shapes.CornerFull,
-                                color = domainBooksContainer()
-                            ) {
-                                Text(
-                                    text = stringResource(R.string.timeline_count_books, items.size),
-                                    color = domainBooksOnContainer(),
-                                    style = MaterialTheme.typography.labelSmall,
-                                    modifier = Modifier.padding(horizontal = 7.dp, vertical = 2.dp)
-                                )
-                            }
-                        }
-                    }
-
-                    HorizontalDivider(
-                        color = MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.5f),
-                        modifier = Modifier.padding(horizontal = 12.dp)
-                    )
-                }
-
-                // Section Items with HorizontalDivider
-                items.forEachIndexed { itemIndex, item ->
-                    key(item.id) {
-                        if (itemIndex > 0) {
-                            HorizontalDivider(
-                                color = MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.5f),
-                                modifier = Modifier.padding(horizontal = 12.dp)
-                            )
-                        }
-                        TimelineItemCard(
-                            item = item,
-                            onClick = { onItemClick(item) }
-                        )
-                    }
-                }
-            }
+            TimelineItemCard(
+                item = entry.item,
+                onClick = { onItemClick(entry.item) }
+            )
         }
     }
 }

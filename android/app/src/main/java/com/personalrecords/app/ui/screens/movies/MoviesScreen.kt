@@ -38,7 +38,7 @@ fun MoviesScreen(
     val state by viewModel.uiState.collectAsState()
     var showDatePicker by remember { mutableStateOf(false) }
     var selectedFilm by remember { mutableStateOf<FilmDto?>(null) }
-    var filteredFilms by remember { mutableStateOf(state.films) }
+    var filteredFilms by remember { mutableStateOf<List<FilmDto>>(emptyList()) }
     var isFiltering by remember { mutableStateOf(false) }
 
     LaunchedEffect(
@@ -433,7 +433,8 @@ fun MoviesScreen(
                 } else {
                     itemsIndexed(
                         items = filteredFilms,
-                        key = { index, film -> "${film.film_key ?: film.displayTitle}_$index" }
+                        key = { index, film -> "${film.film_key ?: film.displayTitle}_$index" },
+                        contentType = { _, _ -> "movie_row" }
                     ) { index, film ->
                         LazyCardRowContainer(
                             index = index,
