@@ -33,6 +33,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.personalrecords.app.core.theme.M3ExpressiveMotion
 import com.personalrecords.app.core.theme.M3Shapes
 import com.personalrecords.app.core.theme.PersonalRecordsTheme
+import com.personalrecords.app.core.theme.labelLargeEmphasized
 import com.personalrecords.app.core.theme.labelSmallEmphasized
 import com.personalrecords.app.ui.AppViewModelFactory
 import com.personalrecords.app.ui.navigation.Screen
@@ -278,7 +279,73 @@ fun MainAppHost() {
             }
         }
 
-        // Floating Bottom Bar — M3 Expressive Floating Navigation Bar
+        // Floating Bottom Bar — M3 Expressive HorizontalFloatingToolbar + Companion Action
+        // Specs: 64dp container height, CornerFull capsule shape, 8dp leading/trailing padding,
+        // 4dp spacing between items, 8dp gap to companion Settings button.
+        val haptic = LocalHapticFeedback.current
+        val mainNavScreens = remember {
+            listOf(Screen.Overview, Screen.Timeline, Screen.Records)
+        }
+
+        fun handleNavClick(screen: Screen, isSelected: Boolean) {
+            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+
+            fun triggerScrollToTop(route: String) {
+                when (route) {
+                    Screen.Overview.route -> overviewScrollFlow.tryEmit(Unit)
+                    Screen.Timeline.route -> timelineScrollFlow.tryEmit(Unit)
+                    Screen.Records.route -> recordsScrollFlow.tryEmit(Unit)
+                    Screen.Settings.route -> settingsScrollFlow.tryEmit(Unit)
+                }
+            }
+
+            fun triggerRefresh(route: String) {
+                when (route) {
+                    Screen.Overview.route -> overviewRefreshFlow.tryEmit(Unit)
+                    Screen.Timeline.route -> timelineRefreshFlow.tryEmit(Unit)
+                    Screen.Records.route -> recordsRefreshFlow.tryEmit(Unit)
+                    Screen.Settings.route -> settingsRefreshFlow.tryEmit(Unit)
+                }
+            }
+
+            if (isSelected) {
+                if (screen == Screen.Records && currentDestination?.route != Screen.Records.route) {
+                    val popped = navController.popBackStack(Screen.Records.route, inclusive = false)
+                    if (!popped) {
+                        navController.navigate(Screen.Records.route) {
+                            popUpTo(navController.graph.findStartDestination().id) {
+                                saveState = true
+                            }
+                            launchSingleTop = true
+                            restoreState = true
+                        }
+                    }
+                } else if (screen == Screen.Settings && currentDestination?.route == Screen.Language.route) {
+                    navController.popBackStack(Screen.Settings.route, inclusive = false)
+                } else {
+                    if (activeTabTapJob?.isActive == true) {
+                        activeTabTapJob?.cancel()
+                        activeTabTapJob = null
+                        triggerRefresh(screen.route)
+                    } else {
+                        triggerScrollToTop(screen.route)
+                        activeTabTapJob = coroutineScope.launch {
+                            kotlinx.coroutines.delay(220L)
+                            activeTabTapJob = null
+                        }
+                    }
+                }
+            } else {
+                navController.navigate(screen.route) {
+                    popUpTo(navController.graph.findStartDestination().id) {
+                        saveState = true
+                    }
+                    launchSingleTop = true
+                    restoreState = true
+                }
+            }
+        }
+
         Box(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
@@ -287,209 +354,216 @@ fun MainAppHost() {
                 .padding(start = 16.dp, end = 16.dp, bottom = 12.dp),
             contentAlignment = Alignment.Center
         ) {
-            Surface(
-                shape = M3Shapes.CornerExtraLarge,
-                color = MaterialTheme.colorScheme.surfaceContainer,
-                tonalElevation = 2.dp,
-                shadowElevation = 0.dp,
-                modifier = Modifier
-                    .widthIn(max = 420.dp)
-                    .fillMaxWidth()
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(72.dp)
-                        .padding(horizontal = 6.dp),
-                    horizontalArrangement = Arrangement.SpaceEvenly,
-                    verticalAlignment = Alignment.CenterVertically
+                // 1. Primary Compact Floating Toolbar (Overview, Timeline, Records)
+                Surface(
+                    shape = M3Shapes.CornerFull,
+                    color = MaterialTheme.colorScheme.surfaceContainer,
+                    tonalElevation = 3.dp,
+                    shadowElevation = 4.dp,
+                    modifier = Modifier.height(64.dp)
                 ) {
-                    val haptic = LocalHapticFeedback.current
-                    bottomNavScreens.forEach { screen ->
-                        val selected = when (screen) {
-                            Screen.Records -> currentDestination?.route in recordsSubRoutes
-                            Screen.Settings -> currentDestination?.route == Screen.Settings.route || currentDestination?.route == Screen.Language.route
-                            else -> currentDestination?.route == screen.route
-                        }
+                    Row(
+                        modifier = Modifier
+                            .fillMaxHeight()
+                            .padding(horizontal = 8.dp),
+                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        mainNavScreens.forEach { screen ->
+                            val selected = when (screen) {
+                                Screen.Records -> currentDestination?.route in recordsSubRoutes
+                                else -> currentDestination?.route == screen.route
+                            }
 
-                        // Spatial spring (fast: 0.6 damping / 800 stiffness) for icon bounce & pill geometry
-                        val iconScale by animateFloatAsState(
-                            targetValue = if (selected) 1.12f else 1.0f,
-                            animationSpec = M3ExpressiveMotion.fastSpatial(),
-                            label = "nav_icon_bounce"
-                        )
+                            val interactionSource = remember { MutableInteractionSource() }
+                            val isPressed by interactionSource.collectIsPressedAsState()
 
-                        // Effects spring (damping 1.0, no overshoot) for indicator opacity
-                        val indicatorAlpha by animateFloatAsState(
-                            targetValue = if (selected) 1f else 0f,
-                            animationSpec = M3ExpressiveMotion.fastEffects(),
-                            label = "nav_indicator_alpha"
-                        )
-                        val indicatorScaleX by animateFloatAsState(
-                            targetValue = if (selected) 1f else 0.6f,
-                            animationSpec = M3ExpressiveMotion.fastSpatial(),
-                            label = "nav_indicator_scale_x"
-                        )
-                        val indicatorScaleY by animateFloatAsState(
-                            targetValue = if (selected) 1f else 0.75f,
-                            animationSpec = M3ExpressiveMotion.fastSpatial(),
-                            label = "nav_indicator_scale_y"
-                        )
+                            val horizontalPadding by animateDpAsState(
+                                targetValue = if (selected) 16.dp else 12.dp,
+                                animationSpec = M3ExpressiveMotion.defaultSpatial(),
+                                label = "nav_item_h_pad"
+                            )
 
-                        // Effects spring (damping 1.0, no overshoot) for color transitions
-                        val iconColor by animateColorAsState(
-                            targetValue = if (selected) {
-                                MaterialTheme.colorScheme.onSecondaryContainer
-                            } else {
-                                MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f)
-                            },
-                            animationSpec = M3ExpressiveMotion.fastEffects(),
-                            label = "nav_icon_color"
-                        )
+                            val indicatorCorner by animateDpAsState(
+                                targetValue = if (isPressed) 16.dp else 24.dp,
+                                animationSpec = M3ExpressiveMotion.fastSpatial(),
+                                label = "nav_item_corner"
+                            )
 
-                        val textColor by animateColorAsState(
-                            targetValue = if (selected) {
-                                MaterialTheme.colorScheme.onSurface
-                            } else {
-                                MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f)
-                            },
-                            animationSpec = M3ExpressiveMotion.fastEffects(),
-                            label = "nav_text_color"
-                        )
+                            val indicatorAlpha by animateFloatAsState(
+                                targetValue = if (selected) 1f else 0f,
+                                animationSpec = M3ExpressiveMotion.fastEffects(),
+                                label = "nav_item_bg_alpha"
+                            )
 
-                        val interactionSource = remember { MutableInteractionSource() }
-                        val isNavPressed by interactionSource.collectIsPressedAsState()
-                        val indicatorCorner by animateDpAsState(
-                            targetValue = if (isNavPressed) 8.dp else 15.dp,
-                            animationSpec = M3ExpressiveMotion.fastSpatial(),
-                            label = "nav_indicator_corner"
-                        )
+                            val iconScale by animateFloatAsState(
+                                targetValue = if (selected) 1.08f else 1.0f,
+                                animationSpec = M3ExpressiveMotion.fastSpatial(),
+                                label = "nav_item_icon_scale"
+                            )
 
-                        Box(
-                            modifier = Modifier
-                                .weight(1f)
-                                .fillMaxHeight()
-                                .clickable(
-                                    interactionSource = interactionSource,
-                                    indication = null,
-                                    role = Role.Tab,
-                                    onClick = {
-                                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                            val contentColor by animateColorAsState(
+                                targetValue = if (selected) {
+                                    MaterialTheme.colorScheme.onSecondaryContainer
+                                } else {
+                                    MaterialTheme.colorScheme.onSurfaceVariant
+                                },
+                                animationSpec = M3ExpressiveMotion.fastEffects(),
+                                label = "nav_item_content_color"
+                            )
 
-                                        fun triggerScrollToTop(route: String) {
-                                            when (route) {
-                                                Screen.Overview.route -> overviewScrollFlow.tryEmit(Unit)
-                                                Screen.Timeline.route -> timelineScrollFlow.tryEmit(Unit)
-                                                Screen.Records.route -> recordsScrollFlow.tryEmit(Unit)
-                                                Screen.Settings.route -> settingsScrollFlow.tryEmit(Unit)
-                                            }
-                                        }
-
-                                        fun triggerRefresh(route: String) {
-                                            when (route) {
-                                                Screen.Overview.route -> overviewRefreshFlow.tryEmit(Unit)
-                                                Screen.Timeline.route -> timelineRefreshFlow.tryEmit(Unit)
-                                                Screen.Records.route -> recordsRefreshFlow.tryEmit(Unit)
-                                                Screen.Settings.route -> settingsRefreshFlow.tryEmit(Unit)
-                                            }
-                                        }
-
-                                        if (selected) {
-                                            if (screen == Screen.Records && currentDestination?.route != Screen.Records.route) {
-                                                val popped = navController.popBackStack(Screen.Records.route, inclusive = false)
-                                                if (!popped) {
-                                                    navController.navigate(Screen.Records.route) {
-                                                        popUpTo(navController.graph.findStartDestination().id) {
-                                                            saveState = true
-                                                        }
-                                                        launchSingleTop = true
-                                                        restoreState = true
-                                                    }
-                                                }
-                                            } else {
-                                                if (activeTabTapJob?.isActive == true) {
-                                                    activeTabTapJob?.cancel()
-                                                    activeTabTapJob = null
-                                                    triggerRefresh(screen.route)
-                                                } else {
-                                                    triggerScrollToTop(screen.route)
-                                                    activeTabTapJob = coroutineScope.launch {
-                                                        kotlinx.coroutines.delay(220L)
-                                                        activeTabTapJob = null
-                                                    }
-                                                }
-                                            }
-                                        } else {
-                                            navController.navigate(screen.route) {
-                                                popUpTo(navController.graph.findStartDestination().id) {
-                                                    saveState = true
-                                                }
-                                                launchSingleTop = true
-                                                restoreState = true
-                                            }
-                                        }
-                                    }
-                                )
-                                .semantics { this.selected = selected },
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Column(
+                            Row(
                                 modifier = Modifier
-                                    .expressivePressScale(interactionSource, scaleDown = 0.94f),
-                                horizontalAlignment = Alignment.CenterHorizontally,
-                                verticalArrangement = Arrangement.Center
+                                    .height(48.dp)
+                                    .expressivePressScale(interactionSource, scaleDown = 0.94f)
+                                    .background(
+                                        color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = indicatorAlpha),
+                                        shape = RoundedCornerShape(indicatorCorner)
+                                    )
+                                    .clickable(
+                                        interactionSource = interactionSource,
+                                        indication = null,
+                                        role = Role.Tab,
+                                        onClick = { handleNavClick(screen, selected) }
+                                    )
+                                    .semantics { this.selected = selected }
+                                    .padding(horizontal = horizontalPadding),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.Center
                             ) {
-                                // M3 Expressive Active Indicator Pill & Centered Icon
-                                Box(
-                                    modifier = Modifier.size(width = 56.dp, height = 30.dp),
-                                    contentAlignment = Alignment.Center
+                                Icon(
+                                    imageVector = if (selected) screen.selectedIcon else screen.icon,
+                                    contentDescription = stringResource(screen.titleRes),
+                                    tint = contentColor,
+                                    modifier = Modifier
+                                        .size(24.dp)
+                                        .graphicsLayer {
+                                            scaleX = iconScale
+                                            scaleY = iconScale
+                                        }
+                                )
+
+                                AnimatedVisibility(
+                                    visible = selected,
+                                    enter = expandHorizontally(
+                                        animationSpec = M3ExpressiveMotion.defaultSpatial(),
+                                        expandFrom = Alignment.Start
+                                    ) + fadeIn(animationSpec = M3ExpressiveMotion.fastEffects()),
+                                    exit = shrinkHorizontally(
+                                        animationSpec = M3ExpressiveMotion.defaultSpatial(),
+                                        shrinkTowards = Alignment.Start
+                                    ) + fadeOut(animationSpec = M3ExpressiveMotion.fastEffects())
                                 ) {
-                                    if (indicatorAlpha > 0.005f) {
-                                        Box(
-                                            modifier = Modifier
-                                                .fillMaxSize()
-                                                .graphicsLayer {
-                                                    scaleX = indicatorScaleX
-                                                    scaleY = indicatorScaleY
-                                                    alpha = indicatorAlpha
-                                                }
-                                                .background(
-                                                    color = MaterialTheme.colorScheme.secondaryContainer,
-                                                    shape = RoundedCornerShape(indicatorCorner)
-                                                )
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Spacer(modifier = Modifier.width(8.dp))
+                                        Text(
+                                            text = stringResource(screen.navLabelRes),
+                                            style = MaterialTheme.typography.labelLargeEmphasized,
+                                            color = contentColor,
+                                            maxLines = 1,
+                                            softWrap = false,
+                                            overflow = TextOverflow.Clip
                                         )
                                     }
-
-                                    Icon(
-                                        imageVector = if (selected) screen.selectedIcon else screen.icon,
-                                        contentDescription = stringResource(screen.titleRes),
-                                        tint = iconColor,
-                                        modifier = Modifier
-                                            .size(24.dp)
-                                            .graphicsLayer {
-                                                scaleX = iconScale
-                                                scaleY = iconScale
-                                            }
-                                    )
                                 }
-
-                                Spacer(modifier = Modifier.height(4.dp))
-
-                                Text(
-                                    text = stringResource(screen.navLabelRes),
-                                    style = if (selected) {
-                                        MaterialTheme.typography.labelSmallEmphasized.copy(lineHeight = 14.sp)
-                                    } else {
-                                        MaterialTheme.typography.labelSmall.copy(lineHeight = 14.sp)
-                                    },
-                                    color = textColor,
-                                    textAlign = TextAlign.Center,
-                                    maxLines = 1,
-                                    softWrap = false,
-                                    overflow = TextOverflow.Ellipsis
-                                )
                             }
                         }
+                    }
+                }
+
+                // 2. Companion Settings Button (8dp separated per M3 Expressive FloatingToolbar spec)
+                val settingsSelected = currentDestination?.route == Screen.Settings.route ||
+                    currentDestination?.route == Screen.Language.route
+                val settingsInteractionSource = remember { MutableInteractionSource() }
+                val isSettingsPressed by settingsInteractionSource.collectIsPressedAsState()
+
+                val settingsOuterCorner by animateDpAsState(
+                    targetValue = if (isSettingsPressed) 20.dp else 32.dp,
+                    animationSpec = M3ExpressiveMotion.fastSpatial(),
+                    label = "settings_outer_corner"
+                )
+                val settingsInnerCorner by animateDpAsState(
+                    targetValue = if (isSettingsPressed) 16.dp else 24.dp,
+                    animationSpec = M3ExpressiveMotion.fastSpatial(),
+                    label = "settings_inner_corner"
+                )
+                val settingsIndicatorAlpha by animateFloatAsState(
+                    targetValue = if (settingsSelected) 1f else 0f,
+                    animationSpec = M3ExpressiveMotion.fastEffects(),
+                    label = "settings_indicator_alpha"
+                )
+                val settingsIndicatorScale by animateFloatAsState(
+                    targetValue = if (settingsSelected) 1f else 0.7f,
+                    animationSpec = M3ExpressiveMotion.fastSpatial(),
+                    label = "settings_indicator_scale"
+                )
+                val settingsIconRotation by animateFloatAsState(
+                    targetValue = if (settingsSelected) 60f else 0f,
+                    animationSpec = M3ExpressiveMotion.defaultSpatial(),
+                    label = "settings_icon_rotation"
+                )
+                val settingsIconColor by animateColorAsState(
+                    targetValue = if (settingsSelected) {
+                        MaterialTheme.colorScheme.onSecondaryContainer
+                    } else {
+                        MaterialTheme.colorScheme.onSurfaceVariant
+                    },
+                    animationSpec = M3ExpressiveMotion.fastEffects(),
+                    label = "settings_icon_color"
+                )
+
+                Surface(
+                    shape = RoundedCornerShape(settingsOuterCorner),
+                    color = MaterialTheme.colorScheme.surfaceContainer,
+                    tonalElevation = 3.dp,
+                    shadowElevation = 4.dp,
+                    modifier = Modifier
+                        .size(64.dp)
+                        .expressivePressScale(settingsInteractionSource, scaleDown = 0.92f)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .clickable(
+                                interactionSource = settingsInteractionSource,
+                                indication = null,
+                                role = Role.Tab,
+                                onClick = { handleNavClick(Screen.Settings, settingsSelected) }
+                            )
+                            .semantics { this.selected = settingsSelected }
+                            .padding(8.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        if (settingsIndicatorAlpha > 0.005f) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .graphicsLayer {
+                                        scaleX = settingsIndicatorScale
+                                        scaleY = settingsIndicatorScale
+                                        alpha = settingsIndicatorAlpha
+                                    }
+                                    .background(
+                                        color = MaterialTheme.colorScheme.secondaryContainer,
+                                        shape = RoundedCornerShape(settingsInnerCorner)
+                                    )
+                            )
+                        }
+
+                        Icon(
+                            imageVector = if (settingsSelected) Screen.Settings.selectedIcon else Screen.Settings.icon,
+                            contentDescription = stringResource(Screen.Settings.titleRes),
+                            tint = settingsIconColor,
+                            modifier = Modifier
+                                .size(24.dp)
+                                .graphicsLayer {
+                                    rotationZ = settingsIconRotation
+                                }
+                        )
                     }
                 }
             }
