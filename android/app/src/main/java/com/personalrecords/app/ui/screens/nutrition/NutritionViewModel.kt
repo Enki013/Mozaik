@@ -18,6 +18,9 @@ data class NutritionUiState(
     val calorieTarget: Int? = null,
     val todayCalories: Double = 0.0,
     val todayEntriesCount: Int = 0,
+    val todayCarb: Double = 0.0,
+    val todayProtein: Double = 0.0,
+    val todayFat: Double = 0.0,
     val totalCarb: Double = 0.0,
     val totalProtein: Double = 0.0,
     val totalFat: Double = 0.0,
@@ -70,6 +73,9 @@ class NutritionViewModel(
             val todayFoods = foods.filter { it.displayDate == todayIso }
             val todayCal = todaySummary?.displayCalories ?: todayFoods.sumOf { it.calories }
             val todayCount = todaySummary?.displayCount ?: todayFoods.size
+            val todayCarb = todayFoods.sumOf { it.carbohydrate }
+            val todayProt = todayFoods.sumOf { it.protein }
+            val todayFat = todayFoods.sumOf { it.fat }
 
             // Calculate overall macros
             var carb = 0.0
@@ -86,6 +92,9 @@ class NutritionViewModel(
                 calorieTarget = activeTarget,
                 todayCalories = todayCal,
                 todayEntriesCount = todayCount,
+                todayCarb = todayCarb,
+                todayProtein = todayProt,
+                todayFat = todayFat,
                 totalCarb = carb,
                 totalProtein = prot,
                 totalFat = fat,

@@ -320,6 +320,62 @@ fun NutritionScreen(
                                 color = if (rem >= 0) domainNutritionColor() else MaterialTheme.colorScheme.error
                             )
                         }
+
+                        Spacer(modifier = Modifier.height(10.dp))
+
+                        // M3 Expressive Today's Macros Containment Row (inner = 8dp CornerSmall inside 16dp CornerLarge card)
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            listOf(
+                                Triple(stringResource(R.string.nutrition_label_carb), state.todayCarb.toInt(), domainBooksColor()),
+                                Triple(stringResource(R.string.nutrition_label_protein), state.todayProtein.toInt(), domainNutritionColor()),
+                                Triple(stringResource(R.string.nutrition_label_fat), state.todayFat.toInt(), domainRatingColor())
+                            ).forEach { (label, grams, accentColor) ->
+                                Surface(
+                                    modifier = Modifier.weight(1f),
+                                    shape = M3Shapes.CornerSmall,
+                                    color = MaterialTheme.colorScheme.surfaceContainer
+                                ) {
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(horizontal = 8.dp, vertical = 6.dp),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(5.dp),
+                                            modifier = Modifier.weight(1f, fill = false)
+                                        ) {
+                                            Box(
+                                                modifier = Modifier
+                                                    .size(7.dp)
+                                                    .clip(CircleShape)
+                                                    .background(accentColor)
+                                            )
+                                            Text(
+                                                text = label,
+                                                style = MaterialTheme.typography.labelSmall,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                maxLines = 1,
+                                                overflow = TextOverflow.Ellipsis
+                                            )
+                                        }
+                                        Spacer(modifier = Modifier.width(4.dp))
+                                        Text(
+                                            text = "${grams}g",
+                                            style = MaterialTheme.typography.labelMediumEmphasized,
+                                            color = MaterialTheme.colorScheme.onSurface,
+                                            maxLines = 1,
+                                            softWrap = false
+                                        )
+                                    }
+                                }
+                            }
+                        }
                     }
                 }
             }
