@@ -44,5 +44,17 @@ local.properties
 *.jks
 *.keystore
 release-artifacts/
+
+# Design & Reference Assets
 android app references/
+stitch_personal_data_hub/
+
+# AI Agents & Skills
+.agent/
+.agents/
+.agent-skills/
+.claude/
+.cursor/
+.gemini/
+skills/
 
