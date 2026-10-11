@@ -27,6 +27,8 @@ object M3CornerRadius {
     val ExtraLargeIncreased: Dp = 32.dp
     /** Added in M3 Expressive (May 2025) */
     val ExtraExtraLarge: Dp = 48.dp
+    /** Full pill corner radius for 32dp–48dp height chips and buttons */
+    val Full: Dp = 24.dp
 }
 
 object M3Shapes {
