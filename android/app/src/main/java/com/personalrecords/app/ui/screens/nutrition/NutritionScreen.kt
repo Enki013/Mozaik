@@ -282,10 +282,27 @@ fun NutritionScreen(
                             label = "prog"
                         )
 
+                        val todayCarbKcal = state.todayCarb * 4
+                        val todayProtKcal = state.todayProtein * 4
+                        val todayFatKcal = state.todayFat * 9
+                        val todayTotalMacroKcal = todayCarbKcal + todayProtKcal + todayFatKcal
+
+                        val carbColor = domainBooksColor()
+                        val protColor = domainNutritionColor()
+                        val fatColor = domainRatingColor()
+
+                        val macroSegments = if (todayTotalMacroKcal > 0) {
+                            listOf(
+                                (todayCarbKcal / todayTotalMacroKcal).toFloat() to carbColor,
+                                (todayProtKcal / todayTotalMacroKcal).toFloat() to protColor,
+                                (todayFatKcal / todayTotalMacroKcal).toFloat() to fatColor
+                            )
+                        } else null
+
                         val barColor = when {
                             progressPct >= 1f -> MaterialTheme.colorScheme.error
-                            progressPct > 0.85f -> domainRatingColor()
-                            else -> domainNutritionColor()
+                            progressPct > 0.85f -> fatColor
+                            else -> protColor
                         }
 
                         // MD3 Expressive Wavy Linear Progress Indicator
@@ -293,7 +310,8 @@ fun NutritionScreen(
                             progress = { animatedProgress },
                             modifier = Modifier.fillMaxWidth(),
                             color = barColor,
-                            trackColor = MaterialTheme.colorScheme.surfaceContainerHighest
+                            trackColor = MaterialTheme.colorScheme.surfaceContainerHighest,
+                            segments = macroSegments
                         )
                         Spacer(modifier = Modifier.height(6.dp))
 
@@ -317,16 +335,11 @@ fun NutritionScreen(
                             Text(
                                 text = remText,
                                 style = MaterialTheme.typography.bodySmallEmphasized,
-                                color = if (rem >= 0) domainNutritionColor() else MaterialTheme.colorScheme.error
+                                color = if (rem >= 0) protColor else MaterialTheme.colorScheme.error
                             )
                         }
 
                         Spacer(modifier = Modifier.height(8.dp))
-
-                        val todayCarbKcal = state.todayCarb * 4
-                        val todayProtKcal = state.todayProtein * 4
-                        val todayFatKcal = state.todayFat * 9
-                        val todayTotalMacroKcal = todayCarbKcal + todayProtKcal + todayFatKcal
 
                         val todayCarbPct = if (todayTotalMacroKcal > 0) ((todayCarbKcal / todayTotalMacroKcal) * 100).toInt() else 0
                         val todayProtPct = if (todayTotalMacroKcal > 0) ((todayProtKcal / todayTotalMacroKcal) * 100).toInt() else 0
@@ -337,19 +350,19 @@ fun NutritionScreen(
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
                             MacroLegendItem(
-                                color = domainBooksColor(),
+                                color = carbColor,
                                 label = stringResource(R.string.nutrition_label_carb_short),
                                 grams = state.todayCarb.toInt(),
                                 pct = todayCarbPct
                             )
                             MacroLegendItem(
-                                color = domainNutritionColor(),
+                                color = protColor,
                                 label = stringResource(R.string.nutrition_label_protein_short),
                                 grams = state.todayProtein.toInt(),
                                 pct = todayProtPct
                             )
                             MacroLegendItem(
-                                color = domainRatingColor(),
+                                color = fatColor,
                                 label = stringResource(R.string.nutrition_label_fat_short),
                                 grams = state.todayFat.toInt(),
                                 pct = todayFatPct

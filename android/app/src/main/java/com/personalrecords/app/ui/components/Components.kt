@@ -26,6 +26,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
@@ -896,6 +897,7 @@ fun LinearWavyProgressIndicator(
     modifier: Modifier = Modifier,
     color: Color = MaterialTheme.colorScheme.primary,
     trackColor: Color = MaterialTheme.colorScheme.surfaceContainerHighest,
+    segments: List<Pair<Float, Color>>? = null,
     wavelength: Dp = 24.dp,
     amplitude: Dp = 2.8.dp,
     strokeWidth: Dp = 4.dp,
@@ -953,11 +955,37 @@ fun LinearWavyProgressIndicator(
                     wavePath.lineTo(x, y)
                 }
             }
-            drawPath(
-                path = wavePath,
-                color = color,
-                style = Stroke(width = strokePx, cap = StrokeCap.Round)
-            )
+
+            val activeSegments = segments?.filter { it.first > 0f }.orEmpty()
+            val totalWeight = activeSegments.sumOf { it.first.toDouble() }.toFloat()
+
+            if (activeSegments.isNotEmpty() && totalWeight > 0f) {
+                var cumulative = 0f
+                val span = endX - startX
+                activeSegments.forEachIndexed { index, (weight, segColor) ->
+                    val segFraction = weight / totalWeight
+                    val segStartX = startX + span * cumulative
+                    cumulative += segFraction
+                    val segEndX = startX + span * cumulative
+
+                    val clipLeft = if (index == 0) 0f else segStartX
+                    val clipRight = if (index == activeSegments.lastIndex) w else segEndX
+
+                    clipRect(left = clipLeft, top = 0f, right = clipRight, bottom = h) {
+                        drawPath(
+                            path = wavePath,
+                            color = segColor,
+                            style = Stroke(width = strokePx, cap = StrokeCap.Round)
+                        )
+                    }
+                }
+            } else {
+                drawPath(
+                    path = wavePath,
+                    color = color,
+                    style = Stroke(width = strokePx, cap = StrokeCap.Round)
+                )
+            }
         }
 
         // 2. Inactive Track + Stop Indicator Dot
