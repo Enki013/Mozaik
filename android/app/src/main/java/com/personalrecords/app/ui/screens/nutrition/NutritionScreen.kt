@@ -48,7 +48,17 @@ fun NutritionScreen(
     var showTargetDialog by remember { mutableStateOf(false) }
     var showDatePicker by remember { mutableStateOf(false) }
     var selectedFood by remember { mutableStateOf<FoodEntryDto?>(null) }
-    var filteredFoods by remember { mutableStateOf<List<FoodEntryDto>>(emptyList()) }
+    var filteredFoods by remember {
+        mutableStateOf(
+            if (state.searchQuery.isBlank() &&
+                state.selectedDateFilter == null &&
+                state.fromDateFilter == null &&
+                state.toDateFilter == null &&
+                state.selectedMeal == "all" &&
+                !state.onlyHighProtein
+            ) state.foodEntries else emptyList()
+        )
+    }
     var isFiltering by remember { mutableStateOf(false) }
 
     LaunchedEffect(
@@ -72,6 +82,12 @@ fun NutritionScreen(
         val toDate = state.toDateFilter
         val meal = state.selectedMeal
         val highProt = state.onlyHighProtein
+
+        if (query.isBlank() && singleDate == null && fromDate == null && toDate == null && meal == "all" && !highProt) {
+            filteredFoods = entries
+            isFiltering = false
+            return@LaunchedEffect
+        }
 
         if (isFiltering) {
             delay(160)

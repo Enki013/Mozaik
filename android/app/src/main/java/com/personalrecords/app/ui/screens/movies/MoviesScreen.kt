@@ -38,7 +38,7 @@ fun MoviesScreen(
     val state by viewModel.uiState.collectAsState()
     var showDatePicker by remember { mutableStateOf(false) }
     var selectedFilm by remember { mutableStateOf<FilmDto?>(null) }
-    var filteredFilms by remember { mutableStateOf<List<FilmDto>>(emptyList()) }
+    var filteredFilms by remember { mutableStateOf(state.films) }
     var isFiltering by remember { mutableStateOf(false) }
 
     LaunchedEffect(

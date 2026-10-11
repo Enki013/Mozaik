@@ -36,7 +36,7 @@ fun BooksScreen(
     val state by viewModel.uiState.collectAsState()
     var showDatePicker by remember { mutableStateOf(false) }
     var selectedBook by remember { mutableStateOf<BookDto?>(null) }
-    var filteredBooks by remember { mutableStateOf<List<BookDto>>(emptyList()) }
+    var filteredBooks by remember { mutableStateOf(state.books) }
     var isFiltering by remember { mutableStateOf(false) }
 
     LaunchedEffect(

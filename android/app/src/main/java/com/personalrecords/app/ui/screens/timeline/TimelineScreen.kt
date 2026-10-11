@@ -48,12 +48,21 @@ fun TimelineScreen(
     val state by viewModel.uiState.collectAsState()
     var showDatePicker by remember { mutableStateOf(false) }
     var selectedActivity by remember { mutableStateOf<ActivityItemDto?>(null) }
-    var filteredGroups by remember { mutableStateOf<List<ActivityDayGroupDto>>(emptyList()) }
+    var filteredGroups by remember {
+        mutableStateOf(
+            if (state.selectedSource == "all" && state.searchQuery.isBlank()) state.dayGroups else emptyList()
+        )
+    }
     var isFiltering by remember { mutableStateOf(false) }
 
     LaunchedEffect(state.dayGroups, state.selectedSource, state.searchQuery) {
         if (state.dayGroups.isEmpty()) {
             filteredGroups = emptyList()
+            isFiltering = false
+            return@LaunchedEffect
+        }
+        if (state.selectedSource == "all" && state.searchQuery.isBlank()) {
+            filteredGroups = state.dayGroups
             isFiltering = false
             return@LaunchedEffect
         }

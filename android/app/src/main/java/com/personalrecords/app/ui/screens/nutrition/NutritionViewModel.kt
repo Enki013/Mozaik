@@ -7,11 +7,15 @@ import com.personalrecords.app.core.datastore.AppPreferences
 import com.personalrecords.app.core.network.model.DailySummaryDto
 import com.personalrecords.app.core.network.model.FoodEntryDto
 import com.personalrecords.app.data.repository.PersonalRecordsRepository
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 data class NutritionUiState(
     val isLoading: Boolean = false,
@@ -50,57 +54,65 @@ class NutritionViewModel(
     fun loadData() {
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isLoading = true, error = null)
-            val savedTarget = preferences.calorieTarget.first()
-            val summaryRes = repository.getDailySummary(30)
-            val foodsRes = repository.getFoodEntries(500)
-            val targetRes = repository.getCalorieTarget()
+            val newState = withContext(Dispatchers.IO) {
+                coroutineScope {
+                    val savedTargetDeferred = async { preferences.calorieTarget.first() }
+                    val summaryDeferred = async { repository.getDailySummary(30) }
+                    val foodsDeferred = async { repository.getFoodEntries(500) }
+                    val targetDeferred = async { repository.getCalorieTarget() }
 
-            var activeTarget = savedTarget
-            if (targetRes is Resource.Success) {
-                val serverTarget = targetRes.data.target ?: targetRes.data.calorieTarget
-                if (serverTarget != null && serverTarget > 0) {
-                    activeTarget = serverTarget
-                    preferences.setCalorieTarget(serverTarget)
+                    val savedTarget = savedTargetDeferred.await()
+                    val summaryRes = summaryDeferred.await()
+                    val foodsRes = foodsDeferred.await()
+                    val targetRes = targetDeferred.await()
+
+                    var activeTarget = savedTarget
+                    if (targetRes is Resource.Success) {
+                        val serverTarget = targetRes.data.target ?: targetRes.data.calorieTarget
+                        if (serverTarget != null && serverTarget > 0) {
+                            activeTarget = serverTarget
+                            preferences.setCalorieTarget(serverTarget)
+                        }
+                    }
+
+                    val summaries = if (summaryRes is Resource.Success) summaryRes.data else emptyList()
+                    val foods = if (foodsRes is Resource.Success) foodsRes.data else emptyList()
+
+                    val todayIso = java.time.LocalDate.now().toString()
+                    val todaySummary = summaries.firstOrNull { it.displayDate == todayIso }
+                    val todayFoods = foods.filter { it.displayDate == todayIso }
+                    val todayCal = todaySummary?.displayCalories ?: todayFoods.sumOf { it.calories }
+                    val todayCount = todaySummary?.displayCount ?: todayFoods.size
+                    val todayCarb = todayFoods.sumOf { it.carbohydrate }
+                    val todayProt = todayFoods.sumOf { it.protein }
+                    val todayFat = todayFoods.sumOf { it.fat }
+
+                    var carb = 0.0
+                    var prot = 0.0
+                    var fat = 0.0
+                    foods.forEach {
+                        carb += it.carbohydrate
+                        prot += it.protein
+                        fat += it.fat
+                    }
+
+                    _uiState.value.copy(
+                        isLoading = false,
+                        calorieTarget = activeTarget,
+                        todayCalories = todayCal,
+                        todayEntriesCount = todayCount,
+                        todayCarb = todayCarb,
+                        todayProtein = todayProt,
+                        todayFat = todayFat,
+                        totalCarb = carb,
+                        totalProtein = prot,
+                        totalFat = fat,
+                        dailySummaries = summaries,
+                        foodEntries = foods
+                    )
                 }
             }
-
-            val summaries = if (summaryRes is Resource.Success) summaryRes.data else emptyList()
-            val foods = if (foodsRes is Resource.Success) foodsRes.data else emptyList()
-
-            // Calculate today stats from summaries (only match today's date, otherwise 0)
-            val todayIso = java.time.LocalDate.now().toString()
-            val todaySummary = summaries.firstOrNull { it.displayDate == todayIso }
-            val todayFoods = foods.filter { it.displayDate == todayIso }
-            val todayCal = todaySummary?.displayCalories ?: todayFoods.sumOf { it.calories }
-            val todayCount = todaySummary?.displayCount ?: todayFoods.size
-            val todayCarb = todayFoods.sumOf { it.carbohydrate }
-            val todayProt = todayFoods.sumOf { it.protein }
-            val todayFat = todayFoods.sumOf { it.fat }
-
-            // Calculate overall macros
-            var carb = 0.0
-            var prot = 0.0
-            var fat = 0.0
-            foods.forEach {
-                carb += it.carbohydrate
-                prot += it.protein
-                fat += it.fat
-            }
-
-            _uiState.value = _uiState.value.copy(
-                isLoading = false,
-                calorieTarget = activeTarget,
-                todayCalories = todayCal,
-                todayEntriesCount = todayCount,
-                todayCarb = todayCarb,
-                todayProtein = todayProt,
-                todayFat = todayFat,
-                totalCarb = carb,
-                totalProtein = prot,
-                totalFat = fat,
-                dailySummaries = summaries,
-                foodEntries = foods
-            )
+            _uiState.value = newState
         }
     }
 

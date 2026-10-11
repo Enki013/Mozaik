@@ -5,10 +5,14 @@ import androidx.lifecycle.viewModelScope
 import com.personalrecords.app.core.common.Resource
 import com.personalrecords.app.core.network.model.*
 import com.personalrecords.app.data.repository.PersonalRecordsRepository
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 data class OverviewUiState(
     val isLoading: Boolean = false,
@@ -33,8 +37,13 @@ class OverviewViewModel(
     fun loadData() {
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isLoading = true, error = null)
-            val dashRes = repository.getDashboard()
-            val actRes = repository.getActivity(days = 14, limit = 6)
+            val (dashRes, actRes) = withContext(Dispatchers.IO) {
+                coroutineScope {
+                    val dashDeferred = async { repository.getDashboard() }
+                    val actDeferred = async { repository.getActivity(days = 14, limit = 6) }
+                    dashDeferred.await() to actDeferred.await()
+                }
+            }
 
             val dash = if (dashRes is Resource.Success) dashRes.data else null
             val acts = if (actRes is Resource.Success) actRes.data.items else emptyList()

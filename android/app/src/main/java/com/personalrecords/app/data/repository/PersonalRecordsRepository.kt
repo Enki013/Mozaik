@@ -5,21 +5,23 @@ import com.personalrecords.app.core.database.PersonalRecordsDatabase
 import com.personalrecords.app.core.database.entity.*
 import com.personalrecords.app.core.network.ApiService
 import com.personalrecords.app.core.network.model.*
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 class PersonalRecordsRepository(
     private val api: ApiService,
     private val db: PersonalRecordsDatabase
 ) {
-    suspend fun checkHealth(): Boolean {
-        return try {
+    suspend fun checkHealth(): Boolean = withContext(Dispatchers.IO) {
+        try {
             api.checkHealth().ok
         } catch (_: Exception) {
             false
         }
     }
 
-    suspend fun getDashboard(): Resource<DashboardDto> {
-        return try {
+    suspend fun getDashboard(): Resource<DashboardDto> = withContext(Dispatchers.IO) {
+        try {
             val response = api.getDashboard()
             Resource.Success(response)
         } catch (e: Exception) {
@@ -33,8 +35,8 @@ class PersonalRecordsRepository(
         to: String? = null,
         date: String? = null,
         limit: Int? = 100
-    ): Resource<ActivityResponseDto> {
-        return try {
+    ): Resource<ActivityResponseDto> = withContext(Dispatchers.IO) {
+        try {
             val response = api.getActivity(days, from, to, date, limit)
             try {
                 val entities = response.items.map { dto ->
@@ -65,8 +67,8 @@ class PersonalRecordsRepository(
         }
     }
 
-    suspend fun getFoodEntries(limit: Int = 500): Resource<List<FoodEntryDto>> {
-        return try {
+    suspend fun getFoodEntries(limit: Int = 500): Resource<List<FoodEntryDto>> = withContext(Dispatchers.IO) {
+        try {
             val response = api.getFoodEntries(limit)
             try {
                 val entities = response.items.map { dto ->
@@ -110,15 +112,15 @@ class PersonalRecordsRepository(
                             fat = it.fat
                         )
                     }
-                    return Resource.Success(dtos)
+                    return@withContext Resource.Success(dtos)
                 }
             } catch (_: Exception) {}
             Resource.Error(e.localizedMessage ?: "Öğünler getirilemedi", e)
         }
     }
 
-    suspend fun getDailySummary(limit: Int = 30): Resource<List<DailySummaryDto>> {
-        return try {
+    suspend fun getDailySummary(limit: Int = 30): Resource<List<DailySummaryDto>> = withContext(Dispatchers.IO) {
+        try {
             val response = api.getDailySummary(limit)
             Resource.Success(response.items)
         } catch (e: Exception) {
@@ -126,8 +128,8 @@ class PersonalRecordsRepository(
         }
     }
 
-    suspend fun getBooks(query: String? = null, shelf: String? = null, limit: Int = 500): Resource<List<BookDto>> {
-        return try {
+    suspend fun getBooks(query: String? = null, shelf: String? = null, limit: Int = 500): Resource<List<BookDto>> = withContext(Dispatchers.IO) {
+        try {
             val response = api.getBooks(query, shelf, limit)
             try {
                 val entities = response.items.map { dto ->
@@ -170,15 +172,15 @@ class PersonalRecordsRepository(
                             year_published = it.yearPublished
                         )
                     }
-                    return Resource.Success(dtos)
+                    return@withContext Resource.Success(dtos)
                 }
             } catch (_: Exception) {}
             Resource.Error(e.localizedMessage ?: "Kitaplar getirilemedi", e)
         }
     }
 
-    suspend fun getFilms(limit: Int = 500): Resource<List<FilmDto>> {
-        return try {
+    suspend fun getFilms(limit: Int = 500): Resource<List<FilmDto>> = withContext(Dispatchers.IO) {
+        try {
             val response = api.getFilms(limit)
             try {
                 val entities = response.items.map { dto ->
@@ -219,7 +221,7 @@ class PersonalRecordsRepository(
                             imported_at = it.createdAt
                         )
                     }
-                    return Resource.Success(dtos)
+                    return@withContext Resource.Success(dtos)
                 }
             } catch (_: Exception) {}
             Resource.Error(e.localizedMessage ?: "Filmler getirilemedi: ${e.message}", e)
