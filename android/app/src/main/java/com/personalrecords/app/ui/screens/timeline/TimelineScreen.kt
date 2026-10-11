@@ -268,34 +268,26 @@ fun TimelineScreen(
                                 .padding(vertical = 6.dp),
                             horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
-                            listOf(
+                            val sourceItems = listOf(
                                 Triple("all", stringResource(R.string.timeline_filter_all), null),
                                 Triple("fatsecret", stringResource(R.string.timeline_filter_nutrition), Icons.Default.Restaurant),
                                 Triple("goodreads", stringResource(R.string.timeline_filter_books), Icons.AutoMirrored.Filled.MenuBook),
                                 Triple("letterboxd", stringResource(R.string.timeline_filter_movies), Icons.Default.Movie),
                                 Triple("notification", stringResource(R.string.timeline_filter_notifications), Icons.Default.Notifications)
-                            ).forEach { (key, label, icon) ->
-                                val isSelected = state.selectedSource == key
-                                ExpressiveFilterChip(
-                                    selected = isSelected,
-                                    onClick = {
-                                        if (state.selectedSource != key) {
-                                            isFiltering = true
-                                            viewModel.setSource(key)
-                                        }
-                                    },
-                                    leadingIcon = icon?.let {
-                                        {
-                                            Icon(
-                                                imageVector = it,
-                                                contentDescription = null,
-                                                modifier = Modifier.size(16.dp)
-                                            )
-                                        }
-                                    },
-                                    label = { Text(label, style = MaterialTheme.typography.labelMedium) }
-                                )
-                            }
+                            )
+                            val currentSourceItem = sourceItems.firstOrNull { it.first == state.selectedSource } ?: sourceItems.first()
+                            ExpressiveConnectedButtonGroup(
+                                items = sourceItems,
+                                selectedItem = currentSourceItem,
+                                onItemSelected = { (key, _, _) ->
+                                    if (state.selectedSource != key) {
+                                        isFiltering = true
+                                        viewModel.setSource(key)
+                                    }
+                                },
+                                labelProvider = { it.second },
+                                iconProvider = { item, _ -> item.third }
+                            )
                         }
                     }
                 }

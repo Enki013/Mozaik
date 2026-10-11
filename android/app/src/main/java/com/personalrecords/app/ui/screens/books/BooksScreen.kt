@@ -300,32 +300,25 @@ fun BooksScreen(
                                     }
                                 )
 
-                                listOf(
+                                val shelfItems = listOf(
                                     Triple("all", stringResource(R.string.books_shelf_all), null),
                                     Triple("read", stringResource(R.string.books_shelf_read), Icons.Default.Check),
                                     Triple("to-read", stringResource(R.string.books_shelf_to_read), Icons.Default.HourglassEmpty),
                                     Triple("currently-reading", stringResource(R.string.books_shelf_currently_reading), Icons.AutoMirrored.Filled.MenuBook)
-                                ).forEach { (shelf, label, icon) ->
-                                    ExpressiveFilterChip(
-                                        selected = state.selectedShelf == shelf,
-                                        onClick = {
-                                            if (state.selectedShelf != shelf) {
-                                                isFiltering = true
-                                                viewModel.setShelf(shelf)
-                                            }
-                                        },
-                                        leadingIcon = icon?.let {
-                                            {
-                                                Icon(
-                                                    imageVector = it,
-                                                    contentDescription = null,
-                                                    modifier = Modifier.size(16.dp)
-                                                )
-                                            }
-                                        },
-                                        label = { Text(label, style = MaterialTheme.typography.labelMedium) }
-                                    )
-                                }
+                                )
+                                val currentShelfItem = shelfItems.firstOrNull { it.first == state.selectedShelf } ?: shelfItems.first()
+                                ExpressiveConnectedButtonGroup(
+                                    items = shelfItems,
+                                    selectedItem = currentShelfItem,
+                                    onItemSelected = { (shelf, _, _) ->
+                                        if (state.selectedShelf != shelf) {
+                                            isFiltering = true
+                                            viewModel.setShelf(shelf)
+                                        }
+                                    },
+                                    labelProvider = { it.second },
+                                    iconProvider = { item, _ -> item.third }
+                                )
 
                                 val (sortLabel, sortIcon) = when (state.sortBy) {
                                     "rating_desc" -> stringResource(R.string.sort_rating_desc) to Icons.Default.ArrowDownward

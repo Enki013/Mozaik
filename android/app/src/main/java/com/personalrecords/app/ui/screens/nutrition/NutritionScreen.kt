@@ -495,34 +495,27 @@ fun NutritionScreen(
                                 }
                             )
 
-                            // Meals
-                            listOf(
+                            // Meals (M3 Expressive Connected Button Group)
+                            val mealItems = listOf(
                                 Triple("all", stringResource(R.string.nutrition_filter_all_meals), null),
                                 Triple("Breakfast", stringResource(R.string.nutrition_filter_breakfast), Icons.Default.BakeryDining),
                                 Triple("Lunch", stringResource(R.string.nutrition_filter_lunch), Icons.Default.LunchDining),
                                 Triple("Dinner", stringResource(R.string.nutrition_filter_dinner), Icons.Default.DinnerDining),
                                 Triple("Other", stringResource(R.string.nutrition_filter_snack), Icons.Default.Fastfood)
-                            ).forEach { (mealKey, label, icon) ->
-                                ExpressiveFilterChip(
-                                    selected = state.selectedMeal == mealKey,
-                                    onClick = {
-                                        if (state.selectedMeal != mealKey) {
-                                            isFiltering = true
-                                            viewModel.setMeal(mealKey)
-                                        }
-                                    },
-                                    leadingIcon = icon?.let {
-                                        {
-                                            Icon(
-                                                imageVector = it,
-                                                contentDescription = null,
-                                                modifier = Modifier.size(16.dp)
-                                            )
-                                        }
-                                    },
-                                    label = { Text(label, style = MaterialTheme.typography.labelMedium) }
-                                )
-                            }
+                            )
+                            val currentMealItem = mealItems.firstOrNull { it.first == state.selectedMeal } ?: mealItems.first()
+                            ExpressiveConnectedButtonGroup(
+                                items = mealItems,
+                                selectedItem = currentMealItem,
+                                onItemSelected = { (mealKey, _, _) ->
+                                    if (state.selectedMeal != mealKey) {
+                                        isFiltering = true
+                                        viewModel.setMeal(mealKey)
+                                    }
+                                },
+                                labelProvider = { it.second },
+                                iconProvider = { item, _ -> item.third }
+                            )
 
                             // High protein
                             ExpressiveFilterChip(
