@@ -36,6 +36,8 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
+import coil.compose.SubcomposeAsyncImage
+import androidx.compose.ui.graphics.lerp
 import androidx.compose.animation.Crossfade
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.ui.geometry.Offset
@@ -210,7 +212,7 @@ fun PosterThumbnail(
         Icon(
             imageVector = fallbackIcon,
             contentDescription = null,
-            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
             modifier = Modifier.size((minOf(width, height) / 2).coerceAtLeast(18).dp)
         )
         if (!imageUrl.isNullOrBlank()) {
@@ -517,6 +519,11 @@ fun <T> ExpressiveConnectedButtonGroup(
     iconProvider: (@Composable (T, Boolean) -> ImageVector?)? = null
 ) {
     val haptic = LocalHapticFeedback.current
+    val selectedBg = MaterialTheme.colorScheme.secondaryContainer
+    val unselectedBg = MaterialTheme.colorScheme.surfaceContainer
+    val selectedFg = MaterialTheme.colorScheme.onSecondaryContainer
+    val unselectedFg = MaterialTheme.colorScheme.onSurfaceVariant
+
     Row(
         modifier = modifier,
         horizontalArrangement = Arrangement.spacedBy(2.dp),
@@ -530,62 +537,19 @@ fun <T> ExpressiveConnectedButtonGroup(
             val outerStart = index == 0
             val outerEnd = index == items.lastIndex
 
-            val targetStartCorner = when {
-                selected -> 20.dp
-                outerStart -> 20.dp
-                isPressed -> 4.dp
-                else -> 8.dp
-            }
-            val targetEndCorner = when {
-                selected -> 20.dp
-                outerEnd -> 20.dp
-                isPressed -> 4.dp
-                else -> 8.dp
-            }
+            val selectionProgress by animateFloatAsState(
+                targetValue = if (selected) 1f else 0f,
+                animationSpec = M3ExpressiveMotion.fastEffects(),
+                label = "connected_selection"
+            )
 
-            val startCorner by animateDpAsState(
-                targetValue = targetStartCorner,
-                animationSpec = M3ExpressiveMotion.fastSpatial(),
-                label = "connected_start_corner"
-            )
-            val endCorner by animateDpAsState(
-                targetValue = targetEndCorner,
-                animationSpec = M3ExpressiveMotion.fastSpatial(),
-                label = "connected_end_corner"
-            )
-            val scale by animateFloatAsState(
-                targetValue = if (isPressed) 0.95f else 1f,
-                animationSpec = M3ExpressiveMotion.fastSpatial(),
-                label = "connected_scale"
-            )
-            val weightAnim by animateFloatAsState(
-                targetValue = if (selected) 1.12f else 1f,
-                animationSpec = M3ExpressiveMotion.fastSpatial(),
-                label = "connected_weight"
-            )
-            val horizPad by animateDpAsState(
-                targetValue = if (selected) 14.dp else 11.dp,
-                animationSpec = M3ExpressiveMotion.fastSpatial(),
-                label = "connected_pad"
-            )
-            val containerColor by animateColorAsState(
-                targetValue = if (selected) {
-                    MaterialTheme.colorScheme.secondaryContainer
-                } else {
-                    MaterialTheme.colorScheme.surfaceContainer
-                },
-                animationSpec = M3ExpressiveMotion.fastEffects(),
-                label = "connected_bg"
-            )
-            val contentColor by animateColorAsState(
-                targetValue = if (selected) {
-                    MaterialTheme.colorScheme.onSecondaryContainer
-                } else {
-                    MaterialTheme.colorScheme.onSurfaceVariant
-                },
-                animationSpec = M3ExpressiveMotion.fastEffects(),
-                label = "connected_fg"
-            )
+            val baseStartCorner = if (outerStart) 20f else if (isPressed) 4f else 8f
+            val baseEndCorner = if (outerEnd) 20f else if (isPressed) 4f else 8f
+            val startCorner = (baseStartCorner + (20f - baseStartCorner) * selectionProgress).dp
+            val endCorner = (baseEndCorner + (20f - baseEndCorner) * selectionProgress).dp
+            val horizPad = (11f + 3f * selectionProgress).dp
+            val containerColor = lerp(unselectedBg, selectedBg, selectionProgress)
+            val contentColor = lerp(unselectedFg, selectedFg, selectionProgress)
 
             val shape = RoundedCornerShape(
                 topStart = startCorner,
@@ -595,7 +559,7 @@ fun <T> ExpressiveConnectedButtonGroup(
             )
 
             val itemModifier = if (fillWidth) {
-                Modifier.weight(weightAnim)
+                Modifier.weight(1f + 0.12f * selectionProgress)
             } else {
                 Modifier
             }
@@ -607,8 +571,9 @@ fun <T> ExpressiveConnectedButtonGroup(
                 modifier = itemModifier
                     .height(32.dp)
                     .graphicsLayer {
-                        scaleX = scale
-                        scaleY = scale
+                        val pressScale = if (isPressed) 0.95f else 1f
+                        scaleX = pressScale
+                        scaleY = pressScale
                     }
                     .clip(shape)
                     .clickable(
@@ -717,12 +682,8 @@ private fun m3ExpressiveStepSpringProgress(rawT: Float): Float {
  * MD3 Expressive Shape-Morphing Loading Indicator (`LoadingIndicator` & `ContainedLoadingIndicator`
  * from `LoadingIndicatorSamples.kt` + `MaterialShapesSamples.kt`).
  *
- * Morphs **directly** from polygon to polygon across the 7 official M3 Expressive `MaterialShapes`
- * (`SoftBurst` -> `Cookie9Sided` -> `Pentagon` -> `Pill` -> `Sunny` -> `Cookie4Sided` -> `Cookie7Sided`)
- * without collapsing to a circle, accompanied by stepped 90° spring rotation bursts.
- *
- * Supports both indeterminate mode (`progress == null`) and determinate mode (`progress != null`).
- * Set [contained] to `true` (or use [ContainedLoadingIndicator]) to render inside a `primaryContainer` circle.
+ * Defer all animation state reads and path construction to the Draw/GraphicsLayer phases so
+ * zero recompositions occur while the indicator is animating.
  */
 @Composable
 fun ExpressiveLoadingIndicator(
@@ -742,49 +703,31 @@ fun ExpressiveLoadingIndicator(
         color
     }
 
-    val shapeStepProgress: Float
-    val totalRotationDeg: Float
-    val morphScale: Float
-
-    if (progress != null) {
-        val p = progress().coerceIn(0f, 1f)
-        shapeStepProgress = p * 6f
-        totalRotationDeg = p * 360f
-        morphScale = (0.35f + 0.65f * LinearOutSlowInEasing.transform(p)).coerceIn(0.25f, 1f)
+    val infiniteTransition = if (progress == null) {
+        rememberInfiniteTransition(label = "m3_expressive_loading")
     } else {
-        val infiniteTransition = rememberInfiniteTransition(label = "m3_expressive_loading")
-        val rawCycle by infiniteTransition.animateFloat(
-            initialValue = 0f,
-            targetValue = 7f,
-            animationSpec = infiniteRepeatable(
-                animation = tween(durationMillis = 4550, easing = LinearEasing),
-                repeatMode = RepeatMode.Restart
-            ),
-            label = "polygon_cycle"
-        )
-        val continuousSpin by infiniteTransition.animateFloat(
-            initialValue = 0f,
-            targetValue = 360f,
-            animationSpec = infiniteRepeatable(
-                animation = tween(durationMillis = 4550, easing = LinearEasing),
-                repeatMode = RepeatMode.Restart
-            ),
-            label = "continuous_spin"
-        )
-
-        val stepIndex = rawCycle.toInt().coerceIn(0, 6)
-        val localT = rawCycle - stepIndex
-        val springAlpha = m3ExpressiveStepSpringProgress(localT)
-
-        shapeStepProgress = stepIndex + springAlpha
-        // Stepped 90-degree spring rotation bursts per polygon + continuous rotation
-        totalRotationDeg = (stepIndex + springAlpha.coerceIn(0f, 1.1f)) * 51.42857f + continuousSpin * 0.5f
-        morphScale = 1f + 0.06f * kotlin.math.sin(localT.coerceIn(0f, 1f) * Math.PI.toFloat())
+        null
     }
+    val rawCycleState = infiniteTransition?.animateFloat(
+        initialValue = 0f,
+        targetValue = 7f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 4550, easing = LinearEasing),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "polygon_cycle"
+    )
+    val continuousSpinState = infiniteTransition?.animateFloat(
+        initialValue = 0f,
+        targetValue = 360f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 4550, easing = LinearEasing),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "continuous_spin"
+    )
 
-    val fromIndex = shapeStepProgress.toInt().coerceAtLeast(0) % 7
-    val toIndex = (fromIndex + 1) % 7
-    val morphFraction = (shapeStepProgress - shapeStepProgress.toInt())
+    val reusablePath = remember { Path() }
 
     Box(
         modifier = modifier
@@ -806,19 +749,47 @@ fun ExpressiveLoadingIndicator(
                 .size(innerSize)
                 .padding((innerSize * 0.08f).coerceAtLeast(1.dp))
                 .graphicsLayer {
+                    val morphScale: Float
+                    val totalRotationDeg: Float
+                    if (progress != null) {
+                        val p = progress().coerceIn(0f, 1f)
+                        totalRotationDeg = p * 360f
+                        morphScale = (0.35f + 0.65f * LinearOutSlowInEasing.transform(p)).coerceIn(0.25f, 1f)
+                    } else {
+                        val rawCycle = rawCycleState?.value ?: 0f
+                        val continuousSpin = continuousSpinState?.value ?: 0f
+                        val stepIndex = rawCycle.toInt().coerceIn(0, 6)
+                        val localT = rawCycle - stepIndex
+                        val springAlpha = m3ExpressiveStepSpringProgress(localT)
+                        totalRotationDeg = (stepIndex + springAlpha.coerceIn(0f, 1.1f)) * 51.42857f + continuousSpin * 0.5f
+                        morphScale = 1f + 0.06f * kotlin.math.sin(localT.coerceIn(0f, 1f) * Math.PI.toFloat())
+                    }
                     scaleX = morphScale
                     scaleY = morphScale
                     rotationZ = totalRotationDeg
                 }
         ) {
+            val shapeStepProgress = if (progress != null) {
+                progress().coerceIn(0f, 1f) * 6f
+            } else {
+                val rawCycle = rawCycleState?.value ?: 0f
+                val stepIndex = rawCycle.toInt().coerceIn(0, 6)
+                val localT = rawCycle - stepIndex
+                stepIndex + m3ExpressiveStepSpringProgress(localT)
+            }
+
+            val fromIndex = shapeStepProgress.toInt().coerceAtLeast(0) % 7
+            val toIndex = (fromIndex + 1) % 7
+            val morphFraction = shapeStepProgress - shapeStepProgress.toInt()
+
             val canvasW = this.size.width
             val canvasH = this.size.height
             val cx = canvasW / 2f
             val cy = canvasH / 2f
             val baseRadius = (minOf(canvasW, canvasH) / 2f) * 0.84f
 
-            val path = Path()
-            val points = 120
+            reusablePath.rewind()
+            val points = 96
             for (i in 0 until points) {
                 val theta = (i.toFloat() / points) * 2f * Math.PI.toFloat()
                 val rFrom = m3ExpressivePolygonRadius(fromIndex, theta)
@@ -828,15 +799,15 @@ fun ExpressiveLoadingIndicator(
                 val x = cx + r * kotlin.math.cos(theta)
                 val y = cy + r * kotlin.math.sin(theta)
                 if (i == 0) {
-                    path.moveTo(x, y)
+                    reusablePath.moveTo(x, y)
                 } else {
-                    path.lineTo(x, y)
+                    reusablePath.lineTo(x, y)
                 }
             }
-            path.close()
+            reusablePath.close()
 
             drawPath(
-                path = path,
+                path = reusablePath,
                 color = activePolygonColor
             )
         }
@@ -1056,23 +1027,17 @@ fun ExpressivePullToRefreshIndicator(
             ),
         contentAlignment = Alignment.Center
     ) {
-        Crossfade(
-            targetState = isRefreshing,
-            animationSpec = M3ExpressiveMotion.defaultEffects(),
-            label = "ptr_crossfade"
-        ) { refreshing ->
-            if (refreshing) {
-                ExpressiveLoadingIndicator(
-                    size = 28.dp,
-                    color = activeIndicatorColor
-                )
-            } else {
-                ExpressiveLoadingIndicator(
-                    size = 28.dp,
-                    color = activeIndicatorColor,
-                    progress = { state.distanceFraction }
-                )
-            }
+        if (isRefreshing) {
+            ExpressiveLoadingIndicator(
+                size = 28.dp,
+                color = activeIndicatorColor
+            )
+        } else if (state.distanceFraction > 0.005f) {
+            ExpressiveLoadingIndicator(
+                size = 28.dp,
+                color = activeIndicatorColor,
+                progress = { state.distanceFraction }
+            )
         }
     }
 }

@@ -1,5 +1,6 @@
 package com.personalrecords.app.core.network.model
 
+import androidx.compose.runtime.Immutable
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
@@ -47,6 +48,7 @@ data class HealthResponse(
     val ok: Boolean = true
 )
 
+@Immutable
 @Serializable
 data class DashboardDto(
     val counts: Map<String, Int> = emptyMap(),
@@ -57,6 +59,7 @@ data class DashboardDto(
     val calorieTarget: Int? = null
 )
 
+@Immutable
 @Serializable
 data class ActivityItemDto(
     val id: String = "",
@@ -72,6 +75,7 @@ data class ActivityItemDto(
     val details: Map<String, JsonElement> = emptyMap()
 )
 
+@Immutable
 @Serializable
 data class ActivityDayGroupDto(
     val date: String = "",
@@ -89,6 +93,7 @@ data class ActivityResponseDto(
     val groups: List<ActivityDayGroupDto> = emptyList()
 )
 
+@Immutable
 @Serializable
 data class FoodEntryDto(
     val food_entry_id: String = "",
@@ -120,6 +125,7 @@ data class FoodEntriesResponseDto(
     val items: List<FoodEntryDto> = emptyList()
 )
 
+@Immutable
 @Serializable
 data class DailySummaryDto(
     val date_int: Int = 0,
@@ -145,6 +151,7 @@ data class DailySummaryResponseDto(
     val items: List<DailySummaryDto> = emptyList()
 )
 
+@Immutable
 @Serializable
 data class BookDto(
     val book_id: String = "",
@@ -164,6 +171,7 @@ data class BooksResponseDto(
     val items: List<BookDto> = emptyList()
 )
 
+@Immutable
 @Serializable
 data class FilmDto(
     val film_key: String = "",
@@ -271,6 +279,7 @@ data class SaveSyncSettingsResponse(
     val error: String? = null
 )
 
+@Immutable
 @Serializable
 data class NotificationDto(
     val id: String = "",

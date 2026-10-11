@@ -17,117 +17,13 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.input.nestedscroll.nestedScroll
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.personalrecords.app.R
-import com.personalrecords.app.core.network.model.ActivityDayGroupDto
 import com.personalrecords.app.core.network.model.ActivityItemDto
 import com.personalrecords.app.core.theme.*
 import com.personalrecords.app.ui.components.*
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.withContext
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
-import java.util.TimeZone
-
-private sealed interface TimelineFlatEntry {
-    val key: String
-    val contentType: String
-
-    data class DayHeader(
-        val date: String,
-        val label: String,
-        val totalCal: String?,
-        val hasMultipleSections: Boolean,
-        val singleSource: String?,
-        val totalItemCount: Int,
-        val isLastInDay: Boolean
-    ) : TimelineFlatEntry {
-        override val key: String = "day_hdr_$date"
-        override val contentType: String = "day_header"
-    }
-
-    data class SectionHeader(
-        val date: String,
-        val source: String,
-        val itemCount: Int,
-        val totalCal: String?
-    ) : TimelineFlatEntry {
-        override val key: String = "sec_hdr_${date}_$source"
-        override val contentType: String = "section_header"
-    }
-
-    data class ActivityRow(
-        val date: String,
-        val item: ActivityItemDto,
-        val indexInDay: Int,
-        val isLastInDay: Boolean
-    ) : TimelineFlatEntry {
-        override val key: String = "act_${date}_${item.source}_${item.id}_$indexInDay"
-        override val contentType: String = "activity_item"
-    }
-}
-
-private fun buildTimelineFlatEntries(groups: List<ActivityDayGroupDto>): List<TimelineFlatEntry> {
-    if (groups.isEmpty()) return emptyList()
-    val result = ArrayList<TimelineFlatEntry>(groups.size * 6)
-    for (group in groups) {
-        if (group.items.isEmpty()) continue
-        val sections = LinkedHashMap<String, MutableList<ActivityItemDto>>()
-        for (item in group.items) {
-            sections.getOrPut(item.source) { mutableListOf() }.add(item)
-        }
-        val totalCal = group.summary["total_calories"]?.toString()?.replace("\"", "")
-        val hasMultipleSections = sections.size > 1
-        val singleSource = sections.keys.firstOrNull()
-        val totalCount = group.items.size
-
-        result.add(
-            TimelineFlatEntry.DayHeader(
-                date = group.date,
-                label = group.label,
-                totalCal = totalCal,
-                hasMultipleSections = hasMultipleSections,
-                singleSource = singleSource,
-                totalItemCount = totalCount,
-                isLastInDay = false
-            )
-        )
-
-        var indexInDay = 0
-        for ((source, sectionItems) in sections) {
-            if (hasMultipleSections) {
-                result.add(
-                    TimelineFlatEntry.SectionHeader(
-                        date = group.date,
-                        source = source,
-                        itemCount = sectionItems.size,
-                        totalCal = totalCal
-                    )
-                )
-            }
-            for (item in sectionItems) {
-                val isLastInDay = indexInDay == totalCount - 1
-                result.add(
-                    TimelineFlatEntry.ActivityRow(
-                        date = group.date,
-                        item = item,
-                        indexInDay = indexInDay,
-                        isLastInDay = isLastInDay
-                    )
-                )
-                indexInDay++
-            }
-        }
-    }
-    return result
-}
 
 private val DayCardTopShape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp)
 private val DayCardMiddleShape = RoundedCornerShape(0.dp)
@@ -139,51 +35,14 @@ fun TimelineScreen(
     viewModel: TimelineViewModel,
     scrollToTopFlow: kotlinx.coroutines.flow.Flow<Unit>? = null,
     refreshFlow: kotlinx.coroutines.flow.Flow<Unit>? = null,
-    onNavigateToNutrition: () -> Unit = {},
-    onNavigateToBooks: () -> Unit = {},
-    onNavigateToMovies: () -> Unit = {}
+    @Suppress("UNUSED_PARAMETER") onNavigateToNutrition: () -> Unit = {},
+    @Suppress("UNUSED_PARAMETER") onNavigateToBooks: () -> Unit = {},
+    @Suppress("UNUSED_PARAMETER") onNavigateToMovies: () -> Unit = {}
 ) {
     val state by viewModel.uiState.collectAsState()
     var showDatePicker by remember { mutableStateOf(false) }
     var selectedActivity by remember { mutableStateOf<ActivityItemDto?>(null) }
-    var flatEntries by remember { mutableStateOf<List<TimelineFlatEntry>>(emptyList()) }
-    var isFiltering by remember { mutableStateOf(false) }
-    var isNavTransitionSettled by remember { mutableStateOf(false) }
-
-    LaunchedEffect(Unit) {
-        delay(220L)
-        isNavTransitionSettled = true
-    }
-
-    LaunchedEffect(state.dayGroups, state.selectedSource, state.searchQuery) {
-        if (state.dayGroups.isEmpty()) {
-            flatEntries = emptyList()
-            isFiltering = false
-            return@LaunchedEffect
-        }
-        if (isFiltering) {
-            delay(160L)
-        }
-        val computed = withContext(Dispatchers.Default) {
-            val filteredGroups = if (state.selectedSource == "all" && state.searchQuery.isBlank()) {
-                state.dayGroups
-            } else {
-                state.dayGroups.mapNotNull { group ->
-                    val filteredItems = group.items.filter { item ->
-                        val matchesSource = state.selectedSource == "all" || item.source == state.selectedSource
-                        val matchesSearch = state.searchQuery.isBlank() ||
-                            item.title.contains(state.searchQuery, ignoreCase = true) ||
-                            item.subtitle.contains(state.searchQuery, ignoreCase = true)
-                        matchesSource && matchesSearch
-                    }
-                    if (filteredItems.isNotEmpty()) group.copy(items = filteredItems) else null
-                }
-            }
-            buildTimelineFlatEntries(filteredGroups)
-        }
-        flatEntries = computed
-        isFiltering = false
-    }
+    val onActivityClick = remember { { item: ActivityItemDto -> selectedActivity = item } }
 
     if (showDatePicker) {
         ExpressiveDateFilterDialog(
@@ -270,7 +129,6 @@ fun TimelineScreen(
                         trailingIcon = {
                             if (state.searchQuery.isNotEmpty()) {
                                 IconButton(onClick = {
-                                    isFiltering = true
                                     viewModel.setSearchQuery("")
                                 }) {
                                     Icon(
@@ -395,7 +253,6 @@ fun TimelineScreen(
                                 selectedItem = currentSourceItem,
                                 onItemSelected = { (key, _, _) ->
                                     if (state.selectedSource != key) {
-                                        isFiltering = true
                                         viewModel.setSource(key)
                                     }
                                 },
@@ -435,7 +292,7 @@ fun TimelineScreen(
                     }
                 }
 
-                if ((state.isLoading && !isRefreshing) || !isNavTransitionSettled || isFiltering) {
+                if (state.isLoading && state.flatEntries.isEmpty() && !isRefreshing) {
                     item(key = "loading_indicator", contentType = "loading") {
                         Box(
                             modifier = Modifier
@@ -446,7 +303,7 @@ fun TimelineScreen(
                             ContainedLoadingIndicator(size = 44.dp)
                         }
                     }
-                } else if (flatEntries.isEmpty()) {
+                } else if (state.flatEntries.isEmpty()) {
                     item(key = "empty_state", contentType = "empty") {
                         Box(
                             modifier = Modifier
@@ -463,7 +320,7 @@ fun TimelineScreen(
                     }
                 } else {
                     items(
-                        items = flatEntries,
+                        items = state.flatEntries,
                         key = { entry -> entry.key },
                         contentType = { entry -> entry.contentType }
                     ) { entry ->
@@ -477,7 +334,7 @@ fun TimelineScreen(
                             is TimelineFlatEntry.ActivityRow -> {
                                 TimelineActivityRowItem(
                                     entry = entry,
-                                    onItemClick = { selectedActivity = it }
+                                    onItemClick = onActivityClick
                                 )
                             }
                         }
@@ -719,6 +576,9 @@ private fun TimelineActivityRowItem(
             )
             TimelineItemCard(
                 item = entry.item,
+                rating = entry.rating,
+                caloriesText = entry.caloriesText,
+                timeText = entry.timeText,
                 onClick = { onItemClick(entry.item) }
             )
         }
@@ -728,6 +588,9 @@ private fun TimelineActivityRowItem(
 @Composable
 fun TimelineItemCard(
     item: ActivityItemDto,
+    rating: Double? = null,
+    caloriesText: String? = null,
+    timeText: String? = null,
     onClick: () -> Unit = {}
 ) {
     val fallbackIcon = when (item.source) {
@@ -741,7 +604,7 @@ fun TimelineItemCard(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .expressiveBounceClick(onClick = onClick)
+            .clickable(onClick = onClick)
             .padding(horizontal = 12.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -815,8 +678,6 @@ fun TimelineItemCard(
 
         // Right details (rating, rewatch, calorie, time)
         Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(3.dp)) {
-            val rating = item.details["rating"]?.toString()?.toDoubleOrNull()
-                ?: item.details["my_rating"]?.toString()?.toDoubleOrNull()
             if (rating != null && rating > 0) {
                 RatingBadge(rating = rating)
             }
@@ -846,30 +707,23 @@ fun TimelineItemCard(
                     }
                 }
             }
-            val cal = item.details["calories"]?.toString()?.replace("\"", "")
-            if (item.source == "fatsecret" && cal != null && cal != "0" && cal != "null") {
+            if (!caloriesText.isNullOrBlank()) {
                 Text(
-                    text = "$cal kcal",
+                    text = caloriesText,
                     style = MaterialTheme.typography.labelSmallEmphasized,
                     color = MaterialTheme.colorScheme.primary,
                     maxLines = 1,
                     softWrap = false
                 )
             }
-            // For notification, show post time if available
-            if (item.source == "notification") {
-                val timeStr = item.time ?: item.details["post_time"]?.toString()?.replace("\"", "")?.let {
-                    if (it.length >= 16) it.substring(11, 16) else null
-                }
-                if (!timeStr.isNullOrBlank()) {
-                    Text(
-                        text = timeStr,
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 1,
-                        softWrap = false
-                    )
-                }
+            if (!timeText.isNullOrBlank()) {
+                Text(
+                    text = timeText,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    softWrap = false
+                )
             }
         }
     }

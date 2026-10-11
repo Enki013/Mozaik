@@ -109,9 +109,23 @@ fun ProvideLocalizedApp(
     }
 }
 
+private fun Modifier.keepWarmTab(visible: Boolean): Modifier = this.layout { measurable, constraints ->
+    val placeable = measurable.measure(constraints)
+    layout(placeable.width, placeable.height) {
+        if (visible) {
+            placeable.place(0, 0)
+        }
+    }
+}
+
 @Composable
 fun MainAppHost() {
     val navController = rememberNavController()
+
+    val overviewVm: OverviewViewModel = viewModel(factory = AppViewModelFactory())
+    val timelineVm: TimelineViewModel = viewModel(factory = AppViewModelFactory())
+    val recordsVm: RecordsViewModel = viewModel(factory = AppViewModelFactory())
+    val settingsVm: SettingsViewModel = viewModel(factory = AppViewModelFactory())
 
     val overviewScrollFlow = remember { MutableSharedFlow<Unit>(extraBufferCapacity = 1) }
     val overviewRefreshFlow = remember { MutableSharedFlow<Unit>(extraBufferCapacity = 1) }
@@ -135,7 +149,96 @@ fun MainAppHost() {
         )
     }
 
+    var arePeerTabsPrewarmed by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) {
+        kotlinx.coroutines.delay(350L)
+        arePeerTabsPrewarmed = true
+    }
+
+    val navBackStackEntry by navController.currentBackStackEntryAsState()
+    val currentRoute = navBackStackEntry?.destination?.route ?: Screen.Overview.route
+    val isDetailRoute = currentRoute in detailSubRoutes
+
+    var lastActivePeerTab by remember { mutableStateOf(Screen.Overview.route) }
+    if (!isDetailRoute) {
+        lastActivePeerTab = currentRoute
+    }
+
     Box(modifier = Modifier.fillMaxSize()) {
+        // Persistent Peer Tabs Layer: keeps Overview, Timeline, Records, and Settings
+        // warm in memory (measured once, unplaced when inactive so 0 GPU/touch/recomposition cost).
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .keepWarmTab(visible = !isDetailRoute && lastActivePeerTab == Screen.Overview.route)
+        ) {
+            OverviewScreen(
+                viewModel = overviewVm,
+                scrollToTopFlow = overviewScrollFlow,
+                refreshFlow = overviewRefreshFlow,
+                onNavigateToTimeline = {
+                    navController.navigate(Screen.Timeline.route) {
+                        popUpTo(navController.graph.findStartDestination().id) { saveState = true }
+                        launchSingleTop = true
+                        restoreState = true
+                    }
+                },
+                onNavigateToNutrition = { navController.navigate(Screen.Nutrition.route) },
+                onNavigateToBooks = { navController.navigate(Screen.Books.route) },
+                onNavigateToMovies = { navController.navigate(Screen.Movies.route) }
+            )
+        }
+
+        if (arePeerTabsPrewarmed || lastActivePeerTab == Screen.Timeline.route) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .keepWarmTab(visible = !isDetailRoute && lastActivePeerTab == Screen.Timeline.route)
+            ) {
+                TimelineScreen(
+                    viewModel = timelineVm,
+                    scrollToTopFlow = timelineScrollFlow,
+                    refreshFlow = timelineRefreshFlow,
+                    onNavigateToNutrition = { navController.navigate(Screen.Nutrition.route) },
+                    onNavigateToBooks = { navController.navigate(Screen.Books.route) },
+                    onNavigateToMovies = { navController.navigate(Screen.Movies.route) }
+                )
+            }
+        }
+
+        if (arePeerTabsPrewarmed || lastActivePeerTab == Screen.Records.route) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .keepWarmTab(visible = !isDetailRoute && lastActivePeerTab == Screen.Records.route)
+            ) {
+                RecordsScreen(
+                    viewModel = recordsVm,
+                    scrollToTopFlow = recordsScrollFlow,
+                    refreshFlow = recordsRefreshFlow,
+                    onNavigateToNutrition = { navController.navigate(Screen.Nutrition.route) },
+                    onNavigateToBooks = { navController.navigate(Screen.Books.route) },
+                    onNavigateToMovies = { navController.navigate(Screen.Movies.route) },
+                    onNavigateToNotifications = { navController.navigate(Screen.Notifications.route) }
+                )
+            }
+        }
+
+        if (arePeerTabsPrewarmed || lastActivePeerTab == Screen.Settings.route) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .keepWarmTab(visible = !isDetailRoute && lastActivePeerTab == Screen.Settings.route)
+            ) {
+                SettingsScreen(
+                    viewModel = settingsVm,
+                    scrollToTopFlow = settingsScrollFlow,
+                    refreshFlow = settingsRefreshFlow,
+                    onNavigateToLanguage = { navController.navigate(Screen.Language.route) }
+                )
+            }
+        }
+
         NavHost(
             navController = navController,
             startDestination = Screen.Overview.route,
@@ -148,30 +251,14 @@ fun MainAppHost() {
                         animationSpec = M3ExpressiveMotion.defaultSpatial()
                     ) + fadeIn(animationSpec = M3ExpressiveMotion.defaultEffects())
                 } else {
-                    fadeIn(animationSpec = M3ExpressiveMotion.defaultEffects()) + scaleIn(
-                        initialScale = 0.98f,
-                        animationSpec = M3ExpressiveMotion.defaultSpatial()
-                    )
+                    EnterTransition.None
                 }
             },
             exitTransition = {
-                val target = targetState.destination.route
-                if (target in detailSubRoutes) {
-                    ExitTransition.None
-                } else {
-                    fadeOut(animationSpec = M3ExpressiveMotion.fastEffects())
-                }
+                ExitTransition.None
             },
             popEnterTransition = {
-                val initial = initialState.destination.route
-                if (initial in detailSubRoutes) {
-                    fadeIn(animationSpec = M3ExpressiveMotion.defaultEffects())
-                } else {
-                    fadeIn(animationSpec = M3ExpressiveMotion.defaultEffects()) + scaleIn(
-                        initialScale = 0.98f,
-                        animationSpec = M3ExpressiveMotion.defaultSpatial()
-                    )
-                }
+                EnterTransition.None
             },
             popExitTransition = {
                 val initial = initialState.destination.route
@@ -181,53 +268,26 @@ fun MainAppHost() {
                         animationSpec = M3ExpressiveMotion.fastSpatial()
                     ) + fadeOut(animationSpec = M3ExpressiveMotion.fastEffects())
                 } else {
-                    fadeOut(animationSpec = M3ExpressiveMotion.fastEffects())
+                    ExitTransition.None
                 }
             }
         ) {
             composable(Screen.Overview.route) {
-                val vm: OverviewViewModel = viewModel(factory = AppViewModelFactory())
-                OverviewScreen(
-                    viewModel = vm,
-                    scrollToTopFlow = overviewScrollFlow,
-                    refreshFlow = overviewRefreshFlow,
-                    onNavigateToTimeline = {
-                        navController.navigate(Screen.Timeline.route) {
-                            popUpTo(navController.graph.findStartDestination().id) { saveState = true }
-                            launchSingleTop = true
-                            restoreState = true
-                        }
-                    },
-                    onNavigateToNutrition = { navController.navigate(Screen.Nutrition.route) },
-                    onNavigateToBooks = { navController.navigate(Screen.Books.route) },
-                    onNavigateToMovies = { navController.navigate(Screen.Movies.route) }
-                )
+                Spacer(modifier = Modifier.fillMaxSize())
             }
 
             composable(Screen.Timeline.route) {
-                val vm: TimelineViewModel = viewModel(factory = AppViewModelFactory())
-                TimelineScreen(
-                    viewModel = vm,
-                    scrollToTopFlow = timelineScrollFlow,
-                    refreshFlow = timelineRefreshFlow,
-                    onNavigateToNutrition = { navController.navigate(Screen.Nutrition.route) },
-                    onNavigateToBooks = { navController.navigate(Screen.Books.route) },
-                    onNavigateToMovies = { navController.navigate(Screen.Movies.route) }
-                )
+                Spacer(modifier = Modifier.fillMaxSize())
             }
 
             composable(Screen.Records.route) {
-                val vm: RecordsViewModel = viewModel(factory = AppViewModelFactory())
-                RecordsScreen(
-                    viewModel = vm,
-                    scrollToTopFlow = recordsScrollFlow,
-                    refreshFlow = recordsRefreshFlow,
-                    onNavigateToNutrition = { navController.navigate(Screen.Nutrition.route) },
-                    onNavigateToBooks = { navController.navigate(Screen.Books.route) },
-                    onNavigateToMovies = { navController.navigate(Screen.Movies.route) },
-                    onNavigateToNotifications = { navController.navigate(Screen.Notifications.route) }
-                )
+                Spacer(modifier = Modifier.fillMaxSize())
             }
+
+            composable(Screen.Settings.route) {
+                Spacer(modifier = Modifier.fillMaxSize())
+            }
+
             composable(Screen.Nutrition.route) {
                 val vm: NutritionViewModel = viewModel(factory = AppViewModelFactory())
                 NutritionScreen(
@@ -260,22 +320,11 @@ fun MainAppHost() {
                 )
             }
 
-            composable(Screen.Settings.route) {
-                val vm: SettingsViewModel = viewModel(factory = AppViewModelFactory())
-                SettingsScreen(
-                    viewModel = vm,
-                    scrollToTopFlow = settingsScrollFlow,
-                    refreshFlow = settingsRefreshFlow,
-                    onNavigateToLanguage = { navController.navigate(Screen.Language.route) }
-                )
-            }
-
             composable(Screen.Language.route) {
-                val vm: SettingsViewModel = viewModel(factory = AppViewModelFactory())
-                val state by vm.uiState.collectAsState()
+                val state by settingsVm.uiState.collectAsState()
                 LanguageSelectionScreen(
                     currentLanguage = state.appLanguage,
-                    onLanguageSelected = { lang -> vm.setLanguage(lang) },
+                    onLanguageSelected = { lang -> settingsVm.setLanguage(lang) },
                     onNavigateBack = { navController.popBackStack() }
                 )
             }
