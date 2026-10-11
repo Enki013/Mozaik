@@ -48,24 +48,42 @@ fun TimelineScreen(
     val state by viewModel.uiState.collectAsState()
     var showDatePicker by remember { mutableStateOf(false) }
     var selectedActivity by remember { mutableStateOf<ActivityItemDto?>(null) }
+    var filteredGroups by remember { mutableStateOf<List<ActivityDayGroupDto>>(emptyList()) }
+    var isFiltering by remember { mutableStateOf(false) }
+    var isNavTransitionSettled by remember { mutableStateOf(false) }
 
-    val filteredGroups = remember(state.dayGroups, state.selectedSource, state.searchQuery) {
+    LaunchedEffect(Unit) {
+        delay(220L)
+        isNavTransitionSettled = true
+    }
+
+    LaunchedEffect(state.dayGroups, state.selectedSource, state.searchQuery) {
         if (state.dayGroups.isEmpty()) {
-            emptyList()
-        } else if (state.selectedSource == "all" && state.searchQuery.isBlank()) {
-            state.dayGroups
-        } else {
-            state.dayGroups.mapNotNull { group ->
-                val filteredItems = group.items.filter { item ->
-                    val matchesSource = state.selectedSource == "all" || item.source == state.selectedSource
-                    val matchesSearch = state.searchQuery.isBlank() ||
-                        item.title.contains(state.searchQuery, ignoreCase = true) ||
-                        item.subtitle.contains(state.searchQuery, ignoreCase = true)
-                    matchesSource && matchesSearch
+            filteredGroups = emptyList()
+            isFiltering = false
+            return@LaunchedEffect
+        }
+        if (isFiltering) {
+            delay(160L)
+        }
+        val computed = withContext(Dispatchers.Default) {
+            if (state.selectedSource == "all" && state.searchQuery.isBlank()) {
+                state.dayGroups
+            } else {
+                state.dayGroups.mapNotNull { group ->
+                    val filteredItems = group.items.filter { item ->
+                        val matchesSource = state.selectedSource == "all" || item.source == state.selectedSource
+                        val matchesSearch = state.searchQuery.isBlank() ||
+                            item.title.contains(state.searchQuery, ignoreCase = true) ||
+                            item.subtitle.contains(state.searchQuery, ignoreCase = true)
+                        matchesSource && matchesSearch
+                    }
+                    if (filteredItems.isNotEmpty()) group.copy(items = filteredItems) else null
                 }
-                if (filteredItems.isNotEmpty()) group.copy(items = filteredItems) else null
             }
         }
+        filteredGroups = computed
+        isFiltering = false
     }
 
     if (showDatePicker) {
@@ -151,6 +169,7 @@ fun TimelineScreen(
                         trailingIcon = {
                             if (state.searchQuery.isNotEmpty()) {
                                 IconButton(onClick = {
+                                    isFiltering = true
                                     viewModel.setSearchQuery("")
                                 }) {
                                     Icon(
@@ -272,6 +291,7 @@ fun TimelineScreen(
                                 selectedItem = currentSourceItem,
                                 onItemSelected = { (key, _, _) ->
                                     if (state.selectedSource != key) {
+                                        isFiltering = true
                                         viewModel.setSource(key)
                                     }
                                 },
@@ -311,7 +331,7 @@ fun TimelineScreen(
                     }
                 }
 
-                if (state.isLoading && !isRefreshing && filteredGroups.isEmpty()) {
+                if ((state.isLoading && !isRefreshing) || !isNavTransitionSettled || isFiltering) {
                     item(key = "loading_indicator", contentType = "loading") {
                         Box(
                             modifier = Modifier

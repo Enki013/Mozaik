@@ -22,6 +22,7 @@ import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.layout.layout
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -32,6 +33,7 @@ import androidx.compose.ui.unit.sp
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.*
+import kotlin.math.roundToInt
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.personalrecords.app.core.theme.M3ExpressiveMotion
 import com.personalrecords.app.core.theme.M3Shapes
@@ -310,7 +312,16 @@ private fun ExpressiveFloatingBottomBar(
     modifier: Modifier = Modifier
 ) {
     val navBackStackEntry by navController.currentBackStackEntryAsState()
-    val currentRoute = navBackStackEntry?.destination?.route
+    val backStackRoute = navBackStackEntry?.destination?.route
+    var optimisticRoute by remember { mutableStateOf<String?>(null) }
+
+    LaunchedEffect(backStackRoute) {
+        if (backStackRoute != null) {
+            optimisticRoute = backStackRoute
+        }
+    }
+
+    val currentRoute = optimisticRoute ?: backStackRoute
 
     val coroutineScope = rememberCoroutineScope()
     var activeTabTapJob by remember { mutableStateOf<kotlinx.coroutines.Job?>(null) }
@@ -324,7 +335,8 @@ private fun ExpressiveFloatingBottomBar(
         haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
 
         if (isSelected) {
-            if (screen == Screen.Records && currentRoute != Screen.Records.route) {
+            if (screen == Screen.Records && backStackRoute != Screen.Records.route) {
+                optimisticRoute = Screen.Records.route
                 val popped = navController.popBackStack(Screen.Records.route, inclusive = false)
                 if (!popped) {
                     navController.navigate(Screen.Records.route) {
@@ -335,7 +347,8 @@ private fun ExpressiveFloatingBottomBar(
                         restoreState = true
                     }
                 }
-            } else if (screen == Screen.Settings && currentRoute == Screen.Language.route) {
+            } else if (screen == Screen.Settings && backStackRoute == Screen.Language.route) {
+                optimisticRoute = Screen.Settings.route
                 navController.popBackStack(Screen.Settings.route, inclusive = false)
             } else {
                 if (activeTabTapJob?.isActive == true) {
@@ -351,12 +364,17 @@ private fun ExpressiveFloatingBottomBar(
                 }
             }
         } else {
-            navController.navigate(screen.route) {
-                popUpTo(navController.graph.findStartDestination().id) {
-                    saveState = true
+            // Start bottom bar pill animation immediately on this frame, then navigate
+            optimisticRoute = screen.route
+            coroutineScope.launch {
+                kotlinx.coroutines.yield()
+                navController.navigate(screen.route) {
+                    popUpTo(navController.graph.findStartDestination().id) {
+                        saveState = true
+                    }
+                    launchSingleTop = true
+                    restoreState = true
                 }
-                launchSingleTop = true
-                restoreState = true
             }
         }
     }
@@ -400,25 +418,23 @@ private fun ExpressiveFloatingBottomBar(
                             val interactionSource = remember { MutableInteractionSource() }
                             val isPressed by interactionSource.collectIsPressedAsState()
 
-                            val horizontalPadding by animateDpAsState(
-                                targetValue = if (selected) 16.dp else 12.dp,
-                                animationSpec = M3ExpressiveMotion.defaultSpatial(),
-                                label = "nav_item_h_pad"
+                            // Single non-overshooting progress state read ONLY in layout/draw phases (zero recomposition per frame)
+                            val selectionProgressState = animateFloatAsState(
+                                targetValue = if (selected) 1f else 0f,
+                                animationSpec = spring(
+                                    dampingRatio = Spring.DampingRatioNoBouncy,
+                                    stiffness = 600f
+                                ),
+                                label = "nav_item_selection_progress"
                             )
 
-                            val indicatorCorner by animateDpAsState(
+                            val indicatorCornerState = animateDpAsState(
                                 targetValue = if (isPressed) 16.dp else 24.dp,
                                 animationSpec = M3ExpressiveMotion.fastSpatial(),
                                 label = "nav_item_corner"
                             )
 
-                            val indicatorAlpha by animateFloatAsState(
-                                targetValue = if (selected) 1f else 0f,
-                                animationSpec = M3ExpressiveMotion.fastEffects(),
-                                label = "nav_item_bg_alpha"
-                            )
-
-                            val iconScale by animateFloatAsState(
+                            val iconScaleState = animateFloatAsState(
                                 targetValue = if (selected) 1.08f else 1.0f,
                                 animationSpec = M3ExpressiveMotion.fastSpatial(),
                                 label = "nav_item_icon_scale"
@@ -439,10 +455,11 @@ private fun ExpressiveFloatingBottomBar(
                                     .height(48.dp)
                                     .expressivePressScale(interactionSource, scaleDown = 0.94f)
                                     .drawBehind {
-                                        if (indicatorAlpha > 0.005f) {
-                                            val r = indicatorCorner.toPx()
+                                        val alpha = selectionProgressState.value.coerceIn(0f, 1f)
+                                        if (alpha > 0.005f) {
+                                            val r = indicatorCornerState.value.toPx()
                                             drawRoundRect(
-                                                color = secondaryContainerColor.copy(alpha = indicatorAlpha),
+                                                color = secondaryContainerColor.copy(alpha = alpha),
                                                 cornerRadius = CornerRadius(r, r)
                                             )
                                         }
@@ -454,7 +471,14 @@ private fun ExpressiveFloatingBottomBar(
                                         onClick = { handleNavClick(screen, selected) }
                                     )
                                     .semantics { this.selected = selected }
-                                    .padding(horizontal = horizontalPadding),
+                                    .layout { measurable, constraints ->
+                                        val p = selectionProgressState.value.coerceIn(0f, 1f)
+                                        val hPadPx = (12.dp.toPx() + (4.dp.toPx() * p)).roundToInt()
+                                        val placeable = measurable.measure(constraints)
+                                        layout(placeable.width + hPadPx * 2, placeable.height) {
+                                            placeable.placeRelative(hPadPx, 0)
+                                        }
+                                    },
                                 verticalAlignment = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.Center
                             ) {
@@ -465,33 +489,40 @@ private fun ExpressiveFloatingBottomBar(
                                     modifier = Modifier
                                         .size(24.dp)
                                         .graphicsLayer {
-                                            scaleX = iconScale
-                                            scaleY = iconScale
+                                            val s = iconScaleState.value
+                                            scaleX = s
+                                            scaleY = s
                                         }
                                 )
 
-                                AnimatedVisibility(
-                                    visible = selected,
-                                    enter = expandHorizontally(
-                                        animationSpec = M3ExpressiveMotion.defaultSpatial(),
-                                        expandFrom = Alignment.Start
-                                    ) + fadeIn(animationSpec = M3ExpressiveMotion.fastEffects()),
-                                    exit = shrinkHorizontally(
-                                        animationSpec = M3ExpressiveMotion.defaultSpatial(),
-                                        shrinkTowards = Alignment.Start
-                                    ) + fadeOut(animationSpec = M3ExpressiveMotion.fastEffects())
+                                // Always-composed label measured once and expanded in the Layout phase (no AnimatedVisibility mount/unmount jump)
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    modifier = Modifier
+                                        .graphicsLayer {
+                                            val p = selectionProgressState.value
+                                            alpha = ((p - 0.15f) / 0.85f).coerceIn(0f, 1f)
+                                        }
+                                        .layout { measurable, constraints ->
+                                            val p = selectionProgressState.value.coerceIn(0f, 1f)
+                                            val placeable = measurable.measure(constraints)
+                                            val currentWidth = (placeable.width * p).roundToInt()
+                                            layout(currentWidth, placeable.height) {
+                                                if (currentWidth > 0) {
+                                                    placeable.placeRelative(0, 0)
+                                                }
+                                            }
+                                        }
                                 ) {
-                                    Row(verticalAlignment = Alignment.CenterVertically) {
-                                        Spacer(modifier = Modifier.width(8.dp))
-                                        Text(
-                                            text = stringResource(screen.navLabelRes),
-                                            style = MaterialTheme.typography.labelLargeEmphasized,
-                                            color = contentColor,
-                                            maxLines = 1,
-                                            softWrap = false,
-                                            overflow = TextOverflow.Clip
-                                        )
-                                    }
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text(
+                                        text = stringResource(screen.navLabelRes),
+                                        style = MaterialTheme.typography.labelLargeEmphasized,
+                                        color = contentColor,
+                                        maxLines = 1,
+                                        softWrap = false,
+                                        overflow = TextOverflow.Clip
+                                    )
                                 }
                             }
                         }
@@ -510,22 +541,22 @@ private fun ExpressiveFloatingBottomBar(
                 animationSpec = M3ExpressiveMotion.fastSpatial(),
                 label = "settings_outer_corner"
             )
-            val settingsInnerCorner by animateDpAsState(
+            val settingsInnerCornerState = animateDpAsState(
                 targetValue = if (isSettingsPressed) 16.dp else 24.dp,
                 animationSpec = M3ExpressiveMotion.fastSpatial(),
                 label = "settings_inner_corner"
             )
-            val settingsIndicatorAlpha by animateFloatAsState(
+            val settingsIndicatorAlphaState = animateFloatAsState(
                 targetValue = if (settingsSelected) 1f else 0f,
                 animationSpec = M3ExpressiveMotion.fastEffects(),
                 label = "settings_indicator_alpha"
             )
-            val settingsIndicatorScale by animateFloatAsState(
+            val settingsIndicatorScaleState = animateFloatAsState(
                 targetValue = if (settingsSelected) 1f else 0.7f,
                 animationSpec = M3ExpressiveMotion.fastSpatial(),
                 label = "settings_indicator_scale"
             )
-            val settingsIconRotation by animateFloatAsState(
+            val settingsIconRotationState = animateFloatAsState(
                 targetValue = if (settingsSelected) 60f else 0f,
                 animationSpec = M3ExpressiveMotion.defaultSpatial(),
                 label = "settings_icon_rotation"
@@ -566,13 +597,14 @@ private fun ExpressiveFloatingBottomBar(
                         modifier = Modifier
                             .fillMaxSize()
                             .graphicsLayer {
-                                scaleX = settingsIndicatorScale
-                                scaleY = settingsIndicatorScale
-                                alpha = settingsIndicatorAlpha
+                                val s = settingsIndicatorScaleState.value
+                                scaleX = s
+                                scaleY = s
+                                alpha = settingsIndicatorAlphaState.value
                             }
                             .drawBehind {
-                                if (settingsIndicatorAlpha > 0.005f) {
-                                    val r = settingsInnerCorner.toPx()
+                                if (settingsIndicatorAlphaState.value > 0.005f) {
+                                    val r = settingsInnerCornerState.value.toPx()
                                     drawRoundRect(
                                         color = secondaryContainerColor,
                                         cornerRadius = CornerRadius(r, r)
@@ -588,7 +620,7 @@ private fun ExpressiveFloatingBottomBar(
                         modifier = Modifier
                             .size(24.dp)
                             .graphicsLayer {
-                                rotationZ = settingsIconRotation
+                                rotationZ = settingsIconRotationState.value
                             }
                     )
                 }
