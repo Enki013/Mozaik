@@ -48,14 +48,20 @@ fun TimelineScreen(
     val state by viewModel.uiState.collectAsState()
     var showDatePicker by remember { mutableStateOf(false) }
     var selectedActivity by remember { mutableStateOf<ActivityItemDto?>(null) }
-    var filteredGroups by remember {
-        mutableStateOf(
-            if (state.selectedSource == "all" && state.searchQuery.isBlank()) state.dayGroups else emptyList()
-        )
-    }
+    var filteredGroups by remember { mutableStateOf<List<ActivityDayGroupDto>>(emptyList()) }
     var isFiltering by remember { mutableStateOf(false) }
+    var isTransitionSettled by remember { mutableStateOf(false) }
 
-    LaunchedEffect(state.dayGroups, state.selectedSource, state.searchQuery) {
+    LaunchedEffect(Unit) {
+        // Let the bottom bar expanding-pill spring & page transition complete at 120fps
+        // before mounting heavy timeline day cards.
+        delay(300L)
+        isTransitionSettled = true
+        viewModel.ensureLoaded()
+    }
+
+    LaunchedEffect(isTransitionSettled, state.dayGroups, state.selectedSource, state.searchQuery) {
+        if (!isTransitionSettled) return@LaunchedEffect
         if (state.dayGroups.isEmpty()) {
             filteredGroups = emptyList()
             isFiltering = false
@@ -330,8 +336,8 @@ fun TimelineScreen(
                     }
                 }
 
-                if ((state.isLoading && !isRefreshing) || isFiltering) {
-                    item {
+                if (!isTransitionSettled || (state.isLoading && !isRefreshing) || isFiltering) {
+                    item(contentType = "loading") {
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -342,7 +348,7 @@ fun TimelineScreen(
                         }
                     }
                 } else if (filteredGroups.isEmpty()) {
-                    item {
+                    item(contentType = "empty") {
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -359,7 +365,8 @@ fun TimelineScreen(
                 } else {
                     items(
                         items = filteredGroups,
-                        key = { group -> group.date }
+                        key = { group -> group.date },
+                        contentType = { "day_group" }
                     ) { group ->
                         DayGroupCard(
                             group = group,
@@ -645,7 +652,7 @@ fun TimelineItemCard(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .expressiveBounceClick(onClick = onClick)
+            .clickable(onClick = onClick)
             .padding(horizontal = 12.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {

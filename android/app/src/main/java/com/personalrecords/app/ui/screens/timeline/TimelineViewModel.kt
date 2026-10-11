@@ -31,11 +31,17 @@ class TimelineViewModel(
     private val _uiState = MutableStateFlow(TimelineUiState())
     val uiState: StateFlow<TimelineUiState> = _uiState.asStateFlow()
 
-    init {
-        loadData()
+    private var hasLoadedOnce = false
+
+    fun ensureLoaded() {
+        if (!hasLoadedOnce) {
+            hasLoadedOnce = true
+            loadData()
+        }
     }
 
     fun loadData() {
+        hasLoadedOnce = true
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isLoading = true, error = null)
             val currentState = _uiState.value
