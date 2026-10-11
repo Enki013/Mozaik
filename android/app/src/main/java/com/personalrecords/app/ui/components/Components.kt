@@ -417,7 +417,6 @@ fun ExpressiveFilterChip(
     modifier: Modifier = Modifier,
     leadingIcon: (@Composable () -> Unit)? = null,
     trailingIcon: (@Composable () -> Unit)? = null,
-    showCheckmarkWhenSelected: Boolean = true,
     colors: SelectableChipColors = borderlessFilterChipColors()
 ) {
     val haptic = LocalHapticFeedback.current
@@ -444,20 +443,6 @@ fun ExpressiveFilterChip(
         label = "chip_scale_morph"
     )
 
-    val resolvedLeadingIcon: (@Composable () -> Unit)? = when {
-        leadingIcon != null -> leadingIcon
-        selected && showCheckmarkWhenSelected -> {
-            {
-                Icon(
-                    imageVector = Icons.Filled.Check,
-                    contentDescription = null,
-                    modifier = Modifier.size(FilterChipDefaults.IconSize)
-                )
-            }
-        }
-        else -> null
-    }
-
     FilterChip(
         selected = selected,
         onClick = {
@@ -473,7 +458,7 @@ fun ExpressiveFilterChip(
         },
         border = null,
         colors = colors,
-        leadingIcon = resolvedLeadingIcon,
+        leadingIcon = leadingIcon,
         trailingIcon = trailingIcon
     )
 }
@@ -1343,13 +1328,6 @@ fun ExpressiveDateFilterDialog(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(horizontal = 20.dp, vertical = 4.dp),
-                    iconProvider = { mode, selected ->
-                        when {
-                            selected -> Icons.Filled.Check
-                            mode == DateSelectionMode.SINGLE -> Icons.Default.CalendarToday
-                            else -> Icons.Default.DateRange
-                        }
-                    },
                     labelProvider = { mode ->
                         if (mode == DateSelectionMode.SINGLE) {
                             stringResource(R.string.date_picker_single_day)
