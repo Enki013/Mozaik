@@ -26,8 +26,10 @@ import com.personalrecords.app.core.theme.*
 import com.personalrecords.app.ui.components.*
 
 private val DayCardTopShape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp)
-private val DayCardMiddleShape = RoundedCornerShape(0.dp)
+private val DayCardMiddleShape = androidx.compose.ui.graphics.RectangleShape
 private val DayCardBottomShape = RoundedCornerShape(bottomStart = 16.dp, bottomEnd = 16.dp)
+private val TimelineDayOptions = listOf(7, 14, 30, 90)
+private val TimelineSourceKeys = listOf("all", "fatsecret", "goodreads", "letterboxd", "notification")
 
 @OptIn(ExperimentalMaterial3Api::class, androidx.compose.foundation.ExperimentalFoundationApi::class)
 @Composable
@@ -71,17 +73,21 @@ fun TimelineScreen(
             if (!state.isLoading) isRefreshing = false
         }
 
-        LaunchedEffect(scrollToTopFlow) {
-            scrollToTopFlow?.collect {
-                listState.expressiveScrollToTop()
+        if (scrollToTopFlow != null) {
+            LaunchedEffect(scrollToTopFlow) {
+                scrollToTopFlow.collect {
+                    listState.expressiveScrollToTop()
+                }
             }
         }
 
-        LaunchedEffect(refreshFlow) {
-            refreshFlow?.collect {
-                listState.expressiveScrollToTop()
-                isRefreshing = true
-                viewModel.loadData()
+        if (refreshFlow != null) {
+            LaunchedEffect(refreshFlow) {
+                refreshFlow.collect {
+                    listState.expressiveScrollToTop()
+                    isRefreshing = true
+                    viewModel.loadData()
+                }
             }
         }
 
@@ -163,7 +169,7 @@ fun TimelineScreen(
                     ) {
                         val activeDayOption = if (state.selectedDate == null && state.fromDate == null) state.selectedDays else -1
                         ExpressiveConnectedButtonGroup(
-                            items = listOf(7, 14, 30, 90),
+                            items = TimelineDayOptions,
                             selectedItem = activeDayOption,
                             onItemSelected = { days -> viewModel.setDays(days) },
                             labelProvider = { days -> "${days}G" }
@@ -240,24 +246,32 @@ fun TimelineScreen(
                                 .padding(vertical = 6.dp),
                             horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
-                            val sourceItems = listOf(
-                                Triple("all", stringResource(R.string.timeline_filter_all), null),
-                                Triple("fatsecret", stringResource(R.string.timeline_filter_nutrition), Icons.Default.Restaurant),
-                                Triple("goodreads", stringResource(R.string.timeline_filter_books), Icons.AutoMirrored.Filled.MenuBook),
-                                Triple("letterboxd", stringResource(R.string.timeline_filter_movies), Icons.Default.Movie),
-                                Triple("notification", stringResource(R.string.timeline_filter_notifications), Icons.Default.Notifications)
-                            )
-                            val currentSourceItem = sourceItems.firstOrNull { it.first == state.selectedSource } ?: sourceItems.first()
                             ExpressiveConnectedButtonGroup(
-                                items = sourceItems,
-                                selectedItem = currentSourceItem,
-                                onItemSelected = { (key, _, _) ->
+                                items = TimelineSourceKeys,
+                                selectedItem = state.selectedSource,
+                                onItemSelected = { key ->
                                     if (state.selectedSource != key) {
                                         viewModel.setSource(key)
                                     }
                                 },
-                                labelProvider = { it.second },
-                                iconProvider = { item, _ -> item.third }
+                                labelProvider = { key ->
+                                    when (key) {
+                                        "fatsecret" -> stringResource(R.string.timeline_filter_nutrition)
+                                        "goodreads" -> stringResource(R.string.timeline_filter_books)
+                                        "letterboxd" -> stringResource(R.string.timeline_filter_movies)
+                                        "notification" -> stringResource(R.string.timeline_filter_notifications)
+                                        else -> stringResource(R.string.timeline_filter_all)
+                                    }
+                                },
+                                iconProvider = { key, _ ->
+                                    when (key) {
+                                        "fatsecret" -> Icons.Default.Restaurant
+                                        "goodreads" -> Icons.AutoMirrored.Filled.MenuBook
+                                        "letterboxd" -> Icons.Default.Movie
+                                        "notification" -> Icons.Default.Notifications
+                                        else -> null
+                                    }
+                                }
                             )
                         }
                     }
@@ -419,27 +433,30 @@ private fun TimelineDayHeaderItem(
                     )
                 }
             } else if (entry.singleSource != null && entry.singleSource != "fatsecret") {
-                val (badgeText, badgeBg, badgeFg) = when (entry.singleSource) {
-                    "notification" -> Triple(
-                        stringResource(R.string.timeline_count_notifications, entry.totalItemCount),
-                        MaterialTheme.colorScheme.secondaryContainer,
-                        MaterialTheme.colorScheme.onSecondaryContainer
-                    )
-                    "letterboxd" -> Triple(
-                        stringResource(R.string.timeline_count_films, entry.totalItemCount),
-                        domainCinemaContainer(),
-                        domainCinemaOnContainer()
-                    )
-                    "goodreads" -> Triple(
-                        stringResource(R.string.timeline_count_books, entry.totalItemCount),
-                        domainBooksContainer(),
-                        domainBooksOnContainer()
-                    )
-                    else -> Triple(
-                        stringResource(R.string.timeline_items_count, entry.totalItemCount),
-                        MaterialTheme.colorScheme.surfaceContainerHigh,
-                        MaterialTheme.colorScheme.onSurfaceVariant
-                    )
+                val badgeText: String
+                val badgeBg: androidx.compose.ui.graphics.Color
+                val badgeFg: androidx.compose.ui.graphics.Color
+                when (entry.singleSource) {
+                    "notification" -> {
+                        badgeText = stringResource(R.string.timeline_count_notifications, entry.totalItemCount)
+                        badgeBg = MaterialTheme.colorScheme.secondaryContainer
+                        badgeFg = MaterialTheme.colorScheme.onSecondaryContainer
+                    }
+                    "letterboxd" -> {
+                        badgeText = stringResource(R.string.timeline_count_films, entry.totalItemCount)
+                        badgeBg = domainCinemaContainer()
+                        badgeFg = domainCinemaOnContainer()
+                    }
+                    "goodreads" -> {
+                        badgeText = stringResource(R.string.timeline_count_books, entry.totalItemCount)
+                        badgeBg = domainBooksContainer()
+                        badgeFg = domainBooksOnContainer()
+                    }
+                    else -> {
+                        badgeText = stringResource(R.string.timeline_items_count, entry.totalItemCount)
+                        badgeBg = MaterialTheme.colorScheme.surfaceContainerHigh
+                        badgeFg = MaterialTheme.colorScheme.onSurfaceVariant
+                    }
                 }
                 Surface(
                     shape = M3Shapes.CornerFull,
@@ -478,12 +495,35 @@ private fun TimelineSectionHeaderItem(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                val (icon, title, color) = when (entry.source) {
-                    "fatsecret" -> Triple(Icons.Default.Restaurant, stringResource(R.string.timeline_filter_nutrition), domainNutritionColor())
-                    "notification" -> Triple(Icons.Default.Notifications, stringResource(R.string.timeline_filter_notifications), MaterialTheme.colorScheme.secondary)
-                    "letterboxd" -> Triple(Icons.Default.Movie, stringResource(R.string.timeline_filter_movies), domainCinemaColor())
-                    "goodreads" -> Triple(Icons.AutoMirrored.Filled.MenuBook, stringResource(R.string.timeline_filter_books), domainBooksColor())
-                    else -> Triple(Icons.Default.Bookmark, stringResource(R.string.common_other), MaterialTheme.colorScheme.onSurfaceVariant)
+                val icon: androidx.compose.ui.graphics.vector.ImageVector
+                val title: String
+                val color: androidx.compose.ui.graphics.Color
+                when (entry.source) {
+                    "fatsecret" -> {
+                        icon = Icons.Default.Restaurant
+                        title = stringResource(R.string.timeline_filter_nutrition)
+                        color = domainNutritionColor()
+                    }
+                    "notification" -> {
+                        icon = Icons.Default.Notifications
+                        title = stringResource(R.string.timeline_filter_notifications)
+                        color = MaterialTheme.colorScheme.secondary
+                    }
+                    "letterboxd" -> {
+                        icon = Icons.Default.Movie
+                        title = stringResource(R.string.timeline_filter_movies)
+                        color = domainCinemaColor()
+                    }
+                    "goodreads" -> {
+                        icon = Icons.AutoMirrored.Filled.MenuBook
+                        title = stringResource(R.string.timeline_filter_books)
+                        color = domainBooksColor()
+                    }
+                    else -> {
+                        icon = Icons.Default.Bookmark
+                        title = stringResource(R.string.common_other)
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    }
                 }
 
                 Row(

@@ -52,17 +52,21 @@ fun RecordsScreen(
             if (!state.isLoading) isRefreshing = false
         }
 
-        LaunchedEffect(scrollToTopFlow) {
-            scrollToTopFlow?.collect {
-                listState.expressiveScrollToTop()
+        if (scrollToTopFlow != null) {
+            LaunchedEffect(scrollToTopFlow) {
+                scrollToTopFlow.collect {
+                    listState.expressiveScrollToTop()
+                }
             }
         }
 
-        LaunchedEffect(refreshFlow) {
-            refreshFlow?.collect {
-                listState.expressiveScrollToTop()
-                isRefreshing = true
-                viewModel.loadData()
+        if (refreshFlow != null) {
+            LaunchedEffect(refreshFlow) {
+                refreshFlow.collect {
+                    listState.expressiveScrollToTop()
+                    isRefreshing = true
+                    viewModel.loadData()
+                }
             }
         }
 
@@ -89,10 +93,10 @@ fun RecordsScreen(
             ) {
 
                 // Section 1: Sağlık & Yaşam
-                item {
+                item(key = "records_header_health", contentType = "section_header") {
                     SectionTitle(title = stringResource(R.string.records_section_health))
                 }
-                item {
+                item(key = "records_card_health", contentType = "section_card") {
                     Card(
                         modifier = Modifier.fillMaxWidth(),
                         shape = M3Shapes.CornerLarge,
@@ -134,10 +138,10 @@ fun RecordsScreen(
                 }
 
                 // Section 2: Kültür & Medya
-                item {
+                item(key = "records_header_media", contentType = "section_header") {
                     SectionTitle(title = stringResource(R.string.records_section_media))
                 }
-                item {
+                item(key = "records_card_media", contentType = "section_card") {
                     Card(
                         modifier = Modifier.fillMaxWidth(),
                         shape = M3Shapes.CornerLarge,
@@ -191,10 +195,10 @@ fun RecordsScreen(
                 }
 
                 // Section 3: Sistem & Cihaz
-                item {
+                item(key = "records_header_system", contentType = "section_header") {
                     SectionTitle(title = stringResource(R.string.records_section_system))
                 }
-                item {
+                item(key = "records_card_system", contentType = "section_card") {
                     Card(
                         modifier = Modifier.fillMaxWidth(),
                         shape = M3Shapes.CornerLarge,
@@ -215,7 +219,7 @@ fun RecordsScreen(
                     }
                 }
 
-                item { Spacer(modifier = Modifier.height(20.dp)) }
+                item(key = "records_bottom_spacer", contentType = "spacer") { Spacer(modifier = Modifier.height(20.dp)) }
             }
         }
     }

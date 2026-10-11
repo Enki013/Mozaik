@@ -17,7 +17,6 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.time.LocalDate
 
-@Immutable
 sealed interface TimelineFlatEntry {
     val key: String
     val contentType: String
@@ -47,7 +46,6 @@ sealed interface TimelineFlatEntry {
         override val contentType: String = "section_header"
     }
 
-    @Immutable
     data class ActivityRow(
         val date: String,
         val item: ActivityItemDto,
@@ -155,7 +153,6 @@ private fun computeTimelineFlatEntries(
     return result
 }
 
-@Immutable
 data class TimelineUiState(
     val isLoading: Boolean = true,
     val isFiltering: Boolean = false,

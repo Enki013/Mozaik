@@ -489,15 +489,11 @@ private fun ExpressiveFloatingBottomBar(
                                 label = "nav_item_icon_scale"
                             )
 
-                            val contentColor by animateColorAsState(
-                                targetValue = if (selected) {
-                                    MaterialTheme.colorScheme.onSecondaryContainer
-                                } else {
-                                    MaterialTheme.colorScheme.onSurfaceVariant
-                                },
-                                animationSpec = M3ExpressiveMotion.fastEffects(),
-                                label = "nav_item_content_color"
-                            )
+                            val contentColor = if (selected) {
+                                MaterialTheme.colorScheme.onSecondaryContainer
+                            } else {
+                                MaterialTheme.colorScheme.onSurfaceVariant
+                            }
 
                             Row(
                                 modifier = Modifier
@@ -567,7 +563,7 @@ private fun ExpressiveFloatingBottomBar(
                                     Text(
                                         text = stringResource(screen.navLabelRes),
                                         style = MaterialTheme.typography.labelLargeEmphasized,
-                                        color = contentColor,
+                                        color = MaterialTheme.colorScheme.onSecondaryContainer,
                                         maxLines = 1,
                                         softWrap = false,
                                         overflow = TextOverflow.Clip
@@ -610,15 +606,11 @@ private fun ExpressiveFloatingBottomBar(
                 animationSpec = M3ExpressiveMotion.defaultSpatial(),
                 label = "settings_icon_rotation"
             )
-            val settingsIconColor by animateColorAsState(
-                targetValue = if (settingsSelected) {
-                    MaterialTheme.colorScheme.onSecondaryContainer
-                } else {
-                    MaterialTheme.colorScheme.onSurfaceVariant
-                },
-                animationSpec = M3ExpressiveMotion.fastEffects(),
-                label = "settings_icon_color"
-            )
+            val settingsIconColor = if (settingsSelected) {
+                MaterialTheme.colorScheme.onSecondaryContainer
+            } else {
+                MaterialTheme.colorScheme.onSurfaceVariant
+            }
 
             Surface(
                 shape = RoundedCornerShape(settingsOuterCorner),

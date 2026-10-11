@@ -30,13 +30,8 @@ import com.personalrecords.app.R
 import com.personalrecords.app.core.network.model.FoodEntryDto
 import com.personalrecords.app.core.theme.*
 import com.personalrecords.app.ui.components.*
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.withContext
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
-import java.util.TimeZone
+
+private val NutritionMealKeys = listOf("all", "Breakfast", "Lunch", "Dinner", "Other")
 
 @OptIn(ExperimentalMaterial3Api::class, androidx.compose.foundation.ExperimentalFoundationApi::class)
 @Composable
@@ -491,24 +486,32 @@ fun NutritionScreen(
                             )
 
                             // Meals (M3 Expressive Connected Button Group)
-                            val mealItems = listOf(
-                                Triple("all", stringResource(R.string.nutrition_filter_all_meals), null),
-                                Triple("Breakfast", stringResource(R.string.nutrition_filter_breakfast), Icons.Default.BakeryDining),
-                                Triple("Lunch", stringResource(R.string.nutrition_filter_lunch), Icons.Default.LunchDining),
-                                Triple("Dinner", stringResource(R.string.nutrition_filter_dinner), Icons.Default.DinnerDining),
-                                Triple("Other", stringResource(R.string.nutrition_filter_snack), Icons.Default.Fastfood)
-                            )
-                            val currentMealItem = mealItems.firstOrNull { it.first == state.selectedMeal } ?: mealItems.first()
                             ExpressiveConnectedButtonGroup(
-                                items = mealItems,
-                                selectedItem = currentMealItem,
-                                onItemSelected = { (mealKey, _, _) ->
+                                items = NutritionMealKeys,
+                                selectedItem = state.selectedMeal,
+                                onItemSelected = { mealKey ->
                                     if (state.selectedMeal != mealKey) {
                                         viewModel.setMeal(mealKey)
                                     }
                                 },
-                                labelProvider = { it.second },
-                                iconProvider = { item, _ -> item.third }
+                                labelProvider = { mealKey ->
+                                    when (mealKey) {
+                                        "Breakfast" -> stringResource(R.string.nutrition_filter_breakfast)
+                                        "Lunch" -> stringResource(R.string.nutrition_filter_lunch)
+                                        "Dinner" -> stringResource(R.string.nutrition_filter_dinner)
+                                        "Other" -> stringResource(R.string.nutrition_filter_snack)
+                                        else -> stringResource(R.string.nutrition_filter_all_meals)
+                                    }
+                                },
+                                iconProvider = { mealKey, _ ->
+                                    when (mealKey) {
+                                        "Breakfast" -> Icons.Default.BakeryDining
+                                        "Lunch" -> Icons.Default.LunchDining
+                                        "Dinner" -> Icons.Default.DinnerDining
+                                        "Other" -> Icons.Default.Fastfood
+                                        else -> null
+                                    }
+                                }
                             )
 
                             // High protein

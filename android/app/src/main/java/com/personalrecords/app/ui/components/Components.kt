@@ -8,6 +8,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.animateScrollBy
 import androidx.compose.foundation.interaction.InteractionSource
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.PressInteraction
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyListState
@@ -15,6 +16,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.*
 import androidx.compose.material3.ripple
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -24,12 +26,19 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.drawscope.ContentDrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.ui.graphics.drawscope.rotate
+import androidx.compose.ui.graphics.drawscope.scale
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.node.DrawModifierNode
+import androidx.compose.ui.node.ModifierNodeElement
+import androidx.compose.ui.node.invalidateDraw
+import androidx.compose.ui.platform.InspectorInfo
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
@@ -76,11 +85,12 @@ import com.personalrecords.app.core.network.model.FilmDto
 import com.personalrecords.app.core.network.model.FoodEntryDto
 import com.personalrecords.app.core.network.model.NotificationDto
 import com.personalrecords.app.core.theme.*
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 import java.util.TimeZone
-import com.personalrecords.app.core.theme.*
 
 /**
  * MD3 Elevated Metric Card for dashboard overviews and key statistics.
@@ -419,7 +429,7 @@ fun ExpressiveFilterChip(
         animationSpec = M3ExpressiveMotion.fastSpatial(),
         label = "chip_corner_morph"
     )
-    val animatedScale by animateFloatAsState(
+    val animatedScaleState = animateFloatAsState(
         targetValue = when {
             isPressed -> 0.95f
             selected -> 1.03f
@@ -439,8 +449,9 @@ fun ExpressiveFilterChip(
         shape = RoundedCornerShape(animatedCorner),
         interactionSource = interactionSource,
         modifier = modifier.graphicsLayer {
-            scaleX = animatedScale
-            scaleY = animatedScale
+            val s = animatedScaleState.value
+            scaleX = s
+            scaleY = s
         },
         border = null,
         colors = colors,
@@ -473,7 +484,7 @@ fun ExpressiveAssistChip(
         animationSpec = M3ExpressiveMotion.fastSpatial(),
         label = "assist_chip_corner"
     )
-    val animatedScale by animateFloatAsState(
+    val animatedScaleState = animateFloatAsState(
         targetValue = if (isPressed) 0.95f else 1f,
         animationSpec = M3ExpressiveMotion.fastSpatial(),
         label = "assist_chip_scale"
@@ -492,8 +503,9 @@ fun ExpressiveAssistChip(
         border = null,
         colors = colors,
         modifier = modifier.graphicsLayer {
-            scaleX = animatedScale
-            scaleY = animatedScale
+            val s = animatedScaleState.value
+            scaleX = s
+            scaleY = s
         }
     )
 }
@@ -857,7 +869,7 @@ fun LinearWavyProgressIndicator(
     trackGap: Dp = 6.dp
 ) {
     val infiniteTransition = rememberInfiniteTransition(label = "wavy_progress_phase")
-    val phase by infiniteTransition.animateFloat(
+    val phaseState = infiniteTransition.animateFloat(
         initialValue = 0f,
         targetValue = (2f * Math.PI).toFloat(),
         animationSpec = infiniteRepeatable(
@@ -867,13 +879,12 @@ fun LinearWavyProgressIndicator(
         label = "wave_phase"
     )
 
-    val p = progress().coerceIn(0f, 1f)
-    // Smoothly ramp wave amplitude to 0 at 0% and 100% per M3 Expressive ProgressIndicatorDefaults
-    val edgeEnvelope = when {
-        p <= 0.01f || p >= 0.99f -> 0f
-        p < 0.08f -> (p - 0.01f) / 0.07f
-        p > 0.92f -> (0.99f - p) / 0.07f
-        else -> 1f
+    val wavePath = remember { Path() }
+    val activeSegments = remember(segments) {
+        segments?.filter { it.first > 0f }.orEmpty()
+    }
+    val totalWeight = remember(activeSegments) {
+        activeSegments.sumOf { it.first.toDouble() }.toFloat()
     }
 
     Canvas(
@@ -881,6 +892,15 @@ fun LinearWavyProgressIndicator(
             .fillMaxWidth()
             .height(14.dp)
     ) {
+        val p = progress().coerceIn(0f, 1f)
+        // Smoothly ramp wave amplitude to 0 at 0% and 100% per M3 Expressive ProgressIndicatorDefaults
+        val edgeEnvelope = when {
+            p <= 0.01f || p >= 0.99f -> 0f
+            p < 0.08f -> (p - 0.01f) / 0.07f
+            p > 0.92f -> (0.99f - p) / 0.07f
+            else -> 1f
+        }
+
         val w = size.width
         val h = size.height
         val cy = h / 2f
@@ -889,6 +909,7 @@ fun LinearWavyProgressIndicator(
         val gapPx = trackGap.toPx()
         val waveLenPx = wavelength.toPx().coerceAtLeast(8f)
         val ampPx = amplitude.toPx() * edgeEnvelope
+        val phase = phaseState.value
 
         val activeEndX = (w * p).coerceIn(0f, w)
 
@@ -896,7 +917,7 @@ fun LinearWavyProgressIndicator(
         if (p > 0.005f) {
             val startX = halfStroke
             val endX = (activeEndX - halfStroke).coerceAtLeast(startX)
-            val wavePath = Path()
+            wavePath.rewind()
             val steps = ((endX - startX) / 2f).toInt().coerceAtLeast(2)
             for (i in 0..steps) {
                 val x = startX + (endX - startX) * (i.toFloat() / steps)
@@ -909,9 +930,7 @@ fun LinearWavyProgressIndicator(
                 }
             }
 
-            val activeSegments = segments?.filter { it.first > 0f }.orEmpty()
-            val totalWeight = activeSegments.sumOf { it.first.toDouble() }.toFloat()
-
+            val strokeStyle = Stroke(width = strokePx, cap = StrokeCap.Round)
             if (activeSegments.isNotEmpty() && totalWeight > 0f) {
                 var cumulative = 0f
                 val span = endX - startX
@@ -928,7 +947,7 @@ fun LinearWavyProgressIndicator(
                         drawPath(
                             path = wavePath,
                             color = segColor,
-                            style = Stroke(width = strokePx, cap = StrokeCap.Round)
+                            style = strokeStyle
                         )
                     }
                 }
@@ -936,7 +955,7 @@ fun LinearWavyProgressIndicator(
                 drawPath(
                     path = wavePath,
                     color = color,
-                    style = Stroke(width = strokePx, cap = StrokeCap.Round)
+                    style = strokeStyle
                 )
             }
         }
@@ -984,19 +1003,21 @@ fun ExpressivePullToRefreshIndicator(
     threshold: Dp = PullToRefreshDefaults.PositionalThreshold,
 ) {
     val haptic = LocalHapticFeedback.current
-    var hasHapticTriggered by remember { mutableStateOf(false) }
+    val isPastThreshold by remember(state) {
+        derivedStateOf { state.distanceFraction >= 1f }
+    }
+    val isDragging by remember(state) {
+        derivedStateOf { state.distanceFraction > 0.005f }
+    }
 
-    LaunchedEffect(state.distanceFraction) {
-        if (state.distanceFraction >= 1f && !hasHapticTriggered) {
+    LaunchedEffect(isPastThreshold) {
+        if (isPastThreshold) {
             haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-            hasHapticTriggered = true
-        } else if (state.distanceFraction < 0.2f) {
-            hasHapticTriggered = false
         }
     }
 
     val activeContainerColor by animateColorAsState(
-        targetValue = if (isRefreshing || state.distanceFraction >= 1f) {
+        targetValue = if (isRefreshing || isPastThreshold) {
             containerColor
         } else {
             MaterialTheme.colorScheme.surfaceContainerHigh
@@ -1006,7 +1027,7 @@ fun ExpressivePullToRefreshIndicator(
     )
 
     val activeIndicatorColor by animateColorAsState(
-        targetValue = if (isRefreshing || state.distanceFraction >= 1f) {
+        targetValue = if (isRefreshing || isPastThreshold) {
             color
         } else {
             MaterialTheme.colorScheme.primary
@@ -1032,7 +1053,7 @@ fun ExpressivePullToRefreshIndicator(
                 size = 28.dp,
                 color = activeIndicatorColor
             )
-        } else if (state.distanceFraction > 0.005f) {
+        } else if (isDragging) {
             ExpressiveLoadingIndicator(
                 size = 28.dp,
                 color = activeIndicatorColor,
@@ -1066,7 +1087,7 @@ fun ExpressivePullToRefreshBox(
         else -> (state.distanceFraction * maxShiftPx).coerceAtLeast(0f)
     }
 
-    val animatedContentTranslationY by animateFloatAsState(
+    val animatedContentTranslationYState = animateFloatAsState(
         targetValue = targetTranslation,
         animationSpec = M3ExpressiveMotion.defaultSpatial(),
         label = "ptr_content_shift"
@@ -1084,7 +1105,7 @@ fun ExpressivePullToRefreshBox(
             modifier = Modifier
                 .fillMaxSize()
                 .graphicsLayer {
-                    translationY = animatedContentTranslationY
+                    translationY = animatedContentTranslationYState.value
                 },
             content = content
         )
@@ -1101,7 +1122,7 @@ fun ExpressivePullToRefreshBox(
  * MD3 Expressive spring bounce click modifier.
  *
  * Uses M3 Expressive Fast Spatial spring (`damping = 0.6f, stiffness = 800f`) for small/interactive
- * component scale compression and bounce recovery.
+ * component scale compression and bounce recovery via [ExpressivePressScaleNode].
  */
 fun Modifier.expressiveBounceClick(
     scaleDown: Float = 0.96f,
@@ -1109,18 +1130,12 @@ fun Modifier.expressiveBounceClick(
     onClick: () -> Unit
 ): Modifier = composed {
     val interactionSource = remember { MutableInteractionSource() }
-    val isPressed by interactionSource.collectIsPressedAsState()
-    val scale by animateFloatAsState(
-        targetValue = if (isPressed && enabled) scaleDown else 1f,
-        animationSpec = M3ExpressiveMotion.fastSpatial(),
-        label = "expressive_bounce"
-    )
-
     this
-        .graphicsLayer {
-            scaleX = scale
-            scaleY = scale
-        }
+        .expressivePressScale(
+            interactionSource = interactionSource,
+            scaleDown = scaleDown,
+            enabled = enabled
+        )
         .clickable(
             interactionSource = interactionSource,
             indication = ripple(),
@@ -1130,22 +1145,121 @@ fun Modifier.expressiveBounceClick(
 }
 
 /**
- * MD3 Expressive spring press scale modifier for components that already manage their own interaction source.
+ * MD3 Expressive spring press scale modifier implemented via [ModifierNodeElement] and [Modifier.Node]
+ * to avoid `Modifier.composed` subcomposition overhead on lazy list items.
  * Uses M3 Expressive Fast Spatial spring (`damping = 0.6f, stiffness = 800f`).
  */
 fun Modifier.expressivePressScale(
     interactionSource: InteractionSource,
-    scaleDown: Float = 0.96f
-): Modifier = composed {
-    val isPressed by interactionSource.collectIsPressedAsState()
-    val scale by animateFloatAsState(
-        targetValue = if (isPressed) scaleDown else 1f,
-        animationSpec = M3ExpressiveMotion.fastSpatial(),
-        label = "expressive_press_scale"
-    )
-    this.graphicsLayer {
-        scaleX = scale
-        scaleY = scale
+    scaleDown: Float = 0.96f,
+    enabled: Boolean = true
+): Modifier = this then ExpressivePressScaleElement(
+    interactionSource = interactionSource,
+    scaleDown = scaleDown,
+    enabled = enabled
+)
+
+private data class ExpressivePressScaleElement(
+    val interactionSource: InteractionSource,
+    val scaleDown: Float,
+    val enabled: Boolean
+) : ModifierNodeElement<ExpressivePressScaleNode>() {
+    override fun create(): ExpressivePressScaleNode =
+        ExpressivePressScaleNode(interactionSource, scaleDown, enabled)
+
+    override fun update(node: ExpressivePressScaleNode) {
+        node.updateNode(interactionSource, scaleDown, enabled)
+    }
+
+    override fun InspectorInfo.inspectableProperties() {
+        name = "expressivePressScale"
+        properties["scaleDown"] = scaleDown
+        properties["enabled"] = enabled
+    }
+}
+
+private class ExpressivePressScaleNode(
+    private var interactionSource: InteractionSource,
+    private var scaleDown: Float,
+    private var enabled: Boolean
+) : Modifier.Node(), DrawModifierNode {
+    private var scaleAnimatable: Animatable<Float, AnimationVector1D>? = null
+    private var collectJob: Job? = null
+    private var animJob: Job? = null
+
+    fun updateNode(
+        newSource: InteractionSource,
+        newScaleDown: Float,
+        newEnabled: Boolean
+    ) {
+        val sourceChanged = interactionSource !== newSource
+        interactionSource = newSource
+        scaleDown = newScaleDown
+        enabled = newEnabled
+        if (sourceChanged && isAttached) {
+            observeInteractions()
+        }
+    }
+
+    override fun onAttach() {
+        observeInteractions()
+    }
+
+    override fun onDetach() {
+        collectJob?.cancel()
+        collectJob = null
+        animJob?.cancel()
+        animJob = null
+        scaleAnimatable = null
+    }
+
+    private fun observeInteractions() {
+        collectJob?.cancel()
+        collectJob = coroutineScope.launch {
+            var pressCount = 0
+            interactionSource.interactions.collect { interaction ->
+                when (interaction) {
+                    is PressInteraction.Press -> {
+                        pressCount++
+                        if (pressCount == 1 && enabled) {
+                            animateToScale(scaleDown)
+                        }
+                    }
+                    is PressInteraction.Release, is PressInteraction.Cancel -> {
+                        if (pressCount > 0) pressCount--
+                        if (pressCount == 0) {
+                            animateToScale(1f)
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    private fun animateToScale(target: Float) {
+        animJob?.cancel()
+        val anim = scaleAnimatable ?: Animatable(1f).also { scaleAnimatable = it }
+        if (anim.value == target && !anim.isRunning) return
+        animJob = coroutineScope.launch {
+            anim.animateTo(
+                targetValue = target,
+                animationSpec = M3ExpressiveMotion.fastSpatial()
+            ) {
+                invalidateDraw()
+            }
+            invalidateDraw()
+        }
+    }
+
+    override fun ContentDrawScope.draw() {
+        val currentScale = scaleAnimatable?.value ?: 1f
+        if (currentScale != 1f) {
+            scale(scaleX = currentScale, scaleY = currentScale, pivot = center) {
+                this@draw.drawContent()
+            }
+        } else {
+            drawContent()
+        }
     }
 }
 
@@ -1251,21 +1365,27 @@ enum class DateSelectionMode {
     RANGE
 }
 
+private val utcIsoFormatter = object : ThreadLocal<SimpleDateFormat>() {
+    override fun initialValue(): SimpleDateFormat =
+        SimpleDateFormat("yyyy-MM-dd", Locale.US).apply {
+            timeZone = TimeZone.getTimeZone("UTC")
+        }
+}
+
+private val localIsoParser = object : ThreadLocal<SimpleDateFormat>() {
+    override fun initialValue(): SimpleDateFormat =
+        SimpleDateFormat("yyyy-MM-dd", Locale.US)
+}
+
 fun formatMillisToIsoDate(millis: Long): String {
-    val formatter = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).apply {
-        timeZone = TimeZone.getTimeZone("UTC")
-    }
-    return formatter.format(Date(millis))
+    return utcIsoFormatter.get()!!.format(Date(millis))
 }
 
 fun parseIsoDateToMillis(dateStr: String?): Long? {
     if (dateStr.isNullOrBlank()) return null
     return try {
         val clean = dateStr.trim().replace('/', '-')
-        val formatter = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).apply {
-            timeZone = TimeZone.getTimeZone("UTC")
-        }
-        formatter.parse(clean)?.time
+        utcIsoFormatter.get()!!.parse(clean)?.time
     } catch (e: Exception) {
         null
     }
@@ -1274,8 +1394,7 @@ fun parseIsoDateToMillis(dateStr: String?): Long? {
 fun formatIsoToReadableDate(dateStr: String): String {
     return try {
         val clean = dateStr.trim().replace('/', '-')
-        val inputFormatter = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
-        val date = inputFormatter.parse(clean) ?: return dateStr
+        val date = localIsoParser.get()!!.parse(clean) ?: return dateStr
         val outputFormatter = SimpleDateFormat("d MMM yyyy", Locale.getDefault())
         outputFormatter.format(date)
     } catch (e: Exception) {
@@ -1286,8 +1405,7 @@ fun formatIsoToReadableDate(dateStr: String): String {
 fun formatIsoToShortDate(dateStr: String): String {
     return try {
         val clean = dateStr.trim().replace('/', '-')
-        val inputFormatter = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
-        val date = inputFormatter.parse(clean) ?: return dateStr
+        val date = localIsoParser.get()!!.parse(clean) ?: return dateStr
         val outputFormatter = SimpleDateFormat("d MMM", Locale.getDefault())
         outputFormatter.format(date)
     } catch (e: Exception) {
@@ -2469,6 +2587,9 @@ fun ActivityItemDetailBottomSheet(
     }
 }
 
+private val LazyCardTopShape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp)
+private val LazyCardBottomShape = RoundedCornerShape(bottomStart = 16.dp, bottomEnd = 16.dp)
+
 @Composable
 fun LazyCardRowContainer(
     index: Int,
@@ -2479,22 +2600,24 @@ fun LazyCardRowContainer(
 ) {
     val shape = when {
         totalCount <= 1 -> M3Shapes.CornerLarge
-        index == 0 -> RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp)
-        index == totalCount - 1 -> RoundedCornerShape(bottomStart = 16.dp, bottomEnd = 16.dp)
-        else -> RoundedCornerShape(0.dp)
+        index == 0 -> LazyCardTopShape
+        index == totalCount - 1 -> LazyCardBottomShape
+        else -> RectangleShape
     }
     Surface(
         modifier = modifier.fillMaxWidth(),
         shape = shape,
         color = MaterialTheme.colorScheme.surfaceContainerLow
     ) {
-        Column {
-            if (showDivider) {
+        if (showDivider) {
+            Column {
                 HorizontalDivider(
                     color = MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.5f),
                     modifier = Modifier.padding(horizontal = 12.dp)
                 )
+                content()
             }
+        } else {
             content()
         }
     }

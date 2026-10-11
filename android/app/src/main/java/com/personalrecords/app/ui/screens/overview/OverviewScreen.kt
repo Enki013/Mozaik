@@ -55,17 +55,21 @@ fun OverviewScreen(
             if (!state.isLoading) isRefreshing = false
         }
 
-        LaunchedEffect(scrollToTopFlow) {
-            scrollToTopFlow?.collect {
-                listState.expressiveScrollToTop()
+        if (scrollToTopFlow != null) {
+            LaunchedEffect(scrollToTopFlow) {
+                scrollToTopFlow.collect {
+                    listState.expressiveScrollToTop()
+                }
             }
         }
 
-        LaunchedEffect(refreshFlow) {
-            refreshFlow?.collect {
-                listState.expressiveScrollToTop()
-                isRefreshing = true
-                viewModel.loadData()
+        if (refreshFlow != null) {
+            LaunchedEffect(refreshFlow) {
+                refreshFlow.collect {
+                    listState.expressiveScrollToTop()
+                    isRefreshing = true
+                    viewModel.loadData()
+                }
             }
         }
 
@@ -93,7 +97,7 @@ fun OverviewScreen(
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                 // Top 4 Metrics Grid
-                item {
+                item(key = "overview_metrics", contentType = "metrics") {
                     val counts = state.dashboard?.counts ?: emptyMap()
                     val today = state.dashboard?.today ?: emptyMap()
                     val todayCal = today["fatsecret_calories"]?.toString()?.replace("\"", "")
@@ -154,7 +158,7 @@ fun OverviewScreen(
                 }
 
                 // Entegrasyonlar Card
-                item {
+                item(key = "overview_integrations", contentType = "integrations") {
                     Card(
                         modifier = Modifier.fillMaxWidth(),
                         shape = M3Shapes.CornerLarge,
@@ -213,7 +217,7 @@ fun OverviewScreen(
                 }
 
                 // Son Aktiviteler Grouped Card (M3 Pattern aligned with RecordsScreen)
-                item {
+                item(key = "overview_recent_activities", contentType = "recent_activities") {
                     Card(
                         modifier = Modifier.fillMaxWidth(),
                         shape = M3Shapes.CornerLarge,
@@ -297,23 +301,25 @@ fun OverviewScreen(
                                 }
                             } else {
                                 state.recentActivities.forEachIndexed { index, item ->
-                                    if (index > 0) {
-                                        HorizontalDivider(
-                                            color = MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.5f),
-                                            modifier = Modifier.padding(horizontal = 12.dp)
+                                    key("${item.source}_${item.id}_$index") {
+                                        if (index > 0) {
+                                            HorizontalDivider(
+                                                color = MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.5f),
+                                                modifier = Modifier.padding(horizontal = 12.dp)
+                                            )
+                                        }
+                                        ActivityRowItem(
+                                            item = item,
+                                            onClick = { selectedActivity = item }
                                         )
                                     }
-                                    ActivityRowItem(
-                                        item = item,
-                                        onClick = { selectedActivity = item }
-                                    )
                                 }
                             }
                         }
                     }
                 }
 
-                item { Spacer(modifier = Modifier.height(16.dp)) }
+                item(key = "overview_bottom_spacer", contentType = "spacer") { Spacer(modifier = Modifier.height(16.dp)) }
             }
         }
       }

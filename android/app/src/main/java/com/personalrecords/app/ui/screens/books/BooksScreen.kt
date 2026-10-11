@@ -23,9 +23,8 @@ import com.personalrecords.app.R
 import com.personalrecords.app.core.network.model.BookDto
 import com.personalrecords.app.core.theme.*
 import com.personalrecords.app.ui.components.*
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.withContext
+
+private val BookShelfKeys = listOf("all", "read", "to-read", "currently-reading")
 
 @OptIn(ExperimentalMaterial3Api::class, androidx.compose.foundation.ExperimentalFoundationApi::class)
 @Composable
@@ -241,23 +240,30 @@ fun BooksScreen(
                                     }
                                 )
 
-                                val shelfItems = listOf(
-                                    Triple("all", stringResource(R.string.books_shelf_all), null),
-                                    Triple("read", stringResource(R.string.books_shelf_read), Icons.Default.Check),
-                                    Triple("to-read", stringResource(R.string.books_shelf_to_read), Icons.Default.HourglassEmpty),
-                                    Triple("currently-reading", stringResource(R.string.books_shelf_currently_reading), Icons.AutoMirrored.Filled.MenuBook)
-                                )
-                                val currentShelfItem = shelfItems.firstOrNull { it.first == state.selectedShelf } ?: shelfItems.first()
                                 ExpressiveConnectedButtonGroup(
-                                    items = shelfItems,
-                                    selectedItem = currentShelfItem,
-                                    onItemSelected = { (shelf, _, _) ->
+                                    items = BookShelfKeys,
+                                    selectedItem = state.selectedShelf,
+                                    onItemSelected = { shelf ->
                                         if (state.selectedShelf != shelf) {
                                             viewModel.setShelf(shelf)
                                         }
                                     },
-                                    labelProvider = { it.second },
-                                    iconProvider = { item, _ -> item.third }
+                                    labelProvider = { shelf ->
+                                        when (shelf) {
+                                            "read" -> stringResource(R.string.books_shelf_read)
+                                            "to-read" -> stringResource(R.string.books_shelf_to_read)
+                                            "currently-reading" -> stringResource(R.string.books_shelf_currently_reading)
+                                            else -> stringResource(R.string.books_shelf_all)
+                                        }
+                                    },
+                                    iconProvider = { shelf, _ ->
+                                        when (shelf) {
+                                            "read" -> Icons.Default.Check
+                                            "to-read" -> Icons.Default.HourglassEmpty
+                                            "currently-reading" -> Icons.AutoMirrored.Filled.MenuBook
+                                            else -> null
+                                        }
+                                    }
                                 )
 
                                 val (sortLabel, sortIcon) = when (state.sortBy) {

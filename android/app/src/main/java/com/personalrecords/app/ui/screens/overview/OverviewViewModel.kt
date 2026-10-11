@@ -13,7 +13,6 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
-@Immutable
 data class OverviewUiState(
     val isLoading: Boolean = true,
     val dashboard: DashboardDto? = null,

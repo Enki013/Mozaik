@@ -48,7 +48,6 @@ data class HealthResponse(
     val ok: Boolean = true
 )
 
-@Immutable
 @Serializable
 data class DashboardDto(
     val counts: Map<String, Int> = emptyMap(),
@@ -59,7 +58,6 @@ data class DashboardDto(
     val calorieTarget: Int? = null
 )
 
-@Immutable
 @Serializable
 data class ActivityItemDto(
     val id: String = "",
@@ -75,7 +73,6 @@ data class ActivityItemDto(
     val details: Map<String, JsonElement> = emptyMap()
 )
 
-@Immutable
 @Serializable
 data class ActivityDayGroupDto(
     val date: String = "",

@@ -16,7 +16,6 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.time.LocalDate
 
-@Immutable
 data class NotificationsUiState(
     val isLoading: Boolean = true,
     val isFiltering: Boolean = false,
