@@ -64,10 +64,12 @@ class NutritionViewModel(
             val summaries = if (summaryRes is Resource.Success) summaryRes.data else emptyList()
             val foods = if (foodsRes is Resource.Success) foodsRes.data else emptyList()
 
-            // Calculate today stats from summaries
-            val todaySummary = summaries.firstOrNull()
-            val todayCal = todaySummary?.displayCalories ?: 0.0
-            val todayCount = todaySummary?.displayCount ?: 0
+            // Calculate today stats from summaries (only match today's date, otherwise 0)
+            val todayIso = java.time.LocalDate.now().toString()
+            val todaySummary = summaries.firstOrNull { it.displayDate == todayIso }
+            val todayFoods = foods.filter { it.displayDate == todayIso }
+            val todayCal = todaySummary?.displayCalories ?: todayFoods.sumOf { it.calories }
+            val todayCount = todaySummary?.displayCount ?: todayFoods.size
 
             // Calculate overall macros
             var carb = 0.0
