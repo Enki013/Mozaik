@@ -1,5 +1,6 @@
 package com.personalrecords.app.ui.screens.nutrition
 
+import androidx.compose.runtime.Immutable
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.personalrecords.app.core.common.Resource
@@ -8,8 +9,10 @@ import com.personalrecords.app.core.network.model.DailySummaryDto
 import com.personalrecords.app.core.network.model.FoodEntryDto
 import com.personalrecords.app.data.repository.PersonalRecordsRepository
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -17,8 +20,10 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
+@Immutable
 data class NutritionUiState(
-    val isLoading: Boolean = false,
+    val isLoading: Boolean = true,
+    val isFiltering: Boolean = false,
     val calorieTarget: Int? = null,
     val todayCalories: Double = 0.0,
     val todayEntriesCount: Int = 0,
@@ -30,6 +35,7 @@ data class NutritionUiState(
     val totalFat: Double = 0.0,
     val dailySummaries: List<DailySummaryDto> = emptyList(),
     val foodEntries: List<FoodEntryDto> = emptyList(),
+    val filteredFoods: List<FoodEntryDto> = emptyList(),
     val searchQuery: String = "",
     val selectedDateFilter: String? = null,
     val fromDateFilter: String? = null,
@@ -39,6 +45,33 @@ data class NutritionUiState(
     val error: String? = null
 )
 
+private fun filterFoodEntries(
+    entries: List<FoodEntryDto>,
+    query: String,
+    singleDate: String?,
+    fromDate: String?,
+    toDate: String?,
+    meal: String,
+    highProt: Boolean
+): List<FoodEntryDto> {
+    if (entries.isEmpty()) return emptyList()
+    return entries.filter { item ->
+        val matchesSearch = query.isBlank() ||
+            item.displayName.contains(query, ignoreCase = true) ||
+            item.displayAmount.contains(query, ignoreCase = true)
+        val matchesDate = when {
+            singleDate != null -> item.displayDate == singleDate
+            fromDate != null && toDate != null -> item.displayDate in fromDate..toDate
+            fromDate != null -> item.displayDate >= fromDate
+            toDate != null -> item.displayDate <= toDate
+            else -> true
+        }
+        val matchesMeal = meal == "all" || item.meal.equals(meal, ignoreCase = true)
+        val matchesProtein = !highProt || item.protein >= 20.0
+        matchesSearch && matchesDate && matchesMeal && matchesProtein
+    }
+}
+
 class NutritionViewModel(
     private val repository: PersonalRecordsRepository,
     private val preferences: AppPreferences
@@ -46,6 +79,7 @@ class NutritionViewModel(
 
     private val _uiState = MutableStateFlow(NutritionUiState())
     val uiState: StateFlow<NutritionUiState> = _uiState.asStateFlow()
+    private var filterJob: Job? = null
 
     init {
         loadData()
@@ -54,65 +88,86 @@ class NutritionViewModel(
     fun loadData() {
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isLoading = true, error = null)
-            val newState = withContext(Dispatchers.IO) {
-                coroutineScope {
-                    val savedTargetDeferred = async { preferences.calorieTarget.first() }
-                    val summaryDeferred = async { repository.getDailySummary(30) }
-                    val foodsDeferred = async { repository.getFoodEntries(500) }
-                    val targetDeferred = async { repository.getCalorieTarget() }
+            val savedTarget = preferences.calorieTarget.first()
 
-                    val savedTarget = savedTargetDeferred.await()
-                    val summaryRes = summaryDeferred.await()
-                    val foodsRes = foodsDeferred.await()
-                    val targetRes = targetDeferred.await()
+            val (summaryRes, foodsRes, targetRes) = coroutineScope {
+                val sDeferred = async { repository.getDailySummary(30) }
+                val fDeferred = async { repository.getFoodEntries(500) }
+                val tDeferred = async { repository.getCalorieTarget() }
+                Triple(sDeferred.await(), fDeferred.await(), tDeferred.await())
+            }
 
-                    var activeTarget = savedTarget
-                    if (targetRes is Resource.Success) {
-                        val serverTarget = targetRes.data.target ?: targetRes.data.calorieTarget
-                        if (serverTarget != null && serverTarget > 0) {
-                            activeTarget = serverTarget
-                            preferences.setCalorieTarget(serverTarget)
-                        }
-                    }
-
-                    val summaries = if (summaryRes is Resource.Success) summaryRes.data else emptyList()
-                    val foods = if (foodsRes is Resource.Success) foodsRes.data else emptyList()
-
-                    val todayIso = java.time.LocalDate.now().toString()
-                    val todaySummary = summaries.firstOrNull { it.displayDate == todayIso }
-                    val todayFoods = foods.filter { it.displayDate == todayIso }
-                    val todayCal = todaySummary?.displayCalories ?: todayFoods.sumOf { it.calories }
-                    val todayCount = todaySummary?.displayCount ?: todayFoods.size
-                    val todayCarb = todayFoods.sumOf { it.carbohydrate }
-                    val todayProt = todayFoods.sumOf { it.protein }
-                    val todayFat = todayFoods.sumOf { it.fat }
-
-                    var carb = 0.0
-                    var prot = 0.0
-                    var fat = 0.0
-                    foods.forEach {
-                        carb += it.carbohydrate
-                        prot += it.protein
-                        fat += it.fat
-                    }
-
-                    _uiState.value.copy(
-                        isLoading = false,
-                        calorieTarget = activeTarget,
-                        todayCalories = todayCal,
-                        todayEntriesCount = todayCount,
-                        todayCarb = todayCarb,
-                        todayProtein = todayProt,
-                        todayFat = todayFat,
-                        totalCarb = carb,
-                        totalProtein = prot,
-                        totalFat = fat,
-                        dailySummaries = summaries,
-                        foodEntries = foods
-                    )
+            var activeTarget = savedTarget
+            if (targetRes is Resource.Success) {
+                val serverTarget = targetRes.data.target ?: targetRes.data.calorieTarget
+                if (serverTarget != null && serverTarget > 0) {
+                    activeTarget = serverTarget
+                    preferences.setCalorieTarget(serverTarget)
                 }
             }
-            _uiState.value = newState
+
+            val summaries = if (summaryRes is Resource.Success) summaryRes.data else emptyList()
+            val foods = if (foodsRes is Resource.Success) foodsRes.data else emptyList()
+            val snap = _uiState.value
+
+            val computed = withContext(Dispatchers.Default) {
+                val todayIso = java.time.LocalDate.now().toString()
+                val todaySummary = summaries.firstOrNull { it.displayDate == todayIso }
+                val todayFoods = foods.filter { it.displayDate == todayIso }
+                val todayCal = todaySummary?.displayCalories ?: todayFoods.sumOf { it.calories }
+                val todayCount = todaySummary?.displayCount ?: todayFoods.size
+                val todayCarb = todayFoods.sumOf { it.carbohydrate }
+                val todayProt = todayFoods.sumOf { it.protein }
+                val todayFat = todayFoods.sumOf { it.fat }
+
+                var carb = 0.0
+                var prot = 0.0
+                var fat = 0.0
+                for (entry in foods) {
+                    carb += entry.carbohydrate
+                    prot += entry.protein
+                    fat += entry.fat
+                }
+
+                val filtered = filterFoodEntries(
+                    entries = foods,
+                    query = snap.searchQuery,
+                    singleDate = snap.selectedDateFilter,
+                    fromDate = snap.fromDateFilter,
+                    toDate = snap.toDateFilter,
+                    meal = snap.selectedMeal,
+                    highProt = snap.onlyHighProtein
+                )
+
+                NutritionComputedResult(
+                    todayCalories = todayCal,
+                    todayEntriesCount = todayCount,
+                    todayCarb = todayCarb,
+                    todayProtein = todayProt,
+                    todayFat = todayFat,
+                    totalCarb = carb,
+                    totalProtein = prot,
+                    totalFat = fat,
+                    filteredFoods = filtered
+                )
+            }
+
+            _uiState.value = _uiState.value.copy(
+                isLoading = false,
+                isFiltering = false,
+                calorieTarget = activeTarget,
+                todayCalories = computed.todayCalories,
+                todayEntriesCount = computed.todayEntriesCount,
+                todayCarb = computed.todayCarb,
+                todayProtein = computed.todayProtein,
+                todayFat = computed.todayFat,
+                totalCarb = computed.totalCarb,
+                totalProtein = computed.totalProtein,
+                totalFat = computed.totalFat,
+                dailySummaries = summaries,
+                foodEntries = foods,
+                filteredFoods = computed.filteredFoods
+            )
         }
     }
 
@@ -125,39 +180,53 @@ class NutritionViewModel(
     }
 
     fun setSearchQuery(query: String) {
-        _uiState.value = _uiState.value.copy(searchQuery = query)
+        if (_uiState.value.searchQuery == query) return
+        _uiState.value = _uiState.value.copy(searchQuery = query, isFiltering = true)
+        recomputeFilter(debounceMs = if (query.isEmpty()) 0L else 100L)
     }
 
     fun setDateFilter(date: String?) {
         _uiState.value = _uiState.value.copy(
             selectedDateFilter = date,
             fromDateFilter = null,
-            toDateFilter = null
+            toDateFilter = null,
+            isFiltering = true
         )
+        recomputeFilter(debounceMs = 0L)
     }
 
     fun setDateRangeFilter(from: String?, to: String?) {
         _uiState.value = _uiState.value.copy(
             selectedDateFilter = null,
             fromDateFilter = from,
-            toDateFilter = to
+            toDateFilter = to,
+            isFiltering = true
         )
+        recomputeFilter(debounceMs = 0L)
     }
 
     fun clearDateFilter() {
         _uiState.value = _uiState.value.copy(
             selectedDateFilter = null,
             fromDateFilter = null,
-            toDateFilter = null
+            toDateFilter = null,
+            isFiltering = true
         )
+        recomputeFilter(debounceMs = 0L)
     }
 
     fun setMeal(meal: String) {
-        _uiState.value = _uiState.value.copy(selectedMeal = meal)
+        if (_uiState.value.selectedMeal == meal) return
+        _uiState.value = _uiState.value.copy(selectedMeal = meal, isFiltering = true)
+        recomputeFilter(debounceMs = 0L)
     }
 
     fun toggleHighProtein() {
-        _uiState.value = _uiState.value.copy(onlyHighProtein = !_uiState.value.onlyHighProtein)
+        _uiState.value = _uiState.value.copy(
+            onlyHighProtein = !_uiState.value.onlyHighProtein,
+            isFiltering = true
+        )
+        recomputeFilter(debounceMs = 0L)
     }
 
     fun resetFilters() {
@@ -167,7 +236,44 @@ class NutritionViewModel(
             fromDateFilter = null,
             toDateFilter = null,
             selectedMeal = "all",
-            onlyHighProtein = false
+            onlyHighProtein = false,
+            isFiltering = true
         )
+        recomputeFilter(debounceMs = 0L)
+    }
+
+    private fun recomputeFilter(debounceMs: Long) {
+        filterJob?.cancel()
+        filterJob = viewModelScope.launch {
+            if (debounceMs > 0L) delay(debounceMs)
+            val snap = _uiState.value
+            val filtered = withContext(Dispatchers.Default) {
+                filterFoodEntries(
+                    entries = snap.foodEntries,
+                    query = snap.searchQuery,
+                    singleDate = snap.selectedDateFilter,
+                    fromDate = snap.fromDateFilter,
+                    toDate = snap.toDateFilter,
+                    meal = snap.selectedMeal,
+                    highProt = snap.onlyHighProtein
+                )
+            }
+            _uiState.value = _uiState.value.copy(
+                filteredFoods = filtered,
+                isFiltering = false
+            )
+        }
     }
 }
+
+private data class NutritionComputedResult(
+    val todayCalories: Double,
+    val todayEntriesCount: Int,
+    val todayCarb: Double,
+    val todayProtein: Double,
+    val todayFat: Double,
+    val totalCarb: Double,
+    val totalProtein: Double,
+    val totalFat: Double,
+    val filteredFoods: List<FoodEntryDto>
+)

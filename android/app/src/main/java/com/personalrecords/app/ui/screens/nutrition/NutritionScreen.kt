@@ -48,54 +48,6 @@ fun NutritionScreen(
     var showTargetDialog by remember { mutableStateOf(false) }
     var showDatePicker by remember { mutableStateOf(false) }
     var selectedFood by remember { mutableStateOf<FoodEntryDto?>(null) }
-    var filteredFoods by remember { mutableStateOf<List<FoodEntryDto>>(emptyList()) }
-    var isFiltering by remember { mutableStateOf(false) }
-
-    LaunchedEffect(
-        state.foodEntries,
-        state.searchQuery,
-        state.selectedDateFilter,
-        state.fromDateFilter,
-        state.toDateFilter,
-        state.selectedMeal,
-        state.onlyHighProtein
-    ) {
-        if (state.foodEntries.isEmpty()) {
-            filteredFoods = emptyList()
-            isFiltering = false
-            return@LaunchedEffect
-        }
-        val entries = state.foodEntries
-        val query = state.searchQuery
-        val singleDate = state.selectedDateFilter
-        val fromDate = state.fromDateFilter
-        val toDate = state.toDateFilter
-        val meal = state.selectedMeal
-        val highProt = state.onlyHighProtein
-
-        if (isFiltering) {
-            delay(160)
-        }
-        val result = withContext(Dispatchers.Default) {
-            entries.filter { item ->
-                val matchesSearch = query.isBlank() ||
-                    item.displayName.contains(query, ignoreCase = true) ||
-                    item.displayAmount.contains(query, ignoreCase = true)
-                val matchesDate = when {
-                    singleDate != null -> item.displayDate == singleDate
-                    fromDate != null && toDate != null -> item.displayDate in fromDate..toDate
-                    fromDate != null -> item.displayDate >= fromDate
-                    toDate != null -> item.displayDate <= toDate
-                    else -> true
-                }
-                val matchesMeal = meal == "all" || item.meal.equals(meal, ignoreCase = true)
-                val matchesProtein = !highProt || item.protein >= 20.0
-                matchesSearch && matchesDate && matchesMeal && matchesProtein
-            }
-        }
-        filteredFoods = result
-        isFiltering = false
-    }
 
     if (showDatePicker) {
         ExpressiveDateFilterDialog(
@@ -103,15 +55,12 @@ fun NutritionScreen(
             initialEndDate = state.toDateFilter,
             onDismissRequest = { showDatePicker = false },
             onDateSelected = { date ->
-                isFiltering = true
                 viewModel.setDateFilter(date)
             },
             onDateRangeSelected = { start, end ->
-                isFiltering = true
                 viewModel.setDateRangeFilter(start, end)
             },
             onClear = {
-                isFiltering = true
                 viewModel.clearDateFilter()
             }
         )
@@ -437,7 +386,7 @@ fun NutritionScreen(
             }
 
             // Food Entries Log Header & Filters (Sticky Header)
-            stickyHeader {
+            stickyHeader(key = "nutrition_sticky_header", contentType = "sticky_header") {
                 Surface(
                     color = MaterialTheme.colorScheme.surface,
                     modifier = Modifier
@@ -473,7 +422,6 @@ fun NutritionScreen(
                             trailingIcon = {
                                 if (state.searchQuery.isNotEmpty()) {
                                     IconButton(onClick = {
-                                        isFiltering = true
                                         viewModel.setSearchQuery("")
                                     }) {
                                         Icon(
@@ -529,7 +477,6 @@ fun NutritionScreen(
                                             modifier = Modifier
                                                 .size(14.dp)
                                                 .clickable {
-                                                    isFiltering = true
                                                     viewModel.clearDateFilter()
                                                 }
                                         )
@@ -557,7 +504,6 @@ fun NutritionScreen(
                                 selectedItem = currentMealItem,
                                 onItemSelected = { (mealKey, _, _) ->
                                     if (state.selectedMeal != mealKey) {
-                                        isFiltering = true
                                         viewModel.setMeal(mealKey)
                                     }
                                 },
@@ -569,7 +515,6 @@ fun NutritionScreen(
                             ExpressiveFilterChip(
                                 selected = state.onlyHighProtein,
                                 onClick = {
-                                    isFiltering = true
                                     viewModel.toggleHighProtein()
                                 },
                                 leadingIcon = {
@@ -583,10 +528,9 @@ fun NutritionScreen(
                             )
 
                             // Clear filter button
-                            if (state.selectedDateFilter != null || state.selectedMeal != "all" || state.onlyHighProtein || state.searchQuery.isNotEmpty()) {
+                            if (state.selectedDateFilter != null || state.fromDateFilter != null || state.selectedMeal != "all" || state.onlyHighProtein || state.searchQuery.isNotEmpty()) {
                                 ExpressiveAssistChip(
                                     onClick = {
-                                        isFiltering = true
                                         viewModel.resetFilters()
                                     },
                                     label = {
@@ -607,19 +551,21 @@ fun NutritionScreen(
             }
 
             // Food Items List
-            if ((state.isLoading && state.foodEntries.isEmpty()) || isFiltering) {
-                item(key = "nutrition_loading") {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(48.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        ContainedLoadingIndicator(size = 44.dp)
+            if ((state.isLoading || state.isFiltering) && state.filteredFoods.isEmpty()) {
+                if (!isRefreshing) {
+                    item(key = "nutrition_loading", contentType = "loading") {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(48.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            ContainedLoadingIndicator(size = 44.dp)
+                        }
                     }
                 }
-            } else if (filteredFoods.isEmpty()) {
-                item(key = "nutrition_empty") {
+            } else if (state.filteredFoods.isEmpty()) {
+                item(key = "nutrition_empty", contentType = "empty") {
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -635,13 +581,13 @@ fun NutritionScreen(
                 }
             } else {
                 itemsIndexed(
-                    items = filteredFoods,
+                    items = state.filteredFoods,
                     key = { index, food -> "${food.food_entry_id}_$index" },
                     contentType = { _, _ -> "food_row" }
                 ) { index, food ->
                     LazyCardRowContainer(
                         index = index,
-                        totalCount = filteredFoods.size
+                        totalCount = state.filteredFoods.size
                     ) {
                         FoodEntryRowItem(
                             item = food,
@@ -651,7 +597,7 @@ fun NutritionScreen(
                 }
             }
 
-            item { Spacer(modifier = Modifier.height(24.dp)) }
+            item(key = "nutrition_bottom_spacer", contentType = "spacer") { Spacer(modifier = Modifier.height(24.dp)) }
           }
         }
     }

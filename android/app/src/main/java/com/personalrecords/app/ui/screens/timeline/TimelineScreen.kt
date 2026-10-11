@@ -292,15 +292,17 @@ fun TimelineScreen(
                     }
                 }
 
-                if (state.isLoading && state.flatEntries.isEmpty() && !isRefreshing) {
-                    item(key = "loading_indicator", contentType = "loading") {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(240.dp),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            ContainedLoadingIndicator(size = 44.dp)
+                if ((state.isLoading || state.isFiltering) && state.flatEntries.isEmpty()) {
+                    if (!isRefreshing) {
+                        item(key = "loading_indicator", contentType = "loading") {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(240.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                ContainedLoadingIndicator(size = 44.dp)
+                            }
                         }
                     }
                 } else if (state.flatEntries.isEmpty()) {

@@ -273,7 +273,16 @@ fun OverviewScreen(
                             )
 
                             // Items List inside the Card
-                            if (state.recentActivities.isEmpty()) {
+                            if (state.isLoading && state.recentActivities.isEmpty()) {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(24.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    ContainedLoadingIndicator(size = 36.dp)
+                                }
+                            } else if (state.recentActivities.isEmpty()) {
                                 Box(
                                     modifier = Modifier
                                         .fillMaxWidth()

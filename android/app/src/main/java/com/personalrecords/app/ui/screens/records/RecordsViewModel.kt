@@ -11,7 +11,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 data class RecordsUiState(
-    val isLoading: Boolean = false,
+    val isLoading: Boolean = true,
     val counts: Map<String, Int> = emptyMap(),
     val todayCalories: String = "0",
     val todayEntries: String = "0",

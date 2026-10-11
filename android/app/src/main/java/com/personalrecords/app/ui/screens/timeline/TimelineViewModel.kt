@@ -157,7 +157,8 @@ private fun computeTimelineFlatEntries(
 
 @Immutable
 data class TimelineUiState(
-    val isLoading: Boolean = false,
+    val isLoading: Boolean = true,
+    val isFiltering: Boolean = false,
     val selectedDays: Int = 14,
     val selectedDate: String? = null,
     val fromDate: String? = null,
@@ -202,6 +203,7 @@ class TimelineViewModel(
                     }
                     _uiState.value = _uiState.value.copy(
                         isLoading = false,
+                        isFiltering = false,
                         dayGroups = groups,
                         flatEntries = flattened
                     )
@@ -209,6 +211,7 @@ class TimelineViewModel(
                 is Resource.Error -> {
                     _uiState.value = _uiState.value.copy(
                         isLoading = false,
+                        isFiltering = false,
                         error = response.message
                     )
                 }
@@ -263,13 +266,13 @@ class TimelineViewModel(
 
     fun setSource(source: String) {
         if (_uiState.value.selectedSource == source) return
-        _uiState.value = _uiState.value.copy(selectedSource = source)
+        _uiState.value = _uiState.value.copy(selectedSource = source, isFiltering = true)
         recomputeFilter(debounceMs = 0L)
     }
 
     fun setSearchQuery(query: String) {
         if (_uiState.value.searchQuery == query) return
-        _uiState.value = _uiState.value.copy(searchQuery = query)
+        _uiState.value = _uiState.value.copy(searchQuery = query, isFiltering = true)
         recomputeFilter(debounceMs = if (query.isEmpty()) 0L else 100L)
     }
 
@@ -281,7 +284,10 @@ class TimelineViewModel(
             val flattened = withContext(Dispatchers.Default) {
                 computeTimelineFlatEntries(snap.dayGroups, snap.selectedSource, snap.searchQuery)
             }
-            _uiState.value = _uiState.value.copy(flatEntries = flattened)
+            _uiState.value = _uiState.value.copy(
+                flatEntries = flattened,
+                isFiltering = false
+            )
         }
     }
 }

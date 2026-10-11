@@ -36,57 +36,6 @@ fun BooksScreen(
     val state by viewModel.uiState.collectAsState()
     var showDatePicker by remember { mutableStateOf(false) }
     var selectedBook by remember { mutableStateOf<BookDto?>(null) }
-    var filteredBooks by remember { mutableStateOf<List<BookDto>>(emptyList()) }
-    var isFiltering by remember { mutableStateOf(false) }
-
-    LaunchedEffect(
-        state.books,
-        state.searchQuery,
-        state.selectedDateFilter,
-        state.fromDateFilter,
-        state.toDateFilter,
-        state.selectedShelf,
-        state.sortBy
-    ) {
-        if (state.books.isEmpty()) {
-            filteredBooks = emptyList()
-            isFiltering = false
-            return@LaunchedEffect
-        }
-        if (isFiltering) {
-            delay(160)
-        }
-        val computed = withContext(Dispatchers.Default) {
-            var list = state.books.filter { book ->
-                val matchesSearch = state.searchQuery.isBlank() ||
-                    book.title.contains(state.searchQuery, ignoreCase = true) ||
-                    book.author.contains(state.searchQuery, ignoreCase = true)
-                val matchesShelf = state.selectedShelf == "all" ||
-                    book.exclusive_shelf.equals(state.selectedShelf, ignoreCase = true)
-                val bookDate = book.date_read.trim().replace('/', '-')
-                val matchesDate = when {
-                    state.selectedDateFilter != null -> bookDate.startsWith(state.selectedDateFilter!!)
-                    state.fromDateFilter != null && state.toDateFilter != null ->
-                        bookDate.isNotBlank() && bookDate >= state.fromDateFilter!! && bookDate <= state.toDateFilter!!
-                    state.fromDateFilter != null -> bookDate.isNotBlank() && bookDate >= state.fromDateFilter!!
-                    state.toDateFilter != null -> bookDate.isNotBlank() && bookDate <= state.toDateFilter!!
-                    else -> true
-                }
-                matchesSearch && matchesShelf && matchesDate
-            }
-
-            list = when (state.sortBy) {
-                "rating_desc" -> list.sortedByDescending { it.my_rating }
-                "rating_asc" -> list.sortedBy { it.my_rating }
-                "title" -> list.sortedBy { it.title.lowercase() }
-                "date" -> list.sortedByDescending { it.date_read }
-                else -> list
-            }
-            list
-        }
-        filteredBooks = computed
-        isFiltering = false
-    }
 
     if (showDatePicker) {
         ExpressiveDateFilterDialog(
@@ -94,15 +43,12 @@ fun BooksScreen(
             initialEndDate = state.toDateFilter,
             onDismissRequest = { showDatePicker = false },
             onDateSelected = { date ->
-                isFiltering = true
                 viewModel.setDateFilter(date)
             },
             onDateRangeSelected = { start, end ->
-                isFiltering = true
                 viewModel.setDateRangeFilter(start, end)
             },
             onClear = {
-                isFiltering = true
                 viewModel.clearDateFilter()
             }
         )
@@ -157,14 +103,11 @@ fun BooksScreen(
             ) {
 
                 // Stats Row
-                item {
+                item(key = "books_stats_row", contentType = "stats_row") {
                     val totalBooks = state.books.size
-                    val readBooks = state.books.count { it.exclusive_shelf.equals("read", ignoreCase = true) }
-                    val toReadBooks = state.books.count { it.exclusive_shelf.equals("to-read", ignoreCase = true) }
-                    val ratedCount = state.books.count { it.my_rating > 0 }
-                    val avgRating = if (ratedCount > 0) {
-                        String.format("%.1f", state.books.filter { it.my_rating > 0 }.map { it.my_rating }.average())
-                    } else "0.0"
+                    val readBooks = state.readBooksCount
+                    val toReadBooks = state.toReadBooksCount
+                    val avgRating = state.avgRatingText
 
                     Row(
                         modifier = Modifier
@@ -196,7 +139,7 @@ fun BooksScreen(
                 }
 
                 // Search Bar & Filter Header (Sticky Header)
-                stickyHeader {
+                stickyHeader(key = "books_sticky_header", contentType = "sticky_header") {
                     Surface(
                         color = MaterialTheme.colorScheme.surface,
                         modifier = Modifier
@@ -231,7 +174,6 @@ fun BooksScreen(
                                 trailingIcon = {
                                     if (state.searchQuery.isNotEmpty()) {
                                         IconButton(onClick = {
-                                            isFiltering = true
                                             viewModel.setSearchQuery("")
                                         }) {
                                             Icon(
@@ -286,7 +228,6 @@ fun BooksScreen(
                                                 modifier = Modifier
                                                     .size(14.dp)
                                                     .clickable {
-                                                        isFiltering = true
                                                         viewModel.clearDateFilter()
                                                     }
                                             )
@@ -312,7 +253,6 @@ fun BooksScreen(
                                     selectedItem = currentShelfItem,
                                     onItemSelected = { (shelf, _, _) ->
                                         if (state.selectedShelf != shelf) {
-                                            isFiltering = true
                                             viewModel.setShelf(shelf)
                                         }
                                     },
@@ -335,7 +275,6 @@ fun BooksScreen(
                                             "title" -> "date"
                                             else -> "rating_desc"
                                         }
-                                        isFiltering = true
                                         viewModel.setSortBy(nextSort)
                                     },
                                     leadingIcon = {
@@ -360,19 +299,21 @@ fun BooksScreen(
                     }
                 }
 
-                if ((state.isLoading && state.books.isEmpty()) || isFiltering) {
-                    item {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(200.dp),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            ContainedLoadingIndicator(size = 44.dp)
+                if ((state.isLoading || state.isFiltering) && state.filteredBooks.isEmpty()) {
+                    if (!isRefreshing) {
+                        item(key = "books_loading", contentType = "loading") {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(200.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                ContainedLoadingIndicator(size = 44.dp)
+                            }
                         }
                     }
-                } else if (filteredBooks.isEmpty()) {
-                    item {
+                } else if (state.filteredBooks.isEmpty()) {
+                    item(key = "books_empty", contentType = "empty") {
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -388,13 +329,13 @@ fun BooksScreen(
                     }
                 } else {
                     itemsIndexed(
-                        items = filteredBooks,
+                        items = state.filteredBooks,
                         key = { index, book -> "${book.book_id}_${book.title}_$index" },
                         contentType = { _, _ -> "book_row" }
                     ) { index, book ->
                         LazyCardRowContainer(
                             index = index,
-                            totalCount = filteredBooks.size
+                            totalCount = state.filteredBooks.size
                         ) {
                             BookRowItem(
                                 book = book,
@@ -404,7 +345,7 @@ fun BooksScreen(
                     }
                 }
 
-                item { Spacer(modifier = Modifier.height(20.dp)) }
+                item(key = "books_bottom_spacer", contentType = "spacer") { Spacer(modifier = Modifier.height(20.dp)) }
             }
         }
     }

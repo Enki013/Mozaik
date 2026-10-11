@@ -47,47 +47,6 @@ fun NotificationsScreen(
     val context = LocalContext.current
     var selectedNotification by remember { mutableStateOf<NotificationDto?>(null) }
     var showDatePicker by remember { mutableStateOf(false) }
-    var filteredList by remember { mutableStateOf<List<NotificationDto>>(emptyList()) }
-    var isFiltering by remember { mutableStateOf(false) }
-
-    LaunchedEffect(
-        state.notifications,
-        state.selectedApp,
-        state.searchQuery,
-        state.selectedDateFilter,
-        state.fromDateFilter,
-        state.toDateFilter
-    ) {
-        if (state.notifications.isEmpty()) {
-            filteredList = emptyList()
-            isFiltering = false
-            return@LaunchedEffect
-        }
-        if (isFiltering) {
-            delay(160)
-        }
-        val computed = withContext(Dispatchers.Default) {
-            state.notifications.filter { item ->
-                val matchesApp = state.selectedApp == null || item.displayAppName == state.selectedApp
-                val matchesSearch = state.searchQuery.isBlank() ||
-                    item.displayTitle.contains(state.searchQuery, ignoreCase = true) ||
-                    item.displayBody.contains(state.searchQuery, ignoreCase = true) ||
-                    item.displayAppName.contains(state.searchQuery, ignoreCase = true)
-                val notifDate = item.formattedDate.ifBlank { item.created_at.take(10) }
-                val matchesDate = when {
-                    state.selectedDateFilter != null -> notifDate.startsWith(state.selectedDateFilter!!)
-                    state.fromDateFilter != null && state.toDateFilter != null ->
-                        notifDate.isNotBlank() && notifDate >= state.fromDateFilter!! && notifDate <= state.toDateFilter!!
-                    state.fromDateFilter != null -> notifDate.isNotBlank() && notifDate >= state.fromDateFilter!!
-                    state.toDateFilter != null -> notifDate.isNotBlank() && notifDate <= state.toDateFilter!!
-                    else -> true
-                }
-                matchesApp && matchesSearch && matchesDate
-            }
-        }
-        filteredList = computed
-        isFiltering = false
-    }
 
     if (showDatePicker) {
         ExpressiveDateFilterDialog(
@@ -95,15 +54,12 @@ fun NotificationsScreen(
             initialEndDate = state.toDateFilter,
             onDismissRequest = { showDatePicker = false },
             onDateSelected = { date ->
-                isFiltering = true
                 viewModel.setDateFilter(date)
             },
             onDateRangeSelected = { start, end ->
-                isFiltering = true
                 viewModel.setDateRangeFilter(start, end)
             },
             onClear = {
-                isFiltering = true
                 viewModel.clearDateFilter()
             }
         )
@@ -149,12 +105,7 @@ fun NotificationsScreen(
                 .fillMaxSize()
                 .padding(innerPadding)
         ) {
-            val appList = remember(state.notifications) {
-                state.notifications
-                    .map { it.displayAppName }
-                    .distinct()
-                    .sorted()
-            }
+            val appList = state.appList
 
             LazyColumn(
                 modifier = Modifier
@@ -164,10 +115,9 @@ fun NotificationsScreen(
                 verticalArrangement = Arrangement.Top
             ) {
                 // Stats Row
-                item {
+                item(key = "notifications_stats_row", contentType = "stats_row") {
                     val total = state.notifications.size
-                    val todayISO = remember { LocalDate.now().toString() }
-                    val todayCount = state.notifications.count { it.formattedDate == todayISO }
+                    val todayCount = state.todayCount
                     val appCount = appList.size
 
                     Row(
@@ -194,7 +144,7 @@ fun NotificationsScreen(
                 }
 
                 // Search Bar & Filter Header (Sticky Header)
-                stickyHeader {
+                stickyHeader(key = "notifications_sticky_header", contentType = "sticky_header") {
                     Surface(
                         color = MaterialTheme.colorScheme.surface,
                         modifier = Modifier
@@ -229,7 +179,6 @@ fun NotificationsScreen(
                                 trailingIcon = {
                                     if (state.searchQuery.isNotEmpty()) {
                                         IconButton(onClick = {
-                                            isFiltering = true
                                             viewModel.setSearchQuery("")
                                         }) {
                                             Icon(
@@ -284,7 +233,6 @@ fun NotificationsScreen(
                                                 modifier = Modifier
                                                     .size(14.dp)
                                                     .clickable {
-                                                        isFiltering = true
                                                         viewModel.clearDateFilter()
                                                     }
                                             )
@@ -302,7 +250,6 @@ fun NotificationsScreen(
                                     selected = state.selectedApp == null,
                                     onClick = {
                                         if (state.selectedApp != null) {
-                                            isFiltering = true
                                             viewModel.setAppFilter(null)
                                         }
                                     },
@@ -314,7 +261,6 @@ fun NotificationsScreen(
                                     ExpressiveFilterChip(
                                         selected = isSelected,
                                         onClick = {
-                                            isFiltering = true
                                             viewModel.setAppFilter(if (isSelected) null else appName)
                                         },
                                         label = { Text(appName, style = MaterialTheme.typography.labelMedium) }
@@ -324,10 +270,7 @@ fun NotificationsScreen(
                                 if (state.selectedApp != null || state.searchQuery.isNotEmpty() || hasActiveDate) {
                                     ExpressiveAssistChip(
                                         onClick = {
-                                            isFiltering = true
-                                            viewModel.setAppFilter(null)
-                                            viewModel.setSearchQuery("")
-                                            viewModel.clearDateFilter()
+                                            viewModel.resetFilters()
                                         },
                                         label = {
                                             Text(
@@ -347,19 +290,21 @@ fun NotificationsScreen(
                 }
 
                 // Loading or Empty State
-                if ((state.isLoading && state.notifications.isEmpty()) || isFiltering) {
-                    item {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(200.dp),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            ContainedLoadingIndicator(size = 44.dp)
+                if ((state.isLoading || state.isFiltering) && state.filteredNotifications.isEmpty()) {
+                    if (!isRefreshing) {
+                        item(key = "notifications_loading", contentType = "loading") {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(200.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                ContainedLoadingIndicator(size = 44.dp)
+                            }
                         }
                     }
-                } else if (filteredList.isEmpty()) {
-                    item {
+                } else if (state.filteredNotifications.isEmpty()) {
+                    item(key = "notifications_empty", contentType = "empty") {
                         if (state.notifications.isEmpty()) {
                             Card(
                                 modifier = Modifier
@@ -420,13 +365,13 @@ fun NotificationsScreen(
                     }
                 } else {
                     itemsIndexed(
-                        items = filteredList,
+                        items = state.filteredNotifications,
                         key = { index, notif -> "${notif.id}_${notif.created_at}_$index" },
                         contentType = { _, _ -> "notification_row" }
                     ) { index, notif ->
                         LazyCardRowContainer(
                             index = index,
-                            totalCount = filteredList.size
+                            totalCount = state.filteredNotifications.size
                         ) {
                             NotificationRowItem(
                                 notification = notif,
@@ -436,7 +381,7 @@ fun NotificationsScreen(
                     }
                 }
 
-                item { Spacer(modifier = Modifier.height(20.dp)) }
+                item(key = "notifications_bottom_spacer", contentType = "spacer") { Spacer(modifier = Modifier.height(20.dp)) }
             }
         }
     }

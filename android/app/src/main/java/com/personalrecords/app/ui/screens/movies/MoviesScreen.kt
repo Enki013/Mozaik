@@ -38,64 +38,6 @@ fun MoviesScreen(
     val state by viewModel.uiState.collectAsState()
     var showDatePicker by remember { mutableStateOf(false) }
     var selectedFilm by remember { mutableStateOf<FilmDto?>(null) }
-    var filteredFilms by remember { mutableStateOf<List<FilmDto>>(emptyList()) }
-    var isFiltering by remember { mutableStateOf(false) }
-
-    LaunchedEffect(
-        state.films,
-        state.searchQuery,
-        state.selectedDateFilter,
-        state.fromDateFilter,
-        state.toDateFilter,
-        state.onlyRewatches,
-        state.sortBy
-    ) {
-        if (state.films.isEmpty()) {
-            filteredFilms = emptyList()
-            isFiltering = false
-            return@LaunchedEffect
-        }
-        val films = state.films
-        val query = state.searchQuery
-        val singleDate = state.selectedDateFilter
-        val fromDate = state.fromDateFilter
-        val toDate = state.toDateFilter
-        val rewatchesOnly = state.onlyRewatches
-        val sort = state.sortBy
-
-        if (isFiltering) {
-            delay(160)
-        }
-        val result = withContext(Dispatchers.Default) {
-            var list = films.filter { film ->
-                val matchesSearch = query.isBlank() ||
-                    film.displayTitle.contains(query, ignoreCase = true)
-                val matchesRewatch = !rewatchesOnly || film.rewatch
-                val filmDate = film.safeWatchedDate.ifBlank { film.diary_date ?: "" }
-                val matchesDate = when {
-                    singleDate != null -> filmDate.startsWith(singleDate)
-                    fromDate != null && toDate != null ->
-                        filmDate.isNotBlank() && filmDate >= fromDate && filmDate <= toDate
-                    fromDate != null -> filmDate.isNotBlank() && filmDate >= fromDate
-                    toDate != null -> filmDate.isNotBlank() && filmDate <= toDate
-                    else -> true
-                }
-                matchesSearch && matchesRewatch && matchesDate
-            }
-
-            list = when (sort) {
-                "rating_desc" -> list.sortedByDescending { it.safeRating }
-                "rating_asc" -> list.sortedBy { it.safeRating }
-                "year" -> list.sortedByDescending { it.safeYear }
-                "date" -> list.sortedByDescending { it.safeWatchedDate }
-                "title" -> list.sortedBy { it.displayTitle.lowercase() }
-                else -> list
-            }
-            list
-        }
-        filteredFilms = result
-        isFiltering = false
-    }
 
     if (showDatePicker) {
         ExpressiveDateFilterDialog(
@@ -103,15 +45,12 @@ fun MoviesScreen(
             initialEndDate = state.toDateFilter,
             onDismissRequest = { showDatePicker = false },
             onDateSelected = { date ->
-                isFiltering = true
                 viewModel.setDateFilter(date)
             },
             onDateRangeSelected = { start, end ->
-                isFiltering = true
                 viewModel.setDateRangeFilter(start, end)
             },
             onClear = {
-                isFiltering = true
                 viewModel.clearDateFilter()
             }
         )
@@ -166,13 +105,11 @@ fun MoviesScreen(
             ) {
 
                 // Stats Row
-                item {
+                item(key = "movies_stats_row", contentType = "stats_row") {
                     val totalFilms = state.films.size
-                    val ratedFilms = state.films.count { it.safeRating > 0 }
-                    val rewatchFilms = state.films.count { it.rewatch }
-                    val avgRating = if (ratedFilms > 0) {
-                        String.format("%.1f", state.films.filter { it.safeRating > 0 }.map { it.safeRating }.average())
-                    } else "0.0"
+                    val ratedFilms = state.ratedFilmsCount
+                    val rewatchFilms = state.rewatchFilmsCount
+                    val avgRating = state.avgRatingText
 
                     Row(
                         modifier = Modifier
@@ -205,7 +142,7 @@ fun MoviesScreen(
 
                 // Error banner if any
                 state.error?.let { err ->
-                    item {
+                    item(key = "movies_error_banner", contentType = "error_banner") {
                         Surface(
                             color = MaterialTheme.colorScheme.errorContainer,
                             shape = M3Shapes.CornerSmall,
@@ -236,7 +173,7 @@ fun MoviesScreen(
                 }
 
                 // Search Bar & Filter Header (Sticky Header)
-                stickyHeader {
+                stickyHeader(key = "movies_sticky_header", contentType = "sticky_header") {
                     Surface(
                         color = MaterialTheme.colorScheme.surface,
                         modifier = Modifier
@@ -271,7 +208,6 @@ fun MoviesScreen(
                                 trailingIcon = {
                                     if (state.searchQuery.isNotEmpty()) {
                                         IconButton(onClick = {
-                                            isFiltering = true
                                             viewModel.setSearchQuery("")
                                         }) {
                                             Icon(
@@ -293,7 +229,7 @@ fun MoviesScreen(
                                 singleLine = true
                             )
 
-                            val rewatchFilms = state.films.count { it.rewatch }
+                            val rewatchFilms = state.rewatchFilmsCount
                             val rewatchLabel = stringResource(R.string.movies_filter_rewatches)
                             Row(
                                 modifier = Modifier
@@ -328,7 +264,6 @@ fun MoviesScreen(
                                                 modifier = Modifier
                                                     .size(14.dp)
                                                     .clickable {
-                                                        isFiltering = true
                                                         viewModel.clearDateFilter()
                                                     }
                                             )
@@ -344,7 +279,6 @@ fun MoviesScreen(
                                 ExpressiveFilterChip(
                                     selected = state.onlyRewatches,
                                     onClick = {
-                                        isFiltering = true
                                         viewModel.toggleRewatches()
                                     },
                                     label = {
@@ -379,7 +313,6 @@ fun MoviesScreen(
                                             "date" -> "title"
                                             else -> "rating_desc"
                                         }
-                                        isFiltering = true
                                         viewModel.setSortBy(nextSort)
                                     },
                                     leadingIcon = {
@@ -404,19 +337,21 @@ fun MoviesScreen(
                     }
                 }
 
-                if ((state.isLoading && state.films.isEmpty()) || isFiltering) {
-                    item(key = "movies_loading") {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(200.dp),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            ContainedLoadingIndicator(size = 44.dp)
+                if ((state.isLoading || state.isFiltering) && state.filteredFilms.isEmpty()) {
+                    if (!isRefreshing) {
+                        item(key = "movies_loading", contentType = "loading") {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(200.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                ContainedLoadingIndicator(size = 44.dp)
+                            }
                         }
                     }
-                } else if (filteredFilms.isEmpty()) {
-                    item(key = "movies_empty") {
+                } else if (state.filteredFilms.isEmpty()) {
+                    item(key = "movies_empty", contentType = "empty") {
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -432,13 +367,13 @@ fun MoviesScreen(
                     }
                 } else {
                     itemsIndexed(
-                        items = filteredFilms,
+                        items = state.filteredFilms,
                         key = { index, film -> "${film.film_key ?: film.displayTitle}_$index" },
                         contentType = { _, _ -> "movie_row" }
                     ) { index, film ->
                         LazyCardRowContainer(
                             index = index,
-                            totalCount = filteredFilms.size
+                            totalCount = state.filteredFilms.size
                         ) {
                             FilmRowItem(
                                 film = film,
@@ -448,7 +383,7 @@ fun MoviesScreen(
                     }
                 }
 
-                item { Spacer(modifier = Modifier.height(20.dp)) }
+                item(key = "movies_bottom_spacer", contentType = "spacer") { Spacer(modifier = Modifier.height(20.dp)) }
             }
         }
     }
