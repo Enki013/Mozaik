@@ -17,6 +17,8 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
@@ -28,6 +30,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavGraph.Companion.findStartDestination
+import androidx.navigation.NavHostController
 import androidx.navigation.compose.*
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.personalrecords.app.core.theme.M3ExpressiveMotion
@@ -107,8 +110,6 @@ fun ProvideLocalizedApp(
 @Composable
 fun MainAppHost() {
     val navController = rememberNavController()
-    val navBackStackEntry by navController.currentBackStackEntryAsState()
-    val currentDestination = navBackStackEntry?.destination
 
     val overviewScrollFlow = remember { MutableSharedFlow<Unit>(extraBufferCapacity = 1) }
     val overviewRefreshFlow = remember { MutableSharedFlow<Unit>(extraBufferCapacity = 1) }
@@ -122,16 +123,15 @@ fun MainAppHost() {
     val settingsScrollFlow = remember { MutableSharedFlow<Unit>(extraBufferCapacity = 1) }
     val settingsRefreshFlow = remember { MutableSharedFlow<Unit>(extraBufferCapacity = 1) }
 
-    val coroutineScope = rememberCoroutineScope()
-    var activeTabTapJob by remember { mutableStateOf<kotlinx.coroutines.Job?>(null) }
-
-    val detailSubRoutes = setOf(
-        Screen.Nutrition.route,
-        Screen.Books.route,
-        Screen.Movies.route,
-        Screen.Notifications.route,
-        Screen.Language.route
-    )
+    val detailSubRoutes = remember {
+        setOf(
+            Screen.Nutrition.route,
+            Screen.Books.route,
+            Screen.Movies.route,
+            Screen.Notifications.route,
+            Screen.Language.route
+        )
+    }
 
     Box(modifier = Modifier.fillMaxSize()) {
         NavHost(
@@ -279,104 +279,122 @@ fun MainAppHost() {
             }
         }
 
-        // Floating Bottom Bar — M3 Expressive HorizontalFloatingToolbar + Companion Action
-        // Specs: 64dp container height, CornerFull capsule shape, 8dp leading/trailing padding,
-        // 4dp spacing between items, 8dp gap to companion Settings button.
-        val haptic = LocalHapticFeedback.current
-        val mainNavScreens = remember {
-            listOf(Screen.Overview, Screen.Timeline, Screen.Records)
-        }
-
-        fun handleNavClick(screen: Screen, isSelected: Boolean) {
-            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-
-            fun triggerScrollToTop(route: String) {
+        ExpressiveFloatingBottomBar(
+            navController = navController,
+            onScrollToTop = { route ->
                 when (route) {
                     Screen.Overview.route -> overviewScrollFlow.tryEmit(Unit)
                     Screen.Timeline.route -> timelineScrollFlow.tryEmit(Unit)
                     Screen.Records.route -> recordsScrollFlow.tryEmit(Unit)
                     Screen.Settings.route -> settingsScrollFlow.tryEmit(Unit)
                 }
-            }
-
-            fun triggerRefresh(route: String) {
+            },
+            onRefresh = { route ->
                 when (route) {
                     Screen.Overview.route -> overviewRefreshFlow.tryEmit(Unit)
                     Screen.Timeline.route -> timelineRefreshFlow.tryEmit(Unit)
                     Screen.Records.route -> recordsRefreshFlow.tryEmit(Unit)
                     Screen.Settings.route -> settingsRefreshFlow.tryEmit(Unit)
                 }
-            }
+            },
+            modifier = Modifier.align(Alignment.BottomCenter)
+        )
+    }
+}
 
-            if (isSelected) {
-                if (screen == Screen.Records && currentDestination?.route != Screen.Records.route) {
-                    val popped = navController.popBackStack(Screen.Records.route, inclusive = false)
-                    if (!popped) {
-                        navController.navigate(Screen.Records.route) {
-                            popUpTo(navController.graph.findStartDestination().id) {
-                                saveState = true
-                            }
-                            launchSingleTop = true
-                            restoreState = true
+@Composable
+private fun ExpressiveFloatingBottomBar(
+    navController: NavHostController,
+    onScrollToTop: (String) -> Unit,
+    onRefresh: (String) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val navBackStackEntry by navController.currentBackStackEntryAsState()
+    val currentRoute = navBackStackEntry?.destination?.route
+
+    val coroutineScope = rememberCoroutineScope()
+    var activeTabTapJob by remember { mutableStateOf<kotlinx.coroutines.Job?>(null) }
+    val haptic = LocalHapticFeedback.current
+    val mainNavScreens = remember {
+        listOf(Screen.Overview, Screen.Timeline, Screen.Records)
+    }
+    val secondaryContainerColor = MaterialTheme.colorScheme.secondaryContainer
+
+    fun handleNavClick(screen: Screen, isSelected: Boolean) {
+        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+
+        if (isSelected) {
+            if (screen == Screen.Records && currentRoute != Screen.Records.route) {
+                val popped = navController.popBackStack(Screen.Records.route, inclusive = false)
+                if (!popped) {
+                    navController.navigate(Screen.Records.route) {
+                        popUpTo(navController.graph.findStartDestination().id) {
+                            saveState = true
                         }
-                    }
-                } else if (screen == Screen.Settings && currentDestination?.route == Screen.Language.route) {
-                    navController.popBackStack(Screen.Settings.route, inclusive = false)
-                } else {
-                    if (activeTabTapJob?.isActive == true) {
-                        activeTabTapJob?.cancel()
-                        activeTabTapJob = null
-                        triggerRefresh(screen.route)
-                    } else {
-                        triggerScrollToTop(screen.route)
-                        activeTabTapJob = coroutineScope.launch {
-                            kotlinx.coroutines.delay(220L)
-                            activeTabTapJob = null
-                        }
+                        launchSingleTop = true
+                        restoreState = true
                     }
                 }
+            } else if (screen == Screen.Settings && currentRoute == Screen.Language.route) {
+                navController.popBackStack(Screen.Settings.route, inclusive = false)
             } else {
-                navController.navigate(screen.route) {
-                    popUpTo(navController.graph.findStartDestination().id) {
-                        saveState = true
+                if (activeTabTapJob?.isActive == true) {
+                    activeTabTapJob?.cancel()
+                    activeTabTapJob = null
+                    onRefresh(screen.route)
+                } else {
+                    onScrollToTop(screen.route)
+                    activeTabTapJob = coroutineScope.launch {
+                        kotlinx.coroutines.delay(220L)
+                        activeTabTapJob = null
                     }
-                    launchSingleTop = true
-                    restoreState = true
                 }
+            }
+        } else {
+            navController.navigate(screen.route) {
+                popUpTo(navController.graph.findStartDestination().id) {
+                    saveState = true
+                }
+                launchSingleTop = true
+                restoreState = true
             }
         }
+    }
 
-        Box(
-            modifier = Modifier
-                .align(Alignment.BottomCenter)
-                .fillMaxWidth()
-                .navigationBarsPadding()
-                .padding(start = 16.dp, end = 16.dp, bottom = 12.dp),
-            contentAlignment = Alignment.Center
+    // Floating Bottom Bar — M3 Expressive HorizontalFloatingToolbar + Companion Action
+    // Specs: 64dp container height, CornerFull capsule shape, 8dp leading/trailing padding,
+    // 4dp spacing between items, 8dp gap to companion Settings button.
+    Box(
+        modifier = modifier
+            .fillMaxWidth()
+            .navigationBarsPadding()
+            .padding(start = 16.dp, end = 16.dp, bottom = 12.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            // 1. Primary Compact Floating Toolbar (Overview, Timeline, Records)
+            Surface(
+                shape = M3Shapes.CornerFull,
+                color = MaterialTheme.colorScheme.surfaceContainer,
+                tonalElevation = 3.dp,
+                shadowElevation = 4.dp,
+                modifier = Modifier.height(64.dp)
             ) {
-                // 1. Primary Compact Floating Toolbar — M3 Expressive Vibrant Scheme
-                Surface(
-                    shape = M3Shapes.CornerFull,
-                    color = MaterialTheme.colorScheme.primaryContainer,
-                    tonalElevation = 0.dp,
-                    shadowElevation = 4.dp,
-                    modifier = Modifier.height(64.dp)
+                Row(
+                    modifier = Modifier
+                        .fillMaxHeight()
+                        .padding(horizontal = 8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxHeight()
-                            .padding(horizontal = 8.dp),
-                        horizontalArrangement = Arrangement.spacedBy(4.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        mainNavScreens.forEach { screen ->
+                    mainNavScreens.forEach { screen ->
+                        key(screen.route) {
                             val selected = when (screen) {
-                                Screen.Records -> currentDestination?.route in recordsSubRoutes
-                                else -> currentDestination?.route == screen.route
+                                Screen.Records -> currentRoute in recordsSubRoutes
+                                else -> currentRoute == screen.route
                             }
 
                             val interactionSource = remember { MutableInteractionSource() }
@@ -408,9 +426,9 @@ fun MainAppHost() {
 
                             val contentColor by animateColorAsState(
                                 targetValue = if (selected) {
-                                    MaterialTheme.colorScheme.onPrimary
+                                    MaterialTheme.colorScheme.onSecondaryContainer
                                 } else {
-                                    MaterialTheme.colorScheme.onPrimaryContainer
+                                    MaterialTheme.colorScheme.onSurfaceVariant
                                 },
                                 animationSpec = M3ExpressiveMotion.fastEffects(),
                                 label = "nav_item_content_color"
@@ -420,10 +438,15 @@ fun MainAppHost() {
                                 modifier = Modifier
                                     .height(48.dp)
                                     .expressivePressScale(interactionSource, scaleDown = 0.94f)
-                                    .background(
-                                        color = MaterialTheme.colorScheme.primary.copy(alpha = indicatorAlpha),
-                                        shape = RoundedCornerShape(indicatorCorner)
-                                    )
+                                    .drawBehind {
+                                        if (indicatorAlpha > 0.005f) {
+                                            val r = indicatorCorner.toPx()
+                                            drawRoundRect(
+                                                color = secondaryContainerColor.copy(alpha = indicatorAlpha),
+                                                cornerRadius = CornerRadius(r, r)
+                                            )
+                                        }
+                                    }
                                     .clickable(
                                         interactionSource = interactionSource,
                                         indication = null,
@@ -474,97 +497,100 @@ fun MainAppHost() {
                         }
                     }
                 }
+            }
 
-                // 2. Companion Settings Button (8dp separated, M3 Expressive TertiaryContainer pairing)
-                val settingsSelected = currentDestination?.route == Screen.Settings.route ||
-                    currentDestination?.route == Screen.Language.route
-                val settingsInteractionSource = remember { MutableInteractionSource() }
-                val isSettingsPressed by settingsInteractionSource.collectIsPressedAsState()
+            // 2. Companion Settings Button (8dp separated per M3 Expressive FloatingToolbar spec)
+            val settingsSelected = currentRoute == Screen.Settings.route ||
+                currentRoute == Screen.Language.route
+            val settingsInteractionSource = remember { MutableInteractionSource() }
+            val isSettingsPressed by settingsInteractionSource.collectIsPressedAsState()
 
-                val settingsOuterCorner by animateDpAsState(
-                    targetValue = if (isSettingsPressed) 20.dp else 32.dp,
-                    animationSpec = M3ExpressiveMotion.fastSpatial(),
-                    label = "settings_outer_corner"
-                )
-                val settingsInnerCorner by animateDpAsState(
-                    targetValue = if (isSettingsPressed) 16.dp else 24.dp,
-                    animationSpec = M3ExpressiveMotion.fastSpatial(),
-                    label = "settings_inner_corner"
-                )
-                val settingsIndicatorAlpha by animateFloatAsState(
-                    targetValue = if (settingsSelected) 1f else 0f,
-                    animationSpec = M3ExpressiveMotion.fastEffects(),
-                    label = "settings_indicator_alpha"
-                )
-                val settingsIndicatorScale by animateFloatAsState(
-                    targetValue = if (settingsSelected) 1f else 0.7f,
-                    animationSpec = M3ExpressiveMotion.fastSpatial(),
-                    label = "settings_indicator_scale"
-                )
-                val settingsIconRotation by animateFloatAsState(
-                    targetValue = if (settingsSelected) 60f else 0f,
-                    animationSpec = M3ExpressiveMotion.defaultSpatial(),
-                    label = "settings_icon_rotation"
-                )
-                val settingsIconColor by animateColorAsState(
-                    targetValue = if (settingsSelected) {
-                        MaterialTheme.colorScheme.onTertiary
-                    } else {
-                        MaterialTheme.colorScheme.onTertiaryContainer
-                    },
-                    animationSpec = M3ExpressiveMotion.fastEffects(),
-                    label = "settings_icon_color"
-                )
+            val settingsOuterCorner by animateDpAsState(
+                targetValue = if (isSettingsPressed) 20.dp else 32.dp,
+                animationSpec = M3ExpressiveMotion.fastSpatial(),
+                label = "settings_outer_corner"
+            )
+            val settingsInnerCorner by animateDpAsState(
+                targetValue = if (isSettingsPressed) 16.dp else 24.dp,
+                animationSpec = M3ExpressiveMotion.fastSpatial(),
+                label = "settings_inner_corner"
+            )
+            val settingsIndicatorAlpha by animateFloatAsState(
+                targetValue = if (settingsSelected) 1f else 0f,
+                animationSpec = M3ExpressiveMotion.fastEffects(),
+                label = "settings_indicator_alpha"
+            )
+            val settingsIndicatorScale by animateFloatAsState(
+                targetValue = if (settingsSelected) 1f else 0.7f,
+                animationSpec = M3ExpressiveMotion.fastSpatial(),
+                label = "settings_indicator_scale"
+            )
+            val settingsIconRotation by animateFloatAsState(
+                targetValue = if (settingsSelected) 60f else 0f,
+                animationSpec = M3ExpressiveMotion.defaultSpatial(),
+                label = "settings_icon_rotation"
+            )
+            val settingsIconColor by animateColorAsState(
+                targetValue = if (settingsSelected) {
+                    MaterialTheme.colorScheme.onSecondaryContainer
+                } else {
+                    MaterialTheme.colorScheme.onSurfaceVariant
+                },
+                animationSpec = M3ExpressiveMotion.fastEffects(),
+                label = "settings_icon_color"
+            )
 
-                Surface(
-                    shape = RoundedCornerShape(settingsOuterCorner),
-                    color = MaterialTheme.colorScheme.tertiaryContainer,
-                    tonalElevation = 0.dp,
-                    shadowElevation = 4.dp,
+            Surface(
+                shape = RoundedCornerShape(settingsOuterCorner),
+                color = MaterialTheme.colorScheme.surfaceContainer,
+                tonalElevation = 3.dp,
+                shadowElevation = 4.dp,
+                modifier = Modifier
+                    .size(64.dp)
+                    .expressivePressScale(settingsInteractionSource, scaleDown = 0.92f)
+            ) {
+                Box(
                     modifier = Modifier
-                        .size(64.dp)
-                        .expressivePressScale(settingsInteractionSource, scaleDown = 0.92f)
+                        .fillMaxSize()
+                        .clickable(
+                            interactionSource = settingsInteractionSource,
+                            indication = null,
+                            role = Role.Tab,
+                            onClick = { handleNavClick(Screen.Settings, settingsSelected) }
+                        )
+                        .semantics { this.selected = settingsSelected }
+                        .padding(8.dp),
+                    contentAlignment = Alignment.Center
                 ) {
                     Box(
                         modifier = Modifier
                             .fillMaxSize()
-                            .clickable(
-                                interactionSource = settingsInteractionSource,
-                                indication = null,
-                                role = Role.Tab,
-                                onClick = { handleNavClick(Screen.Settings, settingsSelected) }
-                            )
-                            .semantics { this.selected = settingsSelected }
-                            .padding(8.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        if (settingsIndicatorAlpha > 0.005f) {
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxSize()
-                                    .graphicsLayer {
-                                        scaleX = settingsIndicatorScale
-                                        scaleY = settingsIndicatorScale
-                                        alpha = settingsIndicatorAlpha
-                                    }
-                                    .background(
-                                        color = MaterialTheme.colorScheme.tertiary,
-                                        shape = RoundedCornerShape(settingsInnerCorner)
+                            .graphicsLayer {
+                                scaleX = settingsIndicatorScale
+                                scaleY = settingsIndicatorScale
+                                alpha = settingsIndicatorAlpha
+                            }
+                            .drawBehind {
+                                if (settingsIndicatorAlpha > 0.005f) {
+                                    val r = settingsInnerCorner.toPx()
+                                    drawRoundRect(
+                                        color = secondaryContainerColor,
+                                        cornerRadius = CornerRadius(r, r)
                                     )
-                            )
-                        }
-
-                        Icon(
-                            imageVector = if (settingsSelected) Screen.Settings.selectedIcon else Screen.Settings.icon,
-                            contentDescription = stringResource(Screen.Settings.titleRes),
-                            tint = settingsIconColor,
-                            modifier = Modifier
-                                .size(24.dp)
-                                .graphicsLayer {
-                                    rotationZ = settingsIconRotation
                                 }
-                        )
-                    }
+                            }
+                    )
+
+                    Icon(
+                        imageVector = if (settingsSelected) Screen.Settings.selectedIcon else Screen.Settings.icon,
+                        contentDescription = stringResource(Screen.Settings.titleRes),
+                        tint = settingsIconColor,
+                        modifier = Modifier
+                            .size(24.dp)
+                            .graphicsLayer {
+                                rotationZ = settingsIconRotation
+                            }
+                    )
                 }
             }
         }

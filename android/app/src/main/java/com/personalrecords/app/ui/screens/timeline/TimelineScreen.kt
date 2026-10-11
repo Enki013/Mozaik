@@ -48,34 +48,13 @@ fun TimelineScreen(
     val state by viewModel.uiState.collectAsState()
     var showDatePicker by remember { mutableStateOf(false) }
     var selectedActivity by remember { mutableStateOf<ActivityItemDto?>(null) }
-    var filteredGroups by remember { mutableStateOf<List<ActivityDayGroupDto>>(emptyList()) }
-    var isFiltering by remember { mutableStateOf(false) }
-    var isTransitionSettled by remember { mutableStateOf(false) }
 
-    LaunchedEffect(Unit) {
-        // Let the bottom bar expanding-pill spring & page transition complete at 120fps
-        // before mounting heavy timeline day cards.
-        delay(300L)
-        isTransitionSettled = true
-        viewModel.ensureLoaded()
-    }
-
-    LaunchedEffect(isTransitionSettled, state.dayGroups, state.selectedSource, state.searchQuery) {
-        if (!isTransitionSettled) return@LaunchedEffect
+    val filteredGroups = remember(state.dayGroups, state.selectedSource, state.searchQuery) {
         if (state.dayGroups.isEmpty()) {
-            filteredGroups = emptyList()
-            isFiltering = false
-            return@LaunchedEffect
-        }
-        if (state.selectedSource == "all" && state.searchQuery.isBlank()) {
-            filteredGroups = state.dayGroups
-            isFiltering = false
-            return@LaunchedEffect
-        }
-        if (isFiltering) {
-            delay(160)
-        }
-        val computed = withContext(Dispatchers.Default) {
+            emptyList()
+        } else if (state.selectedSource == "all" && state.searchQuery.isBlank()) {
+            state.dayGroups
+        } else {
             state.dayGroups.mapNotNull { group ->
                 val filteredItems = group.items.filter { item ->
                     val matchesSource = state.selectedSource == "all" || item.source == state.selectedSource
@@ -87,8 +66,6 @@ fun TimelineScreen(
                 if (filteredItems.isNotEmpty()) group.copy(items = filteredItems) else null
             }
         }
-        filteredGroups = computed
-        isFiltering = false
     }
 
     if (showDatePicker) {
@@ -174,7 +151,6 @@ fun TimelineScreen(
                         trailingIcon = {
                             if (state.searchQuery.isNotEmpty()) {
                                 IconButton(onClick = {
-                                    isFiltering = true
                                     viewModel.setSearchQuery("")
                                 }) {
                                     Icon(
@@ -296,7 +272,6 @@ fun TimelineScreen(
                                 selectedItem = currentSourceItem,
                                 onItemSelected = { (key, _, _) ->
                                     if (state.selectedSource != key) {
-                                        isFiltering = true
                                         viewModel.setSource(key)
                                     }
                                 },
@@ -336,8 +311,8 @@ fun TimelineScreen(
                     }
                 }
 
-                if (!isTransitionSettled || (state.isLoading && !isRefreshing) || isFiltering) {
-                    item(contentType = "loading") {
+                if (state.isLoading && !isRefreshing && filteredGroups.isEmpty()) {
+                    item(key = "loading_indicator", contentType = "loading") {
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -348,7 +323,7 @@ fun TimelineScreen(
                         }
                     }
                 } else if (filteredGroups.isEmpty()) {
-                    item(contentType = "empty") {
+                    item(key = "empty_state", contentType = "empty") {
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -620,16 +595,18 @@ fun DayGroupCard(
 
                 // Section Items with HorizontalDivider
                 items.forEachIndexed { itemIndex, item ->
-                    if (itemIndex > 0) {
-                        HorizontalDivider(
-                            color = MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.5f),
-                            modifier = Modifier.padding(horizontal = 12.dp)
+                    key(item.id) {
+                        if (itemIndex > 0) {
+                            HorizontalDivider(
+                                color = MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.5f),
+                                modifier = Modifier.padding(horizontal = 12.dp)
+                            )
+                        }
+                        TimelineItemCard(
+                            item = item,
+                            onClick = { onItemClick(item) }
                         )
                     }
-                    TimelineItemCard(
-                        item = item,
-                        onClick = { onItemClick(item) }
-                    )
                 }
             }
         }
@@ -652,7 +629,7 @@ fun TimelineItemCard(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(onClick = onClick)
+            .expressiveBounceClick(onClick = onClick)
             .padding(horizontal = 12.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
