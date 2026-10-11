@@ -172,10 +172,12 @@ fun SettingsScreen(
 
     LaunchedEffect(refreshFlow) {
         refreshFlow?.collect {
-            listState.expressiveScrollToTop()
             isRefreshing = true
             viewModel.testConnection()
             viewModel.loadAllSettings()
+            if (!listState.isScrollInProgress) {
+                listState.expressiveScrollToTop()
+            }
         }
     }
 

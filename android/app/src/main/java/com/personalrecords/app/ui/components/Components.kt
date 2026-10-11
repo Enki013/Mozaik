@@ -1293,6 +1293,7 @@ suspend fun LazyListState.expressiveScrollToTop() {
             ).coerceAtLeast(240f) + layoutInfo.mainAxisItemSpacing
 
         fun computeStep(x0: Float, dt: Float): Float {
+            if (x0 <= 1.5f) return x0.coerceAtLeast(0f)
             val maxCriticalVelocity = omega * x0 * 1.15f
             if (velocity > maxCriticalVelocity) {
                 velocity = maxCriticalVelocity
@@ -1360,6 +1361,10 @@ suspend fun LazyListState.expressiveScrollToTop() {
                 val consumed = -scrollBy(-step)
                 if (consumed < 0.5f && !canScrollBackward) break
             }
+        }
+
+        if (firstVisibleItemIndex == 0 && firstVisibleItemScrollOffset > 0) {
+            scrollBy(-firstVisibleItemScrollOffset.toFloat())
         }
     }
 }

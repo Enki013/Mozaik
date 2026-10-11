@@ -84,9 +84,11 @@ fun TimelineScreen(
         if (refreshFlow != null) {
             LaunchedEffect(refreshFlow) {
                 refreshFlow.collect {
-                    listState.expressiveScrollToTop()
                     isRefreshing = true
                     viewModel.loadData()
+                    if (!listState.isScrollInProgress) {
+                        listState.expressiveScrollToTop()
+                    }
                 }
             }
         }
