@@ -32,7 +32,12 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.graphics.drawscope.scale
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
+import androidx.compose.ui.input.nestedscroll.NestedScrollSource
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.input.pointer.PointerEvent
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.PointerEventType
@@ -42,6 +47,7 @@ import androidx.compose.ui.node.ModifierNodeElement
 import androidx.compose.ui.node.PointerInputModifierNode
 import androidx.compose.ui.node.invalidateDraw
 import androidx.compose.ui.platform.InspectorInfo
+import androidx.compose.ui.unit.Velocity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
@@ -1089,28 +1095,47 @@ fun ExpressivePullToRefreshBox(
     content: @Composable BoxScope.() -> Unit
 ) {
     val density = LocalDensity.current
-    val maxShiftPx = with(density) { 108.dp.toPx() }
+    val maxShiftPx = with(density) { 96.dp.toPx() }
+    val currentRefreshing by rememberUpdatedState(isRefreshing)
 
-    val refreshShiftState = animateFloatAsState(
-        targetValue = if (isRefreshing) maxShiftPx else 0f,
-        animationSpec = M3ExpressiveMotion.defaultSpatial(),
-        label = "ptr_content_shift"
-    )
+    val pullLockConnection = remember(state) {
+        object : NestedScrollConnection {
+            override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
+                // While refreshing or while the pull-to-refresh displacement/animation is active,
+                // prevent the inner LazyColumn from scrolling upward independently of the animation.
+                if (currentRefreshing || state.isAnimating || state.distanceFraction > 0.001f) {
+                    if (available.y < 0f || currentRefreshing || state.isAnimating) {
+                        return Offset(0f, available.y)
+                    }
+                }
+                return Offset.Zero
+            }
+
+            override suspend fun onPreFling(available: Velocity): Velocity {
+                if (currentRefreshing || state.isAnimating || state.distanceFraction > 0.001f) {
+                    return available
+                }
+                return Velocity.Zero
+            }
+        }
+    }
 
     Box(
-        modifier = modifier.pullToRefresh(
-            state = state,
-            isRefreshing = isRefreshing,
-            onRefresh = onRefresh
-        ),
+        modifier = modifier
+            .clipToBounds()
+            .pullToRefresh(
+                state = state,
+                isRefreshing = isRefreshing,
+                onRefresh = onRefresh
+            )
+            .nestedScroll(pullLockConnection),
         contentAlignment = contentAlignment
     ) {
         Box(
             modifier = Modifier
                 .fillMaxSize()
                 .graphicsLayer {
-                    val dragShift = (state.distanceFraction * maxShiftPx).coerceAtLeast(0f)
-                    translationY = maxOf(refreshShiftState.value, dragShift)
+                    translationY = (state.distanceFraction * maxShiftPx).coerceAtLeast(0f)
                 },
             content = content
         )
