@@ -24,6 +24,7 @@ import com.personalrecords.app.core.network.model.BookDto
 import com.personalrecords.app.core.theme.*
 import com.personalrecords.app.ui.components.*
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import kotlinx.coroutines.delay
 
 private val BookShelfKeys = listOf("all", "read", "to-read", "currently-reading")
 
@@ -86,15 +87,30 @@ fun BooksScreen(
         LaunchedEffect(state.isLoading) {
             if (!state.isLoading) isRefreshing = false
         }
+        var isTransitionSettled by remember { mutableStateOf(false) }
+        LaunchedEffect(Unit) {
+            delay(260L)
+            isTransitionSettled = true
+        }
 
-        ExpressivePullToRefreshBox(
-            isRefreshing = isRefreshing,
-            onRefresh = { isRefreshing = true; viewModel.loadData() },
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(innerPadding)
-        ) {
-            LazyColumn(
+        if (!isTransitionSettled) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(innerPadding),
+                contentAlignment = Alignment.Center
+            ) {
+                ContainedLoadingIndicator(size = 48.dp)
+            }
+        } else {
+            ExpressivePullToRefreshBox(
+                isRefreshing = isRefreshing,
+                onRefresh = { isRefreshing = true; viewModel.loadData() },
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(innerPadding)
+            ) {
+                LazyColumn(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(horizontal = 12.dp),
@@ -354,6 +370,7 @@ fun BooksScreen(
 
                 item(key = "books_bottom_spacer", contentType = "spacer") { Spacer(modifier = Modifier.height(20.dp)) }
             }
+        }
         }
     }
 
