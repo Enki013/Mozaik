@@ -59,6 +59,11 @@ jobs:
           echo "RELEASE_TAG=$RELEASE_TAG" >> $GITHUB_ENV
           echo "RELEASE_TARGET_SHA=$(git rev-parse HEAD)" >> $GITHUB_ENV
 
+      - name: Run Lint and Unit Tests
+        run: |
+          cd android
+          ./gradlew lintRelease testDebugUnitTest --no-daemon
+
       - name: Build release APK and AAB
         run: |
           cd android

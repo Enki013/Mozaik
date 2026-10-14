@@ -77,6 +77,8 @@
     <string name="overview_recent_activities_subtitle">Öğün, kitap ve film akışı</string>
     <string name="overview_no_activities">Henüz aktivite kaydı bulunmuyor.</string>
     <string name="overview_sync_success">%1$s başarıyla eşitlendi: %2$d yeni kayıt</string>
+    <string name="overview_connection_error_title">Sunucu Bağlantısı Kurulamadı</string>
+    <string name="overview_connection_error_desc">Sunucuya erişilemedi. Cloudflare Worker veya Docker sunucu adresinizi yapılandırmak için buraya dokunun veya Ayarlar sekmesine gidin.</string>
 
     <!-- Timeline Screen -->
     <string name="timeline_search_placeholder">Aktivite ara (yemek, kitap, film)…</string>

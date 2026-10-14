@@ -211,7 +211,8 @@ fun MainAppHost() {
                 },
                 onNavigateToNutrition = { navController.navigate(Screen.Nutrition.route) },
                 onNavigateToBooks = { navController.navigate(Screen.Books.route) },
-                onNavigateToMovies = { navController.navigate(Screen.Movies.route) }
+                onNavigateToMovies = { navController.navigate(Screen.Movies.route) },
+                onNavigateToSettings = { navController.navigate(Screen.Settings.route) }
             )
         }
 

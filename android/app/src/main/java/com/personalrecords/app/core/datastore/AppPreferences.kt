@@ -17,7 +17,7 @@ class AppPreferences(private val context: Context) {
         val SERVER_BASE_URL = stringPreferencesKey("server_base_url")
         val CALORIE_TARGET = intPreferencesKey("calorie_target")
         val APP_LANGUAGE = stringPreferencesKey("app_language")
-        const val DEFAULT_BASE_URL = "https://personal-records-api.enessalman1300.workers.dev"
+        const val DEFAULT_BASE_URL = ""
     }
 
     val appLanguage: Flow<String> = context.dataStore.data.map { prefs ->

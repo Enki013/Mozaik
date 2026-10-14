@@ -61,6 +61,7 @@ Eğer kendi sunucunuzda (Raspberry Pi, ev sunucusu, VPS veya yerel PC) çalışt
 3. Sunucunuz hazır! Veritabanınız `./data/personal_records.sqlite3` konumunda güvenle saklanır.
 4. Tarayıcınızdan `http://localhost:8787` adresini açarak çalıştığını doğrulayabilirsiniz.
 5. Mobil uygulamadan erişmek için yerel ağdaki IP adresinizi kullanabilirsiniz (Örn: `http://192.168.1.50:8787`).
+   > 💡 **Önemli İpucu (Yerel Ağ & FatSecret):** Eğer Docker sunucunuza yerel ağınızdaki telefonunuzdan erişecekseniz ve FatSecret OAuth bağlayacaksanız, `docker-compose.yml` dosyasındaki `APP_BASE_URL` alanına yerel IP adresinizi (örn. `http://192.168.1.50:8787`) yazınız.
 
 *(Docker kullanmadan doğrudan Go ile çalıştırmak isterseniz: `cd backend && cp .env.example .env && go run ./cmd/personal-records`)*
 
@@ -83,7 +84,7 @@ Eğer elektrik faturası ve sunucu yönetimi olmadan 7/24 çalışan bir altyap�
    ```bash
    npx wrangler d1 create personal-records-db
    ```
-4. `worker/wrangler.jsonc` dosyasındaki `database_id` alanına terminaldeki ID'yi yapıştırın.
+4. `worker/wrangler.toml` dosyasını açın ve `database_id` alanına terminalde verilen ID'yi yapıştırın (Şablon için `worker/wrangler.toml.example` dosyasını inceleyebilirsiniz).
 5. Tabloları oluşturun:
    ```bash
    npx wrangler d1 execute personal-records-db --remote --file=./schema.sql
@@ -125,6 +126,7 @@ Telefonunuza gelen bildirimleri (banka harcamaları, sağlık uygulaması uyarı
 4. Notification Relay uygulamasını açıp **Bildirim Erişimi** iznini onaylayın.
 5. **Webhooks** sekmesinde `+` simgesine dokunun ve kopyaladığınız Webhook URL'sini yapıştırıp kaydedin.
 6. **Test** butonuna basın. Başarılı olduğunda bildirimleriniz otomatik olarak Kişisel Kayıtlar veritabanına ve **Zaman Çizelgesi (Timeline)** akışına düşecektir!
+   > 💡 **Öneri:** Yalnızca ilgilendiğiniz bildirimlerin (banka harcamaları, kargo takibi, abonelikler vb.) aktarılması için Notification Relay ayarlarındaki filtre bölümünden istediğiniz paket adlarını seçebilirsiniz.
 
 ---
 
@@ -139,6 +141,7 @@ Telefonunuza gelen bildirimleri (banka harcamaları, sağlık uygulaması uyarı
 
 ### Goodreads (Kitaplar)
 1. Goodreads profilinizden aldığınız kitap listenizin RSS besleme linkini yapıştırın.
+   > 💡 **Goodreads RSS Linkini Bulma:** Goodreads profil sayfanızın URL'sindeki kullanıcı numaranızı alın (Örn: `goodreads.com/user/show/12345678-ahmet`). RSS besleme adresiniz: `https://www.goodreads.com/review/list_rss/12345678?shelf=read` formatındadır.
 2. **Kaydet** ve **Senkronize Et** butonuna basarak kitaplarınızı eşitleyin.
 
 ---

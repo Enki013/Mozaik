@@ -39,6 +39,9 @@ class DynamicHostInterceptor(
         val currentBaseUrl = cachedBaseUrl.get().ifBlank {
             runBlocking { preferences.serverBaseUrl.first() }.also { cachedBaseUrl.set(it) }
         }
+        if (currentBaseUrl.isBlank()) {
+            throw java.io.IOException("Sunucu adresi yapılandırılmamış. Lütfen Ayarlar sekmesinden sunucu URL'nizi girin.")
+        }
         val newHttpUrl = currentBaseUrl.toHttpUrlOrNull()
         if (newHttpUrl != null) {
             val newRequestUrl = request.url.newBuilder()

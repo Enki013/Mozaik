@@ -1,0 +1,8 @@
+# Opsiyonel: FatSecret Gıda Arama (OAuth 2.0)
+FATSECRET_CLIENT_ID=
+FATSECRET_CLIENT_SECRET=
+
+# Opsiyonel: FatSecret Günlükleri (OAuth 1.0)
+# Not: Bunları Android uygulamasındaki Ayarlar ekranından da girebilirsiniz (BYOK)
+FATSECRET_CONSUMER_KEY=
+FATSECRET_CONSUMER_SECRET=

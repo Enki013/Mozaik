@@ -12,6 +12,7 @@ services:
       - PORT=8787
       - HOST=0.0.0.0
       - DB_PATH=/data/personal_records.sqlite3
+      # Yerel ağdaki telefondan bağlanacaksanız ve FatSecret OAuth kullanacaksanız yerel IP'nizi yazın (Örn: http://192.168.1.50:8787)
       - APP_BASE_URL=http://localhost:8787
       # Opsiyonel: Public FatSecret Gıda Arama (OAuth 2.0)
       # - FATSECRET_CLIENT_ID=

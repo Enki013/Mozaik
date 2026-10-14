@@ -77,6 +77,8 @@
     <string name="overview_recent_activities_subtitle">Meals, books and films stream</string>
     <string name="overview_no_activities">No activity records yet.</string>
     <string name="overview_sync_success">%1$s synced successfully: %2$d new records</string>
+    <string name="overview_connection_error_title">Server Connection Failed</string>
+    <string name="overview_connection_error_desc">Could not connect to the backend server. Tap here or go to Settings to configure your Cloudflare Worker or Docker server address.</string>
 
     <!-- Timeline Screen -->
     <string name="timeline_search_placeholder">Search activity (meal, book, movie)…</string>

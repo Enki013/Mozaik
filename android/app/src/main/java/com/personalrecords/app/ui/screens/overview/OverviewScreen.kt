@@ -34,7 +34,8 @@ fun OverviewScreen(
     onNavigateToTimeline: () -> Unit,
     onNavigateToNutrition: () -> Unit = {},
     onNavigateToBooks: () -> Unit = {},
-    onNavigateToMovies: () -> Unit = {}
+    onNavigateToMovies: () -> Unit = {},
+    onNavigateToSettings: (() -> Unit)? = null
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
@@ -100,8 +101,51 @@ fun OverviewScreen(
                     contentPadding = PaddingValues(top = 8.dp, bottom = 144.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                // Top 4 Metrics Grid
-                item(key = "overview_metrics", contentType = "metrics") {
+                    // Server Connection Error Banner (shown if unable to connect to backend on startup)
+                    if (state.error != null && state.dashboard == null) {
+                        item(key = "overview_connection_error", contentType = "error_banner") {
+                            Surface(
+                                shape = M3Shapes.CornerMedium,
+                                color = MaterialTheme.colorScheme.errorContainer,
+                                contentColor = MaterialTheme.colorScheme.onErrorContainer,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .then(
+                                        if (onNavigateToSettings != null) {
+                                            Modifier.clickable { onNavigateToSettings() }
+                                        } else Modifier
+                                    )
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(14.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.CloudOff,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(24.dp),
+                                        tint = MaterialTheme.colorScheme.error
+                                    )
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text(
+                                            text = stringResource(R.string.overview_connection_error_title),
+                                            style = MaterialTheme.typography.titleSmallEmphasized
+                                        )
+                                        Spacer(modifier = Modifier.height(2.dp))
+                                        Text(
+                                            text = stringResource(R.string.overview_connection_error_desc),
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onErrorContainer.copy(alpha = 0.9f)
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    // Top 4 Metrics Grid
+                    item(key = "overview_metrics", contentType = "metrics") {
                     val counts = state.dashboard?.counts ?: emptyMap()
                     val today = state.dashboard?.today ?: emptyMap()
                     val todayCal = today["fatsecret_calories"]?.toString()?.replace("\"", "")

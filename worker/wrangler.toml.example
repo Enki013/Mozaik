@@ -1,0 +1,13 @@
+name = "personal-records-api"
+main = "src/index.ts"
+compatibility_date = "2024-09-23"
+compatibility_flags = ["nodejs_compat"]
+
+[[d1_databases]]
+binding = "DB"
+database_name = "personal-records-db"
+# "npx wrangler d1 create personal-records-db" komutunun ürettiği database_id değerini buraya yapıştırın:
+database_id = "YOUR_D1_DATABASE_ID"
+
+[triggers]
+crons = ["0 */6 * * *"]
