@@ -68,6 +68,35 @@ type Notification struct {
 	CreatedAt       string `json:"created_at,omitempty"`
 }
 
+type HealthRecord struct {
+	ID             string   `json:"id"`
+	RecordType     string   `json:"record_type"`
+	Category       string   `json:"category"`
+	DateISO        string   `json:"date_iso"`
+	StartTime      string   `json:"start_time"`
+	EndTime        string   `json:"end_time"`
+	ValuePrimary   *float64 `json:"value_primary"`
+	ValueSecondary *float64 `json:"value_secondary"`
+	ValueTertiary  *float64 `json:"value_tertiary"`
+	Unit           string   `json:"unit"`
+	Title          string   `json:"title"`
+	Subtitle       string   `json:"subtitle"`
+	DataOrigin     string   `json:"data_origin"`
+	RawJSON        string   `json:"raw_json"`
+	SyncedAt       string   `json:"synced_at,omitempty"`
+}
+
+type HealthConnectSummary struct {
+	TotalRecords        int     `json:"total_records"`
+	TodaySteps          int     `json:"today_steps"`
+	StepsDate           string  `json:"steps_date"`
+	LastSleepSeconds    int     `json:"last_sleep_seconds"`
+	SleepDate           string  `json:"sleep_date"`
+	LatestHeartRateBpm  int     `json:"latest_heart_rate_bpm"`
+	TodayActiveCalories int     `json:"today_active_calories"`
+	LatestWeightKg      float64 `json:"latest_weight_kg"`
+}
+
 type LetterboxdFilm struct {
 	FilmKey       string  `json:"film_key"`
 	LetterboxdURI string  `json:"letterboxd_uri"`
@@ -200,7 +229,27 @@ func (s *Store) Init(ctx context.Context) error {
   created_at text not null default current_timestamp
 );
 create index if not exists idx_notifications_post_time on notifications(post_time desc);
-create index if not exists idx_notifications_package on notifications(package_name);`)
+create index if not exists idx_notifications_package on notifications(package_name);
+create table if not exists health_records (
+  id text primary key,
+  record_type text not null,
+  category text not null,
+  date_iso text not null,
+  start_time text not null,
+  end_time text not null,
+  value_primary real,
+  value_secondary real,
+  value_tertiary real,
+  unit text,
+  title text,
+  subtitle text,
+  data_origin text,
+  raw_json text not null,
+  synced_at text not null default current_timestamp
+);
+create index if not exists idx_health_records_date on health_records(date_iso desc, start_time desc);
+create index if not exists idx_health_records_type on health_records(record_type);
+create index if not exists idx_health_records_category on health_records(category);`)
 	return nil
 }
 
@@ -214,6 +263,7 @@ func (s *Store) Counts(ctx context.Context) (map[string]int, error) {
 		"letterboxd_films":       "select count(*) from letterboxd_films",
 		"fatsecret_food_entries": "select count(*) from fatsecret_food_entries",
 		"notifications":          "select count(*) from notifications",
+		"health_records":         "select count(*) from health_records",
 		"read_count":             "select count(*) from goodreads_books where exclusive_shelf = 'read'",
 		"to_read_count":          "select count(*) from goodreads_books where exclusive_shelf = 'to-read'",
 		"rated_count":            "select count(*) from goodreads_books where coalesce(my_rating, 0) > 0",
@@ -701,6 +751,148 @@ func (s *Store) QueryNotifications(ctx context.Context, limit int, pkg string) (
 		notifs = append(notifs, n)
 	}
 	return notifs, rows.Err()
+}
+
+func (s *Store) UpsertHealthRecords(ctx context.Context, records []HealthRecord) (int, int, error) {
+	if len(records) == 0 {
+		return 0, 0, nil
+	}
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return 0, 0, err
+	}
+	defer tx.Rollback()
+
+	stmt, err := tx.PrepareContext(ctx, `
+insert into health_records (
+  id, record_type, category, date_iso, start_time, end_time,
+  value_primary, value_secondary, value_tertiary, unit, title, subtitle,
+  data_origin, raw_json, synced_at
+) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, current_timestamp)
+on conflict(id) do update set
+  value_primary=excluded.value_primary,
+  value_secondary=excluded.value_secondary,
+  value_tertiary=excluded.value_tertiary,
+  title=excluded.title,
+  subtitle=excluded.subtitle,
+  raw_json=excluded.raw_json,
+  synced_at=current_timestamp`)
+	if err != nil {
+		return 0, 0, err
+	}
+	defer stmt.Close()
+
+	inserted := 0
+	for _, r := range records {
+		if r.ID == "" {
+			continue
+		}
+		var v1, v2, v3 any
+		if r.ValuePrimary != nil {
+			v1 = *r.ValuePrimary
+		}
+		if r.ValueSecondary != nil {
+			v2 = *r.ValueSecondary
+		}
+		if r.ValueTertiary != nil {
+			v3 = *r.ValueTertiary
+		}
+		if _, err := stmt.ExecContext(ctx, r.ID, r.RecordType, r.Category, r.DateISO, r.StartTime, r.EndTime, v1, v2, v3, r.Unit, r.Title, r.Subtitle, r.DataOrigin, r.RawJSON); err != nil {
+			return inserted, 0, err
+		}
+		inserted++
+	}
+	if err := tx.Commit(); err != nil {
+		return 0, 0, err
+	}
+	return inserted, 0, nil
+}
+
+func (s *Store) QueryHealthRecords(ctx context.Context, category, recordType, date, fromDate, toDate string, limit int) ([]HealthRecord, error) {
+	if limit <= 0 || limit > 500 {
+		limit = 150
+	}
+	query := `select id, record_type, category, date_iso, start_time, end_time,
+value_primary, value_secondary, value_tertiary, coalesce(unit, ''), coalesce(title, ''),
+coalesce(subtitle, ''), coalesce(data_origin, ''), raw_json, synced_at
+from health_records where 1=1`
+	var args []any
+	if category != "" {
+		query += " and category = ?"
+		args = append(args, category)
+	}
+	if recordType != "" {
+		query += " and record_type = ?"
+		args = append(args, recordType)
+	}
+	if date != "" {
+		query += " and date_iso = ?"
+		args = append(args, date)
+	} else {
+		if fromDate != "" {
+			query += " and date_iso >= ?"
+			args = append(args, fromDate)
+		}
+		if toDate != "" {
+			query += " and date_iso <= ?"
+			args = append(args, toDate)
+		}
+	}
+	query += " order by date_iso desc, start_time desc limit ?"
+	args = append(args, limit)
+
+	rows, err := s.db.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var out []HealthRecord
+	for rows.Next() {
+		var r HealthRecord
+		var v1, v2, v3 sql.NullFloat64
+		if err := rows.Scan(&r.ID, &r.RecordType, &r.Category, &r.DateISO, &r.StartTime, &r.EndTime, &v1, &v2, &v3, &r.Unit, &r.Title, &r.Subtitle, &r.DataOrigin, &r.RawJSON, &r.SyncedAt); err != nil {
+			return nil, err
+		}
+		if v1.Valid {
+			val := v1.Float64
+			r.ValuePrimary = &val
+		}
+		if v2.Valid {
+			val := v2.Float64
+			r.ValueSecondary = &val
+		}
+		if v3.Valid {
+			val := v3.Float64
+			r.ValueTertiary = &val
+		}
+		out = append(out, r)
+	}
+	return out, rows.Err()
+}
+
+func (s *Store) GetHealthConnectSummary(ctx context.Context) (HealthConnectSummary, error) {
+	var sum HealthConnectSummary
+	_ = s.db.QueryRowContext(ctx, "select count(*) from health_records").Scan(&sum.TotalRecords)
+	var steps float64
+	_ = s.db.QueryRowContext(ctx, "select date_iso, coalesce(sum(value_primary), 0) from health_records where record_type = 'steps' group by date_iso order by date_iso desc limit 1").Scan(&sum.StepsDate, &steps)
+	sum.TodaySteps = int(steps)
+
+	var sleepSec float64
+	_ = s.db.QueryRowContext(ctx, "select coalesce(value_primary, 0), date_iso from health_records where record_type = 'sleep' order by date_iso desc, end_time desc limit 1").Scan(&sleepSec, &sum.SleepDate)
+	sum.LastSleepSeconds = int(sleepSec)
+
+	var hr float64
+	_ = s.db.QueryRowContext(ctx, "select coalesce(value_primary, 0) from health_records where record_type in ('heart_rate', 'resting_heart_rate') order by date_iso desc, end_time desc limit 1").Scan(&hr)
+	sum.LatestHeartRateBpm = int(hr)
+
+	var kcal float64
+	var kcalDate string
+	_ = s.db.QueryRowContext(ctx, "select date_iso, coalesce(sum(value_primary), 0) from health_records where record_type = 'active_calories' group by date_iso order by date_iso desc limit 1").Scan(&kcalDate, &kcal)
+	sum.TodayActiveCalories = int(kcal)
+
+	_ = s.db.QueryRowContext(ctx, "select coalesce(value_primary, 0) from health_records where record_type = 'weight' order by date_iso desc, end_time desc limit 1").Scan(&sum.LatestWeightKg)
+	return sum, nil
 }
 
 func (s *Store) FatSecretAccessToken(ctx context.Context) (*OAuthToken, error) {

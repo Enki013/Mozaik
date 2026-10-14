@@ -12,6 +12,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.util.Locale
@@ -102,16 +103,18 @@ class BooksViewModel(
             } else "0.0"
             Quadruple(list, read, toRead, avg)
         }
-        _uiState.value = _uiState.value.copy(
-            isLoading = false,
-            isFiltering = false,
-            books = books,
-            filteredBooks = filtered,
-            readBooksCount = readCount,
-            toReadBooksCount = toReadCount,
-            avgRatingText = avgText,
-            error = null
-        )
+        _uiState.update {
+            it.copy(
+                isLoading = false,
+                isFiltering = false,
+                books = books,
+                filteredBooks = filtered,
+                readBooksCount = readCount,
+                toReadBooksCount = toReadCount,
+                avgRatingText = avgText,
+                error = null
+            )
+        }
     }
 
     private fun loadInitialData() {
@@ -134,7 +137,7 @@ class BooksViewModel(
 
     private suspend fun fetchRemoteBooks(showLoadingIfEmpty: Boolean) {
         if (showLoadingIfEmpty) {
-            _uiState.value = _uiState.value.copy(isLoading = true, error = null)
+            _uiState.update { it.copy(isLoading = true, error = null) }
         }
         when (val result = repository.getBooks()) {
             is Resource.Success -> {
@@ -144,11 +147,13 @@ class BooksViewModel(
                 }
             }
             is Resource.Error -> {
-                _uiState.value = _uiState.value.copy(
-                    isLoading = false,
-                    isFiltering = false,
-                    error = if (_uiState.value.books.isEmpty()) result.message else null
-                )
+                _uiState.update {
+                    it.copy(
+                        isLoading = false,
+                        isFiltering = false,
+                        error = if (it.books.isEmpty()) result.message else null
+                    )
+                }
             }
             else -> Unit
         }
@@ -156,49 +161,55 @@ class BooksViewModel(
 
     fun setSearchQuery(query: String) {
         if (_uiState.value.searchQuery == query) return
-        _uiState.value = _uiState.value.copy(searchQuery = query, isFiltering = true)
+        _uiState.update { it.copy(searchQuery = query, isFiltering = true) }
         recomputeFilter(debounceMs = if (query.isEmpty()) 0L else 100L)
     }
 
     fun setDateFilter(date: String?) {
-        _uiState.value = _uiState.value.copy(
-            selectedDateFilter = date,
-            fromDateFilter = null,
-            toDateFilter = null,
-            isFiltering = true
-        )
+        _uiState.update {
+            it.copy(
+                selectedDateFilter = date,
+                fromDateFilter = null,
+                toDateFilter = null,
+                isFiltering = true
+            )
+        }
         recomputeFilter(debounceMs = 0L)
     }
 
     fun setDateRangeFilter(from: String?, to: String?) {
-        _uiState.value = _uiState.value.copy(
-            selectedDateFilter = null,
-            fromDateFilter = from,
-            toDateFilter = to,
-            isFiltering = true
-        )
+        _uiState.update {
+            it.copy(
+                selectedDateFilter = null,
+                fromDateFilter = from,
+                toDateFilter = to,
+                isFiltering = true
+            )
+        }
         recomputeFilter(debounceMs = 0L)
     }
 
     fun clearDateFilter() {
-        _uiState.value = _uiState.value.copy(
-            selectedDateFilter = null,
-            fromDateFilter = null,
-            toDateFilter = null,
-            isFiltering = true
-        )
+        _uiState.update {
+            it.copy(
+                selectedDateFilter = null,
+                fromDateFilter = null,
+                toDateFilter = null,
+                isFiltering = true
+            )
+        }
         recomputeFilter(debounceMs = 0L)
     }
 
     fun setShelf(shelf: String) {
         if (_uiState.value.selectedShelf == shelf) return
-        _uiState.value = _uiState.value.copy(selectedShelf = shelf, isFiltering = true)
+        _uiState.update { it.copy(selectedShelf = shelf, isFiltering = true) }
         recomputeFilter(debounceMs = 0L)
     }
 
     fun setSortBy(sort: String) {
         if (_uiState.value.sortBy == sort) return
-        _uiState.value = _uiState.value.copy(sortBy = sort, isFiltering = true)
+        _uiState.update { it.copy(sortBy = sort, isFiltering = true) }
         recomputeFilter(debounceMs = 0L)
     }
 
@@ -218,10 +229,12 @@ class BooksViewModel(
                     sortBy = snap.sortBy
                 )
             }
-            _uiState.value = _uiState.value.copy(
-                filteredBooks = filtered,
-                isFiltering = false
-            )
+            _uiState.update {
+                it.copy(
+                    filteredBooks = filtered,
+                    isFiltering = false
+                )
+            }
         }
     }
 }

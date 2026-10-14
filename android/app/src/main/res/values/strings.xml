@@ -302,6 +302,46 @@
     <string name="timeline_count_notifications">%1$d notifications</string>
     <string name="timeline_count_films">%1$d films</string>
     <string name="timeline_count_books">%1$d books</string>
+    <string name="timeline_count_health">%1$d health records</string>
+    <string name="timeline_filter_health">Health</string>
     <string name="nutrition_macro_short">C:%1$dg P:%2$dg F:%3$dg</string>
     <string name="nutrition_macro_chip_format">%1$s: %2$sg (%3$d%%)</string>
+
+    <!-- Health Connect Screen & Integration -->
+    <string name="nav_health_connect">Health Connect</string>
+    <string name="title_health_connect">Health Connect</string>
+    <string name="records_item_healthconnect_count">Health Connect · %1$d health records</string>
+    <string name="health_metric_steps_title">Daily Steps</string>
+    <string name="health_metric_steps_badge">Steps</string>
+    <string name="health_metric_sleep_title">Last Sleep</string>
+    <string name="health_metric_sleep_badge">Sleep</string>
+    <string name="health_metric_hr_title">Heart Rate</string>
+    <string name="health_metric_hr_badge">Vitals</string>
+    <string name="health_metric_hr_note">Latest BPM reading</string>
+    <string name="health_metric_active_title">Active Energy</string>
+    <string name="health_metric_active_badge">Activity</string>
+    <string name="health_metric_records_note">%1$d total records</string>
+    <string name="health_search_placeholder">Search health metric, workout, or source…</string>
+    <string name="health_cat_all">All</string>
+    <string name="health_cat_activity">Activity</string>
+    <string name="health_cat_sleep">Sleep</string>
+    <string name="health_cat_vitals">Heart &amp; Vitals</string>
+    <string name="health_cat_exercise">Workouts</string>
+    <string name="health_cat_body">Body</string>
+    <string name="health_empty_title">No Health Records Yet</string>
+    <string name="health_empty_guide">To stream steps, sleep stages, heart rate, and workouts from Android Health Connect to your server, configure the companion Health Connect Webhook app in Settings.</string>
+    <string name="health_search_empty">No health records match your filter criteria.</string>
+    <string name="health_detail_source">Source App</string>
+    <string name="health_detail_time_range">Time Window</string>
+    <string name="health_detail_sleep_stages">Sleep Stages</string>
+
+    <!-- Settings Health Connect Webhook -->
+    <string name="settings_section_health_webhook">Health Connect Webhook Integration</string>
+    <string name="settings_health_webhook_title">Health Connect Webhook</string>
+    <string name="settings_health_webhook_desc">Push steps, sleep, heart rate &amp; workouts to your server</string>
+    <string name="settings_health_webhook_summary">The open-source Health Connect Webhook companion app reads data from Android Health Connect in the background and periodically POSTs JSON payloads to your server:</string>
+    <string name="settings_health_step_1">1. Install the Health Connect Webhook APK and grant Health Connect read permissions.</string>
+    <string name="settings_health_step_2">2. Paste the target webhook URL above into the Webhook URL field in the app.</string>
+    <string name="settings_health_step_3">3. Choose your sync interval and tap \'Sync Now\'. Your health records will appear automatically.</string>
 </resources>
+

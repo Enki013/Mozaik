@@ -23,6 +23,8 @@ import com.personalrecords.app.R
 import com.personalrecords.app.core.theme.*
 import com.personalrecords.app.ui.components.*
 
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+
 @OptIn(ExperimentalMaterial3Api::class, androidx.compose.foundation.ExperimentalFoundationApi::class)
 @Composable
 fun OverviewScreen(
@@ -34,7 +36,7 @@ fun OverviewScreen(
     onNavigateToBooks: () -> Unit = {},
     onNavigateToMovies: () -> Unit = {}
 ) {
-    val state by viewModel.uiState.collectAsState()
+    val state by viewModel.uiState.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
     var selectedActivity by remember { mutableStateOf<com.personalrecords.app.core.network.model.ActivityItemDto?>(null) }
 
@@ -303,7 +305,7 @@ fun OverviewScreen(
                                 }
                             } else {
                                 state.recentActivities.forEachIndexed { index, item ->
-                                    key("${item.source}_${item.id}_$index") {
+                                    key("${item.source}_${item.id.ifBlank { "${item.date}_${item.title}" }}") {
                                         if (index > 0) {
                                             HorizontalDivider(
                                                 color = MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.5f),

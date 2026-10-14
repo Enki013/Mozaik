@@ -89,4 +89,15 @@ interface ApiService {
         @Query("limit") limit: Int = 100,
         @Query("package") packageName: String? = null
     ): NotificationsResponse
+
+    @GET("api/health-connect/records")
+    suspend fun getHealthConnectRecords(
+        @Query("category") category: String? = null,
+        @Query("type") recordType: String? = null,
+        @Query("date") date: String? = null,
+        @Query("from") from: String? = null,
+        @Query("to") to: String? = null,
+        @Query("limit") limit: Int = 300
+    ): HealthConnectResponse
 }
+

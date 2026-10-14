@@ -28,6 +28,7 @@ import com.personalrecords.app.ui.components.*
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
 @OptIn(ExperimentalMaterial3Api::class, androidx.compose.foundation.ExperimentalFoundationApi::class)
 @Composable
@@ -35,7 +36,7 @@ fun MoviesScreen(
     viewModel: MoviesViewModel,
     onNavigateBack: (() -> Unit)? = null
 ) {
-    val state by viewModel.uiState.collectAsState()
+    val state by viewModel.uiState.collectAsStateWithLifecycle()
     var showDatePicker by remember { mutableStateOf(false) }
     var selectedFilm by remember { mutableStateOf<FilmDto?>(null) }
 
@@ -368,7 +369,7 @@ fun MoviesScreen(
                 } else {
                     itemsIndexed(
                         items = state.filteredFilms,
-                        key = { index, film -> "${film.film_key ?: film.displayTitle}_$index" },
+                        key = { _, film -> film.film_key.ifBlank { "${film.displayTitle}_${film.year}_${film.safeWatchedDate}" } },
                         contentType = { _, _ -> "movie_row" }
                     ) { index, film ->
                         LazyCardRowContainer(

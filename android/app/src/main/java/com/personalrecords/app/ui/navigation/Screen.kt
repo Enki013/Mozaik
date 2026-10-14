@@ -25,6 +25,7 @@ sealed class Screen(
     object Books : Screen("books", R.string.title_books, Icons.AutoMirrored.Filled.MenuBook, navLabelRes = R.string.nav_books)
     object Movies : Screen("movies", R.string.title_movies, Icons.Default.Movie, navLabelRes = R.string.nav_movies)
     object Notifications : Screen("notifications", R.string.title_notifications, Icons.Default.Notifications, navLabelRes = R.string.nav_notifications)
+    object HealthConnect : Screen("health_connect", R.string.title_health_connect, Icons.Default.Favorite, navLabelRes = R.string.nav_health_connect)
     object Language : Screen("language", R.string.settings_language_screen_title, Icons.Default.Language, navLabelRes = R.string.settings_language_screen_title)
 }
 
@@ -40,5 +41,7 @@ val recordsSubRoutes = setOf(
     Screen.Nutrition.route,
     Screen.Books.route,
     Screen.Movies.route,
-    Screen.Notifications.route
+    Screen.Notifications.route,
+    Screen.HealthConnect.route
 )
+

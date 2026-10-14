@@ -17,6 +17,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
@@ -132,22 +133,24 @@ class NutritionViewModel(
             )
         }
 
-        _uiState.value = _uiState.value.copy(
-            isLoading = false,
-            isFiltering = false,
-            calorieTarget = activeTarget,
-            todayCalories = computed.todayCalories,
-            todayEntriesCount = computed.todayEntriesCount,
-            todayCarb = computed.todayCarb,
-            todayProtein = computed.todayProtein,
-            todayFat = computed.todayFat,
-            totalCarb = computed.totalCarb,
-            totalProtein = computed.totalProtein,
-            totalFat = computed.totalFat,
-            dailySummaries = summaries,
-            foodEntries = foods,
-            filteredFoods = computed.filteredFoods
-        )
+        _uiState.update {
+            it.copy(
+                isLoading = false,
+                isFiltering = false,
+                calorieTarget = activeTarget,
+                todayCalories = computed.todayCalories,
+                todayEntriesCount = computed.todayEntriesCount,
+                todayCarb = computed.todayCarb,
+                todayProtein = computed.todayProtein,
+                todayFat = computed.todayFat,
+                totalCarb = computed.totalCarb,
+                totalProtein = computed.totalProtein,
+                totalFat = computed.totalFat,
+                dailySummaries = summaries,
+                foodEntries = foods,
+                filteredFoods = computed.filteredFoods
+            )
+        }
     }
 
     private fun loadInitialData() {
@@ -172,7 +175,7 @@ class NutritionViewModel(
 
     private suspend fun fetchRemoteNutrition(showLoadingIfEmpty: Boolean) {
         if (showLoadingIfEmpty) {
-            _uiState.value = _uiState.value.copy(isLoading = true, error = null)
+            _uiState.update { it.copy(isLoading = true, error = null) }
         }
         val savedTarget = preferences.calorieTarget.first()
 
@@ -208,70 +211,80 @@ class NutritionViewModel(
         viewModelScope.launch {
             preferences.setCalorieTarget(newTarget)
             repository.updateCalorieTarget(newTarget)
-            _uiState.value = _uiState.value.copy(calorieTarget = newTarget)
+            _uiState.update { it.copy(calorieTarget = newTarget) }
         }
     }
 
     fun setSearchQuery(query: String) {
         if (_uiState.value.searchQuery == query) return
-        _uiState.value = _uiState.value.copy(searchQuery = query, isFiltering = true)
+        _uiState.update { it.copy(searchQuery = query, isFiltering = true) }
         recomputeFilter(debounceMs = if (query.isEmpty()) 0L else 100L)
     }
 
     fun setDateFilter(date: String?) {
-        _uiState.value = _uiState.value.copy(
-            selectedDateFilter = date,
-            fromDateFilter = null,
-            toDateFilter = null,
-            isFiltering = true
-        )
+        _uiState.update {
+            it.copy(
+                selectedDateFilter = date,
+                fromDateFilter = null,
+                toDateFilter = null,
+                isFiltering = true
+            )
+        }
         recomputeFilter(debounceMs = 0L)
     }
 
     fun setDateRangeFilter(from: String?, to: String?) {
-        _uiState.value = _uiState.value.copy(
-            selectedDateFilter = null,
-            fromDateFilter = from,
-            toDateFilter = to,
-            isFiltering = true
-        )
+        _uiState.update {
+            it.copy(
+                selectedDateFilter = null,
+                fromDateFilter = from,
+                toDateFilter = to,
+                isFiltering = true
+            )
+        }
         recomputeFilter(debounceMs = 0L)
     }
 
     fun clearDateFilter() {
-        _uiState.value = _uiState.value.copy(
-            selectedDateFilter = null,
-            fromDateFilter = null,
-            toDateFilter = null,
-            isFiltering = true
-        )
+        _uiState.update {
+            it.copy(
+                selectedDateFilter = null,
+                fromDateFilter = null,
+                toDateFilter = null,
+                isFiltering = true
+            )
+        }
         recomputeFilter(debounceMs = 0L)
     }
 
     fun setMeal(meal: String) {
         if (_uiState.value.selectedMeal == meal) return
-        _uiState.value = _uiState.value.copy(selectedMeal = meal, isFiltering = true)
+        _uiState.update { it.copy(selectedMeal = meal, isFiltering = true) }
         recomputeFilter(debounceMs = 0L)
     }
 
     fun toggleHighProtein() {
-        _uiState.value = _uiState.value.copy(
-            onlyHighProtein = !_uiState.value.onlyHighProtein,
-            isFiltering = true
-        )
+        _uiState.update {
+            it.copy(
+                onlyHighProtein = !it.onlyHighProtein,
+                isFiltering = true
+            )
+        }
         recomputeFilter(debounceMs = 0L)
     }
 
     fun resetFilters() {
-        _uiState.value = _uiState.value.copy(
-            searchQuery = "",
-            selectedDateFilter = null,
-            fromDateFilter = null,
-            toDateFilter = null,
-            selectedMeal = "all",
-            onlyHighProtein = false,
-            isFiltering = true
-        )
+        _uiState.update {
+            it.copy(
+                searchQuery = "",
+                selectedDateFilter = null,
+                fromDateFilter = null,
+                toDateFilter = null,
+                selectedMeal = "all",
+                onlyHighProtein = false,
+                isFiltering = true
+            )
+        }
         recomputeFilter(debounceMs = 0L)
     }
 
@@ -291,10 +304,12 @@ class NutritionViewModel(
                     highProt = snap.onlyHighProtein
                 )
             }
-            _uiState.value = _uiState.value.copy(
-                filteredFoods = filtered,
-                isFiltering = false
-            )
+            _uiState.update {
+                it.copy(
+                    filteredFoods = filtered,
+                    isFiltering = false
+                )
+            }
         }
     }
 }

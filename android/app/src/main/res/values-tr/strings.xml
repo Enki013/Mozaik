@@ -302,6 +302,46 @@
     <string name="timeline_count_notifications">%1$d bildirim</string>
     <string name="timeline_count_films">%1$d film</string>
     <string name="timeline_count_books">%1$d kitap</string>
+    <string name="timeline_count_health">%1$d sağlık kaydı</string>
+    <string name="timeline_filter_health">Sağlık</string>
     <string name="nutrition_macro_short">K:%1$dg P:%2$dg Y:%3$dg</string>
     <string name="nutrition_macro_chip_format">%1$s: %2$sg (%%%3$d)</string>
+
+    <!-- Health Connect Screen & Integration -->
+    <string name="nav_health_connect">Health Connect</string>
+    <string name="title_health_connect">Health Connect</string>
+    <string name="records_item_healthconnect_count">Health Connect · %1$d sağlık kaydı</string>
+    <string name="health_metric_steps_title">Günlük Adım</string>
+    <string name="health_metric_steps_badge">Adım</string>
+    <string name="health_metric_sleep_title">Son Uyku</string>
+    <string name="health_metric_sleep_badge">Uyku</string>
+    <string name="health_metric_hr_title">Kalp Atış Hızı</string>
+    <string name="health_metric_hr_badge">Vital</string>
+    <string name="health_metric_hr_note">Son nabız ölçümü</string>
+    <string name="health_metric_active_title">Aktif Enerji</string>
+    <string name="health_metric_active_badge">Aktivite</string>
+    <string name="health_metric_records_note">Toplam %1$d kayıt</string>
+    <string name="health_search_placeholder">Sağlık verisi, antrenman veya kaynak ara…</string>
+    <string name="health_cat_all">Tümü</string>
+    <string name="health_cat_activity">Aktivite</string>
+    <string name="health_cat_sleep">Uyku</string>
+    <string name="health_cat_vitals">Nabız &amp; Vital</string>
+    <string name="health_cat_exercise">Antrenman</string>
+    <string name="health_cat_body">Vücut</string>
+    <string name="health_empty_title">Henüz Sağlık Kaydı Yok</string>
+    <string name="health_empty_guide">Adım, uyku evreleri, nabız ve antrenman verilerinizin Android Health Connect üzerinden sunucunuza aktarılması için Ayarlar sekmesindeki Health Connect Webhook rehberini takip edebilirsiniz.</string>
+    <string name="health_search_empty">Filtre kriterlerinize uygun sağlık kaydı bulunamadı.</string>
+    <string name="health_detail_source">Veri Kaynağı</string>
+    <string name="health_detail_time_range">Zaman Aralığı</string>
+    <string name="health_detail_sleep_stages">Uyku Evreleri</string>
+
+    <!-- Settings Health Connect Webhook -->
+    <string name="settings_section_health_webhook">Health Connect Webhook Entegrasyonu</string>
+    <string name="settings_health_webhook_title">Health Connect Webhook</string>
+    <string name="settings_health_webhook_desc">Adım, uyku, nabız ve antrenmanları sunucuya aktarın</string>
+    <string name="settings_health_webhook_summary">Açık kaynaklı Health Connect Webhook yardımcı uygulaması, Android Health Connect verilerinizi arka planda okuyarak belirlediğiniz periyotlarla doğrudan sunucunuza gönderir:</string>
+    <string name="settings_health_step_1">1. Health Connect Webhook APK\'sını kurun ve Health Connect okuma izinlerini verin.</string>
+    <string name="settings_health_step_2">2. Uygulama içindeki Webhook URL alanına yukarıdaki hedef URL\'yi yapıştırın.</string>
+    <string name="settings_health_step_3">3. Eşitleme sıklığını seçip \'Sync Now\' butonuna basın. Sağlık verileriniz otomatik işlenecektir.</string>
 </resources>
+

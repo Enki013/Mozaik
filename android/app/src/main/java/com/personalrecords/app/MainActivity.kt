@@ -145,6 +145,7 @@ fun MainAppHost() {
             Screen.Books.route,
             Screen.Movies.route,
             Screen.Notifications.route,
+            Screen.HealthConnect.route,
             Screen.Language.route
         )
     }
@@ -244,7 +245,8 @@ fun MainAppHost() {
                     onNavigateToNutrition = { navController.navigate(Screen.Nutrition.route) },
                     onNavigateToBooks = { navController.navigate(Screen.Books.route) },
                     onNavigateToMovies = { navController.navigate(Screen.Movies.route) },
-                    onNavigateToNotifications = { navController.navigate(Screen.Notifications.route) }
+                    onNavigateToNotifications = { navController.navigate(Screen.Notifications.route) },
+                    onNavigateToHealthConnect = { navController.navigate(Screen.HealthConnect.route) }
                 )
             }
         }
@@ -340,6 +342,14 @@ fun MainAppHost() {
             composable(Screen.Notifications.route) {
                 val vm: NotificationsViewModel = viewModel(factory = AppViewModelFactory())
                 NotificationsScreen(
+                    viewModel = vm,
+                    onNavigateBack = { navController.popBackStack() }
+                )
+            }
+
+            composable(Screen.HealthConnect.route) {
+                val vm: com.personalrecords.app.ui.screens.health.HealthConnectViewModel = viewModel(factory = AppViewModelFactory())
+                com.personalrecords.app.ui.screens.health.HealthConnectScreen(
                     viewModel = vm,
                     onNavigateBack = { navController.popBackStack() }
                 )

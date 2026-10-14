@@ -318,4 +318,59 @@ data class NotificationsResponse(
     val items: List<NotificationDto> = emptyList()
 )
 
+@Immutable
+@Serializable
+data class HealthRecordDto(
+    val id: String = "",
+    val record_type: String = "",
+    val category: String = "",
+    val date_iso: String = "",
+    val start_time: String = "",
+    val end_time: String = "",
+    val value_primary: Double? = null,
+    val value_secondary: Double? = null,
+    val value_tertiary: Double? = null,
+    val unit: String = "",
+    val title: String = "",
+    val subtitle: String = "",
+    val data_origin: String = "",
+    val raw_json: String = "",
+    val updated_at: String = ""
+) {
+    val formattedTime: String
+        get() = when {
+            start_time.length >= 16 -> start_time.substring(11, 16)
+            end_time.length >= 16 -> end_time.substring(11, 16)
+            else -> ""
+        }
+
+    val formattedDate: String
+        get() = when {
+            date_iso.isNotBlank() -> date_iso
+            end_time.length >= 10 -> end_time.substring(0, 10)
+            start_time.length >= 10 -> start_time.substring(0, 10)
+            else -> ""
+        }
+}
+
+@Immutable
+@Serializable
+data class HealthConnectSummaryDto(
+    val total_records: Int = 0,
+    val today_steps: Double = 0.0,
+    val steps_date: String = "",
+    val last_sleep_seconds: Double = 0.0,
+    val sleep_date: String = "",
+    val latest_heart_rate_bpm: Double = 0.0,
+    val today_active_calories: Double = 0.0,
+    val latest_weight_kg: Double = 0.0
+)
+
+@Serializable
+data class HealthConnectResponse(
+    val count: Int = 0,
+    val items: List<HealthRecordDto> = emptyList(),
+    val summary: HealthConnectSummaryDto = HealthConnectSummaryDto()
+)
+
 

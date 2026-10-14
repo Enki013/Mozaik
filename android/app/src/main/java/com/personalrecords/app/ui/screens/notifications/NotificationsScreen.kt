@@ -36,6 +36,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 import java.time.LocalDate
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
@@ -43,8 +44,7 @@ fun NotificationsScreen(
     viewModel: NotificationsViewModel,
     onNavigateBack: (() -> Unit)? = null
 ) {
-    val state by viewModel.uiState.collectAsState()
-    val context = LocalContext.current
+    val state by viewModel.uiState.collectAsStateWithLifecycle()
     var selectedNotification by remember { mutableStateOf<NotificationDto?>(null) }
     var showDatePicker by remember { mutableStateOf(false) }
 
@@ -246,26 +246,24 @@ fun NotificationsScreen(
                                     }
                                 )
 
-                                ExpressiveFilterChip(
-                                    selected = state.selectedApp == null,
-                                    onClick = {
-                                        if (state.selectedApp != null) {
+                                val appGroupItems = remember(appList) { listOf<String?>(null) + appList }
+                                ExpressiveConnectedButtonGroup(
+                                    items = appGroupItems,
+                                    selectedItem = state.selectedApp,
+                                    onItemSelected = { appName ->
+                                        if (state.selectedApp == appName && appName != null) {
                                             viewModel.setAppFilter(null)
+                                        } else {
+                                            viewModel.setAppFilter(appName)
                                         }
                                     },
-                                    label = { Text(stringResource(R.string.filter_all), style = MaterialTheme.typography.labelMedium) }
+                                    labelProvider = { appName ->
+                                        appName ?: stringResource(R.string.filter_all)
+                                    },
+                                    iconProvider = { appName, _ ->
+                                        if (appName == null) Icons.Default.Apps else Icons.Default.Notifications
+                                    }
                                 )
-
-                                appList.forEach { appName ->
-                                    val isSelected = state.selectedApp == appName
-                                    ExpressiveFilterChip(
-                                        selected = isSelected,
-                                        onClick = {
-                                            viewModel.setAppFilter(if (isSelected) null else appName)
-                                        },
-                                        label = { Text(appName, style = MaterialTheme.typography.labelMedium) }
-                                    )
-                                }
 
                                 if (state.selectedApp != null || state.searchQuery.isNotEmpty() || hasActiveDate) {
                                     ExpressiveAssistChip(
@@ -366,7 +364,7 @@ fun NotificationsScreen(
                 } else {
                     itemsIndexed(
                         items = state.filteredNotifications,
-                        key = { index, notif -> "${notif.id}_${notif.created_at}_$index" },
+                        key = { _, notif -> notif.id.ifBlank { "${notif.created_at}_${notif.app_name}_${notif.title}" } },
                         contentType = { _, _ -> "notification_row" }
                     ) { index, notif ->
                         LazyCardRowContainer(

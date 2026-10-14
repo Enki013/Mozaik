@@ -40,6 +40,14 @@ class PersonalRecordsRepository(
     var cachedNotifications: List<NotificationDto>? = null
         private set
 
+    @Volatile
+    var cachedHealthRecords: List<HealthRecordDto>? = null
+        private set
+
+    @Volatile
+    var cachedHealthSummary: HealthConnectSummaryDto? = null
+        private set
+
     suspend fun getCachedBooks(): List<BookDto> = withContext(Dispatchers.IO) {
         cachedBooks?.let { if (it.isNotEmpty()) return@withContext it }
         try {
@@ -412,9 +420,99 @@ class PersonalRecordsRepository(
         }
     }
 
+    suspend fun getCachedHealthRecords(): List<HealthRecordDto> = withContext(Dispatchers.IO) {
+        cachedHealthRecords?.let { if (it.isNotEmpty()) return@withContext it }
+        try {
+            val cached = db.healthRecordDao().getAllHealthRecordsList()
+            if (cached.isNotEmpty()) {
+                val dtos = cached.map {
+                    HealthRecordDto(
+                        id = it.id,
+                        record_type = it.recordType,
+                        category = it.category,
+                        date_iso = it.dateIso,
+                        start_time = it.startTime,
+                        end_time = it.endTime,
+                        value_primary = it.valuePrimary,
+                        value_secondary = it.valueSecondary,
+                        value_tertiary = it.valueTertiary,
+                        unit = it.unit,
+                        title = it.title,
+                        subtitle = it.subtitle,
+                        data_origin = it.dataOrigin,
+                        raw_json = it.rawJson,
+                        updated_at = it.updatedAt
+                    )
+                }
+                cachedHealthRecords = dtos
+                return@withContext dtos
+            }
+        } catch (_: Exception) {}
+        emptyList()
+    }
+
+    suspend fun getHealthConnectRecords(
+        category: String? = null,
+        recordType: String? = null,
+        date: String? = null,
+        from: String? = null,
+        to: String? = null,
+        limit: Int = 300
+    ): Resource<HealthConnectResponse> = withContext(Dispatchers.IO) {
+        try {
+            val response = api.getHealthConnectRecords(category, recordType, date, from, to, limit)
+            if (category == null && recordType == null && date == null && from == null && to == null) {
+                cachedHealthRecords = response.items
+                cachedHealthSummary = response.summary
+                try {
+                    val entities = response.items.map { dto ->
+                        CachedHealthRecordEntity(
+                            id = dto.id,
+                            recordType = dto.record_type,
+                            category = dto.category,
+                            dateIso = dto.date_iso,
+                            startTime = dto.start_time,
+                            endTime = dto.end_time,
+                            valuePrimary = dto.value_primary,
+                            valueSecondary = dto.value_secondary,
+                            valueTertiary = dto.value_tertiary,
+                            unit = dto.unit,
+                            title = dto.title,
+                            subtitle = dto.subtitle,
+                            dataOrigin = dto.data_origin,
+                            rawJson = dto.raw_json,
+                            updatedAt = dto.updated_at
+                        )
+                    }
+                    db.healthRecordDao().clearHealthRecords()
+                    if (entities.isNotEmpty()) {
+                        db.healthRecordDao().insertHealthRecords(entities)
+                    }
+                } catch (dbEx: Exception) {
+                    android.util.Log.e("PersonalRecords", "Failed to cache health records in Room", dbEx)
+                }
+            }
+            Resource.Success(response)
+        } catch (e: Exception) {
+            val fallback = getCachedHealthRecords()
+            if (fallback.isNotEmpty()) {
+                return@withContext Resource.Success(
+                    HealthConnectResponse(
+                        count = fallback.size,
+                        items = fallback,
+                        summary = cachedHealthSummary ?: HealthConnectSummaryDto(total_records = fallback.size)
+                    )
+                )
+            }
+            Resource.Error(e.localizedMessage ?: "Health Connect kayıtları alınamadı", e)
+        }
+    }
+
     suspend fun prewarmRoomCaches() = withContext(Dispatchers.IO) {
         getCachedBooks()
         getCachedFilms()
         getCachedFoodEntries()
+        getCachedHealthRecords()
     }
 }
+

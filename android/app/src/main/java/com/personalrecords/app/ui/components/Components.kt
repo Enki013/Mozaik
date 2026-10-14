@@ -93,6 +93,7 @@ import com.personalrecords.app.core.network.model.ActivityItemDto
 import com.personalrecords.app.core.network.model.BookDto
 import com.personalrecords.app.core.network.model.FilmDto
 import com.personalrecords.app.core.network.model.FoodEntryDto
+import com.personalrecords.app.core.network.model.HealthRecordDto
 import com.personalrecords.app.core.network.model.NotificationDto
 import com.personalrecords.app.core.theme.*
 import kotlinx.coroutines.Job
@@ -2542,6 +2543,204 @@ fun NotificationDetailBottomSheet(
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun HealthRecordDetailBottomSheet(
+    record: HealthRecordDto,
+    onDismiss: () -> Unit
+) {
+    val context = LocalContext.current
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val categoryLabel = when (record.category) {
+        "activity" -> stringResource(R.string.health_cat_activity)
+        "sleep" -> stringResource(R.string.health_cat_sleep)
+        "vitals" -> stringResource(R.string.health_cat_vitals)
+        "exercise" -> stringResource(R.string.health_cat_exercise)
+        "body" -> stringResource(R.string.health_cat_body)
+        else -> stringResource(R.string.title_health_connect)
+    }
+
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = sheetState,
+        shape = M3Shapes.CornerExtraLarge,
+        containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 20.dp, vertical = 8.dp)
+                .navigationBarsPadding(),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Surface(
+                    shape = M3Shapes.CornerFull,
+                    color = domainHealthContainer()
+                ) {
+                    Text(
+                        text = categoryLabel,
+                        style = MaterialTheme.typography.labelMediumEmphasized,
+                        color = domainHealthOnContainer(),
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
+                    )
+                }
+                if (record.record_type.isNotBlank()) {
+                    Surface(
+                        shape = M3Shapes.CornerFull,
+                        color = MaterialTheme.colorScheme.surfaceContainerHighest
+                    ) {
+                        Text(
+                            text = record.record_type.replace('_', ' '),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(horizontal = 7.dp, vertical = 2.5.dp)
+                        )
+                    }
+                }
+                Spacer(modifier = Modifier.weight(1f))
+                val dateTimeText = listOf(record.formattedDate, record.formattedTime)
+                    .filter { it.isNotBlank() }
+                    .joinToString(" · ")
+                if (dateTimeText.isNotBlank()) {
+                    Text(
+                        text = dateTimeText,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+
+            Text(
+                text = record.title,
+                style = MaterialTheme.typography.titleLargeEmphasized,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+
+            if (record.subtitle.isNotBlank()) {
+                Text(
+                    text = record.subtitle,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+
+            if (record.start_time.isNotBlank() || record.data_origin.isNotBlank()) {
+                Surface(
+                    shape = M3Shapes.CornerMedium,
+                    color = MaterialTheme.colorScheme.surfaceContainer,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column(
+                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
+                        verticalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        if (record.start_time.isNotBlank()) {
+                            val startFormatted = record.start_time.replace('T', ' ').take(19)
+                            val endFormatted = record.end_time.replace('T', ' ').take(19)
+                            val windowStr = if (endFormatted.isNotBlank() && endFormatted != startFormatted) {
+                                "$startFormatted → $endFormatted"
+                            } else {
+                                startFormatted
+                            }
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = stringResource(R.string.health_detail_time_range),
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                                Text(
+                                    text = windowStr,
+                                    style = MaterialTheme.typography.labelSmallEmphasized,
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                            }
+                        }
+                        if (record.data_origin.isNotBlank()) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = stringResource(R.string.health_detail_source),
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                                Text(
+                                    text = record.data_origin,
+                                    style = MaterialTheme.typography.labelSmallEmphasized,
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(4.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                OutlinedButton(
+                    onClick = {
+                        val textToCopy = "${record.title}\n${record.subtitle}\n${record.formattedDate} ${record.formattedTime}".trim()
+                        copyToClipboard(context, "Health Connect", textToCopy)
+                    },
+                    shape = M3Shapes.CornerSmall,
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(42.dp),
+                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.ContentCopy,
+                        contentDescription = null,
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(
+                        text = stringResource(R.string.notifications_copy_text),
+                        style = MaterialTheme.typography.labelLargeEmphasized,
+                        maxLines = 1,
+                        softWrap = false,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+
+                Button(
+                    onClick = onDismiss,
+                    shape = M3Shapes.CornerSmall,
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(42.dp),
+                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp)
+                ) {
+                    Text(
+                        text = stringResource(R.string.action_close),
+                        style = MaterialTheme.typography.labelLargeEmphasized,
+                        maxLines = 1,
+                        softWrap = false,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+        }
+    }
+}
+
 private fun Map<String, kotlinx.serialization.json.JsonElement>.str(key: String): String {
     return this[key]?.toString()?.removeSurrounding("\"")?.takeIf { it != "null" } ?: ""
 }
@@ -2602,6 +2801,23 @@ fun ActivityItemDetailBottomSheet(
             )
             BookDetailBottomSheet(book = book, onDismiss = onDismiss)
         }
+        "health_connect" -> {
+            val rec = HealthRecordDto(
+                id = d.str("id").ifBlank { item.id },
+                record_type = d.str("record_type").ifBlank { item.type },
+                category = d.str("category").ifBlank { "activity" },
+                date_iso = item.date,
+                start_time = d.str("start_time").ifBlank { item.timestamp ?: item.date },
+                end_time = d.str("end_time").ifBlank { item.timestamp ?: item.date },
+                value_primary = d.dbl("value_primary").takeIf { it > 0 },
+                value_secondary = d.dbl("value_secondary").takeIf { it > 0 },
+                unit = d.str("unit"),
+                title = item.title,
+                subtitle = item.subtitle,
+                data_origin = d.str("data_origin")
+            )
+            HealthRecordDetailBottomSheet(record = rec, onDismiss = onDismiss)
+        }
         else -> {
             val postTime = item.timestamp?.takeIf { it.length >= 16 }
                 ?: if (!item.time.isNullOrBlank()) "${item.date}T${item.time}" else item.date
@@ -2620,6 +2836,7 @@ fun ActivityItemDetailBottomSheet(
         }
     }
 }
+
 
 private val LazyCardTopShape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp)
 private val LazyCardBottomShape = RoundedCornerShape(bottomStart = 16.dp, bottomEnd = 16.dp)

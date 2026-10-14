@@ -12,9 +12,10 @@ import com.personalrecords.app.core.database.entity.*
         CachedActivityEntity::class,
         CachedBookEntity::class,
         CachedFilmEntity::class,
-        CachedFoodEntity::class
+        CachedFoodEntity::class,
+        CachedHealthRecordEntity::class
     ],
-    version = 3,
+    version = 4,
     exportSchema = false
 )
 abstract class PersonalRecordsDatabase : RoomDatabase() {
@@ -22,6 +23,7 @@ abstract class PersonalRecordsDatabase : RoomDatabase() {
     abstract fun bookDao(): BookDao
     abstract fun filmDao(): FilmDao
     abstract fun foodDao(): FoodDao
+    abstract fun healthRecordDao(): HealthRecordDao
 
     companion object {
         @Volatile

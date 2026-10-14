@@ -144,3 +144,24 @@ CREATE TABLE IF NOT EXISTS notifications (
 CREATE INDEX IF NOT EXISTS idx_notifications_post_time ON notifications(post_time DESC);
 CREATE INDEX IF NOT EXISTS idx_notifications_package ON notifications(package_name);
 
+CREATE TABLE IF NOT EXISTS health_records (
+  id TEXT PRIMARY KEY,
+  record_type TEXT NOT NULL,
+  category TEXT NOT NULL,
+  date_iso TEXT NOT NULL,
+  start_time TEXT NOT NULL,
+  end_time TEXT NOT NULL,
+  value_primary REAL,
+  value_secondary REAL,
+  value_tertiary REAL,
+  unit TEXT,
+  title TEXT,
+  subtitle TEXT,
+  data_origin TEXT,
+  raw_json TEXT NOT NULL,
+  synced_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS idx_health_records_date ON health_records(date_iso DESC, start_time DESC);
+CREATE INDEX IF NOT EXISTS idx_health_records_type ON health_records(record_type);
+CREATE INDEX IF NOT EXISTS idx_health_records_category ON health_records(category);
+

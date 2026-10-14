@@ -179,6 +179,18 @@ fun domainCinemaColor(): androidx.compose.ui.graphics.Color =
 fun domainRatingColor(): androidx.compose.ui.graphics.Color =
     if (isSystemInDarkTheme()) RatingGoldDark else RatingGold
 
+@Composable
+fun domainHealthContainer(): androidx.compose.ui.graphics.Color =
+    if (isSystemInDarkTheme()) HealthCrimsonDarkContainer else HealthCrimsonContainer
+
+@Composable
+fun domainHealthOnContainer(): androidx.compose.ui.graphics.Color =
+    if (isSystemInDarkTheme()) HealthCrimsonDarkOnContainer else HealthCrimsonOnContainer
+
+@Composable
+fun domainHealthColor(): androidx.compose.ui.graphics.Color =
+    if (isSystemInDarkTheme()) HealthCrimsonDark else HealthCrimson
+
 // ==========================================
 // M3 Expressive Motion Physics Tokens
 // Source: .agent/skills/m3-expressive/references/tokens.md

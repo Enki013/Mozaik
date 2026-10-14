@@ -12,6 +12,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.time.LocalDate
@@ -87,15 +88,17 @@ class NotificationsViewModel(
             val today = notifs.count { it.formattedDate == todayISO }
             Triple(list, distinctApps, today)
         }
-        _uiState.value = _uiState.value.copy(
-            isLoading = false,
-            isFiltering = false,
-            notifications = notifs,
-            filteredNotifications = filtered,
-            appList = apps,
-            todayCount = todayCnt,
-            error = null
-        )
+        _uiState.update {
+            it.copy(
+                isLoading = false,
+                isFiltering = false,
+                notifications = notifs,
+                filteredNotifications = filtered,
+                appList = apps,
+                todayCount = todayCnt,
+                error = null
+            )
+        }
     }
 
     private fun loadInitialData() {
@@ -117,7 +120,7 @@ class NotificationsViewModel(
 
     private suspend fun fetchRemoteNotifications(showLoadingIfEmpty: Boolean) {
         if (showLoadingIfEmpty) {
-            _uiState.value = _uiState.value.copy(isLoading = true, error = null)
+            _uiState.update { it.copy(isLoading = true, error = null) }
         }
         when (val result = repository.getNotifications(limit = 200)) {
             is Resource.Success -> {
@@ -127,11 +130,13 @@ class NotificationsViewModel(
                 }
             }
             is Resource.Error -> {
-                _uiState.value = _uiState.value.copy(
-                    isLoading = false,
-                    isFiltering = false,
-                    error = if (_uiState.value.notifications.isEmpty()) result.message else null
-                )
+                _uiState.update {
+                    it.copy(
+                        isLoading = false,
+                        isFiltering = false,
+                        error = if (it.notifications.isEmpty()) result.message else null
+                    )
+                }
             }
             else -> Unit
         }
@@ -139,55 +144,63 @@ class NotificationsViewModel(
 
     fun setAppFilter(app: String?) {
         if (_uiState.value.selectedApp == app) return
-        _uiState.value = _uiState.value.copy(selectedApp = app, isFiltering = true)
+        _uiState.update { it.copy(selectedApp = app, isFiltering = true) }
         recomputeFilter(debounceMs = 0L)
     }
 
     fun setSearchQuery(query: String) {
         if (_uiState.value.searchQuery == query) return
-        _uiState.value = _uiState.value.copy(searchQuery = query, isFiltering = true)
+        _uiState.update { it.copy(searchQuery = query, isFiltering = true) }
         recomputeFilter(debounceMs = if (query.isEmpty()) 0L else 100L)
     }
 
     fun setDateFilter(date: String?) {
-        _uiState.value = _uiState.value.copy(
-            selectedDateFilter = date,
-            fromDateFilter = null,
-            toDateFilter = null,
-            isFiltering = true
-        )
+        _uiState.update {
+            it.copy(
+                selectedDateFilter = date,
+                fromDateFilter = null,
+                toDateFilter = null,
+                isFiltering = true
+            )
+        }
         recomputeFilter(debounceMs = 0L)
     }
 
     fun setDateRangeFilter(from: String?, to: String?) {
-        _uiState.value = _uiState.value.copy(
-            selectedDateFilter = null,
-            fromDateFilter = from,
-            toDateFilter = to,
-            isFiltering = true
-        )
+        _uiState.update {
+            it.copy(
+                selectedDateFilter = null,
+                fromDateFilter = from,
+                toDateFilter = to,
+                isFiltering = true
+            )
+        }
         recomputeFilter(debounceMs = 0L)
     }
 
     fun clearDateFilter() {
-        _uiState.value = _uiState.value.copy(
-            selectedDateFilter = null,
-            fromDateFilter = null,
-            toDateFilter = null,
-            isFiltering = true
-        )
+        _uiState.update {
+            it.copy(
+                selectedDateFilter = null,
+                fromDateFilter = null,
+                toDateFilter = null,
+                isFiltering = true
+            )
+        }
         recomputeFilter(debounceMs = 0L)
     }
 
     fun resetFilters() {
-        _uiState.value = _uiState.value.copy(
-            selectedApp = null,
-            searchQuery = "",
-            selectedDateFilter = null,
-            fromDateFilter = null,
-            toDateFilter = null,
-            isFiltering = true
-        )
+        _uiState.update {
+            it.copy(
+                selectedApp = null,
+                searchQuery = "",
+                selectedDateFilter = null,
+                fromDateFilter = null,
+                toDateFilter = null,
+                isFiltering = true
+            )
+        }
         recomputeFilter(debounceMs = 0L)
     }
 
@@ -206,10 +219,12 @@ class NotificationsViewModel(
                     toDateFilter = snap.toDateFilter
                 )
             }
-            _uiState.value = _uiState.value.copy(
-                filteredNotifications = filtered,
-                isFiltering = false
-            )
+            _uiState.update {
+                it.copy(
+                    filteredNotifications = filtered,
+                    isFiltering = false
+                )
+            }
         }
     }
 }

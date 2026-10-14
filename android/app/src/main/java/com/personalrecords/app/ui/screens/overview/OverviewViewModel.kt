@@ -11,6 +11,7 @@ import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 data class OverviewUiState(
@@ -35,7 +36,7 @@ class OverviewViewModel(
 
     fun loadData() {
         viewModelScope.launch {
-            _uiState.value = _uiState.value.copy(isLoading = true, error = null)
+            _uiState.update { it.copy(isLoading = true, error = null) }
             val (dashRes, actRes) = coroutineScope {
                 val dDeferred = async { repository.getDashboard() }
                 val aDeferred = async { repository.getActivity(days = 14, limit = 6) }
@@ -45,18 +46,20 @@ class OverviewViewModel(
             val dash = if (dashRes is Resource.Success) dashRes.data else _uiState.value.dashboard
             val acts = if (actRes is Resource.Success) actRes.data.items else _uiState.value.recentActivities
 
-            _uiState.value = _uiState.value.copy(
-                isLoading = false,
-                dashboard = dash,
-                recentActivities = acts,
-                error = if (dashRes is Resource.Error) dashRes.message else null
-            )
+            _uiState.update {
+                it.copy(
+                    isLoading = false,
+                    dashboard = dash,
+                    recentActivities = acts,
+                    error = if (dashRes is Resource.Error) dashRes.message else null
+                )
+            }
         }
     }
 
     fun syncService(service: String) {
         viewModelScope.launch {
-            _uiState.value = _uiState.value.copy(isSyncing = service, syncMessage = null)
+            _uiState.update { it.copy(isSyncing = service, syncMessage = null) }
             val result = when (service) {
                 "fatsecret" -> repository.syncFatSecret(30)
                 "goodreads" -> repository.syncGoodreads()
@@ -65,27 +68,31 @@ class OverviewViewModel(
             }
             when (result) {
                 is Resource.Success -> {
-                    val serverMsg = result.data.message?.takeIf { it.isNotBlank() }
-                    _uiState.value = _uiState.value.copy(
-                        isSyncing = null,
-                        syncMessage = serverMsg ?: "${service.replaceFirstChar { it.uppercase() }} eşitlendi!"
-                    )
+                    val serverMsg = result.data.message.takeIf { it.isNotBlank() }
+                    _uiState.update {
+                        it.copy(
+                            isSyncing = null,
+                            syncMessage = serverMsg ?: "${service.replaceFirstChar { c -> c.uppercase() }} eşitlendi!"
+                        )
+                    }
                     loadData()
                 }
                 is Resource.Error -> {
-                    _uiState.value = _uiState.value.copy(
-                        isSyncing = null,
-                        syncMessage = "Hata: ${result.message}"
-                    )
+                    _uiState.update {
+                        it.copy(
+                            isSyncing = null,
+                            syncMessage = "Hata: ${result.message}"
+                        )
+                    }
                 }
                 else -> {
-                    _uiState.value = _uiState.value.copy(isSyncing = null)
+                    _uiState.update { it.copy(isSyncing = null) }
                 }
             }
         }
     }
 
     fun clearSyncMessage() {
-        _uiState.value = _uiState.value.copy(syncMessage = null)
+        _uiState.update { it.copy(syncMessage = null) }
     }
 }

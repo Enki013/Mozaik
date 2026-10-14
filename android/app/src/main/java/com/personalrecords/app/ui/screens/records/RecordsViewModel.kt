@@ -1,5 +1,6 @@
 package com.personalrecords.app.ui.screens.records
 
+import androidx.compose.runtime.Immutable
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.personalrecords.app.core.common.Resource
@@ -10,6 +11,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
+@Immutable
 data class RecordsUiState(
     val isLoading: Boolean = true,
     val counts: Map<String, Int> = emptyMap(),

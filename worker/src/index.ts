@@ -55,15 +55,39 @@ app.get("/api/health", async (c) => {
   }
 });
 
+async function ensureHealthTable(db: D1Database) {
+  await db.prepare(`
+    CREATE TABLE IF NOT EXISTS health_records (
+      id TEXT PRIMARY KEY,
+      record_type TEXT NOT NULL,
+      category TEXT NOT NULL,
+      date_iso TEXT NOT NULL,
+      start_time TEXT NOT NULL,
+      end_time TEXT NOT NULL,
+      value_primary REAL,
+      value_secondary REAL,
+      value_tertiary REAL,
+      unit TEXT,
+      title TEXT,
+      subtitle TEXT,
+      data_origin TEXT,
+      raw_json TEXT NOT NULL,
+      synced_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+    )
+  `).run();
+}
+
 // 2. Dashboard
 app.get("/api/dashboard", async (c) => {
   const db = c.env.DB;
+  await ensureHealthTable(db);
 
-  const [booksCount, filmsCount, foodsCount, notifCount] = await Promise.all([
+  const [booksCount, filmsCount, foodsCount, notifCount, healthCount] = await Promise.all([
     db.prepare("SELECT count(*) as c FROM goodreads_books").first<any>(),
     db.prepare("SELECT count(*) as c FROM letterboxd_films").first<any>(),
     db.prepare("SELECT count(*) as c FROM fatsecret_food_entries").first<any>(),
     db.prepare("SELECT count(*) as c FROM notifications").first<any>(),
+    db.prepare("SELECT count(*) as c FROM health_records").first<any>(),
   ]);
 
   const today = todayDateInt();
@@ -93,6 +117,7 @@ app.get("/api/dashboard", async (c) => {
       letterboxd_films: filmsCount?.c || 0,
       fatsecret_food_entries: foodsCount?.c || 0,
       notifications: notifCount?.c || 0,
+      health_records: healthCount?.c || 0,
     },
     today: {
       date: dateIntToISO(today),
@@ -103,6 +128,7 @@ app.get("/api/dashboard", async (c) => {
       fatsecret: !!token,
       goodreads_rss: !!(grSettings?.feed_url),
       letterboxd_rss: !!(lbSettings?.feed_url),
+      health_connect: (healthCount?.c || 0) > 0,
     },
     last_sync: {
       fatsecret: fatRun || null,
@@ -288,6 +314,95 @@ app.get("/api/activity", async (c) => {
         big_text: n.big_text,
         notification_key: n.notification_key,
         is_ongoing: n.is_ongoing === 1,
+      },
+    });
+  }
+
+  // Health Connect (Smart Timeline: Discrete Sleep/Exercise/Weight + Daily Activity Summary)
+  await ensureHealthTable(db);
+  const discreteHealth = await db
+    .prepare("SELECT * FROM health_records WHERE record_type IN ('sleep', 'exercise', 'weight') ORDER BY date_iso DESC, start_time DESC LIMIT ?")
+    .bind(limit)
+    .all<any>();
+
+  for (const h of discreteHealth.results) {
+    const dISO = h.date_iso || "";
+    if (!dISO) continue;
+    if (minDateISO && dISO < minDateISO) continue;
+    if (maxDateISO && dISO > maxDateISO) continue;
+
+    allItems.push({
+      id: h.id,
+      source: "health_connect",
+      type: "health",
+      date: dISO,
+      time: h.start_time && h.start_time.length >= 16 ? h.start_time.substring(11, 16) : "",
+      timestamp: h.end_time || h.start_time || h.synced_at || "",
+      title: h.title || h.record_type,
+      subtitle: h.subtitle || "",
+      details: {
+        id: h.id,
+        record_type: h.record_type,
+        category: h.category,
+        value_primary: h.value_primary,
+        value_secondary: h.value_secondary,
+        value_tertiary: h.value_tertiary,
+        unit: h.unit,
+        data_origin: h.data_origin,
+      },
+    });
+  }
+
+  const dailyHealthAgg = await db
+    .prepare(`
+      SELECT
+        date_iso,
+        coalesce(sum(CASE WHEN record_type = 'steps' THEN value_primary ELSE 0 END), 0) as total_steps,
+        coalesce(sum(CASE WHEN record_type = 'active_calories' THEN value_primary ELSE 0 END), 0) as active_kcal,
+        coalesce(sum(CASE WHEN record_type = 'distance' THEN value_primary ELSE 0 END), 0) as distance_m,
+        coalesce(avg(CASE WHEN record_type IN ('heart_rate', 'resting_heart_rate') THEN value_primary ELSE NULL END), 0) as avg_bpm,
+        max(end_time) as last_time
+      FROM health_records
+      WHERE record_type IN ('steps', 'active_calories', 'distance', 'heart_rate', 'resting_heart_rate')
+      GROUP BY date_iso
+      ORDER BY date_iso DESC
+      LIMIT 60
+    `)
+    .all<any>();
+
+  for (const d of dailyHealthAgg.results) {
+    const dISO = d.date_iso || "";
+    if (!dISO) continue;
+    if (minDateISO && dISO < minDateISO) continue;
+    if (maxDateISO && dISO > maxDateISO) continue;
+
+    const steps = Math.round(Number(d.total_steps) || 0);
+    const kcal = Math.round(Number(d.active_kcal) || 0);
+    const distKm = Math.round(((Number(d.distance_m) || 0) / 1000) * 10) / 10;
+    const avgBpm = Math.round(Number(d.avg_bpm) || 0);
+    if (steps === 0 && kcal === 0 && distKm === 0 && avgBpm === 0) continue;
+
+    const parts: string[] = [];
+    if (kcal > 0) parts.push(`${kcal} kcal aktif`);
+    if (distKm > 0) parts.push(`${distKm} km`);
+    if (avgBpm > 0) parts.push(`Ort. ${avgBpm} bpm`);
+
+    allItems.push({
+      id: "hc_daily_" + dISO,
+      source: "health_connect",
+      type: "health",
+      date: dISO,
+      time: d.last_time && d.last_time.length >= 16 ? d.last_time.substring(11, 16) : "",
+      timestamp: d.last_time || (dISO + "T23:59:00Z"),
+      title: steps > 0 ? `Günlük Aktivite · ${steps.toLocaleString("tr-TR")} adım` : `Günlük Sağlık Özeti`,
+      subtitle: parts.join(" · ") || "Health Connect",
+      details: {
+        record_type: "daily_summary",
+        category: "activity",
+        steps,
+        active_calories: kcal,
+        distance_km: distKm,
+        avg_bpm: avgBpm,
       },
     });
   }
@@ -1136,10 +1251,12 @@ app.get("/fatsecret/callback", async (c) => {
 
 // 13. Export All (JSON)
 app.get("/api/export/all", async (c) => {
-  const [books, films, foods, summary] = await Promise.all([
+  await ensureHealthTable(c.env.DB);
+  const [books, films, foods, healthRecords, summary] = await Promise.all([
     c.env.DB.prepare("SELECT * FROM goodreads_books LIMIT 10000").all(),
     c.env.DB.prepare("SELECT * FROM letterboxd_films LIMIT 10000").all(),
     c.env.DB.prepare("SELECT * FROM fatsecret_food_entries LIMIT 10000").all(),
+    c.env.DB.prepare("SELECT * FROM health_records ORDER BY date_iso DESC, start_time DESC LIMIT 10000").all(),
     c.env.DB.prepare(`
       SELECT date_int, count(*) as entry_count, coalesce(sum(calories), 0) as calories
       FROM fatsecret_food_entries
@@ -1156,6 +1273,7 @@ app.get("/api/export/all", async (c) => {
     goodreads_books: books.results,
     letterboxd_films: films.results,
     fatsecret_foods: foods.results,
+    health_records: healthRecords.results,
     daily_summary: summary.results.map((r: any) => ({
       date_int: r.date_int,
       date: dateIntToISO(r.date_int),
@@ -1175,6 +1293,7 @@ app.get("/api/export/all", async (c) => {
 
 // 14. Export DB / SQL
 const exportSqlHandler = async (c: any) => {
+  await ensureHealthTable(c.env.DB);
   const tables = [
     "user_settings",
     "goodreads_sync_settings",
@@ -1183,6 +1302,8 @@ const exportSqlHandler = async (c: any) => {
     "goodreads_books",
     "letterboxd_films",
     "fatsecret_food_entries",
+    "notifications",
+    "health_records",
   ];
 
   let sqlDump = "-- Cloudflare D1 SQL Dump\n-- Exported At: " + new Date().toISOString() + "\n\n";
@@ -1324,6 +1445,447 @@ app.get("/api/notifications", async (c) => {
   return c.json({
     count: result.results.length,
     items: result.results,
+  });
+});
+
+// 15. Health Connect Webhook (mcnaveen/health-connect-webhook compatible)
+interface NormalizedHealthRecord {
+  id: string;
+  record_type: string;
+  category: string;
+  date_iso: string;
+  start_time: string;
+  end_time: string;
+  value_primary: number | null;
+  value_secondary: number | null;
+  value_tertiary: number | null;
+  unit: string;
+  title: string;
+  subtitle: string;
+  data_origin: string;
+  raw_json: string;
+}
+
+function formatOriginLabel(origin: string): string {
+  if (!origin) return "Health Connect";
+  const lower = origin.toLowerCase();
+  if (lower.includes("shealth") || lower.includes("samsung")) return "Samsung Health";
+  if (lower.includes("google") && lower.includes("fitness")) return "Google Fit";
+  if (lower.includes("fitbit")) return "Fitbit";
+  if (lower.includes("garmin")) return "Garmin Connect";
+  if (lower.includes("xiaomi") || lower.includes("mihealth") || lower.includes("zepp")) return "Zepp / Mi Fitness";
+  if (lower.includes("strava")) return "Strava";
+  if (lower.includes("oura")) return "Oura";
+  if (lower.includes("withings")) return "Withings";
+  if (lower.includes("polar")) return "Polar";
+  return origin;
+}
+
+function parseHealthConnectPayload(body: any): NormalizedHealthRecord[] {
+  const out: NormalizedHealthRecord[] = [];
+  if (!body || typeof body !== "object") return out;
+  const fallbackNow = typeof body.timestamp === "string" && body.timestamp ? body.timestamp : new Date().toISOString();
+
+  const pushRecord = (
+    recordType: string,
+    category: string,
+    startTime: string,
+    endTime: string,
+    val1: number | null,
+    val2: number | null,
+    val3: number | null,
+    unit: string,
+    title: string,
+    subtitle: string,
+    rawItem: any
+  ) => {
+    const st = startTime || endTime || fallbackNow;
+    const et = endTime || startTime || fallbackNow;
+    const dISO = (et || st).substring(0, 10);
+    const origin = String(rawItem?.metadata?.data_origin || "");
+    const basis = `${recordType}|${st}|${et}|${origin}`;
+    const id = `hc_${recordType}_${hashStr(basis)}`;
+    const originName = formatOriginLabel(origin);
+    const finalSub = subtitle ? (origin ? `${subtitle} · ${originName}` : subtitle) : originName;
+
+    out.push({
+      id,
+      record_type: recordType,
+      category,
+      date_iso: dISO,
+      start_time: st,
+      end_time: et,
+      value_primary: val1 !== undefined && val1 !== null && !Number.isNaN(Number(val1)) ? Number(val1) : null,
+      value_secondary: val2 !== undefined && val2 !== null && !Number.isNaN(Number(val2)) ? Number(val2) : null,
+      value_tertiary: val3 !== undefined && val3 !== null && !Number.isNaN(Number(val3)) ? Number(val3) : null,
+      unit,
+      title,
+      subtitle: finalSub,
+      data_origin: origin,
+      raw_json: JSON.stringify(rawItem),
+    });
+  };
+
+  if (Array.isArray(body.steps)) {
+    for (const it of body.steps) {
+      const c = Number(it.count) || 0;
+      pushRecord("steps", "activity", it.start_time, it.end_time, c, null, null, "steps", `${c.toLocaleString("tr-TR")} adım`, "Adım Sayısı", it);
+    }
+  }
+  if (Array.isArray(body.distance)) {
+    for (const it of body.distance) {
+      const m = Number(it.meters) || 0;
+      pushRecord("distance", "activity", it.start_time, it.end_time, m, null, null, "m", `${(m / 1000).toFixed(2)} km mesafe`, "Yürüme / Koşu Mesafesi", it);
+    }
+  }
+  if (Array.isArray(body.active_calories)) {
+    for (const it of body.active_calories) {
+      const cal = Number(it.calories) || 0;
+      pushRecord("active_calories", "activity", it.start_time, it.end_time, cal, null, null, "kcal", `${Math.round(cal)} kcal aktif`, "Aktif Kalori", it);
+    }
+  }
+  if (Array.isArray(body.total_calories)) {
+    for (const it of body.total_calories) {
+      const cal = Number(it.calories) || 0;
+      pushRecord("total_calories", "activity", it.start_time, it.end_time, cal, null, null, "kcal", `${Math.round(cal)} kcal toplam`, "Toplam Kalori", it);
+    }
+  }
+  if (Array.isArray(body.exercise)) {
+    for (const it of body.exercise) {
+      const dur = Number(it.duration_seconds) || 0;
+      const dist = it.distance_meters != null ? Number(it.distance_meters) : null;
+      const stp = it.steps != null ? Number(it.steps) : null;
+      const mins = Math.round(dur / 60);
+      const exTitle = it.title || it.type || "Antrenman";
+      const subParts = [`${mins} dk`];
+      if (dist && dist > 0) subParts.push(`${(dist / 1000).toFixed(2)} km`);
+      if (stp && stp > 0) subParts.push(`${stp} adım`);
+      pushRecord("exercise", "exercise", it.start_time, it.end_time, dur, dist, stp, "sec", `Antrenman: ${exTitle}`, subParts.join(" · "), it);
+    }
+  }
+  if (Array.isArray(body.sleep)) {
+    for (const it of body.sleep) {
+      const dur = Number(it.duration_seconds) || 0;
+      const stages = Array.isArray(it.stages) ? it.stages : [];
+      const startT = stages.length > 0 && stages[0].start_time ? stages[0].start_time : it.session_end_time;
+      const hrs = Math.floor(dur / 3600);
+      const mins = Math.round((dur % 3600) / 60);
+      const sub = stages.length > 0 ? `${stages.length} uyku evresi kaydedildi` : "Uyku Oturumu";
+      pushRecord("sleep", "sleep", startT, it.session_end_time, dur, stages.length, null, "sec", `Uyku · ${hrs} sa ${mins} dk`, sub, it);
+    }
+  }
+  if (Array.isArray(body.heart_rate)) {
+    for (const it of body.heart_rate) {
+      const bpm = Number(it.avg ?? it.bpm) || 0;
+      const minBpm = it.min != null ? Number(it.min) : null;
+      const maxBpm = it.max != null ? Number(it.max) : null;
+      const sub = minBpm != null && maxBpm != null ? `Min ${Math.round(minBpm)} · Max ${Math.round(maxBpm)} bpm` : "Kalp Atış Hızı";
+      pushRecord("heart_rate", "vitals", it.time, it.time, bpm, minBpm, maxBpm, "bpm", `${Math.round(bpm)} bpm Nabız`, sub, it);
+    }
+  }
+  if (Array.isArray(body.resting_heart_rate)) {
+    for (const it of body.resting_heart_rate) {
+      const bpm = Number(it.bpm) || 0;
+      pushRecord("resting_heart_rate", "vitals", it.time, it.time, bpm, null, null, "bpm", `${Math.round(bpm)} bpm Dinlenik Nabız`, "Dinlenik Kalp Atış Hızı", it);
+    }
+  }
+  if (Array.isArray(body.heart_rate_variability)) {
+    for (const it of body.heart_rate_variability) {
+      const hrv = Number(it.avg ?? it.rmssd_millis) || 0;
+      const minH = it.min != null ? Number(it.min) : null;
+      const maxH = it.max != null ? Number(it.max) : null;
+      pushRecord("heart_rate_variability", "vitals", it.time, it.time, hrv, minH, maxH, "ms", `${Math.round(hrv)} ms HRV`, "Kalp Atış Hızı Değişkenliği (RMSSD)", it);
+    }
+  }
+  if (Array.isArray(body.oxygen_saturation)) {
+    for (const it of body.oxygen_saturation) {
+      const pct = Number(it.avg ?? it.percentage) || 0;
+      const minP = it.min != null ? Number(it.min) : null;
+      const maxP = it.max != null ? Number(it.max) : null;
+      pushRecord("oxygen_saturation", "vitals", it.time, it.time, pct, minP, maxP, "%", `%${pct.toFixed(1)} SpO₂`, "Kan Oksijen Doygunluğu", it);
+    }
+  }
+  if (Array.isArray(body.respiratory_rate)) {
+    for (const it of body.respiratory_rate) {
+      const rate = Number(it.avg ?? it.rate) || 0;
+      pushRecord("respiratory_rate", "vitals", it.time, it.time, rate, it.min ?? null, it.max ?? null, "rpm", `${rate.toFixed(1)} Solunum/dk`, "Solunum Hızı", it);
+    }
+  }
+  if (Array.isArray(body.blood_pressure)) {
+    for (const it of body.blood_pressure) {
+      const sys = Number(it.systolic) || 0;
+      const dia = Number(it.diastolic) || 0;
+      pushRecord("blood_pressure", "vitals", it.time, it.time, sys, dia, null, "mmHg", `${Math.round(sys)}/${Math.round(dia)} mmHg`, "Kan Basıncı (Tansiyon)", it);
+    }
+  }
+  if (Array.isArray(body.blood_glucose)) {
+    for (const it of body.blood_glucose) {
+      const gl = Number(it.mmol_per_liter) || 0;
+      pushRecord("blood_glucose", "vitals", it.time, it.time, gl, null, null, "mmol/L", `${gl.toFixed(1)} mmol/L Kan Şekeri`, "Kan Glikozu", it);
+    }
+  }
+  if (Array.isArray(body.body_temperature)) {
+    for (const it of body.body_temperature) {
+      const c = Number(it.celsius) || 0;
+      pushRecord("body_temperature", "vitals", it.time, it.time, c, null, null, "°C", `${c.toFixed(1)} °C Vücut Sıcaklığı`, "Ateş / Sıcaklık", it);
+    }
+  }
+  if (Array.isArray(body.skin_temperature)) {
+    for (const it of body.skin_temperature) {
+      const d = Number(it.avg_delta_celsius ?? it.delta_celsius) || 0;
+      pushRecord("skin_temperature", "vitals", it.time, it.time, d, it.baseline_celsius ?? null, null, "Δ°C", `${d >= 0 ? "+" : ""}${d.toFixed(2)} °C Cilt Sıcaklığı`, "Bazal Değişim", it);
+    }
+  }
+  if (Array.isArray(body.vo2_max)) {
+    for (const it of body.vo2_max) {
+      const v = Number(it.ml_per_kg_per_min) || 0;
+      pushRecord("vo2_max", "vitals", it.time, it.time, v, null, null, "mL/kg/dk", `${v.toFixed(1)} VO₂ Max`, "Maksimum Oksijen Tüketimi", it);
+    }
+  }
+  if (Array.isArray(body.weight)) {
+    for (const it of body.weight) {
+      const kg = Number(it.kilograms) || 0;
+      pushRecord("weight", "body", it.time, it.time, kg, null, null, "kg", `${kg.toFixed(1)} kg Ağırlık`, "Vücut Ağırlığı", it);
+    }
+  }
+  if (Array.isArray(body.height)) {
+    for (const it of body.height) {
+      const m = Number(it.meters) || 0;
+      pushRecord("height", "body", it.time, it.time, m, null, null, "m", `${Math.round(m * 100)} cm Boy`, "Boy Ölçümü", it);
+    }
+  }
+  if (Array.isArray(body.bmi)) {
+    for (const it of body.bmi) {
+      const v = Number(it.value) || 0;
+      pushRecord("bmi", "body", it.time, it.time, v, it.weight_kg ?? null, it.height_meters ?? null, "kg/m²", `${v.toFixed(1)} VKİ (BMI)`, "Vücut Kitle İndeksi", it);
+    }
+  }
+  if (Array.isArray(body.body_fat)) {
+    for (const it of body.body_fat) {
+      const pct = Number(it.percentage) || 0;
+      pushRecord("body_fat", "body", it.time, it.time, pct, null, null, "%", `%${pct.toFixed(1)} Yağ Oranı`, "Vücut Kompozisyonu", it);
+    }
+  }
+  if (Array.isArray(body.lean_body_mass)) {
+    for (const it of body.lean_body_mass) {
+      const kg = Number(it.kilograms) || 0;
+      pushRecord("lean_body_mass", "body", it.time, it.time, kg, null, null, "kg", `${kg.toFixed(1)} kg Yağsız Kütle`, "Vücut Kompozisyonu", it);
+    }
+  }
+  if (Array.isArray(body.body_water_mass)) {
+    for (const it of body.body_water_mass) {
+      const kg = Number(it.kilograms) || 0;
+      pushRecord("body_water_mass", "body", it.time, it.time, kg, null, null, "kg", `${kg.toFixed(1)} kg Vücut Suyu`, "Vücut Kompozisyonu", it);
+    }
+  }
+  if (Array.isArray(body.bone_mass)) {
+    for (const it of body.bone_mass) {
+      const kg = Number(it.kilograms) || 0;
+      pushRecord("bone_mass", "body", it.time, it.time, kg, null, null, "kg", `${kg.toFixed(2)} kg Kemik Kütlesi`, "Vücut Kompozisyonu", it);
+    }
+  }
+  if (Array.isArray(body.basal_metabolic_rate)) {
+    for (const it of body.basal_metabolic_rate) {
+      const w = Number(it.watts) || 0;
+      pushRecord("basal_metabolic_rate", "body", it.time, it.time, w, null, null, "W", `${Math.round(w)} W BMR`, "Bazal Metabolizma Hızı", it);
+    }
+  }
+  if (Array.isArray(body.hydration)) {
+    for (const it of body.hydration) {
+      const l = Number(it.liters) || 0;
+      pushRecord("hydration", "body", it.start_time, it.end_time, l, null, null, "L", `${Math.round(l * 1000)} mL Su`, "Su Tüketimi", it);
+    }
+  }
+  if (Array.isArray(body.nutrition)) {
+    for (const it of body.nutrition) {
+      const cal = Number(it.calories) || 0;
+      pushRecord("nutrition", "body", it.start_time, it.end_time, cal, it.protein_grams ?? null, it.carbs_grams ?? null, "kcal", it.name || "Besin Kaydı", `${Math.round(cal)} kcal`, it);
+    }
+  }
+
+  return out;
+}
+
+const handleHealthWebhook = async (c: any) => {
+  const expectedSecret = (c.env as any).WEBHOOK_SECRET;
+  if (expectedSecret) {
+    const clientSecret = c.req.header("X-Webhook-Secret") || c.req.header("x-api-key") || c.req.header("Authorization")?.replace(/^Bearer\s+/i, "");
+    if (clientSecret !== expectedSecret) {
+      return c.json({ success: false, error: "Yetkisiz istek: Webhook Secret geçersiz" }, 401);
+    }
+  }
+
+  let body: any;
+  try {
+    body = await c.req.json();
+  } catch (e: any) {
+    return c.json({ success: false, error: "Geçersiz JSON gövdesi: " + e.message }, 400);
+  }
+
+  await ensureHealthTable(c.env.DB);
+  const records = parseHealthConnectPayload(body);
+
+  if (records.length === 0) {
+    return c.json({
+      success: true,
+      inserted: 0,
+      updated: 0,
+      total: 0,
+      message: "Health Connect webhook alındı (yeni kayıt yok)."
+    });
+  }
+
+  const upsertSql = `
+    INSERT INTO health_records (
+      id, record_type, category, date_iso, start_time, end_time,
+      value_primary, value_secondary, value_tertiary, unit, title, subtitle,
+      data_origin, raw_json, synced_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+    ON CONFLICT(id) DO UPDATE SET
+      value_primary=excluded.value_primary,
+      value_secondary=excluded.value_secondary,
+      value_tertiary=excluded.value_tertiary,
+      title=excluded.title,
+      subtitle=excluded.subtitle,
+      raw_json=excluded.raw_json,
+      synced_at=CURRENT_TIMESTAMP
+  `;
+
+  // Batch in chunks of 50 for D1 performance
+  const chunkSize = 50;
+  for (let i = 0; i < records.length; i += chunkSize) {
+    const chunk = records.slice(i, i + chunkSize);
+    const stmts = chunk.map((r) =>
+      c.env.DB.prepare(upsertSql).bind(
+        r.id,
+        r.record_type,
+        r.category,
+        r.date_iso,
+        r.start_time,
+        r.end_time,
+        r.value_primary,
+        r.value_secondary,
+        r.value_tertiary,
+        r.unit,
+        r.title,
+        r.subtitle,
+        r.data_origin,
+        r.raw_json
+      )
+    );
+    await c.env.DB.batch(stmts);
+  }
+
+  return c.json({
+    success: true,
+    inserted: records.length,
+    updated: 0,
+    total: records.length,
+    message: `${records.length} Health Connect kaydı başarıyla işlendi.`
+  });
+};
+
+const handleHealthWebhookStatus = async (c: any) => {
+  await ensureHealthTable(c.env.DB);
+  const row = await c.env.DB.prepare("SELECT count(*) as c FROM health_records").first<any>();
+  return c.json({
+    ok: true,
+    service: "health-connect-webhook",
+    status: "ready",
+    accepted_methods: ["POST"],
+    total_records: row?.c || 0,
+    message: "Health Connect Webhook uç noktası aktif. Verileri POST metodu ile gönderebilirsiniz."
+  });
+};
+
+app.get("/api/webhooks/health", handleHealthWebhookStatus);
+app.get("/api/webhooks/health-connect", handleHealthWebhookStatus);
+app.get("/webhooks/health", handleHealthWebhookStatus);
+app.get("/webhooks/health-connect", handleHealthWebhookStatus);
+
+app.post("/api/webhooks/health", handleHealthWebhook);
+app.post("/api/webhooks/health-connect", handleHealthWebhook);
+app.post("/webhooks/health", handleHealthWebhook);
+app.post("/webhooks/health-connect", handleHealthWebhook);
+
+// 16. Query Health Connect Records & Summary API
+app.get("/api/health-connect/records", async (c) => {
+  const db = c.env.DB;
+  await ensureHealthTable(db);
+
+  const limit = Math.min(parseInt(c.req.query("limit") || "150", 10), 500);
+  const category = c.req.query("category")?.trim();
+  const recordType = c.req.query("type")?.trim();
+  const date = c.req.query("date")?.trim();
+  const fromDate = c.req.query("from")?.trim();
+  const toDate = c.req.query("to")?.trim();
+
+  let sql = "SELECT * FROM health_records WHERE 1=1";
+  const params: any[] = [];
+
+  if (category) {
+    sql += " AND category = ?";
+    params.push(category);
+  }
+  if (recordType) {
+    sql += " AND record_type = ?";
+    params.push(recordType);
+  }
+  if (date) {
+    sql += " AND date_iso = ?";
+    params.push(date);
+  } else {
+    if (fromDate) {
+      sql += " AND date_iso >= ?";
+      params.push(fromDate);
+    }
+    if (toDate) {
+      sql += " AND date_iso <= ?";
+      params.push(toDate);
+    }
+  }
+
+  sql += " ORDER BY date_iso DESC, start_time DESC LIMIT ?";
+  params.push(limit);
+
+  const [rows, totalRow, latestStepsDay, latestSleep, latestHr, latestWeight] = await Promise.all([
+    db.prepare(sql).bind(...params).all<any>(),
+    db.prepare("SELECT count(*) as c FROM health_records").first<any>(),
+    db.prepare(`
+      SELECT date_iso, coalesce(sum(value_primary), 0) as steps
+      FROM health_records
+      WHERE record_type = 'steps'
+      GROUP BY date_iso
+      ORDER BY date_iso DESC
+      LIMIT 1
+    `).first<any>(),
+    db.prepare("SELECT value_primary, date_iso FROM health_records WHERE record_type = 'sleep' ORDER BY date_iso DESC, end_time DESC LIMIT 1").first<any>(),
+    db.prepare("SELECT value_primary, date_iso FROM health_records WHERE record_type IN ('heart_rate', 'resting_heart_rate') ORDER BY date_iso DESC, end_time DESC LIMIT 1").first<any>(),
+    db.prepare("SELECT value_primary, date_iso FROM health_records WHERE record_type = 'weight' ORDER BY date_iso DESC, end_time DESC LIMIT 1").first<any>(),
+  ]);
+
+  const activeCaloriesDay = await db.prepare(`
+    SELECT date_iso, coalesce(sum(value_primary), 0) as kcal
+    FROM health_records
+    WHERE record_type = 'active_calories'
+    GROUP BY date_iso
+    ORDER BY date_iso DESC
+    LIMIT 1
+  `).first<any>();
+
+  return c.json({
+    count: rows.results.length,
+    items: rows.results,
+    summary: {
+      total_records: totalRow?.c || 0,
+      today_steps: Math.round(Number(latestStepsDay?.steps) || 0),
+      steps_date: latestStepsDay?.date_iso || "",
+      last_sleep_seconds: Math.round(Number(latestSleep?.value_primary) || 0),
+      sleep_date: latestSleep?.date_iso || "",
+      latest_heart_rate_bpm: Math.round(Number(latestHr?.value_primary) || 0),
+      today_active_calories: Math.round(Number(activeCaloriesDay?.kcal) || 0),
+      latest_weight_kg: Number(latestWeight?.value_primary) || 0,
+    },
   });
 });
 

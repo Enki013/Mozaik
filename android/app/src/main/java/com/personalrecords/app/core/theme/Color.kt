@@ -122,6 +122,14 @@ val RatingGoldDark = Color(0xFFFFD54F)
 val RatingGoldDarkContainer = Color(0xFF573E00)
 val RatingGoldDarkOnContainer = Color(0xFFFFE082)
 
+// Health Connect / Vitals (Rose / Crimson)
+val HealthCrimson = Color(0xFFD81B60)
+val HealthCrimsonContainer = Color(0xFFFCE4EC)
+val HealthCrimsonOnContainer = Color(0xFF880E4F)
+val HealthCrimsonDark = Color(0xFFF48FB1)
+val HealthCrimsonDarkContainer = Color(0xFF880E4F)
+val HealthCrimsonDarkOnContainer = Color(0xFFFCE4EC)
+
 // Backward compatibility references for existing code
 val PrimaryViolet = md_theme_light_primary
 val PrimaryVioletDark = md_theme_light_primaryContainer

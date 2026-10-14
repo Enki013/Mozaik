@@ -54,6 +54,7 @@ import java.util.Date
 import java.util.Locale
 import java.util.concurrent.TimeUnit
 import androidx.core.net.toUri
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -63,7 +64,7 @@ fun SettingsScreen(
     refreshFlow: kotlinx.coroutines.flow.Flow<Unit>? = null,
     onNavigateToLanguage: () -> Unit = {}
 ) {
-    val state by viewModel.uiState.collectAsState()
+    val state by viewModel.uiState.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
@@ -607,6 +608,188 @@ fun SettingsScreen(
                                 Spacer(modifier = Modifier.height(6.dp))
                                 Text(
                                     text = "${stringResource(R.string.settings_setup_step_1)}\n${stringResource(R.string.settings_setup_step_2)}\n${stringResource(R.string.settings_setup_step_3)}",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+                    }
+                }
+
+                // ==========================================
+                // SECTION 2.5: Health Connect Webhook Entegrasyonu
+                // ==========================================
+                item {
+                    SettingsSectionTitle(title = stringResource(R.string.settings_section_health_webhook))
+                }
+                item {
+                    SettingsCard {
+                        val cleanBaseUrl = state.serverUrl.trim().trimEnd('/')
+                        val healthWebhookUrl = if (cleanBaseUrl.isNotBlank()) "$cleanBaseUrl/api/webhooks/health" else "https://.../api/webhooks/health"
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Row(
+                                modifier = Modifier.weight(1f),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(10.dp)
+                            ) {
+                                SettingsIconBox(
+                                    icon = Icons.Default.Favorite,
+                                    containerColor = domainHealthContainer(),
+                                    contentColor = domainHealthOnContainer()
+                                )
+                                Column(modifier = Modifier.weight(1f, fill = false)) {
+                                    Text(
+                                        text = stringResource(R.string.settings_health_webhook_title),
+                                        style = MaterialTheme.typography.titleMediumEmphasized,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                    Text(
+                                        text = stringResource(R.string.settings_health_webhook_desc),
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                }
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(10.dp))
+
+                        Text(
+                            text = stringResource(R.string.settings_health_webhook_summary),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+
+                        Spacer(modifier = Modifier.height(10.dp))
+
+                        Surface(
+                            shape = M3Shapes.CornerMedium,
+                            color = MaterialTheme.colorScheme.surfaceContainerHighest,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Column(modifier = Modifier.padding(10.dp)) {
+                                Text(
+                                    text = stringResource(R.string.settings_target_webhook_url),
+                                    style = MaterialTheme.typography.labelSmallEmphasized,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                                Spacer(modifier = Modifier.height(4.dp))
+                                SelectionContainer {
+                                    Text(
+                                        text = healthWebhookUrl,
+                                        style = MaterialTheme.typography.bodySmallEmphasized,
+                                        color = MaterialTheme.colorScheme.primary
+                                    )
+                                }
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Button(
+                                onClick = {
+                                    clipboardManager.setText(AnnotatedString(healthWebhookUrl))
+                                    coroutineScope.launch {
+                                        snackbarHostState.showSnackbar(context.getString(R.string.toast_webhook_copied))
+                                    }
+                                },
+                                shape = M3Shapes.CornerMedium,
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .height(42.dp)
+                                    .expressivePressScale(remember { MutableInteractionSource() }),
+                                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp)
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.ContentCopy,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                    Text(
+                                        text = stringResource(R.string.action_copy_url),
+                                        style = MaterialTheme.typography.labelLargeEmphasized,
+                                        maxLines = 1,
+                                        softWrap = false,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                }
+                            }
+
+                            OutlinedButton(
+                                onClick = {
+                                    val intent = Intent(Intent.ACTION_VIEW,
+                                        "https://github.com/mcnaveen/health-connect-webhook/releases".toUri())
+                                    context.startActivity(intent)
+                                },
+                                shape = M3Shapes.CornerMedium,
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .height(42.dp)
+                                    .expressivePressScale(remember { MutableInteractionSource() }),
+                                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp)
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Download,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                    Text(
+                                        text = stringResource(R.string.action_download_apk),
+                                        style = MaterialTheme.typography.labelLarge,
+                                        maxLines = 1,
+                                        softWrap = false,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                }
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(10.dp))
+
+                        Surface(
+                            shape = M3Shapes.CornerMedium,
+                            color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Column(modifier = Modifier.padding(10.dp)) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.AutoMirrored.Filled.HelpOutline,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(16.dp),
+                                        tint = MaterialTheme.colorScheme.primary
+                                    )
+                                    Text(
+                                        text = stringResource(R.string.settings_setup_guide_title),
+                                        style = MaterialTheme.typography.labelMediumEmphasized
+                                    )
+                                }
+                                Spacer(modifier = Modifier.height(6.dp))
+                                Text(
+                                    text = "${stringResource(R.string.settings_health_step_1)}\n${stringResource(R.string.settings_health_step_2)}\n${stringResource(R.string.settings_health_step_3)}",
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )

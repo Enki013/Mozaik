@@ -25,6 +25,7 @@ import com.personalrecords.app.R
 import com.personalrecords.app.core.theme.*
 import com.personalrecords.app.ui.components.*
 import kotlinx.coroutines.launch
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -35,9 +36,10 @@ fun RecordsScreen(
     onNavigateToNutrition: () -> Unit = {},
     onNavigateToBooks: () -> Unit = {},
     onNavigateToMovies: () -> Unit = {},
-    onNavigateToNotifications: () -> Unit = {}
+    onNavigateToNotifications: () -> Unit = {},
+    onNavigateToHealthConnect: () -> Unit = {}
 ) {
-    val state by viewModel.uiState.collectAsState()
+    val state by viewModel.uiState.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
     val coroutineScope = rememberCoroutineScope()
 
@@ -84,6 +86,7 @@ fun RecordsScreen(
             val filmsCount = counts["letterboxd_films"] ?: counts["films"] ?: 0
             val foodsCount = counts["fatsecret_food_entries"] ?: counts["foods"] ?: 0
             val notifsCount = counts["notifications"] ?: 0
+            val healthCount = counts["health_records"] ?: 0
 
             LazyColumn(
                 state = listState,
@@ -108,7 +111,6 @@ fun RecordsScreen(
                         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
                         border = null
                     ) {
-                        val healthConnectToast = stringResource(R.string.records_toast_healthconnect)
                         Column {
                             RecordItemRow(
                                 icon = Icons.Default.Restaurant,
@@ -122,18 +124,18 @@ fun RecordsScreen(
                                 color = MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.5f),
                                 modifier = Modifier.padding(horizontal = 12.dp)
                             )
+                            val healthSub = if (healthCount > 0) {
+                                stringResource(R.string.records_item_healthconnect_count, healthCount)
+                            } else {
+                                stringResource(R.string.records_item_healthconnect_sub)
+                            }
                             RecordItemRow(
                                 icon = Icons.Default.Favorite,
-                                iconBg = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.4f),
-                                iconTint = MaterialTheme.colorScheme.error,
+                                iconBg = domainHealthContainer(),
+                                iconTint = domainHealthOnContainer(),
                                 title = stringResource(R.string.records_item_healthconnect_title),
-                                subtitle = stringResource(R.string.records_item_healthconnect_sub),
-                                badgeText = stringResource(R.string.badge_soon),
-                                onClick = {
-                                    coroutineScope.launch {
-                                        snackbarHostState.showSnackbar(healthConnectToast)
-                                    }
-                                }
+                                subtitle = healthSub,
+                                onClick = onNavigateToHealthConnect
                             )
                         }
                     }

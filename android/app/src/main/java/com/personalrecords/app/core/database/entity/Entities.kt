@@ -58,3 +58,23 @@ data class CachedFoodEntity(
     val protein: Double,
     val fat: Double
 )
+
+@Entity(tableName = "cached_health_records")
+data class CachedHealthRecordEntity(
+    @PrimaryKey val id: String,
+    val recordType: String,
+    val category: String,
+    val dateIso: String,
+    val startTime: String,
+    val endTime: String,
+    val valuePrimary: Double?,
+    val valueSecondary: Double?,
+    val valueTertiary: Double?,
+    val unit: String,
+    val title: String,
+    val subtitle: String,
+    val dataOrigin: String,
+    val rawJson: String,
+    val updatedAt: String
+)
+

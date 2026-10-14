@@ -13,6 +13,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.time.LocalDate
@@ -130,11 +131,13 @@ private fun computeTimelineFlatEntries(
                 val caloriesText = if (!calRaw.isNullOrBlank() && calRaw != "0" && calRaw != "null") {
                     "$calRaw kcal"
                 } else null
-                val timeText = if (item.source == "notification") {
-                    item.time ?: item.details["post_time"]?.toString()?.replace("\"", "")?.let {
+                val timeText = when (item.source) {
+                    "notification" -> item.time ?: item.details["post_time"]?.toString()?.replace("\"", "")?.let {
                         if (it.length >= 16) it.substring(11, 16) else null
                     }
-                } else null
+                    "health_connect" -> item.time?.takeIf { it.isNotBlank() && it != "23:59" }
+                    else -> null
+                }
 
                 result.add(
                     TimelineFlatEntry.ActivityRow(
@@ -186,7 +189,7 @@ class TimelineViewModel(
     fun loadData() {
         hasInitialized = true
         viewModelScope.launch {
-            _uiState.value = _uiState.value.copy(isLoading = true, error = null)
+            _uiState.update { it.copy(isLoading = true, error = null) }
             val currentState = _uiState.value
             val response = repository.getActivity(
                 days = if (currentState.selectedDate == null && currentState.fromDate == null) currentState.selectedDays else null,
@@ -203,19 +206,23 @@ class TimelineViewModel(
                     val flattened = withContext(Dispatchers.Default) {
                         computeTimelineFlatEntries(groups, latest.selectedSource, latest.searchQuery)
                     }
-                    _uiState.value = _uiState.value.copy(
-                        isLoading = false,
-                        isFiltering = false,
-                        dayGroups = groups,
-                        flatEntries = flattened
-                    )
+                    _uiState.update {
+                        it.copy(
+                            isLoading = false,
+                            isFiltering = false,
+                            dayGroups = groups,
+                            flatEntries = flattened
+                        )
+                    }
                 }
                 is Resource.Error -> {
-                    _uiState.value = _uiState.value.copy(
-                        isLoading = false,
-                        isFiltering = false,
-                        error = response.message
-                    )
+                    _uiState.update {
+                        it.copy(
+                            isLoading = false,
+                            isFiltering = false,
+                            error = response.message
+                        )
+                    }
                 }
                 else -> Unit
             }
@@ -223,21 +230,25 @@ class TimelineViewModel(
     }
 
     fun setDays(days: Int) {
-        _uiState.value = _uiState.value.copy(
-            selectedDays = days,
-            selectedDate = null,
-            fromDate = null,
-            toDate = null
-        )
+        _uiState.update {
+            it.copy(
+                selectedDays = days,
+                selectedDate = null,
+                fromDate = null,
+                toDate = null
+            )
+        }
         loadData()
     }
 
     fun setSpecificDate(date: String) {
-        _uiState.value = _uiState.value.copy(
-            selectedDate = date,
-            fromDate = null,
-            toDate = null
-        )
+        _uiState.update {
+            it.copy(
+                selectedDate = date,
+                fromDate = null,
+                toDate = null
+            )
+        }
         loadData()
     }
 
@@ -246,35 +257,39 @@ class TimelineViewModel(
     }
 
     fun setDateRange(from: String, to: String) {
-        _uiState.value = _uiState.value.copy(
-            fromDate = from,
-            toDate = to,
-            selectedDate = null
-        )
+        _uiState.update {
+            it.copy(
+                fromDate = from,
+                toDate = to,
+                selectedDate = null
+            )
+        }
         loadData()
     }
 
     fun resetFilters() {
-        _uiState.value = _uiState.value.copy(
-            selectedDays = 14,
-            selectedDate = null,
-            fromDate = null,
-            toDate = null,
-            selectedSource = "all",
-            searchQuery = ""
-        )
+        _uiState.update {
+            it.copy(
+                selectedDays = 14,
+                selectedDate = null,
+                fromDate = null,
+                toDate = null,
+                selectedSource = "all",
+                searchQuery = ""
+            )
+        }
         loadData()
     }
 
     fun setSource(source: String) {
         if (_uiState.value.selectedSource == source) return
-        _uiState.value = _uiState.value.copy(selectedSource = source, isFiltering = true)
+        _uiState.update { it.copy(selectedSource = source, isFiltering = true) }
         recomputeFilter(debounceMs = 0L)
     }
 
     fun setSearchQuery(query: String) {
         if (_uiState.value.searchQuery == query) return
-        _uiState.value = _uiState.value.copy(searchQuery = query, isFiltering = true)
+        _uiState.update { it.copy(searchQuery = query, isFiltering = true) }
         recomputeFilter(debounceMs = if (query.isEmpty()) 0L else 100L)
     }
 
@@ -286,10 +301,12 @@ class TimelineViewModel(
             val flattened = withContext(Dispatchers.Default) {
                 computeTimelineFlatEntries(snap.dayGroups, snap.selectedSource, snap.searchQuery)
             }
-            _uiState.value = _uiState.value.copy(
-                flatEntries = flattened,
-                isFiltering = false
-            )
+            _uiState.update {
+                it.copy(
+                    flatEntries = flattened,
+                    isFiltering = false
+                )
+            }
         }
     }
 }

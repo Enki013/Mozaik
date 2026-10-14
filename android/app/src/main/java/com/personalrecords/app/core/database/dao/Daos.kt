@@ -63,3 +63,16 @@ interface FoodDao {
     @Query("DELETE FROM cached_foods")
     suspend fun clearFoods()
 }
+
+@Dao
+interface HealthRecordDao {
+    @Query("SELECT * FROM cached_health_records ORDER BY endTime DESC, startTime DESC")
+    suspend fun getAllHealthRecordsList(): List<CachedHealthRecordEntity>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertHealthRecords(records: List<CachedHealthRecordEntity>)
+
+    @Query("DELETE FROM cached_health_records")
+    suspend fun clearHealthRecords()
+}
+

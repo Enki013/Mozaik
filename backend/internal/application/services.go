@@ -109,6 +109,8 @@ func (s *Services) Dashboard(ctx context.Context) (Dashboard, error) {
 			"goodreads_books":        counts["goodreads_books"],
 			"letterboxd_films":       counts["letterboxd_films"],
 			"fatsecret_food_entries": counts["fatsecret_food_entries"],
+			"notifications":          counts["notifications"],
+			"health_records":         counts["health_records"],
 		},
 		Today: map[string]any{
 			"date":                  shared.DateIntToISO(today),
@@ -119,6 +121,7 @@ func (s *Services) Dashboard(ctx context.Context) (Dashboard, error) {
 			"fatsecret":      token != nil,
 			"goodreads_rss":  goodreads.FeedURL != "",
 			"letterboxd_rss": letterboxd.FeedURL != "",
+			"health_connect": counts["health_records"] > 0,
 		},
 		LastSync: map[string]any{
 			"fatsecret":  fatRun,
@@ -370,6 +373,120 @@ func (s *Services) ActivityTimelineRange(ctx context.Context, fromDate, toDate s
 				},
 			}
 			allItems = append(allItems, item)
+		}
+	}
+
+	// 5. Health Connect (Discrete sleep/exercise/weight + daily summary)
+	healthRecords, err := s.store.QueryHealthRecords(ctx, "", "", "", minDateISO, maxDateISO, 500)
+	if err == nil {
+		type dailyAgg struct {
+			steps    float64
+			kcal     float64
+			distM    float64
+			bpmSum   float64
+			bpmCount int
+			lastTime string
+		}
+		dailyMap := map[string]*dailyAgg{}
+		for _, hr := range healthRecords {
+			if hr.DateISO == "" || (minDateISO != "" && hr.DateISO < minDateISO) || (maxDateISO != "" && hr.DateISO > maxDateISO) {
+				continue
+			}
+			switch hr.RecordType {
+			case "sleep", "exercise", "weight":
+				_, timePart := shared.NormalizeDate(hr.StartTime)
+				allItems = append(allItems, ActivityItem{
+					ID:        hr.ID,
+					Source:    "health_connect",
+					Type:      "health",
+					Date:      hr.DateISO,
+					Time:      timePart,
+					Timestamp: hr.EndTime,
+					Title:     hr.Title,
+					Subtitle:  hr.Subtitle,
+					Details: map[string]any{
+						"id":              hr.ID,
+						"record_type":     hr.RecordType,
+						"category":        hr.Category,
+						"value_primary":   hr.ValuePrimary,
+						"value_secondary": hr.ValueSecondary,
+						"value_tertiary":  hr.ValueTertiary,
+						"unit":            hr.Unit,
+						"data_origin":     hr.DataOrigin,
+					},
+				})
+			case "steps", "active_calories", "distance", "heart_rate", "resting_heart_rate":
+				agg, ok := dailyMap[hr.DateISO]
+				if !ok {
+					agg = &dailyAgg{}
+					dailyMap[hr.DateISO] = agg
+				}
+				if hr.EndTime > agg.lastTime {
+					agg.lastTime = hr.EndTime
+				}
+				if hr.ValuePrimary != nil {
+					switch hr.RecordType {
+					case "steps":
+						agg.steps += *hr.ValuePrimary
+					case "active_calories":
+						agg.kcal += *hr.ValuePrimary
+					case "distance":
+						agg.distM += *hr.ValuePrimary
+					case "heart_rate", "resting_heart_rate":
+						agg.bpmSum += *hr.ValuePrimary
+						agg.bpmCount++
+					}
+				}
+			}
+		}
+		for dISO, agg := range dailyMap {
+			steps := int(agg.steps + 0.5)
+			kcal := int(agg.kcal + 0.5)
+			distKm := float64(int((agg.distM/1000.0)*10+0.5)) / 10.0
+			avgBpm := 0
+			if agg.bpmCount > 0 {
+				avgBpm = int(agg.bpmSum/float64(agg.bpmCount) + 0.5)
+			}
+			if steps == 0 && kcal == 0 && distKm == 0 && avgBpm == 0 {
+				continue
+			}
+			var parts []string
+			if kcal > 0 {
+				parts = append(parts, fmt.Sprintf("%d kcal aktif", kcal))
+			}
+			if distKm > 0 {
+				parts = append(parts, fmt.Sprintf("%.1f km", distKm))
+			}
+			if avgBpm > 0 {
+				parts = append(parts, fmt.Sprintf("Ort. %d bpm", avgBpm))
+			}
+			sub := strings.Join(parts, " · ")
+			if sub == "" {
+				sub = "Health Connect"
+			}
+			title := "Günlük Sağlık Özeti"
+			if steps > 0 {
+				title = fmt.Sprintf("Günlük Aktivite · %d adım", steps)
+			}
+			_, timePart := shared.NormalizeDate(agg.lastTime)
+			allItems = append(allItems, ActivityItem{
+				ID:        "hc_daily_" + dISO,
+				Source:    "health_connect",
+				Type:      "health",
+				Date:      dISO,
+				Time:      timePart,
+				Timestamp: agg.lastTime,
+				Title:     title,
+				Subtitle:  sub,
+				Details: map[string]any{
+					"record_type":     "daily_summary",
+					"category":        "activity",
+					"steps":           steps,
+					"active_calories": kcal,
+					"distance_km":     distKm,
+					"avg_bpm":         avgBpm,
+				},
+			})
 		}
 	}
 
@@ -1408,4 +1525,300 @@ func (s *Services) SaveNotificationWebhook(ctx context.Context, payload []byte) 
 func (s *Services) Notifications(ctx context.Context, limit int, pkg string) ([]sqlite.Notification, error) {
 	return s.store.QueryNotifications(ctx, limit, pkg)
 }
+
+func formatHealthOrigin(origin string) string {
+	if origin == "" {
+		return "Health Connect"
+	}
+	lower := strings.ToLower(origin)
+	switch {
+	case strings.Contains(lower, "shealth") || strings.Contains(lower, "samsung"):
+		return "Samsung Health"
+	case strings.Contains(lower, "google") && strings.Contains(lower, "fitness"):
+		return "Google Fit"
+	case strings.Contains(lower, "fitbit"):
+		return "Fitbit"
+	case strings.Contains(lower, "garmin"):
+		return "Garmin Connect"
+	case strings.Contains(lower, "xiaomi") || strings.Contains(lower, "mihealth") || strings.Contains(lower, "zepp"):
+		return "Zepp / Mi Fitness"
+	case strings.Contains(lower, "strava"):
+		return "Strava"
+	case strings.Contains(lower, "oura"):
+		return "Oura"
+	case strings.Contains(lower, "withings"):
+		return "Withings"
+	case strings.Contains(lower, "polar"):
+		return "Polar"
+	default:
+		return origin
+	}
+}
+
+func floatPtr(v float64) *float64 {
+	return &v
+}
+
+func stringValue(v any) string {
+	if v == nil {
+		return ""
+	}
+	if s, ok := v.(string); ok {
+		return strings.TrimSpace(s)
+	}
+	return strings.TrimSpace(fmt.Sprintf("%v", v))
+}
+
+func anyFloat(v any) float64 {
+	if v == nil {
+		return 0
+	}
+	switch n := v.(type) {
+	case float64:
+		return n
+	case float32:
+		return float64(n)
+	case int:
+		return float64(n)
+	case int64:
+		return float64(n)
+	case string:
+		return shared.Float(n)
+	default:
+		return shared.Float(fmt.Sprintf("%v", v))
+	}
+}
+
+func mapFloatPtr(m map[string]any, key string) *float64 {
+	v, ok := m[key]
+	if !ok || v == nil {
+		return nil
+	}
+	f := anyFloat(v)
+	return &f
+}
+
+func (s *Services) SaveHealthConnectWebhook(ctx context.Context, payload []byte) (int, int, error) {
+	var body map[string]any
+	if err := json.Unmarshal(payload, &body); err != nil {
+		return 0, 0, fmt.Errorf("gecersiz json: %w", err)
+	}
+
+	fallbackNow := time.Now().UTC().Format(time.RFC3339)
+	if ts, ok := body["timestamp"].(string); ok && ts != "" {
+		fallbackNow = ts
+	}
+
+	var records []sqlite.HealthRecord
+	pushRecord := func(recordType, category, startTime, endTime string, v1, v2, v3 *float64, unit, title, subtitle string, rawItem map[string]any) {
+		st := strings.TrimSpace(startTime)
+		et := strings.TrimSpace(endTime)
+		if st == "" {
+			st = et
+		}
+		if et == "" {
+			et = st
+		}
+		if st == "" {
+			st = fallbackNow
+			et = fallbackNow
+		}
+		dISO := et
+		if len(dISO) >= 10 {
+			dISO = dISO[:10]
+		}
+		origin := ""
+		if meta, ok := rawItem["metadata"].(map[string]any); ok {
+			origin = stringValue(meta["data_origin"])
+		}
+		basis := recordType + "|" + st + "|" + et + "|" + origin
+		id := "hc_" + recordType + "_" + shared.Hash("hc:", basis, 20)
+		originLabel := formatHealthOrigin(origin)
+		finalSub := subtitle
+		if finalSub != "" && origin != "" {
+			finalSub = finalSub + " · " + originLabel
+		} else if finalSub == "" {
+			finalSub = originLabel
+		}
+		rawBytes, _ := json.Marshal(rawItem)
+		records = append(records, sqlite.HealthRecord{
+			ID:             id,
+			RecordType:     recordType,
+			Category:       category,
+			DateISO:        dISO,
+			StartTime:      st,
+			EndTime:        et,
+			ValuePrimary:   v1,
+			ValueSecondary: v2,
+			ValueTertiary:  v3,
+			Unit:           unit,
+			Title:          title,
+			Subtitle:       finalSub,
+			DataOrigin:     origin,
+			RawJSON:        string(rawBytes),
+		})
+	}
+
+	sliceItems := func(key string) []map[string]any {
+		arr, ok := body[key].([]any)
+		if !ok {
+			return nil
+		}
+		out := make([]map[string]any, 0, len(arr))
+		for _, el := range arr {
+			if m, ok := el.(map[string]any); ok {
+				out = append(out, m)
+			}
+		}
+		return out
+	}
+
+	for _, it := range sliceItems("steps") {
+		c := anyFloat(it["count"])
+		pushRecord("steps", "activity", stringValue(it["start_time"]), stringValue(it["end_time"]), floatPtr(c), nil, nil, "steps", fmt.Sprintf("%d adım", int(c)), "Adım Sayısı", it)
+	}
+	for _, it := range sliceItems("distance") {
+		m := anyFloat(it["meters"])
+		pushRecord("distance", "activity", stringValue(it["start_time"]), stringValue(it["end_time"]), floatPtr(m), nil, nil, "m", fmt.Sprintf("%.2f km mesafe", m/1000.0), "Yürüme / Koşu Mesafesi", it)
+	}
+	for _, it := range sliceItems("active_calories") {
+		cal := anyFloat(it["calories"])
+		pushRecord("active_calories", "activity", stringValue(it["start_time"]), stringValue(it["end_time"]), floatPtr(cal), nil, nil, "kcal", fmt.Sprintf("%d kcal aktif", int(cal+0.5)), "Aktif Kalori", it)
+	}
+	for _, it := range sliceItems("total_calories") {
+		cal := anyFloat(it["calories"])
+		pushRecord("total_calories", "activity", stringValue(it["start_time"]), stringValue(it["end_time"]), floatPtr(cal), nil, nil, "kcal", fmt.Sprintf("%d kcal toplam", int(cal+0.5)), "Toplam Kalori", it)
+	}
+	for _, it := range sliceItems("exercise") {
+		dur := anyFloat(it["duration_seconds"])
+		dist := mapFloatPtr(it, "distance_meters")
+		stp := mapFloatPtr(it, "steps")
+		exTitle := first(stringValue(it["title"]), stringValue(it["type"]), "Antrenman")
+		sub := fmt.Sprintf("%d dk", int(dur/60.0+0.5))
+		if dist != nil && *dist > 0 {
+			sub += fmt.Sprintf(" · %.2f km", *dist/1000.0)
+		}
+		pushRecord("exercise", "exercise", stringValue(it["start_time"]), stringValue(it["end_time"]), floatPtr(dur), dist, stp, "sec", "Antrenman: "+exTitle, sub, it)
+	}
+	for _, it := range sliceItems("sleep") {
+		dur := anyFloat(it["duration_seconds"])
+		stages, _ := it["stages"].([]any)
+		startT := stringValue(it["session_end_time"])
+		if len(stages) > 0 {
+			if stMap, ok := stages[0].(map[string]any); ok {
+				startT = first(stringValue(stMap["start_time"]), startT)
+			}
+		}
+		hrs := int(dur) / 3600
+		mins := (int(dur) % 3600) / 60
+		sub := "Uyku Oturumu"
+		var stCount *float64
+		if len(stages) > 0 {
+			c := float64(len(stages))
+			stCount = &c
+			sub = fmt.Sprintf("%d uyku evresi kaydedildi", len(stages))
+		}
+		pushRecord("sleep", "sleep", startT, stringValue(it["session_end_time"]), floatPtr(dur), stCount, nil, "sec", fmt.Sprintf("Uyku · %d sa %d dk", hrs, mins), sub, it)
+	}
+	for _, it := range sliceItems("heart_rate") {
+		bpm := anyFloat(it["avg"])
+		if bpm == 0 {
+			bpm = anyFloat(it["bpm"])
+		}
+		minB := mapFloatPtr(it, "min")
+		maxB := mapFloatPtr(it, "max")
+		sub := "Kalp Atış Hızı"
+		if minB != nil && maxB != nil {
+			sub = fmt.Sprintf("Min %d · Max %d bpm", int(*minB+0.5), int(*maxB+0.5))
+		}
+		t := stringValue(it["time"])
+		pushRecord("heart_rate", "vitals", t, t, floatPtr(bpm), minB, maxB, "bpm", fmt.Sprintf("%d bpm Nabız", int(bpm+0.5)), sub, it)
+	}
+	for _, it := range sliceItems("resting_heart_rate") {
+		bpm := anyFloat(it["bpm"])
+		t := stringValue(it["time"])
+		pushRecord("resting_heart_rate", "vitals", t, t, floatPtr(bpm), nil, nil, "bpm", fmt.Sprintf("%d bpm Dinlenik Nabız", int(bpm+0.5)), "Dinlenik Kalp Atış Hızı", it)
+	}
+	for _, it := range sliceItems("heart_rate_variability") {
+		hrv := anyFloat(it["avg"])
+		if hrv == 0 {
+			hrv = anyFloat(it["rmssd_millis"])
+		}
+		t := stringValue(it["time"])
+		pushRecord("heart_rate_variability", "vitals", t, t, floatPtr(hrv), mapFloatPtr(it, "min"), mapFloatPtr(it, "max"), "ms", fmt.Sprintf("%d ms HRV", int(hrv+0.5)), "Kalp Atış Hızı Değişkenliği", it)
+	}
+	for _, it := range sliceItems("oxygen_saturation") {
+		pct := anyFloat(it["avg"])
+		if pct == 0 {
+			pct = anyFloat(it["percentage"])
+		}
+		t := stringValue(it["time"])
+		pushRecord("oxygen_saturation", "vitals", t, t, floatPtr(pct), mapFloatPtr(it, "min"), mapFloatPtr(it, "max"), "%", fmt.Sprintf("%%%.1f SpO₂", pct), "Kan Oksijen Doygunluğu", it)
+	}
+	for _, it := range sliceItems("respiratory_rate") {
+		rate := anyFloat(it["avg"])
+		if rate == 0 {
+			rate = anyFloat(it["rate"])
+		}
+		t := stringValue(it["time"])
+		pushRecord("respiratory_rate", "vitals", t, t, floatPtr(rate), mapFloatPtr(it, "min"), mapFloatPtr(it, "max"), "rpm", fmt.Sprintf("%.1f Solunum/dk", rate), "Solunum Hızı", it)
+	}
+	for _, it := range sliceItems("blood_pressure") {
+		sys := anyFloat(it["systolic"])
+		dia := anyFloat(it["diastolic"])
+		t := stringValue(it["time"])
+		pushRecord("blood_pressure", "vitals", t, t, floatPtr(sys), floatPtr(dia), nil, "mmHg", fmt.Sprintf("%d/%d mmHg", int(sys+0.5), int(dia+0.5)), "Kan Basıncı (Tansiyon)", it)
+	}
+	for _, it := range sliceItems("blood_glucose") {
+		gl := anyFloat(it["mmol_per_liter"])
+		t := stringValue(it["time"])
+		pushRecord("blood_glucose", "vitals", t, t, floatPtr(gl), nil, nil, "mmol/L", fmt.Sprintf("%.1f mmol/L Kan Şekeri", gl), "Kan Glikozu", it)
+	}
+	for _, it := range sliceItems("body_temperature") {
+		c := anyFloat(it["celsius"])
+		t := stringValue(it["time"])
+		pushRecord("body_temperature", "vitals", t, t, floatPtr(c), nil, nil, "°C", fmt.Sprintf("%.1f °C Vücut Sıcaklığı", c), "Ateş / Sıcaklık", it)
+	}
+	for _, it := range sliceItems("vo2_max") {
+		v := anyFloat(it["ml_per_kg_per_min"])
+		t := stringValue(it["time"])
+		pushRecord("vo2_max", "vitals", t, t, floatPtr(v), nil, nil, "mL/kg/dk", fmt.Sprintf("%.1f VO₂ Max", v), "Maksimum Oksijen Tüketimi", it)
+	}
+	for _, it := range sliceItems("weight") {
+		kg := anyFloat(it["kilograms"])
+		t := stringValue(it["time"])
+		pushRecord("weight", "body", t, t, floatPtr(kg), nil, nil, "kg", fmt.Sprintf("%.1f kg Ağırlık", kg), "Vücut Ağırlığı", it)
+	}
+	for _, it := range sliceItems("height") {
+		m := anyFloat(it["meters"])
+		t := stringValue(it["time"])
+		pushRecord("height", "body", t, t, floatPtr(m), nil, nil, "m", fmt.Sprintf("%d cm Boy", int(m*100+0.5)), "Boy Ölçümü", it)
+	}
+	for _, it := range sliceItems("bmi") {
+		v := anyFloat(it["value"])
+		t := stringValue(it["time"])
+		pushRecord("bmi", "body", t, t, floatPtr(v), mapFloatPtr(it, "weight_kg"), mapFloatPtr(it, "height_meters"), "kg/m²", fmt.Sprintf("%.1f VKİ (BMI)", v), "Vücut Kitle İndeksi", it)
+	}
+	for _, it := range sliceItems("body_fat") {
+		pct := anyFloat(it["percentage"])
+		t := stringValue(it["time"])
+		pushRecord("body_fat", "body", t, t, floatPtr(pct), nil, nil, "%", fmt.Sprintf("%%%.1f Yağ Oranı", pct), "Vücut Kompozisyonu", it)
+	}
+	for _, it := range sliceItems("hydration") {
+		l := anyFloat(it["liters"])
+		pushRecord("hydration", "body", stringValue(it["start_time"]), stringValue(it["end_time"]), floatPtr(l), nil, nil, "L", fmt.Sprintf("%d mL Su", int(l*1000+0.5)), "Su Tüketimi", it)
+	}
+
+	return s.store.UpsertHealthRecords(ctx, records)
+}
+
+func (s *Services) HealthConnectRecords(ctx context.Context, category, recordType, date, fromDate, toDate string, limit int) ([]sqlite.HealthRecord, sqlite.HealthConnectSummary, error) {
+	items, err := s.store.QueryHealthRecords(ctx, category, recordType, date, fromDate, toDate, limit)
+	if err != nil {
+		return nil, sqlite.HealthConnectSummary{}, err
+	}
+	sum, err := s.store.GetHealthConnectSummary(ctx)
+	return items, sum, err
+}
+
 

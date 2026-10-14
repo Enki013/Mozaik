@@ -23,6 +23,7 @@ import com.personalrecords.app.R
 import com.personalrecords.app.core.network.model.BookDto
 import com.personalrecords.app.core.theme.*
 import com.personalrecords.app.ui.components.*
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
 private val BookShelfKeys = listOf("all", "read", "to-read", "currently-reading")
 
@@ -32,7 +33,7 @@ fun BooksScreen(
     viewModel: BooksViewModel,
     onNavigateBack: (() -> Unit)? = null
 ) {
-    val state by viewModel.uiState.collectAsState()
+    val state by viewModel.uiState.collectAsStateWithLifecycle()
     var showDatePicker by remember { mutableStateOf(false) }
     var selectedBook by remember { mutableStateOf<BookDto?>(null) }
 
@@ -336,7 +337,7 @@ fun BooksScreen(
                 } else {
                     itemsIndexed(
                         items = state.filteredBooks,
-                        key = { index, book -> "${book.book_id}_${book.title}_$index" },
+                        key = { _, book -> book.book_id.ifBlank { "${book.title}_${book.author}" } },
                         contentType = { _, _ -> "book_row" }
                     ) { index, book ->
                         LazyCardRowContainer(

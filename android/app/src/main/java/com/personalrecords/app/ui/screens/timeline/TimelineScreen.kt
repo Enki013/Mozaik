@@ -20,6 +20,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.personalrecords.app.R
 import com.personalrecords.app.core.network.model.ActivityItemDto
 import com.personalrecords.app.core.theme.*
@@ -29,7 +30,7 @@ private val DayCardTopShape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.d
 private val DayCardMiddleShape = androidx.compose.ui.graphics.RectangleShape
 private val DayCardBottomShape = RoundedCornerShape(bottomStart = 16.dp, bottomEnd = 16.dp)
 private val TimelineDayOptions = listOf(7, 14, 30, 90)
-private val TimelineSourceKeys = listOf("all", "fatsecret", "goodreads", "letterboxd", "notification")
+private val TimelineSourceKeys = listOf("all", "fatsecret", "health_connect", "goodreads", "letterboxd", "notification")
 
 @OptIn(ExperimentalMaterial3Api::class, androidx.compose.foundation.ExperimentalFoundationApi::class)
 @Composable
@@ -41,7 +42,7 @@ fun TimelineScreen(
     @Suppress("UNUSED_PARAMETER") onNavigateToBooks: () -> Unit = {},
     @Suppress("UNUSED_PARAMETER") onNavigateToMovies: () -> Unit = {}
 ) {
-    val state by viewModel.uiState.collectAsState()
+    val state by viewModel.uiState.collectAsStateWithLifecycle()
     var showDatePicker by remember { mutableStateOf(false) }
     var selectedActivity by remember { mutableStateOf<ActivityItemDto?>(null) }
     val onActivityClick = remember { { item: ActivityItemDto -> selectedActivity = item } }
@@ -259,6 +260,7 @@ fun TimelineScreen(
                                 labelProvider = { key ->
                                     when (key) {
                                         "fatsecret" -> stringResource(R.string.timeline_filter_nutrition)
+                                        "health_connect" -> stringResource(R.string.timeline_filter_health)
                                         "goodreads" -> stringResource(R.string.timeline_filter_books)
                                         "letterboxd" -> stringResource(R.string.timeline_filter_movies)
                                         "notification" -> stringResource(R.string.timeline_filter_notifications)
@@ -268,6 +270,7 @@ fun TimelineScreen(
                                 iconProvider = { key, _ ->
                                     when (key) {
                                         "fatsecret" -> Icons.Default.Restaurant
+                                        "health_connect" -> Icons.Default.Favorite
                                         "goodreads" -> Icons.AutoMirrored.Filled.MenuBook
                                         "letterboxd" -> Icons.Default.Movie
                                         "notification" -> Icons.Default.Notifications
@@ -439,6 +442,11 @@ private fun TimelineDayHeaderItem(
                 val badgeBg: androidx.compose.ui.graphics.Color
                 val badgeFg: androidx.compose.ui.graphics.Color
                 when (entry.singleSource) {
+                    "health_connect" -> {
+                        badgeText = stringResource(R.string.timeline_count_health, entry.totalItemCount)
+                        badgeBg = domainHealthContainer()
+                        badgeFg = domainHealthOnContainer()
+                    }
                     "notification" -> {
                         badgeText = stringResource(R.string.timeline_count_notifications, entry.totalItemCount)
                         badgeBg = MaterialTheme.colorScheme.secondaryContainer
@@ -506,6 +514,11 @@ private fun TimelineSectionHeaderItem(
                         title = stringResource(R.string.timeline_filter_nutrition)
                         color = domainNutritionColor()
                     }
+                    "health_connect" -> {
+                        icon = Icons.Default.Favorite
+                        title = stringResource(R.string.title_health_connect)
+                        color = domainHealthColor()
+                    }
                     "notification" -> {
                         icon = Icons.Default.Notifications
                         title = stringResource(R.string.timeline_filter_notifications)
@@ -554,6 +567,18 @@ private fun TimelineSectionHeaderItem(
                             text = "${entry.totalCal} kcal",
                             color = domainNutritionOnContainer(),
                             style = MaterialTheme.typography.labelSmallEmphasized,
+                            modifier = Modifier.padding(horizontal = 7.dp, vertical = 2.dp)
+                        )
+                    }
+                } else if (entry.source == "health_connect") {
+                    Surface(
+                        shape = M3Shapes.CornerFull,
+                        color = domainHealthContainer()
+                    ) {
+                        Text(
+                            text = stringResource(R.string.timeline_count_health, entry.itemCount),
+                            color = domainHealthOnContainer(),
+                            style = MaterialTheme.typography.labelSmall,
                             modifier = Modifier.padding(horizontal = 7.dp, vertical = 2.dp)
                         )
                     }
@@ -639,6 +664,7 @@ fun TimelineItemCard(
 ) {
     val fallbackIcon = when (item.source) {
         "fatsecret" -> Icons.Default.Restaurant
+        "health_connect" -> Icons.Default.Favorite
         "goodreads" -> Icons.AutoMirrored.Filled.MenuBook
         "letterboxd" -> Icons.Default.Movie
         "notification" -> Icons.Default.Notifications
@@ -682,6 +708,28 @@ fun TimelineItemCard(
                         imageVector = Icons.Default.Restaurant,
                         contentDescription = null,
                         tint = domainNutritionOnContainer(),
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
+            }
+            "health_connect" -> {
+                val hcIcon = when (item.type) {
+                    "sleep" -> Icons.Default.Bedtime
+                    "exercise" -> Icons.AutoMirrored.Filled.DirectionsRun
+                    "weight" -> Icons.Default.MonitorWeight
+                    else -> Icons.Default.Favorite
+                }
+                Box(
+                    modifier = Modifier
+                        .size(38.dp)
+                        .clip(M3Shapes.CornerSmall)
+                        .background(domainHealthContainer()),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = hcIcon,
+                        contentDescription = null,
+                        tint = domainHealthOnContainer(),
                         modifier = Modifier.size(18.dp)
                     )
                 }

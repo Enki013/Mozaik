@@ -78,6 +78,9 @@ func (h *Handler) routes() {
 	h.mux.HandleFunc("/api/webhooks/notification", h.notificationWebhook)
 	h.mux.HandleFunc("/api/webhooks/notifications", h.notificationWebhook)
 	h.mux.HandleFunc("/api/notifications", h.notificationsAPI)
+	h.mux.HandleFunc("/api/webhooks/health", h.healthConnectWebhook)
+	h.mux.HandleFunc("/api/webhooks/health-connect", h.healthConnectWebhook)
+	h.mux.HandleFunc("/api/health-connect/records", h.healthConnectRecordsAPI)
 }
 
 func (h *Handler) home(w http.ResponseWriter, r *http.Request) {
@@ -696,6 +699,96 @@ func (h *Handler) notificationsAPI(w http.ResponseWriter, r *http.Request) {
 	h.writeJSON(w, http.StatusOK, map[string]any{
 		"count": len(notifs),
 		"items": notifs,
+	})
+}
+
+func (h *Handler) healthConnectWebhook(w http.ResponseWriter, r *http.Request) {
+	if r.Method == http.MethodGet {
+		h.writeJSON(w, http.StatusOK, map[string]any{
+			"ok":               true,
+			"service":          "health-connect-webhook",
+			"status":           "ready",
+			"accepted_methods": []string{"POST"},
+			"message":          "Health Connect Webhook uc noktasi aktif. Verileri POST metodu ile gonderebilirsiniz.",
+		})
+		return
+	}
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	expectedSecret := config.Env("WEBHOOK_SECRET")
+	if expectedSecret != "" {
+		clientSecret := r.Header.Get("X-Webhook-Secret")
+		if clientSecret == "" {
+			clientSecret = r.Header.Get("x-api-key")
+		}
+		if clientSecret == "" {
+			authHeader := r.Header.Get("Authorization")
+			if strings.HasPrefix(strings.ToLower(authHeader), "bearer ") {
+				clientSecret = strings.TrimSpace(authHeader[7:])
+			}
+		}
+		if clientSecret != expectedSecret {
+			h.writeJSON(w, http.StatusUnauthorized, map[string]any{
+				"success": false,
+				"error":   "Yetkisiz istek: Webhook Secret gecersiz",
+			})
+			return
+		}
+	}
+
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
+		h.writeJSON(w, http.StatusBadRequest, map[string]any{
+			"success": false,
+			"error":   "Govde okunamadi",
+		})
+		return
+	}
+
+	inserted, updated, err := h.services.SaveHealthConnectWebhook(r.Context(), body)
+	if err != nil {
+		h.writeJSON(w, http.StatusBadRequest, map[string]any{
+			"success": false,
+			"error":   err.Error(),
+		})
+		return
+	}
+
+	h.writeJSON(w, http.StatusOK, map[string]any{
+		"success":  true,
+		"inserted": inserted,
+		"updated":  updated,
+		"total":    inserted + updated,
+		"message":  fmt.Sprintf("%d Health Connect kaydi basariyla islendi.", inserted+updated),
+	})
+}
+
+func (h *Handler) healthConnectRecordsAPI(w http.ResponseWriter, r *http.Request) {
+	limit := queryInt(r, "limit", 150)
+	if limit > 500 {
+		limit = 500
+	}
+	category := strings.TrimSpace(r.URL.Query().Get("category"))
+	recordType := strings.TrimSpace(r.URL.Query().Get("type"))
+	date := strings.TrimSpace(r.URL.Query().Get("date"))
+	fromDate := strings.TrimSpace(r.URL.Query().Get("from"))
+	toDate := strings.TrimSpace(r.URL.Query().Get("to"))
+
+	items, sum, err := h.services.HealthConnectRecords(r.Context(), category, recordType, date, fromDate, toDate, limit)
+	if err != nil {
+		h.writeJSON(w, http.StatusInternalServerError, map[string]any{
+			"error": err.Error(),
+		})
+		return
+	}
+
+	h.writeJSON(w, http.StatusOK, map[string]any{
+		"count":   len(items),
+		"items":   items,
+		"summary": sum,
 	})
 }
 

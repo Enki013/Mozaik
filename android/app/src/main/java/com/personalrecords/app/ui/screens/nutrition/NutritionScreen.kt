@@ -30,6 +30,7 @@ import com.personalrecords.app.R
 import com.personalrecords.app.core.network.model.FoodEntryDto
 import com.personalrecords.app.core.theme.*
 import com.personalrecords.app.ui.components.*
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
 private val NutritionMealKeys = listOf("all", "Breakfast", "Lunch", "Dinner", "Other")
 
@@ -39,7 +40,7 @@ fun NutritionScreen(
     viewModel: NutritionViewModel,
     onNavigateBack: (() -> Unit)? = null
 ) {
-    val state by viewModel.uiState.collectAsState()
+    val state by viewModel.uiState.collectAsStateWithLifecycle()
     var showTargetDialog by remember { mutableStateOf(false) }
     var showDatePicker by remember { mutableStateOf(false) }
     var selectedFood by remember { mutableStateOf<FoodEntryDto?>(null) }
@@ -585,7 +586,7 @@ fun NutritionScreen(
             } else {
                 itemsIndexed(
                     items = state.filteredFoods,
-                    key = { index, food -> "${food.food_entry_id}_$index" },
+                    key = { _, food -> food.food_entry_id.ifBlank { "${food.displayName}_${food.displayDate}_${food.meal}_${food.calories}" } },
                     contentType = { _, _ -> "food_row" }
                 ) { index, food ->
                     LazyCardRowContainer(

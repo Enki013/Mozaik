@@ -1,8 +1,13 @@
 package com.personalrecords.app.core.network
 
 import com.jakewharton.retrofit2.converter.kotlinx.serialization.asConverterFactory
+import com.personalrecords.app.BuildConfig
 import com.personalrecords.app.core.datastore.AppPreferences
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.json.Json
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
@@ -13,11 +18,27 @@ import okhttp3.Response
 import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Retrofit
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicReference
 
-class DynamicHostInterceptor(private val preferences: AppPreferences) : Interceptor {
+class DynamicHostInterceptor(
+    private val preferences: AppPreferences,
+    coroutineScope: CoroutineScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
+) : Interceptor {
+    private val cachedBaseUrl = AtomicReference<String>("")
+
+    init {
+        coroutineScope.launch {
+            preferences.serverBaseUrl.collect { url ->
+                cachedBaseUrl.set(url)
+            }
+        }
+    }
+
     override fun intercept(chain: Interceptor.Chain): Response {
         var request = chain.request()
-        val currentBaseUrl = runBlocking { preferences.serverBaseUrl.first() }
+        val currentBaseUrl = cachedBaseUrl.get().ifBlank {
+            runBlocking { preferences.serverBaseUrl.first() }.also { cachedBaseUrl.set(it) }
+        }
         val newHttpUrl = currentBaseUrl.toHttpUrlOrNull()
         if (newHttpUrl != null) {
             val newRequestUrl = request.url.newBuilder()
@@ -41,7 +62,11 @@ object NetworkClient {
 
     fun createApiService(preferences: AppPreferences): ApiService {
         val logging = HttpLoggingInterceptor().apply {
-            level = HttpLoggingInterceptor.Level.BASIC
+            level = if (BuildConfig.DEBUG) {
+                HttpLoggingInterceptor.Level.BASIC
+            } else {
+                HttpLoggingInterceptor.Level.NONE
+            }
         }
 
         val okHttpClient = OkHttpClient.Builder()
