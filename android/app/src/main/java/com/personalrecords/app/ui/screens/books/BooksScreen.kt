@@ -3,8 +3,13 @@ package com.personalrecords.app.ui.screens.books
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.GridItemSpan
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.itemsIndexed
+import androidx.compose.foundation.lazy.grid.rememberLazyGridState
+import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
@@ -24,7 +29,6 @@ import com.personalrecords.app.core.network.model.BookDto
 import com.personalrecords.app.core.theme.*
 import com.personalrecords.app.ui.components.*
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import kotlinx.coroutines.delay
 
 private val BookShelfKeys = listOf("all", "read", "to-read", "currently-reading")
 
@@ -55,8 +59,14 @@ fun BooksScreen(
         )
     }
 
+    val scrollBehavior = TopAppBarDefaults.enterAlwaysScrollBehavior(rememberTopAppBarState())
+    val isWideScreen = LocalConfiguration.current.screenWidthDp >= 600
+    val gridState = rememberLazyGridState()
+
     Scaffold(
-        modifier = Modifier.fillMaxSize(),
+        modifier = Modifier
+            .fillMaxSize()
+            .nestedScroll(scrollBehavior.nestedScrollConnection),
         contentWindowInsets = WindowInsets.statusBars,
         topBar = {
             TopAppBar(
@@ -66,6 +76,7 @@ fun BooksScreen(
                         style = MaterialTheme.typography.titleLargeEmphasized
                     )
                 },
+                scrollBehavior = scrollBehavior,
                 navigationIcon = {
                     if (onNavigateBack != null) {
                         IconButton(onClick = onNavigateBack) {
@@ -87,39 +98,26 @@ fun BooksScreen(
         LaunchedEffect(state.isLoading) {
             if (!state.isLoading) isRefreshing = false
         }
-        var isTransitionSettled by remember { mutableStateOf(false) }
-        LaunchedEffect(Unit) {
-            delay(260L)
-            isTransitionSettled = true
-        }
 
-        if (!isTransitionSettled) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(innerPadding),
-                contentAlignment = Alignment.Center
-            ) {
-                ContainedLoadingIndicator(size = 48.dp)
-            }
-        } else {
-            ExpressivePullToRefreshBox(
-                isRefreshing = isRefreshing,
-                onRefresh = { isRefreshing = true; viewModel.loadData() },
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(innerPadding)
-            ) {
-                LazyColumn(
+        ExpressivePullToRefreshBox(
+            isRefreshing = isRefreshing,
+            onRefresh = { isRefreshing = true; viewModel.loadData() },
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(innerPadding)
+        ) {
+            LazyVerticalGrid(
+                columns = if (isWideScreen) GridCells.Adaptive(minSize = 340.dp) else GridCells.Fixed(1),
+                state = gridState,
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(horizontal = 12.dp),
-                contentPadding = PaddingValues(top = 10.dp, bottom = 144.dp),
-                verticalArrangement = Arrangement.Top
+                contentPadding = PaddingValues(top = 10.dp, bottom = if (isWideScreen) 32.dp else 144.dp),
+                horizontalArrangement = if (isWideScreen) Arrangement.spacedBy(8.dp) else Arrangement.Start,
+                verticalArrangement = if (isWideScreen) Arrangement.spacedBy(8.dp) else Arrangement.Top
             ) {
-
                 // Stats Row
-                item(key = "books_stats_row", contentType = "stats_row") {
+                item(key = "books_stats_row", span = { GridItemSpan(maxLineSpan) }, contentType = "stats_row") {
                     val totalBooks = state.books.size
                     val readBooks = state.readBooksCount
                     val toReadBooks = state.toReadBooksCount
@@ -154,8 +152,8 @@ fun BooksScreen(
                     }
                 }
 
-                // Search Bar & Filter Header (Sticky Header)
-                stickyHeader(key = "books_sticky_header", contentType = "sticky_header") {
+                // Search Bar & Filter Header
+                item(key = "books_sticky_header", span = { GridItemSpan(maxLineSpan) }, contentType = "sticky_header") {
                     Surface(
                         color = MaterialTheme.colorScheme.surface,
                         modifier = Modifier
@@ -324,7 +322,7 @@ fun BooksScreen(
 
                 if ((state.isLoading || state.isFiltering) && state.filteredBooks.isEmpty()) {
                     if (!isRefreshing) {
-                        item(key = "books_loading", contentType = "loading") {
+                        item(key = "books_loading", span = { GridItemSpan(maxLineSpan) }, contentType = "loading") {
                             Box(
                                 modifier = Modifier
                                     .fillMaxWidth()
@@ -336,7 +334,7 @@ fun BooksScreen(
                         }
                     }
                 } else if (state.filteredBooks.isEmpty()) {
-                    item(key = "books_empty", contentType = "empty") {
+                    item(key = "books_empty", span = { GridItemSpan(maxLineSpan) }, contentType = "empty") {
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -356,21 +354,33 @@ fun BooksScreen(
                         key = { _, book -> book.book_id.ifBlank { "${book.title}_${book.author}" } },
                         contentType = { _, _ -> "book_row" }
                     ) { index, book ->
-                        LazyCardRowContainer(
-                            index = index,
-                            totalCount = state.filteredBooks.size
-                        ) {
-                            BookRowItem(
-                                book = book,
-                                onClick = { selectedBook = book }
-                            )
+                        if (isWideScreen) {
+                            Surface(
+                                modifier = Modifier.fillMaxWidth(),
+                                shape = M3Shapes.CornerMedium,
+                                color = MaterialTheme.colorScheme.surfaceContainerLow
+                            ) {
+                                BookRowItem(
+                                    book = book,
+                                    onClick = { selectedBook = book }
+                                )
+                            }
+                        } else {
+                            LazyCardRowContainer(
+                                index = index,
+                                totalCount = state.filteredBooks.size
+                            ) {
+                                BookRowItem(
+                                    book = book,
+                                    onClick = { selectedBook = book }
+                                )
+                            }
                         }
                     }
                 }
 
-                item(key = "books_bottom_spacer", contentType = "spacer") { Spacer(modifier = Modifier.height(20.dp)) }
+                item(key = "books_bottom_spacer", span = { GridItemSpan(maxLineSpan) }, contentType = "spacer") { Spacer(modifier = Modifier.height(20.dp)) }
             }
-        }
         }
     }
 

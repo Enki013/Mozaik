@@ -3,8 +3,13 @@ package com.personalrecords.app.ui.screens.movies
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.GridItemSpan
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.itemsIndexed
+import androidx.compose.foundation.lazy.grid.rememberLazyGridState
+import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.*
@@ -22,7 +27,6 @@ import com.personalrecords.app.core.network.model.FilmDto
 import com.personalrecords.app.core.theme.*
 import com.personalrecords.app.ui.components.*
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import kotlinx.coroutines.delay
 
 @OptIn(ExperimentalMaterial3Api::class, androidx.compose.foundation.ExperimentalFoundationApi::class)
 @Composable
@@ -51,8 +55,14 @@ fun MoviesScreen(
         )
     }
 
+    val scrollBehavior = TopAppBarDefaults.enterAlwaysScrollBehavior(rememberTopAppBarState())
+    val isWideScreen = LocalConfiguration.current.screenWidthDp >= 600
+    val gridState = rememberLazyGridState()
+
     Scaffold(
-        modifier = Modifier.fillMaxSize(),
+        modifier = Modifier
+            .fillMaxSize()
+            .nestedScroll(scrollBehavior.nestedScrollConnection),
         contentWindowInsets = WindowInsets.statusBars,
         topBar = {
             TopAppBar(
@@ -62,6 +72,7 @@ fun MoviesScreen(
                         style = MaterialTheme.typography.titleLargeEmphasized
                     )
                 },
+                scrollBehavior = scrollBehavior,
                 navigationIcon = {
                     if (onNavigateBack != null) {
                         IconButton(onClick = onNavigateBack) {
@@ -83,39 +94,26 @@ fun MoviesScreen(
         LaunchedEffect(state.isLoading) {
             if (!state.isLoading) isRefreshing = false
         }
-        var isTransitionSettled by remember { mutableStateOf(false) }
-        LaunchedEffect(Unit) {
-            delay(260L)
-            isTransitionSettled = true
-        }
 
-        if (!isTransitionSettled) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(innerPadding),
-                contentAlignment = Alignment.Center
-            ) {
-                ContainedLoadingIndicator(size = 48.dp)
-            }
-        } else {
-            ExpressivePullToRefreshBox(
-                isRefreshing = isRefreshing,
-                onRefresh = { isRefreshing = true; viewModel.loadData() },
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(innerPadding)
-            ) {
-                LazyColumn(
+        ExpressivePullToRefreshBox(
+            isRefreshing = isRefreshing,
+            onRefresh = { isRefreshing = true; viewModel.loadData() },
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(innerPadding)
+        ) {
+            LazyVerticalGrid(
+                columns = if (isWideScreen) GridCells.Adaptive(minSize = 340.dp) else GridCells.Fixed(1),
+                state = gridState,
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(horizontal = 12.dp),
-                contentPadding = PaddingValues(top = 10.dp, bottom = 144.dp),
-                verticalArrangement = Arrangement.Top
+                contentPadding = PaddingValues(top = 10.dp, bottom = if (isWideScreen) 32.dp else 144.dp),
+                horizontalArrangement = if (isWideScreen) Arrangement.spacedBy(8.dp) else Arrangement.Start,
+                verticalArrangement = if (isWideScreen) Arrangement.spacedBy(8.dp) else Arrangement.Top
             ) {
-
                 // Stats Row
-                item(key = "movies_stats_row", contentType = "stats_row") {
+                item(key = "movies_stats_row", span = { GridItemSpan(maxLineSpan) }, contentType = "stats_row") {
                     val totalFilms = state.films.size
                     val ratedFilms = state.ratedFilmsCount
                     val rewatchFilms = state.rewatchFilmsCount
@@ -152,7 +150,7 @@ fun MoviesScreen(
 
                 // Error banner if any
                 state.error?.let { err ->
-                    item(key = "movies_error_banner", contentType = "error_banner") {
+                    item(key = "movies_error_banner", span = { GridItemSpan(maxLineSpan) }, contentType = "error_banner") {
                         Surface(
                             color = MaterialTheme.colorScheme.errorContainer,
                             shape = M3Shapes.CornerSmall,
@@ -182,8 +180,8 @@ fun MoviesScreen(
                     }
                 }
 
-                // Search Bar & Filter Header (Sticky Header)
-                stickyHeader(key = "movies_sticky_header", contentType = "sticky_header") {
+                // Search Bar & Filter Header
+                item(key = "movies_sticky_header", span = { GridItemSpan(maxLineSpan) }, contentType = "sticky_header") {
                     Surface(
                         color = MaterialTheme.colorScheme.surface,
                         modifier = Modifier
@@ -349,7 +347,7 @@ fun MoviesScreen(
 
                 if ((state.isLoading || state.isFiltering) && state.filteredFilms.isEmpty()) {
                     if (!isRefreshing) {
-                        item(key = "movies_loading", contentType = "loading") {
+                        item(key = "movies_loading", span = { GridItemSpan(maxLineSpan) }, contentType = "loading") {
                             Box(
                                 modifier = Modifier
                                     .fillMaxWidth()
@@ -361,7 +359,7 @@ fun MoviesScreen(
                         }
                     }
                 } else if (state.filteredFilms.isEmpty()) {
-                    item(key = "movies_empty", contentType = "empty") {
+                    item(key = "movies_empty", span = { GridItemSpan(maxLineSpan) }, contentType = "empty") {
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -381,21 +379,33 @@ fun MoviesScreen(
                         key = { _, film -> film.film_key.ifBlank { "${film.displayTitle}_${film.year}_${film.safeWatchedDate}" } },
                         contentType = { _, _ -> "movie_row" }
                     ) { index, film ->
-                        LazyCardRowContainer(
-                            index = index,
-                            totalCount = state.filteredFilms.size
-                        ) {
-                            FilmRowItem(
-                                film = film,
-                                onClick = { selectedFilm = film }
-                            )
+                        if (isWideScreen) {
+                            Surface(
+                                modifier = Modifier.fillMaxWidth(),
+                                shape = M3Shapes.CornerMedium,
+                                color = MaterialTheme.colorScheme.surfaceContainerLow
+                            ) {
+                                FilmRowItem(
+                                    film = film,
+                                    onClick = { selectedFilm = film }
+                                )
+                            }
+                        } else {
+                            LazyCardRowContainer(
+                                index = index,
+                                totalCount = state.filteredFilms.size
+                            ) {
+                                FilmRowItem(
+                                    film = film,
+                                    onClick = { selectedFilm = film }
+                                )
+                            }
                         }
                     }
                 }
 
-                item(key = "movies_bottom_spacer", contentType = "spacer") { Spacer(modifier = Modifier.height(20.dp)) }
+                item(key = "movies_bottom_spacer", span = { GridItemSpan(maxLineSpan) }, contentType = "spacer") { Spacer(modifier = Modifier.height(20.dp)) }
             }
-        }
         }
     }
 

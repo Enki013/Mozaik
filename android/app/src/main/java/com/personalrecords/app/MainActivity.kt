@@ -187,16 +187,24 @@ fun MainAppHost() {
         isSettingsWarm = true
     }
 
+    val configuration = androidx.compose.ui.platform.LocalConfiguration.current
+    val isWideScreen = configuration.screenWidthDp >= 600
+
     Box(modifier = Modifier.fillMaxSize()) {
-        // Persistent Peer Tabs Layer: keeps Overview, Timeline, Records, and Settings
-        // warm in memory (measured once, unplaced when inactive so 0 GPU/touch/recomposition cost).
-        // Keeping the active peer tab placed during detail route transitions prevents a Frame-1
-        // layout invalidation and blank background flash while the detail screen slides/fades in.
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .keepWarmTab(visible = lastActivePeerTab == Screen.Overview.route)
+                .padding(start = if (isWideScreen) 88.dp else 0.dp)
         ) {
+            // Persistent Peer Tabs Layer: keeps Overview, Timeline, Records, and Settings
+            // warm in memory (measured once, unplaced when inactive so 0 GPU/touch/recomposition cost).
+            // Keeping the active peer tab placed during detail route transitions prevents a Frame-1
+            // layout invalidation and blank background flash while the detail screen slides/fades in.
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .keepWarmTab(visible = lastActivePeerTab == Screen.Overview.route)
+            ) {
             OverviewScreen(
                 viewModel = overviewVm,
                 scrollToTopFlow = overviewScrollFlow,
@@ -365,8 +373,9 @@ fun MainAppHost() {
                 )
             }
         }
+        }
 
-        ExpressiveFloatingBottomBar(
+        ExpressiveAdaptiveNavigation(
             navController = navController,
             onScrollToTop = { route ->
                 when (route) {
@@ -384,16 +393,115 @@ fun MainAppHost() {
                     Screen.Settings.route -> settingsRefreshFlow.tryEmit(Unit)
                 }
             },
-            modifier = Modifier.align(Alignment.BottomCenter)
+            isWideScreen = isWideScreen,
+            modifier = if (isWideScreen) Modifier.align(Alignment.CenterStart) else Modifier.align(Alignment.BottomCenter)
         )
     }
 }
 
 @Composable
-private fun ExpressiveFloatingBottomBar(
+private fun CompanionSettingsButton(
+    isSelected: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val interactionSource = remember { MutableInteractionSource() }
+    val isPressed by interactionSource.collectIsPressedAsState()
+
+    val outerCorner by animateDpAsState(
+        targetValue = if (isPressed) 20.dp else 32.dp,
+        animationSpec = M3ExpressiveMotion.fastSpatial(),
+        label = "settings_outer_corner"
+    )
+    val innerCornerState = animateDpAsState(
+        targetValue = if (isPressed) 16.dp else 24.dp,
+        animationSpec = M3ExpressiveMotion.fastSpatial(),
+        label = "settings_inner_corner"
+    )
+    val indicatorAlphaState = animateFloatAsState(
+        targetValue = if (isSelected) 1f else 0f,
+        animationSpec = M3ExpressiveMotion.fastEffects(),
+        label = "settings_indicator_alpha"
+    )
+    val indicatorScaleState = animateFloatAsState(
+        targetValue = if (isSelected) 1f else 0.7f,
+        animationSpec = M3ExpressiveMotion.fastSpatial(),
+        label = "settings_indicator_scale"
+    )
+    val iconRotationState = animateFloatAsState(
+        targetValue = if (isSelected) 60f else 0f,
+        animationSpec = M3ExpressiveMotion.defaultSpatial(),
+        label = "settings_icon_rotation"
+    )
+    val iconColor = if (isSelected) {
+        MaterialTheme.colorScheme.onSecondaryContainer
+    } else {
+        MaterialTheme.colorScheme.onSurfaceVariant
+    }
+    val secondaryContainerColor = MaterialTheme.colorScheme.secondaryContainer
+
+    Surface(
+        shape = RoundedCornerShape(outerCorner),
+        color = MaterialTheme.colorScheme.surfaceContainer,
+        tonalElevation = 3.dp,
+        shadowElevation = 4.dp,
+        modifier = modifier
+            .size(64.dp)
+            .expressivePressScale(interactionSource, scaleDown = 0.92f)
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .clickable(
+                    interactionSource = interactionSource,
+                    indication = null,
+                    role = Role.Tab,
+                    onClick = onClick
+                )
+                .semantics { this.selected = isSelected }
+                .padding(8.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .graphicsLayer {
+                        val s = indicatorScaleState.value
+                        scaleX = s
+                        scaleY = s
+                        alpha = indicatorAlphaState.value
+                    }
+                    .drawBehind {
+                        if (indicatorAlphaState.value > 0.005f) {
+                            val r = innerCornerState.value.toPx()
+                            drawRoundRect(
+                                color = secondaryContainerColor,
+                                cornerRadius = CornerRadius(r, r)
+                            )
+                        }
+                    }
+            )
+
+            Icon(
+                imageVector = if (isSelected) Screen.Settings.selectedIcon else Screen.Settings.icon,
+                contentDescription = stringResource(Screen.Settings.titleRes),
+                tint = iconColor,
+                modifier = Modifier
+                    .size(24.dp)
+                    .graphicsLayer {
+                        rotationZ = iconRotationState.value
+                    }
+            )
+        }
+    }
+}
+
+@Composable
+private fun ExpressiveAdaptiveNavigation(
     navController: NavHostController,
     onScrollToTop: (String) -> Unit,
     onRefresh: (String) -> Unit,
+    isWideScreen: Boolean,
     modifier: Modifier = Modifier
 ) {
     val navBackStackEntry by navController.currentBackStackEntryAsState()
@@ -460,243 +568,272 @@ private fun ExpressiveFloatingBottomBar(
         }
     }
 
-    // Floating Bottom Bar — M3 Expressive HorizontalFloatingToolbar + Companion Action
-    // Specs: 64dp container height, CornerFull capsule shape, 8dp leading/trailing padding,
-    // 4dp spacing between items, 8dp gap to companion Settings button.
-    Box(
-        modifier = modifier
-            .fillMaxWidth()
-            .navigationBarsPadding()
-            .padding(start = 16.dp, end = 16.dp, bottom = 12.dp),
-        contentAlignment = Alignment.Center
-    ) {
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
+    val settingsSelected = currentRoute == Screen.Settings.route ||
+        currentRoute == Screen.Language.route
+
+    if (isWideScreen) {
+        // Floating NavRail — M3 Expressive Vertical Floating Toolbar + Companion Action
+        Box(
+            modifier = modifier
+                .fillMaxHeight()
+                .statusBarsPadding()
+                .navigationBarsPadding()
+                .padding(start = 12.dp, top = 16.dp, bottom = 16.dp),
+            contentAlignment = Alignment.CenterStart
         ) {
-            // 1. Primary Compact Floating Toolbar (Overview, Timeline, Records)
-            Surface(
-                shape = M3Shapes.CornerFull,
-                color = MaterialTheme.colorScheme.surfaceContainer,
-                tonalElevation = 3.dp,
-                shadowElevation = 4.dp,
-                modifier = Modifier.height(64.dp)
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxHeight()
-                        .padding(horizontal = 8.dp),
-                    horizontalArrangement = Arrangement.spacedBy(4.dp),
-                    verticalAlignment = Alignment.CenterVertically
+                // 1. Primary Compact Floating Toolbar (Overview, Timeline, Records)
+                Surface(
+                    shape = M3Shapes.CornerFull,
+                    color = MaterialTheme.colorScheme.surfaceContainer,
+                    tonalElevation = 3.dp,
+                    shadowElevation = 4.dp,
+                    modifier = Modifier.width(64.dp)
                 ) {
-                    mainNavScreens.forEach { screen ->
-                        key(screen.route) {
-                            val selected = when (screen) {
-                                Screen.Records -> currentRoute in recordsSubRoutes
-                                else -> currentRoute == screen.route
-                            }
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 8.dp),
+                        verticalArrangement = Arrangement.spacedBy(4.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        mainNavScreens.forEach { screen ->
+                            key(screen.route) {
+                                val selected = when (screen) {
+                                    Screen.Records -> currentRoute in recordsSubRoutes
+                                    else -> currentRoute == screen.route
+                                }
 
-                            val interactionSource = remember { MutableInteractionSource() }
-                            val isPressed by interactionSource.collectIsPressedAsState()
+                                val interactionSource = remember { MutableInteractionSource() }
+                                val isPressed by interactionSource.collectIsPressedAsState()
 
-                            // Single non-overshooting progress state read ONLY in layout/draw phases (zero recomposition per frame)
-                            val selectionProgressState = animateFloatAsState(
-                                targetValue = if (selected) 1f else 0f,
-                                animationSpec = spring(
-                                    dampingRatio = Spring.DampingRatioNoBouncy,
-                                    stiffness = 600f
-                                ),
-                                label = "nav_item_selection_progress"
-                            )
-
-                            val indicatorCornerState = animateDpAsState(
-                                targetValue = if (isPressed) 16.dp else 24.dp,
-                                animationSpec = M3ExpressiveMotion.fastSpatial(),
-                                label = "nav_item_corner"
-                            )
-
-                            val iconScaleState = animateFloatAsState(
-                                targetValue = if (selected) 1.08f else 1.0f,
-                                animationSpec = M3ExpressiveMotion.fastSpatial(),
-                                label = "nav_item_icon_scale"
-                            )
-
-                            val contentColor = if (selected) {
-                                MaterialTheme.colorScheme.onSecondaryContainer
-                            } else {
-                                MaterialTheme.colorScheme.onSurfaceVariant
-                            }
-
-                            Row(
-                                modifier = Modifier
-                                    .height(48.dp)
-                                    .expressivePressScale(interactionSource, scaleDown = 0.94f)
-                                    .drawBehind {
-                                        val alpha = selectionProgressState.value.coerceIn(0f, 1f)
-                                        if (alpha > 0.005f) {
-                                            val r = indicatorCornerState.value.toPx()
-                                            drawRoundRect(
-                                                color = secondaryContainerColor.copy(alpha = alpha),
-                                                cornerRadius = CornerRadius(r, r)
-                                            )
-                                        }
-                                    }
-                                    .clickable(
-                                        interactionSource = interactionSource,
-                                        indication = null,
-                                        role = Role.Tab,
-                                        onClick = { handleNavClick(screen, selected) }
-                                    )
-                                    .semantics { this.selected = selected }
-                                    .layout { measurable, constraints ->
-                                        val p = selectionProgressState.value.coerceIn(0f, 1f)
-                                        val hPadPx = (12.dp.toPx() + (4.dp.toPx() * p)).roundToInt()
-                                        val placeable = measurable.measure(constraints)
-                                        layout(placeable.width + hPadPx * 2, placeable.height) {
-                                            placeable.placeRelative(hPadPx, 0)
-                                        }
-                                    },
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.Center
-                            ) {
-                                Icon(
-                                    imageVector = if (selected) screen.selectedIcon else screen.icon,
-                                    contentDescription = stringResource(screen.titleRes),
-                                    tint = contentColor,
-                                    modifier = Modifier
-                                        .size(24.dp)
-                                        .graphicsLayer {
-                                            val s = iconScaleState.value
-                                            scaleX = s
-                                            scaleY = s
-                                        }
+                                val selectionProgressState = animateFloatAsState(
+                                    targetValue = if (selected) 1f else 0f,
+                                    animationSpec = spring(
+                                        dampingRatio = Spring.DampingRatioNoBouncy,
+                                        stiffness = 600f
+                                    ),
+                                    label = "nav_rail_selection_progress"
                                 )
 
-                                // Always-composed label measured once and expanded in the Layout phase (no AnimatedVisibility mount/unmount jump)
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
+                                val indicatorCornerState = animateDpAsState(
+                                    targetValue = if (isPressed) 16.dp else 24.dp,
+                                    animationSpec = M3ExpressiveMotion.fastSpatial(),
+                                    label = "nav_rail_corner"
+                                )
+
+                                val iconScaleState = animateFloatAsState(
+                                    targetValue = if (selected) 1.08f else 1.0f,
+                                    animationSpec = M3ExpressiveMotion.fastSpatial(),
+                                    label = "nav_rail_icon_scale"
+                                )
+
+                                val contentColor = if (selected) {
+                                    MaterialTheme.colorScheme.onSecondaryContainer
+                                } else {
+                                    MaterialTheme.colorScheme.onSurfaceVariant
+                                }
+
+                                Box(
                                     modifier = Modifier
-                                        .graphicsLayer {
-                                            val p = selectionProgressState.value
-                                            alpha = ((p - 0.15f) / 0.85f).coerceIn(0f, 1f)
-                                        }
-                                        .layout { measurable, constraints ->
-                                            val p = selectionProgressState.value.coerceIn(0f, 1f)
-                                            val placeable = measurable.measure(constraints)
-                                            val currentWidth = (placeable.width * p).roundToInt()
-                                            layout(currentWidth, placeable.height) {
-                                                if (currentWidth > 0) {
-                                                    placeable.placeRelative(0, 0)
-                                                }
+                                        .size(48.dp)
+                                        .expressivePressScale(interactionSource, scaleDown = 0.94f)
+                                        .drawBehind {
+                                            val alpha = selectionProgressState.value.coerceIn(0f, 1f)
+                                            if (alpha > 0.005f) {
+                                                val r = indicatorCornerState.value.toPx()
+                                                drawRoundRect(
+                                                    color = secondaryContainerColor.copy(alpha = alpha),
+                                                    cornerRadius = CornerRadius(r, r)
+                                                )
                                             }
                                         }
+                                        .clickable(
+                                            interactionSource = interactionSource,
+                                            indication = null,
+                                            role = Role.Tab,
+                                            onClick = { handleNavClick(screen, selected) }
+                                        )
+                                        .semantics { this.selected = selected },
+                                    contentAlignment = Alignment.Center
                                 ) {
-                                    Spacer(modifier = Modifier.width(8.dp))
-                                    Text(
-                                        text = stringResource(screen.navLabelRes),
-                                        style = MaterialTheme.typography.labelLargeEmphasized,
-                                        color = MaterialTheme.colorScheme.onSecondaryContainer,
-                                        maxLines = 1,
-                                        softWrap = false,
-                                        overflow = TextOverflow.Clip
+                                    Icon(
+                                        imageVector = if (selected) screen.selectedIcon else screen.icon,
+                                        contentDescription = stringResource(screen.titleRes),
+                                        tint = contentColor,
+                                        modifier = Modifier
+                                            .size(24.dp)
+                                            .graphicsLayer {
+                                                val s = iconScaleState.value
+                                                scaleX = s
+                                                scaleY = s
+                                            }
                                     )
                                 }
                             }
                         }
                     }
                 }
+
+                // 2. Companion Settings Button
+                CompanionSettingsButton(
+                    isSelected = settingsSelected,
+                    onClick = { handleNavClick(Screen.Settings, settingsSelected) }
+                )
             }
-
-            // 2. Companion Settings Button (8dp separated per M3 Expressive FloatingToolbar spec)
-            val settingsSelected = currentRoute == Screen.Settings.route ||
-                currentRoute == Screen.Language.route
-            val settingsInteractionSource = remember { MutableInteractionSource() }
-            val isSettingsPressed by settingsInteractionSource.collectIsPressedAsState()
-
-            val settingsOuterCorner by animateDpAsState(
-                targetValue = if (isSettingsPressed) 20.dp else 32.dp,
-                animationSpec = M3ExpressiveMotion.fastSpatial(),
-                label = "settings_outer_corner"
-            )
-            val settingsInnerCornerState = animateDpAsState(
-                targetValue = if (isSettingsPressed) 16.dp else 24.dp,
-                animationSpec = M3ExpressiveMotion.fastSpatial(),
-                label = "settings_inner_corner"
-            )
-            val settingsIndicatorAlphaState = animateFloatAsState(
-                targetValue = if (settingsSelected) 1f else 0f,
-                animationSpec = M3ExpressiveMotion.fastEffects(),
-                label = "settings_indicator_alpha"
-            )
-            val settingsIndicatorScaleState = animateFloatAsState(
-                targetValue = if (settingsSelected) 1f else 0.7f,
-                animationSpec = M3ExpressiveMotion.fastSpatial(),
-                label = "settings_indicator_scale"
-            )
-            val settingsIconRotationState = animateFloatAsState(
-                targetValue = if (settingsSelected) 60f else 0f,
-                animationSpec = M3ExpressiveMotion.defaultSpatial(),
-                label = "settings_icon_rotation"
-            )
-            val settingsIconColor = if (settingsSelected) {
-                MaterialTheme.colorScheme.onSecondaryContainer
-            } else {
-                MaterialTheme.colorScheme.onSurfaceVariant
-            }
-
-            Surface(
-                shape = RoundedCornerShape(settingsOuterCorner),
-                color = MaterialTheme.colorScheme.surfaceContainer,
-                tonalElevation = 3.dp,
-                shadowElevation = 4.dp,
-                modifier = Modifier
-                    .size(64.dp)
-                    .expressivePressScale(settingsInteractionSource, scaleDown = 0.92f)
+        }
+    } else {
+        // Floating Bottom Bar — M3 Expressive HorizontalFloatingToolbar + Companion Action
+        Box(
+            modifier = modifier
+                .fillMaxWidth()
+                .navigationBarsPadding()
+                .padding(start = 16.dp, end = 16.dp, bottom = 12.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .clickable(
-                            interactionSource = settingsInteractionSource,
-                            indication = null,
-                            role = Role.Tab,
-                            onClick = { handleNavClick(Screen.Settings, settingsSelected) }
-                        )
-                        .semantics { this.selected = settingsSelected }
-                        .padding(8.dp),
-                    contentAlignment = Alignment.Center
+                // 1. Primary Compact Floating Toolbar (Overview, Timeline, Records)
+                Surface(
+                    shape = M3Shapes.CornerFull,
+                    color = MaterialTheme.colorScheme.surfaceContainer,
+                    tonalElevation = 3.dp,
+                    shadowElevation = 4.dp,
+                    modifier = Modifier.height(64.dp)
                 ) {
-                    Box(
+                    Row(
                         modifier = Modifier
-                            .fillMaxSize()
-                            .graphicsLayer {
-                                val s = settingsIndicatorScaleState.value
-                                scaleX = s
-                                scaleY = s
-                                alpha = settingsIndicatorAlphaState.value
-                            }
-                            .drawBehind {
-                                if (settingsIndicatorAlphaState.value > 0.005f) {
-                                    val r = settingsInnerCornerState.value.toPx()
-                                    drawRoundRect(
-                                        color = secondaryContainerColor,
-                                        cornerRadius = CornerRadius(r, r)
+                            .fillMaxHeight()
+                            .padding(horizontal = 8.dp),
+                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        mainNavScreens.forEach { screen ->
+                            key(screen.route) {
+                                val selected = when (screen) {
+                                    Screen.Records -> currentRoute in recordsSubRoutes
+                                    else -> currentRoute == screen.route
+                                }
+
+                                val interactionSource = remember { MutableInteractionSource() }
+                                val isPressed by interactionSource.collectIsPressedAsState()
+
+                                val selectionProgressState = animateFloatAsState(
+                                    targetValue = if (selected) 1f else 0f,
+                                    animationSpec = spring(
+                                        dampingRatio = Spring.DampingRatioNoBouncy,
+                                        stiffness = 600f
+                                    ),
+                                    label = "nav_item_selection_progress"
+                                )
+
+                                val indicatorCornerState = animateDpAsState(
+                                    targetValue = if (isPressed) 16.dp else 24.dp,
+                                    animationSpec = M3ExpressiveMotion.fastSpatial(),
+                                    label = "nav_item_corner"
+                                )
+
+                                val iconScaleState = animateFloatAsState(
+                                    targetValue = if (selected) 1.08f else 1.0f,
+                                    animationSpec = M3ExpressiveMotion.fastSpatial(),
+                                    label = "nav_item_icon_scale"
+                                )
+
+                                val contentColor = if (selected) {
+                                    MaterialTheme.colorScheme.onSecondaryContainer
+                                } else {
+                                    MaterialTheme.colorScheme.onSurfaceVariant
+                                }
+
+                                Row(
+                                    modifier = Modifier
+                                        .height(48.dp)
+                                        .expressivePressScale(interactionSource, scaleDown = 0.94f)
+                                        .drawBehind {
+                                            val alpha = selectionProgressState.value.coerceIn(0f, 1f)
+                                            if (alpha > 0.005f) {
+                                                val r = indicatorCornerState.value.toPx()
+                                                drawRoundRect(
+                                                    color = secondaryContainerColor.copy(alpha = alpha),
+                                                    cornerRadius = CornerRadius(r, r)
+                                                )
+                                            }
+                                        }
+                                        .clickable(
+                                            interactionSource = interactionSource,
+                                            indication = null,
+                                            role = Role.Tab,
+                                            onClick = { handleNavClick(screen, selected) }
+                                        )
+                                        .semantics { this.selected = selected }
+                                        .layout { measurable, constraints ->
+                                            val p = selectionProgressState.value.coerceIn(0f, 1f)
+                                            val hPadPx = (12.dp.toPx() + (4.dp.toPx() * p)).roundToInt()
+                                            val placeable = measurable.measure(constraints)
+                                            layout(placeable.width + hPadPx * 2, placeable.height) {
+                                                placeable.placeRelative(hPadPx, 0)
+                                            }
+                                        },
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.Center
+                                ) {
+                                    Icon(
+                                        imageVector = if (selected) screen.selectedIcon else screen.icon,
+                                        contentDescription = stringResource(screen.titleRes),
+                                        tint = contentColor,
+                                        modifier = Modifier
+                                            .size(24.dp)
+                                            .graphicsLayer {
+                                                val s = iconScaleState.value
+                                                scaleX = s
+                                                scaleY = s
+                                            }
                                     )
+
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        modifier = Modifier
+                                            .graphicsLayer {
+                                                val p = selectionProgressState.value
+                                                alpha = ((p - 0.15f) / 0.85f).coerceIn(0f, 1f)
+                                            }
+                                            .layout { measurable, constraints ->
+                                                val p = selectionProgressState.value.coerceIn(0f, 1f)
+                                                val placeable = measurable.measure(constraints)
+                                                val currentWidth = (placeable.width * p).roundToInt()
+                                                layout(currentWidth, placeable.height) {
+                                                    if (currentWidth > 0) {
+                                                        placeable.placeRelative(0, 0)
+                                                    }
+                                                }
+                                            }
+                                    ) {
+                                        Spacer(modifier = Modifier.width(8.dp))
+                                        Text(
+                                            text = stringResource(screen.navLabelRes),
+                                            style = MaterialTheme.typography.labelLargeEmphasized,
+                                            color = MaterialTheme.colorScheme.onSecondaryContainer,
+                                            maxLines = 1,
+                                            softWrap = false,
+                                            overflow = TextOverflow.Clip
+                                        )
+                                    }
                                 }
                             }
-                    )
-
-                    Icon(
-                        imageVector = if (settingsSelected) Screen.Settings.selectedIcon else Screen.Settings.icon,
-                        contentDescription = stringResource(Screen.Settings.titleRes),
-                        tint = settingsIconColor,
-                        modifier = Modifier
-                            .size(24.dp)
-                            .graphicsLayer {
-                                rotationZ = settingsIconRotationState.value
-                            }
-                    )
+                        }
+                    }
                 }
+
+                // 2. Companion Settings Button
+                CompanionSettingsButton(
+                    isSelected = settingsSelected,
+                    onClick = { handleNavClick(Screen.Settings, settingsSelected) }
+                )
             }
         }
     }

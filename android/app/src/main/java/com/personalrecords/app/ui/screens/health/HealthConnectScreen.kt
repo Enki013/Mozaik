@@ -31,7 +31,6 @@ import com.personalrecords.app.ui.components.*
 import java.text.NumberFormat
 import java.util.Locale
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import kotlinx.coroutines.delay
 
 private val HealthCategoryKeys = listOf("all", "activity", "sleep", "vitals", "exercise", "body")
 
@@ -93,29 +92,14 @@ fun HealthConnectScreen(
         LaunchedEffect(state.isLoading) {
             if (!state.isLoading) isRefreshing = false
         }
-        var isTransitionSettled by remember { mutableStateOf(false) }
-        LaunchedEffect(Unit) {
-            delay(260L)
-            isTransitionSettled = true
-        }
 
-        if (!isTransitionSettled) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(innerPadding),
-                contentAlignment = Alignment.Center
-            ) {
-                ContainedLoadingIndicator(size = 48.dp)
-            }
-        } else {
-            ExpressivePullToRefreshBox(
-                isRefreshing = isRefreshing,
-                onRefresh = { isRefreshing = true; viewModel.loadData() },
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(innerPadding)
-            ) {
+        ExpressivePullToRefreshBox(
+            isRefreshing = isRefreshing,
+            onRefresh = { isRefreshing = true; viewModel.loadData() },
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(innerPadding)
+        ) {
             val summary = state.summary
             val stepsFormatted = remember(summary.today_steps) {
                 if (summary.today_steps > 0) {
@@ -445,7 +429,6 @@ fun HealthConnectScreen(
                     Spacer(modifier = Modifier.height(20.dp))
                 }
             }
-        }
         }
     }
 

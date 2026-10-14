@@ -6,9 +6,11 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.GridItemSpan
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.itemsIndexed
+import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
@@ -20,7 +22,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-
+import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -31,7 +34,6 @@ import com.personalrecords.app.core.network.model.FoodEntryDto
 import com.personalrecords.app.core.theme.*
 import com.personalrecords.app.ui.components.*
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import kotlinx.coroutines.delay
 
 private val NutritionMealKeys = listOf("all", "Breakfast", "Lunch", "Dinner", "Other")
 
@@ -45,6 +47,9 @@ fun NutritionScreen(
     var showTargetDialog by remember { mutableStateOf(false) }
     var showDatePicker by remember { mutableStateOf(false) }
     var selectedFood by remember { mutableStateOf<FoodEntryDto?>(null) }
+    val configuration = LocalConfiguration.current
+    val isWideScreen = configuration.screenWidthDp >= 600
+    val scrollBehavior = TopAppBarDefaults.enterAlwaysScrollBehavior(rememberTopAppBarState())
 
     if (showDatePicker) {
         ExpressiveDateFilterDialog(
@@ -105,7 +110,9 @@ fun NutritionScreen(
     }
 
     Scaffold(
-        modifier = Modifier.fillMaxSize(),
+        modifier = Modifier
+            .fillMaxSize()
+            .nestedScroll(scrollBehavior.nestedScrollConnection),
         contentWindowInsets = WindowInsets.statusBars,
         topBar = {
             TopAppBar(
@@ -126,8 +133,10 @@ fun NutritionScreen(
                     }
                 },
                 actions = {},
+                scrollBehavior = scrollBehavior,
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.surface
+                    containerColor = MaterialTheme.colorScheme.surface,
+                    scrolledContainerColor = MaterialTheme.colorScheme.surfaceContainer
                 )
             )
         }
@@ -136,38 +145,28 @@ fun NutritionScreen(
         LaunchedEffect(state.isLoading) {
             if (!state.isLoading) isRefreshing = false
         }
-        var isTransitionSettled by remember { mutableStateOf(false) }
-        LaunchedEffect(Unit) {
-            delay(260L)
-            isTransitionSettled = true
-        }
 
-        if (!isTransitionSettled) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(innerPadding),
-                contentAlignment = Alignment.Center
-            ) {
-                ContainedLoadingIndicator(size = 48.dp)
-            }
-        } else {
-            ExpressivePullToRefreshBox(
-                isRefreshing = isRefreshing,
-                onRefresh = { isRefreshing = true; viewModel.loadData() },
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(innerPadding)
-            ) {
-                LazyColumn(
+        ExpressivePullToRefreshBox(
+            isRefreshing = isRefreshing,
+            onRefresh = { isRefreshing = true; viewModel.loadData() },
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(innerPadding)
+        ) {
+            val gridState = rememberLazyGridState()
+
+            LazyVerticalGrid(
+                columns = if (isWideScreen) GridCells.Adaptive(minSize = 340.dp) else GridCells.Fixed(1),
+                state = gridState,
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(horizontal = 12.dp),
-                contentPadding = PaddingValues(top = 10.dp, bottom = 144.dp),
-                verticalArrangement = Arrangement.Top
+                contentPadding = PaddingValues(top = 10.dp, bottom = if (isWideScreen) 32.dp else 144.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(if (isWideScreen) 8.dp else 0.dp)
             ) {
             // Calorie Budget Card (Card MD3)
-            item(key = "nutrition_budget_card", contentType = "budget_card") {
+            item(key = "nutrition_budget_card", span = { GridItemSpan(if (isWideScreen) 1 else maxLineSpan) }, contentType = "budget_card") {
                 Card(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -334,7 +333,7 @@ fun NutritionScreen(
             }
 
             // Macro Breakdown Card (MD3 Card)
-            item(key = "nutrition_macro_card", contentType = "macro_card") {
+            item(key = "nutrition_macro_card", span = { GridItemSpan(if (isWideScreen) 1 else maxLineSpan) }, contentType = "macro_card") {
                 Card(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -397,8 +396,8 @@ fun NutritionScreen(
                 }
             }
 
-            // Food Entries Log Header & Filters (Sticky Header)
-            stickyHeader(key = "nutrition_sticky_header", contentType = "sticky_header") {
+            // Food Entries Log Header & Filters
+            item(key = "nutrition_sticky_header", span = { GridItemSpan(maxLineSpan) }, contentType = "sticky_header") {
                 Surface(
                     color = MaterialTheme.colorScheme.surface,
                     modifier = Modifier
@@ -573,7 +572,7 @@ fun NutritionScreen(
             // Food Items List
             if ((state.isLoading || state.isFiltering) && state.filteredFoods.isEmpty()) {
                 if (!isRefreshing) {
-                    item(key = "nutrition_loading", contentType = "loading") {
+                    item(key = "nutrition_loading", span = { GridItemSpan(maxLineSpan) }, contentType = "loading") {
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -585,7 +584,7 @@ fun NutritionScreen(
                     }
                 }
             } else if (state.filteredFoods.isEmpty()) {
-                item(key = "nutrition_empty", contentType = "empty") {
+                item(key = "nutrition_empty", span = { GridItemSpan(maxLineSpan) }, contentType = "empty") {
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -605,21 +604,33 @@ fun NutritionScreen(
                     key = { _, food -> food.food_entry_id.ifBlank { "${food.displayName}_${food.displayDate}_${food.meal}_${food.calories}" } },
                     contentType = { _, _ -> "food_row" }
                 ) { index, food ->
-                    LazyCardRowContainer(
-                        index = index,
-                        totalCount = state.filteredFoods.size
-                    ) {
-                        FoodEntryRowItem(
-                            item = food,
-                            onClick = { selectedFood = food }
-                        )
+                    if (isWideScreen) {
+                        Surface(
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = M3Shapes.CornerMedium,
+                            color = MaterialTheme.colorScheme.surfaceContainerLow
+                        ) {
+                            FoodEntryRowItem(
+                                item = food,
+                                onClick = { selectedFood = food }
+                            )
+                        }
+                    } else {
+                        LazyCardRowContainer(
+                            index = index,
+                            totalCount = state.filteredFoods.size
+                        ) {
+                            FoodEntryRowItem(
+                                item = food,
+                                onClick = { selectedFood = food }
+                            )
+                        }
                     }
                 }
             }
 
-            item(key = "nutrition_bottom_spacer", contentType = "spacer") { Spacer(modifier = Modifier.height(24.dp)) }
+            item(key = "nutrition_bottom_spacer", span = { GridItemSpan(maxLineSpan) }, contentType = "spacer") { Spacer(modifier = Modifier.height(24.dp)) }
           }
-        }
         }
     }
 

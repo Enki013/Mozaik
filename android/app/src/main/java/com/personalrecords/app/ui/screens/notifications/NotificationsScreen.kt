@@ -9,8 +9,11 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.GridItemSpan
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.itemsIndexed
+import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
@@ -21,6 +24,8 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -47,6 +52,9 @@ fun NotificationsScreen(
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     var selectedNotification by remember { mutableStateOf<NotificationDto?>(null) }
     var showDatePicker by remember { mutableStateOf(false) }
+    val configuration = LocalConfiguration.current
+    val isWideScreen = configuration.screenWidthDp >= 600
+    val scrollBehavior = TopAppBarDefaults.enterAlwaysScrollBehavior(rememberTopAppBarState())
 
     if (showDatePicker) {
         ExpressiveDateFilterDialog(
@@ -66,7 +74,9 @@ fun NotificationsScreen(
     }
 
     Scaffold(
-        modifier = Modifier.fillMaxSize(),
+        modifier = Modifier
+            .fillMaxSize()
+            .nestedScroll(scrollBehavior.nestedScrollConnection),
         contentWindowInsets = WindowInsets.statusBars,
         topBar = {
             TopAppBar(
@@ -87,8 +97,10 @@ fun NotificationsScreen(
                     }
                 },
                 actions = {},
+                scrollBehavior = scrollBehavior,
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.surface
+                    containerColor = MaterialTheme.colorScheme.surface,
+                    scrolledContainerColor = MaterialTheme.colorScheme.surfaceContainer
                 )
             )
         }
@@ -97,40 +109,29 @@ fun NotificationsScreen(
         LaunchedEffect(state.isLoading) {
             if (!state.isLoading) isRefreshing = false
         }
-        var isTransitionSettled by remember { mutableStateOf(false) }
-        LaunchedEffect(Unit) {
-            delay(260L)
-            isTransitionSettled = true
-        }
 
-        if (!isTransitionSettled) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(innerPadding),
-                contentAlignment = Alignment.Center
-            ) {
-                ContainedLoadingIndicator(size = 48.dp)
-            }
-        } else {
-            ExpressivePullToRefreshBox(
-                isRefreshing = isRefreshing,
-                onRefresh = { isRefreshing = true; viewModel.loadData() },
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(innerPadding)
-            ) {
+        ExpressivePullToRefreshBox(
+            isRefreshing = isRefreshing,
+            onRefresh = { isRefreshing = true; viewModel.loadData() },
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(innerPadding)
+        ) {
             val appList = state.appList
+            val gridState = rememberLazyGridState()
 
-            LazyColumn(
+            LazyVerticalGrid(
+                columns = if (isWideScreen) GridCells.Adaptive(minSize = 340.dp) else GridCells.Fixed(1),
+                state = gridState,
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(horizontal = 12.dp),
-                contentPadding = PaddingValues(top = 10.dp, bottom = 144.dp),
-                verticalArrangement = Arrangement.Top
+                contentPadding = PaddingValues(top = 10.dp, bottom = if (isWideScreen) 32.dp else 144.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(if (isWideScreen) 8.dp else 0.dp)
             ) {
                 // Stats Row
-                item(key = "notifications_stats_row", contentType = "stats_row") {
+                item(key = "notifications_stats_row", span = { GridItemSpan(maxLineSpan) }, contentType = "stats_row") {
                     val total = state.notifications.size
                     val todayCount = state.todayCount
                     val appCount = appList.size
@@ -158,8 +159,8 @@ fun NotificationsScreen(
                     }
                 }
 
-                // Search Bar & Filter Header (Sticky Header)
-                stickyHeader(key = "notifications_sticky_header", contentType = "sticky_header") {
+                // Search Bar & Filter Header
+                item(key = "notifications_sticky_header", span = { GridItemSpan(maxLineSpan) }, contentType = "sticky_header") {
                     Surface(
                         color = MaterialTheme.colorScheme.surface,
                         modifier = Modifier
@@ -305,7 +306,7 @@ fun NotificationsScreen(
                 // Loading or Empty State
                 if ((state.isLoading || state.isFiltering) && state.filteredNotifications.isEmpty()) {
                     if (!isRefreshing) {
-                        item(key = "notifications_loading", contentType = "loading") {
+                        item(key = "notifications_loading", span = { GridItemSpan(maxLineSpan) }, contentType = "loading") {
                             Box(
                                 modifier = Modifier
                                     .fillMaxWidth()
@@ -317,7 +318,7 @@ fun NotificationsScreen(
                         }
                     }
                 } else if (state.filteredNotifications.isEmpty()) {
-                    item(key = "notifications_empty", contentType = "empty") {
+                    item(key = "notifications_empty", span = { GridItemSpan(maxLineSpan) }, contentType = "empty") {
                         if (state.notifications.isEmpty()) {
                             Card(
                                 modifier = Modifier
@@ -382,21 +383,33 @@ fun NotificationsScreen(
                         key = { _, notif -> notif.id.ifBlank { "${notif.created_at}_${notif.app_name}_${notif.title}" } },
                         contentType = { _, _ -> "notification_row" }
                     ) { index, notif ->
-                        LazyCardRowContainer(
-                            index = index,
-                            totalCount = state.filteredNotifications.size
-                        ) {
-                            NotificationRowItem(
-                                notification = notif,
-                                onClick = { selectedNotification = notif }
-                            )
+                        if (isWideScreen) {
+                            Surface(
+                                modifier = Modifier.fillMaxWidth(),
+                                shape = M3Shapes.CornerMedium,
+                                color = MaterialTheme.colorScheme.surfaceContainerLow
+                            ) {
+                                NotificationRowItem(
+                                    notification = notif,
+                                    onClick = { selectedNotification = notif }
+                                )
+                            }
+                        } else {
+                            LazyCardRowContainer(
+                                index = index,
+                                totalCount = state.filteredNotifications.size
+                            ) {
+                                NotificationRowItem(
+                                    notification = notif,
+                                    onClick = { selectedNotification = notif }
+                                )
+                            }
                         }
                     }
                 }
 
-                item(key = "notifications_bottom_spacer", contentType = "spacer") { Spacer(modifier = Modifier.height(20.dp)) }
+                item(key = "notifications_bottom_spacer", span = { GridItemSpan(maxLineSpan) }, contentType = "spacer") { Spacer(modifier = Modifier.height(20.dp)) }
             }
-        }
         }
     }
 
