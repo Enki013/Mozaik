@@ -221,7 +221,7 @@ fun NutritionScreen(
                         val progressPct = if (target != null && target > 0) {
                             (state.todayCalories / target).toFloat().coerceIn(0f, 1f)
                         } else 0f
-                        val animatedProgress by animateFloatAsState(
+                        val animatedProgressState = animateFloatAsState(
                             targetValue = progressPct,
                             animationSpec = M3ExpressiveMotion.defaultSpatial(),
                             label = "prog"
@@ -252,7 +252,7 @@ fun NutritionScreen(
 
                         // MD3 Expressive Wavy Linear Progress Indicator
                         LinearWavyProgressIndicator(
-                            progress = { animatedProgress },
+                            progress = { animatedProgressState.value },
                             modifier = Modifier.fillMaxWidth(),
                             color = barColor,
                             trackColor = MaterialTheme.colorScheme.surfaceContainerHighest,

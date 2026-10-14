@@ -53,9 +53,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
-import coil.compose.SubcomposeAsyncImage
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.animation.Crossfade
 import androidx.compose.animation.animateColorAsState
