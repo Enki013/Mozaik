@@ -3,7 +3,8 @@
 Kişisel beslenme (FatSecret), film günlüğü (Letterboxd), kitap okuma (Goodreads) ve Android bildirimlerinizi tek bir merkezi havuzda toplayan, veri egemenliğinizi koruyan açık kaynaklı kişisel takip platformu.
 
 > 📖 **Hızlı Başlangıç & Kurulum Rehberi:** Docker Compose veya Cloudflare D1 kurulumu, Notification Relay Webhook entegrasyonu ve Android yapılandırması için **[Kurulum ve Kullanım Kılavuzu (docs/SETUP_GUIDE.md)](docs/SETUP_GUIDE.md)** belgesine göz atın.  
-> 🏛️ **Sistem Mimarisi & Eklenti Tasarımı:** Eklenti modeli ve çift motorlu sunucu yapısı için **[Mimari Belgesi (docs/ARCHITECTURE.md)](docs/ARCHITECTURE.md)** belgesine bakın.
+> 🏛️ **Sistem Mimarisi & Eklenti Tasarımı:** Eklenti modeli ve çift motorlu sunucu yapısı için **[Mimari Belgesi (docs/ARCHITECTURE.md)](docs/ARCHITECTURE.md)** belgesine bakın.  
+> 🗺️ **Geliştirme Yol Haritası (Roadmap):** Tamamlanan ve planlanan aşamalar için **[Yol Haritası (docs/ROADMAP.md)](docs/ROADMAP.md)** belgesine göz atın.
 
 ---
 
