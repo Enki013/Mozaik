@@ -49,6 +49,7 @@ fun NutritionScreen(
     var selectedFood by remember { mutableStateOf<FoodEntryDto?>(null) }
     val configuration = LocalConfiguration.current
     val isWideScreen = configuration.screenWidthDp >= 600
+    val isTwoPane = configuration.screenWidthDp >= 840
     val scrollBehavior = TopAppBarDefaults.enterAlwaysScrollBehavior(rememberTopAppBarState())
 
     if (showDatePicker) {
@@ -154,17 +155,17 @@ fun NutritionScreen(
                 .padding(innerPadding)
         ) {
             val gridState = rememberLazyGridState()
-
-            LazyVerticalGrid(
-                columns = if (isWideScreen) GridCells.Adaptive(minSize = 340.dp) else GridCells.Fixed(1),
-                state = gridState,
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(horizontal = 12.dp),
-                contentPadding = PaddingValues(top = 10.dp, bottom = if (isWideScreen) 32.dp else 144.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalArrangement = Arrangement.spacedBy(if (isWideScreen) 8.dp else 0.dp)
-            ) {
+            val listContent: @Composable () -> Unit = {
+                LazyVerticalGrid(
+                    columns = if (isWideScreen) GridCells.Adaptive(minSize = 340.dp) else GridCells.Fixed(1),
+                    state = gridState,
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(horizontal = 12.dp),
+                    contentPadding = PaddingValues(top = 10.dp, bottom = if (isWideScreen) 32.dp else 144.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(if (isWideScreen) 8.dp else 0.dp)
+                ) {
             // Calorie Budget Card (Card MD3)
             item(key = "nutrition_budget_card", span = { GridItemSpan(if (isWideScreen) 1 else maxLineSpan) }, contentType = "budget_card") {
                 Card(
@@ -632,13 +633,53 @@ fun NutritionScreen(
             item(key = "nutrition_bottom_spacer", span = { GridItemSpan(maxLineSpan) }, contentType = "spacer") { Spacer(modifier = Modifier.height(24.dp)) }
           }
         }
-    }
 
-    selectedFood?.let { food ->
-        FoodEntryDetailBottomSheet(
-            item = food,
-            onDismiss = { selectedFood = null }
-        )
+        if (isTwoPane) {
+            Row(modifier = Modifier.fillMaxSize()) {
+                Box(
+                    modifier = Modifier
+                        .weight(1.15f)
+                        .fillMaxHeight()
+                ) {
+                    listContent()
+                }
+                VerticalDivider(
+                    modifier = Modifier.fillMaxHeight(),
+                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+                )
+                Box(
+                    modifier = Modifier
+                        .weight(0.85f)
+                        .fillMaxHeight()
+                        .padding(top = 10.dp, end = 12.dp, bottom = 32.dp)
+                ) {
+                    if (selectedFood != null) {
+                        FoodEntryDetailPaneCard(
+                            item = selectedFood!!,
+                            onClose = { selectedFood = null }
+                        )
+                    } else {
+                        DetailPlaceholderPane(
+                            icon = Icons.Default.Restaurant,
+                            title = stringResource(R.string.adaptive_select_item_title),
+                            subtitle = stringResource(R.string.adaptive_select_item_subtitle)
+                        )
+                    }
+                }
+            }
+        } else {
+            listContent()
+        }
+    }
+}
+
+if (!isTwoPane) {
+        selectedFood?.let { food ->
+            FoodEntryDetailBottomSheet(
+                item = food,
+                onDismiss = { selectedFood = null }
+            )
+        }
     }
 }
 

@@ -50,6 +50,7 @@ import androidx.compose.ui.platform.InspectorInfo
 import androidx.compose.ui.unit.Velocity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
@@ -1702,14 +1703,13 @@ private fun mealIconFor(meal: String): ImageVector {
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun FoodEntryDetailBottomSheet(
+fun FoodEntryDetailContent(
     item: FoodEntryDto,
-    onDismiss: () -> Unit
+    onClose: (() -> Unit)? = null,
+    modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
-    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val mealLabel = localizedMealName(item.meal)
     val mealIcon = mealIconFor(item.meal)
 
@@ -1721,19 +1721,33 @@ fun FoodEntryDetailBottomSheet(
     val protPct = if (totalMacroKcal > 0) (protKcal / totalMacroKcal).toFloat() else 0.33f
     val fatPct = if (totalMacroKcal > 0) (fatKcal / totalMacroKcal).toFloat() else 0.34f
 
-    ModalBottomSheet(
-        onDismissRequest = onDismiss,
-        sheetState = sheetState,
-        shape = M3Shapes.CornerExtraLarge,
-        containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+    Column(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(horizontal = 20.dp, vertical = 8.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 20.dp, vertical = 8.dp)
-                .navigationBarsPadding(),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
+        if (onClose != null) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = stringResource(R.string.title_nutrition),
+                    style = MaterialTheme.typography.titleMediumEmphasized,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+                IconButton(onClick = onClose, modifier = Modifier.size(28.dp)) {
+                    Icon(
+                        imageVector = Icons.Default.Close,
+                        contentDescription = stringResource(R.string.action_close),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
+            }
+        }
             // Header row: Meal badge pill + Date
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -1907,25 +1921,71 @@ fun FoodEntryDetailBottomSheet(
                     )
                 }
 
-                Button(
-                    onClick = onDismiss,
-                    shape = M3Shapes.CornerSmall,
-                    modifier = Modifier
-                        .weight(1f)
-                        .height(42.dp),
-                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp)
-                ) {
-                    Text(
-                        text = stringResource(R.string.action_close),
-                        style = MaterialTheme.typography.labelLargeEmphasized,
-                        maxLines = 1,
-                        softWrap = false,
-                        overflow = TextOverflow.Ellipsis
-                    )
+                if (onClose != null) {
+                    Button(
+                        onClick = onClose,
+                        shape = M3Shapes.CornerSmall,
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(42.dp),
+                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp)
+                    ) {
+                        Text(
+                            text = stringResource(R.string.action_close),
+                            style = MaterialTheme.typography.labelLargeEmphasized,
+                            maxLines = 1,
+                            softWrap = false,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
                 }
             }
 
             Spacer(modifier = Modifier.height(12.dp))
+        }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun FoodEntryDetailBottomSheet(
+    item: FoodEntryDto,
+    onDismiss: () -> Unit
+) {
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = sheetState,
+        shape = M3Shapes.CornerExtraLarge,
+        containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+    ) {
+        FoodEntryDetailContent(
+            item = item,
+            onClose = onDismiss,
+            modifier = Modifier.navigationBarsPadding()
+        )
+    }
+}
+
+@Composable
+fun FoodEntryDetailPaneCard(
+    item: FoodEntryDto,
+    onClose: (() -> Unit)? = null,
+    modifier: Modifier = Modifier
+) {
+    Surface(
+        modifier = modifier.fillMaxSize(),
+        shape = M3Shapes.CornerLarge,
+        color = MaterialTheme.colorScheme.surfaceContainerLow
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .verticalScroll(rememberScrollState())
+        ) {
+            FoodEntryDetailContent(
+                item = item,
+                onClose = onClose
+            )
         }
     }
 }
@@ -1962,189 +2022,204 @@ private fun MacroDetailStat(color: Color, label: String, grams: Double, pct: Int
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun FilmDetailBottomSheet(
+fun FilmDetailContent(
     film: FilmDto,
-    onDismiss: () -> Unit
+    onClose: (() -> Unit)? = null,
+    modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
-    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val watchedDate = film.safeWatchedDate.ifBlank { film.diary_date ?: "" }
 
-    ModalBottomSheet(
-        onDismissRequest = onDismiss,
-        sheetState = sheetState,
-        shape = M3Shapes.CornerExtraLarge,
-        containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+    Column(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(horizontal = 20.dp, vertical = 8.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 20.dp, vertical = 8.dp)
-                .navigationBarsPadding(),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            // Top Row: Poster + Title & Badges
+        if (onClose != null) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(14.dp),
-                verticalAlignment = Alignment.Top
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                PosterThumbnail(
-                    imageUrl = film.image_url,
-                    fallbackIcon = Icons.Default.Movie,
-                    width = 72,
-                    height = 104
+                Text(
+                    text = stringResource(R.string.movies_badge_letterboxd),
+                    style = MaterialTheme.typography.titleMediumEmphasized,
+                    color = MaterialTheme.colorScheme.onSurface
                 )
+                IconButton(onClick = onClose, modifier = Modifier.size(28.dp)) {
+                    Icon(
+                        imageVector = Icons.Default.Close,
+                        contentDescription = stringResource(R.string.action_close),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
+            }
+        }
 
-                Column(
-                    modifier = Modifier.weight(1f),
-                    verticalArrangement = Arrangement.spacedBy(6.dp)
+        // Top Row: Poster + Title & Badges
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(14.dp),
+            verticalAlignment = Alignment.Top
+        ) {
+            PosterThumbnail(
+                imageUrl = film.image_url,
+                fallbackIcon = Icons.Default.Movie,
+                width = 72,
+                height = 104
+            )
+
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                // Badges
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    // Badges
-                    Row(
-                        horizontalArrangement = Arrangement.spacedBy(6.dp),
-                        verticalAlignment = Alignment.CenterVertically
+                    Surface(
+                        shape = M3Shapes.CornerFull,
+                        color = domainCinemaContainer()
                     ) {
+                        Text(
+                            text = stringResource(R.string.movies_badge_letterboxd),
+                            style = MaterialTheme.typography.labelSmallEmphasized,
+                            color = domainCinemaOnContainer(),
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.5.dp)
+                        )
+                    }
+                    if (film.safeYear > 0) {
+                        Surface(
+                            shape = M3Shapes.CornerFull,
+                            color = MaterialTheme.colorScheme.surfaceContainerHighest
+                        ) {
+                            Text(
+                                text = "${film.safeYear}",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.padding(horizontal = 7.dp, vertical = 2.5.dp)
+                            )
+                        }
+                    }
+                    if (film.rewatch) {
                         Surface(
                             shape = M3Shapes.CornerFull,
                             color = domainCinemaContainer()
                         ) {
-                            Text(
-                                text = stringResource(R.string.movies_badge_letterboxd),
-                                style = MaterialTheme.typography.labelSmallEmphasized,
-                                color = domainCinemaOnContainer(),
-                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.5.dp)
-                            )
-                        }
-                        if (film.safeYear > 0) {
-                            Surface(
-                                shape = M3Shapes.CornerFull,
-                                color = MaterialTheme.colorScheme.surfaceContainerHighest
+                            Row(
+                                modifier = Modifier.padding(horizontal = 7.dp, vertical = 2.5.dp),
+                                horizontalArrangement = Arrangement.spacedBy(3.dp),
+                                verticalAlignment = Alignment.CenterVertically
                             ) {
+                                Icon(
+                                    imageVector = Icons.Default.Repeat,
+                                    contentDescription = null,
+                                    tint = domainCinemaOnContainer(),
+                                    modifier = Modifier.size(11.dp)
+                                )
                                 Text(
-                                    text = "${film.safeYear}",
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    modifier = Modifier.padding(horizontal = 7.dp, vertical = 2.5.dp)
+                                    text = stringResource(R.string.movies_rewatch_badge),
+                                    style = MaterialTheme.typography.labelSmallEmphasized,
+                                    color = domainCinemaOnContainer()
                                 )
                             }
                         }
-                        if (film.rewatch) {
-                            Surface(
-                                shape = M3Shapes.CornerFull,
-                                color = domainCinemaContainer()
-                            ) {
-                                Row(
-                                    modifier = Modifier.padding(horizontal = 7.dp, vertical = 2.5.dp),
-                                    horizontalArrangement = Arrangement.spacedBy(3.dp),
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Default.Repeat,
-                                        contentDescription = null,
-                                        tint = domainCinemaOnContainer(),
-                                        modifier = Modifier.size(11.dp)
-                                    )
-                                    Text(
-                                        text = stringResource(R.string.movies_rewatch_badge),
-                                        style = MaterialTheme.typography.labelSmallEmphasized,
-                                        color = domainCinemaOnContainer()
-                                    )
-                                }
-                            }
-                        }
-                    }
-
-                    Text(
-                        text = film.displayTitle,
-                        style = MaterialTheme.typography.titleLargeEmphasized,
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
-
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        if (film.safeRating > 0) {
-                            RatingBadge(rating = film.safeRating)
-                        }
-                        if (watchedDate.isNotBlank()) {
-                            Text(
-                                text = watchedDate,
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
                     }
                 }
-            }
 
-            // Full Review Box if available
-            if (film.safeReview.isNotBlank()) {
-                Surface(
-                    shape = M3Shapes.CornerMedium,
-                    color = MaterialTheme.colorScheme.surfaceContainer,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .heightIn(max = 220.dp)
+                Text(
+                    text = film.displayTitle,
+                    style = MaterialTheme.typography.titleLargeEmphasized,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    Column(
-                        modifier = Modifier
-                            .padding(14.dp)
-                            .verticalScroll(rememberScrollState())
-                    ) {
+                    if (film.safeRating > 0) {
+                        RatingBadge(rating = film.safeRating)
+                    }
+                    if (watchedDate.isNotBlank()) {
                         Text(
-                            text = "“${film.safeReview}”",
-                            style = MaterialTheme.typography.bodyMedium,
-                            fontStyle = FontStyle.Italic,
-                            color = MaterialTheme.colorScheme.onSurface
+                            text = watchedDate,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
                 }
             }
+        }
 
-            Spacer(modifier = Modifier.height(4.dp))
-
-            // Actions: Copy & Close
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
+        // Full Review Box if available
+        if (film.safeReview.isNotBlank()) {
+            Surface(
+                shape = M3Shapes.CornerMedium,
+                color = MaterialTheme.colorScheme.surfaceContainer,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(max = 220.dp)
             ) {
-                OutlinedButton(
-                    onClick = {
-                        val copyStr = buildString {
-                            append(film.displayTitle)
-                            if (film.safeYear > 0) append(" (${film.safeYear})")
-                            if (film.safeRating > 0) append(" · ★ ${film.safeRating}")
-                            if (film.safeReview.isNotBlank()) append("\n\n${film.safeReview}")
-                        }
-                        copyToClipboard(context, film.displayTitle, copyStr)
-                    },
-                    shape = M3Shapes.CornerSmall,
+                Column(
                     modifier = Modifier
-                        .weight(1f)
-                        .height(42.dp),
-                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp)
+                        .padding(14.dp)
+                        .verticalScroll(rememberScrollState())
                 ) {
-                    Icon(
-                        imageVector = Icons.Default.ContentCopy,
-                        contentDescription = null,
-                        modifier = Modifier.size(16.dp)
-                    )
-                    Spacer(modifier = Modifier.width(6.dp))
                     Text(
-                        text = stringResource(R.string.notifications_copy_text),
-                        style = MaterialTheme.typography.labelLargeEmphasized,
-                        maxLines = 1,
-                        softWrap = false,
-                        overflow = TextOverflow.Ellipsis
+                        text = "“${film.safeReview}”",
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontStyle = FontStyle.Italic,
+                        color = MaterialTheme.colorScheme.onSurface
                     )
                 }
+            }
+        }
 
+        Spacer(modifier = Modifier.height(4.dp))
+
+        // Actions: Copy & Close
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            OutlinedButton(
+                onClick = {
+                    val copyStr = buildString {
+                        append(film.displayTitle)
+                        if (film.safeYear > 0) append(" (${film.safeYear})")
+                        if (film.safeRating > 0) append(" · ★ ${film.safeRating}")
+                        if (film.safeReview.isNotBlank()) append("\n\n${film.safeReview}")
+                    }
+                    copyToClipboard(context, film.displayTitle, copyStr)
+                },
+                shape = M3Shapes.CornerSmall,
+                modifier = Modifier
+                    .weight(1f)
+                    .height(42.dp),
+                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.ContentCopy,
+                    contentDescription = null,
+                    modifier = Modifier.size(16.dp)
+                )
+                Spacer(modifier = Modifier.width(6.dp))
+                Text(
+                    text = stringResource(R.string.notifications_copy_text),
+                    style = MaterialTheme.typography.labelLargeEmphasized,
+                    maxLines = 1,
+                    softWrap = false,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+
+            if (onClose != null) {
                 Button(
-                    onClick = onDismiss,
+                    onClick = onClose,
                     shape = M3Shapes.CornerSmall,
                     modifier = Modifier
                         .weight(1f)
@@ -2160,9 +2235,268 @@ fun FilmDetailBottomSheet(
                     )
                 }
             }
-
-            Spacer(modifier = Modifier.height(12.dp))
         }
+
+        Spacer(modifier = Modifier.height(12.dp))
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun FilmDetailBottomSheet(
+    film: FilmDto,
+    onDismiss: () -> Unit
+) {
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = sheetState,
+        shape = M3Shapes.CornerExtraLarge,
+        containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+    ) {
+        FilmDetailContent(
+            film = film,
+            onClose = onDismiss,
+            modifier = Modifier.navigationBarsPadding()
+        )
+    }
+}
+
+@Composable
+fun FilmDetailPaneCard(
+    film: FilmDto,
+    onClose: (() -> Unit)? = null,
+    modifier: Modifier = Modifier
+) {
+    Surface(
+        modifier = modifier.fillMaxSize(),
+        shape = M3Shapes.CornerLarge,
+        color = MaterialTheme.colorScheme.surfaceContainerLow
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .verticalScroll(rememberScrollState())
+        ) {
+            FilmDetailContent(
+                film = film,
+                onClose = onClose
+            )
+        }
+    }
+}
+
+@Composable
+fun BookDetailContent(
+    book: BookDto,
+    onClose: (() -> Unit)? = null,
+    modifier: Modifier = Modifier
+) {
+    val context = LocalContext.current
+    val shelfLabel = when (book.exclusive_shelf.lowercase()) {
+        "read" -> stringResource(R.string.books_shelf_read)
+        "to-read" -> stringResource(R.string.books_shelf_to_read)
+        "currently-reading" -> stringResource(R.string.books_shelf_currently_reading)
+        else -> book.exclusive_shelf.ifBlank { stringResource(R.string.books_badge_book) }
+    }
+
+    Column(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(horizontal = 20.dp, vertical = 8.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        // Top Row: Cover + Title, Author, Badges
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(14.dp),
+            verticalAlignment = Alignment.Top
+        ) {
+            PosterThumbnail(
+                imageUrl = book.image_url,
+                fallbackIcon = Icons.AutoMirrored.Filled.MenuBook,
+                width = 72,
+                height = 104
+            )
+
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Surface(
+                        shape = M3Shapes.CornerFull,
+                        color = domainBooksContainer()
+                    ) {
+                        Text(
+                            text = shelfLabel,
+                            style = MaterialTheme.typography.labelSmallEmphasized,
+                            color = domainBooksOnContainer(),
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.5.dp)
+                        )
+                    }
+                    if (book.year_published > 0) {
+                        Surface(
+                            shape = M3Shapes.CornerFull,
+                            color = MaterialTheme.colorScheme.surfaceContainerHighest
+                        ) {
+                            Text(
+                                text = "${book.year_published}",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.padding(horizontal = 7.dp, vertical = 2.5.dp)
+                            )
+                        }
+                    }
+                }
+
+                Text(
+                    text = book.title,
+                    style = MaterialTheme.typography.titleLargeEmphasized,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+
+                if (book.author.isNotBlank()) {
+                    Text(
+                        text = book.author,
+                        style = MaterialTheme.typography.bodyMediumEmphasized,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    if (book.my_rating > 0) {
+                        RatingBadge(rating = book.my_rating)
+                    }
+                    if (book.average_rating > 0) {
+                        Text(
+                            text = "${stringResource(R.string.badge_avg)} ★ ${String.format(Locale.US, "%.2f", book.average_rating)}",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+            }
+        }
+
+        // Metadata surface if pages or date_read exist
+        if (book.number_of_pages > 0 || book.date_read.isNotBlank()) {
+            Surface(
+                shape = M3Shapes.CornerMedium,
+                color = MaterialTheme.colorScheme.surfaceContainer,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 14.dp, vertical = 10.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    if (book.number_of_pages > 0) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Filled.MenuBook,
+                                contentDescription = null,
+                                tint = domainBooksColor(),
+                                modifier = Modifier.size(16.dp)
+                            )
+                            Text(
+                                text = stringResource(R.string.books_pages, book.number_of_pages),
+                                style = MaterialTheme.typography.bodySmallEmphasized,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                        }
+                    }
+                    if (book.date_read.isNotBlank()) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.CalendarMonth,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.size(16.dp)
+                            )
+                            Text(
+                                text = book.date_read,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(4.dp))
+
+        // Actions: Copy & Close
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            OutlinedButton(
+                onClick = {
+                    val copyStr = buildString {
+                        append(book.title)
+                        if (book.author.isNotBlank()) append(" — ${book.author}")
+                        if (book.my_rating > 0) append(" (★ ${book.my_rating})")
+                    }
+                    copyToClipboard(context, book.title, copyStr)
+                },
+                shape = M3Shapes.CornerSmall,
+                modifier = Modifier
+                    .weight(1f)
+                    .height(42.dp),
+                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.ContentCopy,
+                    contentDescription = null,
+                    modifier = Modifier.size(16.dp)
+                )
+                Spacer(modifier = Modifier.width(6.dp))
+                Text(
+                    text = stringResource(R.string.notifications_copy_text),
+                    style = MaterialTheme.typography.labelLargeEmphasized,
+                    maxLines = 1,
+                    softWrap = false,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+
+            if (onClose != null) {
+                Button(
+                    onClick = onClose,
+                    shape = M3Shapes.CornerSmall,
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(42.dp),
+                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp)
+                ) {
+                    Text(
+                        text = stringResource(R.string.action_close),
+                        style = MaterialTheme.typography.labelLargeEmphasized,
+                        maxLines = 1,
+                        softWrap = false,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(12.dp))
     }
 }
 
@@ -2172,200 +2506,171 @@ fun BookDetailBottomSheet(
     book: BookDto,
     onDismiss: () -> Unit
 ) {
-    val context = LocalContext.current
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-    val shelfLabel = when (book.exclusive_shelf.lowercase()) {
-        "read" -> stringResource(R.string.books_shelf_read)
-        "to-read" -> stringResource(R.string.books_shelf_to_read)
-        "currently-reading" -> stringResource(R.string.books_shelf_currently_reading)
-        else -> book.exclusive_shelf.ifBlank { stringResource(R.string.books_badge_book) }
-    }
-
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
         shape = M3Shapes.CornerExtraLarge,
         containerColor = MaterialTheme.colorScheme.surfaceContainerLow
     ) {
+        BookDetailContent(
+            book = book,
+            onClose = onDismiss,
+            modifier = Modifier.navigationBarsPadding()
+        )
+    }
+}
+
+@Composable
+fun BookDetailPaneCard(
+    book: BookDto,
+    onClose: (() -> Unit)? = null,
+    modifier: Modifier = Modifier
+) {
+    Surface(
+        modifier = modifier.fillMaxSize(),
+        shape = M3Shapes.CornerLarge,
+        color = MaterialTheme.colorScheme.surfaceContainerLow
+    ) {
         Column(
             modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 20.dp, vertical = 8.dp)
-                .navigationBarsPadding(),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+                .fillMaxSize()
+                .verticalScroll(rememberScrollState())
         ) {
-            // Top Row: Cover + Title, Author, Badges
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(14.dp),
-                verticalAlignment = Alignment.Top
+            BookDetailContent(
+                book = book,
+                onClose = onClose
+            )
+        }
+    }
+}
+
+@Composable
+fun NotificationDetailContent(
+    notif: NotificationDto,
+    onClose: (() -> Unit)? = null,
+    modifier: Modifier = Modifier
+) {
+    val context = LocalContext.current
+    Column(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(horizontal = 20.dp, vertical = 8.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        // Header row: App Name pill, Category pill, Date/Time
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Surface(
+                shape = M3Shapes.CornerFull,
+                color = MaterialTheme.colorScheme.secondaryContainer
             ) {
-                PosterThumbnail(
-                    imageUrl = book.image_url,
-                    fallbackIcon = Icons.AutoMirrored.Filled.MenuBook,
-                    width = 72,
-                    height = 104
+                Text(
+                    text = notif.displayAppName,
+                    style = MaterialTheme.typography.labelMediumEmphasized,
+                    color = MaterialTheme.colorScheme.onSecondaryContainer,
+                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
                 )
-
-                Column(
-                    modifier = Modifier.weight(1f),
-                    verticalArrangement = Arrangement.spacedBy(6.dp)
-                ) {
-                    Row(
-                        horizontalArrangement = Arrangement.spacedBy(6.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Surface(
-                            shape = M3Shapes.CornerFull,
-                            color = domainBooksContainer()
-                        ) {
-                            Text(
-                                text = shelfLabel,
-                                style = MaterialTheme.typography.labelSmallEmphasized,
-                                color = domainBooksOnContainer(),
-                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.5.dp)
-                            )
-                        }
-                        if (book.year_published > 0) {
-                            Surface(
-                                shape = M3Shapes.CornerFull,
-                                color = MaterialTheme.colorScheme.surfaceContainerHighest
-                            ) {
-                                Text(
-                                    text = "${book.year_published}",
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    modifier = Modifier.padding(horizontal = 7.dp, vertical = 2.5.dp)
-                                )
-                            }
-                        }
-                    }
-
-                    Text(
-                        text = book.title,
-                        style = MaterialTheme.typography.titleLargeEmphasized,
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
-
-                    if (book.author.isNotBlank()) {
-                        Text(
-                            text = book.author,
-                            style = MaterialTheme.typography.bodyMediumEmphasized,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        if (book.my_rating > 0) {
-                            RatingBadge(rating = book.my_rating)
-                        }
-                        if (book.average_rating > 0) {
-                            Text(
-                                text = "${stringResource(R.string.badge_avg)} ★ ${String.format(Locale.US, "%.2f", book.average_rating)}",
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                    }
-                }
             }
-
-            // Metadata surface if pages or date_read exist
-            if (book.number_of_pages > 0 || book.date_read.isNotBlank()) {
+            if (notif.category.isNotBlank()) {
                 Surface(
-                    shape = M3Shapes.CornerMedium,
-                    color = MaterialTheme.colorScheme.surfaceContainer,
-                    modifier = Modifier.fillMaxWidth()
+                    shape = M3Shapes.CornerFull,
+                    color = MaterialTheme.colorScheme.surfaceContainerHighest
                 ) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 14.dp, vertical = 10.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        if (book.number_of_pages > 0) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(6.dp)
-                            ) {
-                                Icon(
-                                    imageVector = Icons.AutoMirrored.Filled.MenuBook,
-                                    contentDescription = null,
-                                    tint = domainBooksColor(),
-                                    modifier = Modifier.size(16.dp)
-                                )
-                                Text(
-                                    text = stringResource(R.string.books_pages, book.number_of_pages),
-                                    style = MaterialTheme.typography.bodySmallEmphasized,
-                                    color = MaterialTheme.colorScheme.onSurface
-                                )
-                            }
-                        }
-                        if (book.date_read.isNotBlank()) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(6.dp)
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.CalendarMonth,
-                                    contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    modifier = Modifier.size(16.dp)
-                                )
-                                Text(
-                                    text = book.date_read,
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
-                        }
-                    }
+                    Text(
+                        text = notif.category,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                    )
                 }
             }
+            Spacer(modifier = Modifier.weight(1f))
+            val dateTimeText = listOf(notif.formattedDate, notif.formattedTime)
+                .filter { it.isNotBlank() }
+                .joinToString(" · ")
+            if (dateTimeText.isNotBlank()) {
+                Text(
+                    text = dateTimeText,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
 
-            Spacer(modifier = Modifier.height(4.dp))
+        // Title
+        Text(
+            text = notif.displayTitle,
+            style = MaterialTheme.typography.titleMediumEmphasized,
+            color = MaterialTheme.colorScheme.onSurface
+        )
 
-            // Actions: Copy & Close
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
+        // Message Body
+        if (notif.displayBody.isNotBlank()) {
+            Text(
+                text = notif.displayBody,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+
+        // Subtext if distinct
+        if (notif.sub_text.isNotBlank() && notif.sub_text != notif.displayBody) {
+            Text(
+                text = notif.sub_text,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+
+        // Package name info
+        if (notif.package_name.isNotBlank()) {
+            Text(
+                text = "Paket: ${notif.package_name}",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+
+        Spacer(modifier = Modifier.height(4.dp))
+
+        // Actions: Copy & Close
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            OutlinedButton(
+                onClick = {
+                    val textToCopy = "${notif.displayTitle}\n${notif.displayBody}".trim()
+                    copyToClipboard(context, "Bildirim", textToCopy)
+                },
+                shape = M3Shapes.CornerSmall,
+                modifier = Modifier
+                    .weight(1f)
+                    .height(42.dp),
+                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp)
             ) {
-                OutlinedButton(
-                    onClick = {
-                        val copyStr = buildString {
-                            append(book.title)
-                            if (book.author.isNotBlank()) append(" — ${book.author}")
-                            if (book.my_rating > 0) append(" (★ ${book.my_rating})")
-                        }
-                        copyToClipboard(context, book.title, copyStr)
-                    },
-                    shape = M3Shapes.CornerSmall,
-                    modifier = Modifier
-                        .weight(1f)
-                        .height(42.dp),
-                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.ContentCopy,
-                        contentDescription = null,
-                        modifier = Modifier.size(16.dp)
-                    )
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text(
-                        text = stringResource(R.string.notifications_copy_text),
-                        style = MaterialTheme.typography.labelLargeEmphasized,
-                        maxLines = 1,
-                        softWrap = false,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                }
+                Icon(
+                    imageVector = Icons.Default.ContentCopy,
+                    contentDescription = null,
+                    modifier = Modifier.size(16.dp)
+                )
+                Spacer(modifier = Modifier.width(6.dp))
+                Text(
+                    text = stringResource(R.string.notifications_copy_text),
+                    style = MaterialTheme.typography.labelLargeEmphasized,
+                    maxLines = 1,
+                    softWrap = false,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
 
+            if (onClose != null) {
                 Button(
-                    onClick = onDismiss,
+                    onClick = onClose,
                     shape = M3Shapes.CornerSmall,
                     modifier = Modifier
                         .weight(1f)
@@ -2381,9 +2686,9 @@ fun BookDetailBottomSheet(
                     )
                 }
             }
-
-            Spacer(modifier = Modifier.height(12.dp))
         }
+
+        Spacer(modifier = Modifier.height(12.dp))
     }
 }
 
@@ -2393,7 +2698,6 @@ fun NotificationDetailBottomSheet(
     notif: NotificationDto,
     onDismiss: () -> Unit
 ) {
-    val context = LocalContext.current
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -2401,142 +2705,89 @@ fun NotificationDetailBottomSheet(
         shape = M3Shapes.CornerExtraLarge,
         containerColor = MaterialTheme.colorScheme.surfaceContainerLow
     ) {
+        NotificationDetailContent(
+            notif = notif,
+            onClose = onDismiss,
+            modifier = Modifier.navigationBarsPadding()
+        )
+    }
+}
+
+@Composable
+fun NotificationDetailPaneCard(
+    notif: NotificationDto,
+    onClose: (() -> Unit)? = null,
+    modifier: Modifier = Modifier
+) {
+    Surface(
+        modifier = modifier.fillMaxSize(),
+        shape = M3Shapes.CornerLarge,
+        color = MaterialTheme.colorScheme.surfaceContainerLow
+    ) {
         Column(
             modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 20.dp, vertical = 8.dp)
-                .navigationBarsPadding(),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+                .fillMaxSize()
+                .verticalScroll(rememberScrollState())
         ) {
-            // Header row: App Name pill, Category pill, Date/Time
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            NotificationDetailContent(
+                notif = notif,
+                onClose = onClose
+            )
+        }
+    }
+}
+
+@Composable
+fun DetailPlaceholderPane(
+    icon: ImageVector,
+    title: String,
+    subtitle: String,
+    modifier: Modifier = Modifier
+) {
+    Surface(
+        modifier = modifier.fillMaxSize(),
+        shape = M3Shapes.CornerLarge,
+        color = MaterialTheme.colorScheme.surfaceContainerLow
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(32.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center
             ) {
                 Surface(
                     shape = M3Shapes.CornerFull,
-                    color = MaterialTheme.colorScheme.secondaryContainer
+                    color = MaterialTheme.colorScheme.surfaceContainerHighest,
+                    modifier = Modifier.size(72.dp)
                 ) {
-                    Text(
-                        text = notif.displayAppName,
-                        style = MaterialTheme.typography.labelMediumEmphasized,
-                        color = MaterialTheme.colorScheme.onSecondaryContainer,
-                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
-                    )
-                }
-                if (notif.category.isNotBlank()) {
-                    Surface(
-                        shape = M3Shapes.CornerFull,
-                        color = MaterialTheme.colorScheme.surfaceContainerHighest
-                    ) {
-                        Text(
-                            text = notif.category,
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                    Box(contentAlignment = Alignment.Center) {
+                        Icon(
+                            imageVector = icon,
+                            contentDescription = null,
+                            modifier = Modifier.size(36.dp),
+                            tint = MaterialTheme.colorScheme.primary
                         )
                     }
                 }
-                Spacer(modifier = Modifier.weight(1f))
-                val dateTimeText = listOf(notif.formattedDate, notif.formattedTime)
-                    .filter { it.isNotBlank() }
-                    .joinToString(" · ")
-                if (dateTimeText.isNotBlank()) {
-                    Text(
-                        text = dateTimeText,
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-            }
-
-            // Title
-            Text(
-                text = notif.displayTitle,
-                style = MaterialTheme.typography.titleMediumEmphasized,
-                color = MaterialTheme.colorScheme.onSurface
-            )
-
-            // Message Body
-            if (notif.displayBody.isNotBlank()) {
+                Spacer(modifier = Modifier.height(16.dp))
                 Text(
-                    text = notif.displayBody,
+                    text = title,
+                    style = MaterialTheme.typography.titleMediumEmphasized,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    textAlign = TextAlign.Center
+                )
+                Spacer(modifier = Modifier.height(6.dp))
+                Text(
+                    text = subtitle,
                     style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = TextAlign.Center
                 )
             }
-
-            // Subtext if distinct
-            if (notif.sub_text.isNotBlank() && notif.sub_text != notif.displayBody) {
-                Text(
-                    text = notif.sub_text,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-
-            // Package name info
-            if (notif.package_name.isNotBlank()) {
-                Text(
-                    text = "Paket: ${notif.package_name}",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-
-            Spacer(modifier = Modifier.height(4.dp))
-
-            // Actions: Copy & Close
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                OutlinedButton(
-                    onClick = {
-                        val textToCopy = "${notif.displayTitle}\n${notif.displayBody}".trim()
-                        copyToClipboard(context, "Bildirim", textToCopy)
-                    },
-                    shape = M3Shapes.CornerSmall,
-                    modifier = Modifier
-                        .weight(1f)
-                        .height(42.dp),
-                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.ContentCopy,
-                        contentDescription = null,
-                        modifier = Modifier.size(16.dp)
-                    )
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text(
-                        text = stringResource(R.string.notifications_copy_text),
-                        style = MaterialTheme.typography.labelLargeEmphasized,
-                        maxLines = 1,
-                        softWrap = false,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                }
-
-                Button(
-                    onClick = onDismiss,
-                    shape = M3Shapes.CornerSmall,
-                    modifier = Modifier
-                        .weight(1f)
-                        .height(42.dp),
-                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp)
-                ) {
-                    Text(
-                        text = stringResource(R.string.action_close),
-                        style = MaterialTheme.typography.labelLargeEmphasized,
-                        maxLines = 1,
-                        softWrap = false,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.height(12.dp))
         }
     }
 }

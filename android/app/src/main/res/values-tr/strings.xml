@@ -345,5 +345,7 @@
     <string name="settings_health_step_1">1. Health Connect Webhook APK\'sını kurun ve Health Connect okuma izinlerini verin.</string>
     <string name="settings_health_step_2">2. Uygulama içindeki Webhook URL alanına yukarıdaki hedef URL\'yi yapıştırın.</string>
     <string name="settings_health_step_3">3. Eşitleme sıklığını seçip \'Sync Now\' butonuna basın. Sağlık verileriniz otomatik işlenecektir.</string>
+    <string name="adaptive_select_item_title">Bir Öğe Seçin</string>
+    <string name="adaptive_select_item_subtitle">Detaylarını ve eylemlerini burada görüntülemek için listeden bir öğe seçin.</string>
 </resources>
 

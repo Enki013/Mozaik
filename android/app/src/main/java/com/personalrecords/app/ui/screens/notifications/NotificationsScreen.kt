@@ -54,6 +54,7 @@ fun NotificationsScreen(
     var showDatePicker by remember { mutableStateOf(false) }
     val configuration = LocalConfiguration.current
     val isWideScreen = configuration.screenWidthDp >= 600
+    val isTwoPane = configuration.screenWidthDp >= 840
     val scrollBehavior = TopAppBarDefaults.enterAlwaysScrollBehavior(rememberTopAppBarState())
 
     if (showDatePicker) {
@@ -119,17 +120,17 @@ fun NotificationsScreen(
         ) {
             val appList = state.appList
             val gridState = rememberLazyGridState()
-
-            LazyVerticalGrid(
-                columns = if (isWideScreen) GridCells.Adaptive(minSize = 340.dp) else GridCells.Fixed(1),
-                state = gridState,
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(horizontal = 12.dp),
-                contentPadding = PaddingValues(top = 10.dp, bottom = if (isWideScreen) 32.dp else 144.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalArrangement = Arrangement.spacedBy(if (isWideScreen) 8.dp else 0.dp)
-            ) {
+            val listContent: @Composable () -> Unit = {
+                LazyVerticalGrid(
+                    columns = if (isWideScreen) GridCells.Adaptive(minSize = 340.dp) else GridCells.Fixed(1),
+                    state = gridState,
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(horizontal = 12.dp),
+                    contentPadding = PaddingValues(top = 10.dp, bottom = if (isWideScreen) 32.dp else 144.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(if (isWideScreen) 8.dp else 0.dp)
+                ) {
                 // Stats Row
                 item(key = "notifications_stats_row", span = { GridItemSpan(maxLineSpan) }, contentType = "stats_row") {
                     val total = state.notifications.size
@@ -411,13 +412,53 @@ fun NotificationsScreen(
                 item(key = "notifications_bottom_spacer", span = { GridItemSpan(maxLineSpan) }, contentType = "spacer") { Spacer(modifier = Modifier.height(20.dp)) }
             }
         }
-    }
 
-    selectedNotification?.let { notif ->
-        NotificationDetailBottomSheet(
-            notif = notif,
-            onDismiss = { selectedNotification = null }
-        )
+        if (isTwoPane) {
+            Row(modifier = Modifier.fillMaxSize()) {
+                Box(
+                    modifier = Modifier
+                        .weight(1.15f)
+                        .fillMaxHeight()
+                ) {
+                    listContent()
+                }
+                VerticalDivider(
+                    modifier = Modifier.fillMaxHeight(),
+                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+                )
+                Box(
+                    modifier = Modifier
+                        .weight(0.85f)
+                        .fillMaxHeight()
+                        .padding(top = 10.dp, end = 12.dp, bottom = 32.dp)
+                ) {
+                    if (selectedNotification != null) {
+                        NotificationDetailPaneCard(
+                            notif = selectedNotification!!,
+                            onClose = { selectedNotification = null }
+                        )
+                    } else {
+                        DetailPlaceholderPane(
+                            icon = Icons.Default.Notifications,
+                            title = stringResource(R.string.adaptive_select_item_title),
+                            subtitle = stringResource(R.string.adaptive_select_item_subtitle)
+                        )
+                    }
+                }
+            }
+        } else {
+            listContent()
+        }
+    }
+}
+
+if (!isTwoPane) {
+        selectedNotification?.let { notif ->
+            NotificationDetailBottomSheet(
+                notif = notif,
+                onDismiss = { selectedNotification = null }
+            )
+        }
     }
 }
 

@@ -60,7 +60,9 @@ fun BooksScreen(
     }
 
     val scrollBehavior = TopAppBarDefaults.enterAlwaysScrollBehavior(rememberTopAppBarState())
-    val isWideScreen = LocalConfiguration.current.screenWidthDp >= 600
+    val configuration = LocalConfiguration.current
+    val isWideScreen = configuration.screenWidthDp >= 600
+    val isTwoPane = configuration.screenWidthDp >= 840
     val gridState = rememberLazyGridState()
 
     Scaffold(
@@ -106,13 +108,14 @@ fun BooksScreen(
                 .fillMaxSize()
                 .padding(innerPadding)
         ) {
-            LazyVerticalGrid(
-                columns = if (isWideScreen) GridCells.Adaptive(minSize = 340.dp) else GridCells.Fixed(1),
-                state = gridState,
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(horizontal = 12.dp),
-                contentPadding = PaddingValues(top = 10.dp, bottom = if (isWideScreen) 32.dp else 144.dp),
+            val listContent: @Composable () -> Unit = {
+                LazyVerticalGrid(
+                    columns = if (isWideScreen) GridCells.Adaptive(minSize = 340.dp) else GridCells.Fixed(1),
+                    state = gridState,
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(horizontal = 12.dp),
+                    contentPadding = PaddingValues(top = 10.dp, bottom = if (isWideScreen) 32.dp else 144.dp),
                 horizontalArrangement = if (isWideScreen) Arrangement.spacedBy(8.dp) else Arrangement.Start,
                 verticalArrangement = if (isWideScreen) Arrangement.spacedBy(8.dp) else Arrangement.Top
             ) {
@@ -382,13 +385,53 @@ fun BooksScreen(
                 item(key = "books_bottom_spacer", span = { GridItemSpan(maxLineSpan) }, contentType = "spacer") { Spacer(modifier = Modifier.height(20.dp)) }
             }
         }
-    }
 
-    selectedBook?.let { book ->
-        BookDetailBottomSheet(
-            book = book,
-            onDismiss = { selectedBook = null }
-        )
+        if (isTwoPane) {
+            Row(modifier = Modifier.fillMaxSize()) {
+                Box(
+                    modifier = Modifier
+                        .weight(1.15f)
+                        .fillMaxHeight()
+                ) {
+                    listContent()
+                }
+                VerticalDivider(
+                    modifier = Modifier.fillMaxHeight(),
+                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+                )
+                Box(
+                    modifier = Modifier
+                        .weight(0.85f)
+                        .fillMaxHeight()
+                        .padding(top = 10.dp, end = 12.dp, bottom = 32.dp)
+                ) {
+                    if (selectedBook != null) {
+                        BookDetailPaneCard(
+                            book = selectedBook!!,
+                            onClose = { selectedBook = null }
+                        )
+                    } else {
+                        DetailPlaceholderPane(
+                            icon = Icons.AutoMirrored.Filled.MenuBook,
+                            title = stringResource(R.string.adaptive_select_item_title),
+                            subtitle = stringResource(R.string.adaptive_select_item_subtitle)
+                        )
+                    }
+                }
+            }
+        } else {
+            listContent()
+        }
+    }
+}
+
+if (!isTwoPane) {
+        selectedBook?.let { book ->
+            BookDetailBottomSheet(
+                book = book,
+                onDismiss = { selectedBook = null }
+            )
+        }
     }
 }
 

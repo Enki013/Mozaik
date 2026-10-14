@@ -345,5 +345,7 @@
     <string name="settings_health_step_1">1. Install the Health Connect Webhook APK and grant Health Connect read permissions.</string>
     <string name="settings_health_step_2">2. Paste the target webhook URL above into the Webhook URL field in the app.</string>
     <string name="settings_health_step_3">3. Choose your sync interval and tap \'Sync Now\'. Your health records will appear automatically.</string>
+    <string name="adaptive_select_item_title">Select an Item</string>
+    <string name="adaptive_select_item_subtitle">Choose an item from the list to view its complete details here.</string>
 </resources>
 
