@@ -99,11 +99,14 @@ fun RecordsScreen(
 
                 // Section 1: Sağlık & Yaşam
                 item(key = "records_header_health", contentType = "section_header") {
-                    SectionTitle(title = stringResource(R.string.records_section_health))
+                    SectionTitle(
+                        title = stringResource(R.string.records_section_health),
+                        modifier = expressiveItemModifier()
+                    )
                 }
                 item(key = "records_card_health", contentType = "section_card") {
                     Card(
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = expressiveItemModifier().fillMaxWidth(),
                         shape = M3Shapes.CornerLarge,
                         colors = CardDefaults.cardColors(
                             containerColor = MaterialTheme.colorScheme.surfaceContainerLow
@@ -143,11 +146,14 @@ fun RecordsScreen(
 
                 // Section 2: Kültür & Medya
                 item(key = "records_header_media", contentType = "section_header") {
-                    SectionTitle(title = stringResource(R.string.records_section_media))
+                    SectionTitle(
+                        title = stringResource(R.string.records_section_media),
+                        modifier = expressiveItemModifier()
+                    )
                 }
                 item(key = "records_card_media", contentType = "section_card") {
                     Card(
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = expressiveItemModifier().fillMaxWidth(),
                         shape = M3Shapes.CornerLarge,
                         colors = CardDefaults.cardColors(
                             containerColor = MaterialTheme.colorScheme.surfaceContainerLow
@@ -200,11 +206,14 @@ fun RecordsScreen(
 
                 // Section 3: Sistem & Cihaz
                 item(key = "records_header_system", contentType = "section_header") {
-                    SectionTitle(title = stringResource(R.string.records_section_system))
+                    SectionTitle(
+                        title = stringResource(R.string.records_section_system),
+                        modifier = expressiveItemModifier()
+                    )
                 }
                 item(key = "records_card_system", contentType = "section_card") {
                     Card(
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = expressiveItemModifier().fillMaxWidth(),
                         shape = M3Shapes.CornerLarge,
                         colors = CardDefaults.cardColors(
                             containerColor = MaterialTheme.colorScheme.surfaceContainerLow
@@ -230,12 +239,15 @@ fun RecordsScreen(
 }
 
 @Composable
-private fun SectionTitle(title: String) {
+private fun SectionTitle(
+    title: String,
+    modifier: Modifier = Modifier
+) {
     Text(
         text = title,
         style = MaterialTheme.typography.labelLargeEmphasized,
         color = MaterialTheme.colorScheme.primary,
-        modifier = Modifier.padding(start = 4.dp, top = 6.dp, bottom = 2.dp)
+        modifier = modifier.padding(start = 4.dp, top = 6.dp, bottom = 2.dp)
     )
 }
 

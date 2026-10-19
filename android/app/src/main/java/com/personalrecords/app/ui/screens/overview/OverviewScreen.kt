@@ -108,8 +108,9 @@ fun OverviewScreen(
                                 shape = M3Shapes.CornerMedium,
                                 color = MaterialTheme.colorScheme.errorContainer,
                                 contentColor = MaterialTheme.colorScheme.onErrorContainer,
-                                modifier = Modifier
+                                modifier = expressiveItemModifier()
                                     .fillMaxWidth()
+                                    .expressiveShake(trigger = state.error)
                                     .then(
                                         if (onNavigateToSettings != null) {
                                             Modifier.clickable { onNavigateToSettings() }
@@ -157,7 +158,10 @@ fun OverviewScreen(
                     val filmsCount = counts["letterboxd_films"] ?: counts["films"] ?: 0
                     val foodsCount = counts["fatsecret_food_entries"] ?: counts["foods"] ?: 0
 
-                    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Column(
+                        modifier = expressiveItemModifier(),
+                        verticalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
                         Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                             MetricCard(
                                 title = stringResource(R.string.overview_metric_today_calories),
@@ -208,7 +212,9 @@ fun OverviewScreen(
                 // Entegrasyonlar Card
                 item(key = "overview_integrations", contentType = "integrations") {
                     Card(
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = expressiveItemModifier()
+                            .fillMaxWidth()
+                            .expressiveSuccessPop(trigger = state.syncMessage),
                         shape = M3Shapes.CornerLarge,
                         colors = CardDefaults.cardColors(
                             containerColor = MaterialTheme.colorScheme.surfaceContainerLow
@@ -267,7 +273,7 @@ fun OverviewScreen(
                 // Son Aktiviteler Grouped Card (M3 Pattern aligned with RecordsScreen)
                 item(key = "overview_recent_activities", contentType = "recent_activities") {
                     Card(
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = expressiveItemModifier().fillMaxWidth(),
                         shape = M3Shapes.CornerLarge,
                         colors = CardDefaults.cardColors(
                             containerColor = MaterialTheme.colorScheme.surfaceContainerLow

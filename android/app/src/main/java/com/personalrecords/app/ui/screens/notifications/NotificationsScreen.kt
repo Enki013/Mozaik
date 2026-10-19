@@ -386,7 +386,7 @@ fun NotificationsScreen(
                     ) { index, notif ->
                         if (isWideScreen) {
                             Surface(
-                                modifier = Modifier.fillMaxWidth(),
+                                modifier = expressiveItemModifier().fillMaxWidth(),
                                 shape = M3Shapes.CornerMedium,
                                 color = MaterialTheme.colorScheme.surfaceContainerLow
                             ) {
@@ -398,7 +398,8 @@ fun NotificationsScreen(
                         } else {
                             LazyCardRowContainer(
                                 index = index,
-                                totalCount = state.filteredNotifications.size
+                                totalCount = state.filteredNotifications.size,
+                                modifier = expressiveItemModifier()
                             ) {
                                 NotificationRowItem(
                                     notification = notif,

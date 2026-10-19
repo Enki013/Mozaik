@@ -347,15 +347,22 @@ fun TimelineScreen(
                     ) { entry ->
                         when (entry) {
                             is TimelineFlatEntry.DayHeader -> {
-                                TimelineDayHeaderItem(entry = entry)
+                                TimelineDayHeaderItem(
+                                    entry = entry,
+                                    modifier = expressiveItemModifier()
+                                )
                             }
                             is TimelineFlatEntry.SectionHeader -> {
-                                TimelineSectionHeaderItem(entry = entry)
+                                TimelineSectionHeaderItem(
+                                    entry = entry,
+                                    modifier = expressiveItemModifier()
+                                )
                             }
                             is TimelineFlatEntry.ActivityRow -> {
                                 TimelineActivityRowItem(
                                     entry = entry,
-                                    onItemClick = onActivityClick
+                                    onItemClick = onActivityClick,
+                                    modifier = expressiveItemModifier()
                                 )
                             }
                         }
@@ -379,13 +386,14 @@ fun TimelineScreen(
 
 @Composable
 private fun TimelineDayHeaderItem(
-    entry: TimelineFlatEntry.DayHeader
+    entry: TimelineFlatEntry.DayHeader,
+    modifier: Modifier = Modifier
 ) {
     val isOnlyFood = !entry.hasMultipleSections && entry.singleSource == "fatsecret"
     val shape = if (entry.isLastInDay) M3Shapes.CornerLarge else DayCardTopShape
 
     Surface(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
             .then(if (entry.isLastInDay) Modifier.padding(bottom = 8.dp) else Modifier),
         shape = shape,
@@ -486,10 +494,11 @@ private fun TimelineDayHeaderItem(
 
 @Composable
 private fun TimelineSectionHeaderItem(
-    entry: TimelineFlatEntry.SectionHeader
+    entry: TimelineFlatEntry.SectionHeader,
+    modifier: Modifier = Modifier
 ) {
     Surface(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = modifier.fillMaxWidth(),
         shape = DayCardMiddleShape,
         color = MaterialTheme.colorScheme.surfaceContainerLow
     ) {
@@ -627,12 +636,13 @@ private fun TimelineSectionHeaderItem(
 @Composable
 private fun TimelineActivityRowItem(
     entry: TimelineFlatEntry.ActivityRow,
-    onItemClick: (ActivityItemDto) -> Unit
+    onItemClick: (ActivityItemDto) -> Unit,
+    modifier: Modifier = Modifier
 ) {
     val shape = if (entry.isLastInDay) DayCardBottomShape else DayCardMiddleShape
 
     Surface(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
             .then(if (entry.isLastInDay) Modifier.padding(bottom = 8.dp) else Modifier),
         shape = shape,

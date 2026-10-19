@@ -359,7 +359,7 @@ fun BooksScreen(
                     ) { index, book ->
                         if (isWideScreen) {
                             Surface(
-                                modifier = Modifier.fillMaxWidth(),
+                                modifier = expressiveItemModifier().fillMaxWidth(),
                                 shape = M3Shapes.CornerMedium,
                                 color = MaterialTheme.colorScheme.surfaceContainerLow
                             ) {
@@ -371,7 +371,8 @@ fun BooksScreen(
                         } else {
                             LazyCardRowContainer(
                                 index = index,
-                                totalCount = state.filteredBooks.size
+                                totalCount = state.filteredBooks.size,
+                                modifier = expressiveItemModifier()
                             ) {
                                 BookRowItem(
                                     book = book,

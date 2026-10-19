@@ -11,11 +11,14 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.PressInteraction
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyItemScope
 import androidx.compose.foundation.lazy.LazyListState
+import androidx.compose.foundation.lazy.grid.LazyGridItemScope
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.*
 import androidx.compose.material3.ripple
 import androidx.compose.runtime.Composable
+import com.personalrecords.app.core.theme.LocalReducedMotion
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
@@ -1291,6 +1294,134 @@ private class ExpressivePressScaleNode(
         }
     }
 }
+
+/**
+ * MD3 Expressive Error Shake Modifier.
+ *
+ * Simulates physical error feedback via damped horizontal oscillation (±24px, ~320ms)
+ * combined with system haptic feedback.
+ * When Reduced Motion is enabled, respects accessibility by replacing spatial translation with an opacity pulse.
+ */
+@Composable
+fun Modifier.expressiveShake(
+    trigger: Any?,
+    amplitudePx: Float = 24f,
+    enabled: Boolean = true
+): Modifier {
+    if (!enabled) return this
+    val haptic = LocalHapticFeedback.current
+    val isReducedMotion = LocalReducedMotion.current
+    val animOffset = remember { Animatable(0f) }
+    val animAlpha = remember { Animatable(1f) }
+
+    LaunchedEffect(trigger) {
+        if (trigger != null && trigger != false && trigger != "") {
+            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+            if (isReducedMotion) {
+                // Non-spatial fallback: subtle opacity pulse
+                animAlpha.snapTo(1f)
+                animAlpha.animateTo(
+                    targetValue = 0.5f,
+                    animationSpec = tween(durationMillis = 100, easing = LinearEasing)
+                )
+                animAlpha.animateTo(
+                    targetValue = 1f,
+                    animationSpec = tween(durationMillis = 150, easing = LinearEasing)
+                )
+            } else {
+                animOffset.snapTo(0f)
+                animOffset.animateTo(
+                    targetValue = 0f,
+                    animationSpec = keyframes {
+                        durationMillis = 320
+                        0f at 0
+                        -amplitudePx at 50 using FastOutLinearInEasing
+                        amplitudePx * 0.7f at 110 using FastOutSlowInEasing
+                        -amplitudePx * 0.45f at 170 using FastOutSlowInEasing
+                        amplitudePx * 0.2f at 230 using FastOutSlowInEasing
+                        -amplitudePx * 0.08f at 280 using FastOutSlowInEasing
+                        0f at 320 using LinearOutSlowInEasing
+                    }
+                )
+            }
+        }
+    }
+
+    return this.graphicsLayer {
+        if (isReducedMotion) {
+            alpha = animAlpha.value
+        } else {
+            translationX = animOffset.value
+        }
+    }
+}
+
+/**
+ * MD3 Expressive Success Pop Modifier.
+ *
+ * Implements a celebratory scale pop (1.0f -> 1.12f -> 1.0f) using
+ * [M3ExpressiveMotion.fastSpatial] overshoot spring.
+ * Enhances dopamine loop upon sync completion or action confirmation.
+ * Respects Reduced Motion by skipping spatial scale.
+ */
+@Composable
+fun Modifier.expressiveSuccessPop(
+    trigger: Any?,
+    maxScale: Float = 1.12f,
+    enabled: Boolean = true
+): Modifier {
+    if (!enabled) return this
+    val haptic = LocalHapticFeedback.current
+    val isReducedMotion = LocalReducedMotion.current
+    val scaleAnim = remember { Animatable(1f) }
+
+    LaunchedEffect(trigger) {
+        if (trigger != null && trigger != false && trigger != "") {
+            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+            if (isReducedMotion) {
+                scaleAnim.snapTo(1f)
+            } else {
+                scaleAnim.snapTo(1f)
+                scaleAnim.animateTo(
+                    targetValue = maxScale,
+                    animationSpec = tween(durationMillis = 90, easing = FastOutSlowInEasing)
+                )
+                scaleAnim.animateTo(
+                    targetValue = 1f,
+                    animationSpec = M3ExpressiveMotion.fastSpatial()
+                )
+            }
+        }
+    }
+
+    return this.graphicsLayer {
+        if (!isReducedMotion) {
+            val s = scaleAnim.value
+            scaleX = s
+            scaleY = s
+        }
+    }
+}
+
+/**
+ * MD3 Expressive physics for lazy list item placement and appearance.
+ */
+fun LazyItemScope.expressiveItemModifier(
+    modifier: Modifier = Modifier
+): Modifier = modifier.animateItem(
+    fadeInSpec = M3ExpressiveMotion.fastEffects(),
+    placementSpec = M3ExpressiveMotion.defaultSpatial()
+)
+
+/**
+ * MD3 Expressive physics for lazy grid item placement and appearance.
+ */
+fun LazyGridItemScope.expressiveItemModifier(
+    modifier: Modifier = Modifier
+): Modifier = modifier.animateItem(
+    fadeInSpec = M3ExpressiveMotion.fastEffects(),
+    placementSpec = M3ExpressiveMotion.defaultSpatial()
+)
 
 /**
  * MD3 Expressive spring scroll to top extension for [LazyListState].

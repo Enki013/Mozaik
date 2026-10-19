@@ -607,7 +607,7 @@ fun NutritionScreen(
                 ) { index, food ->
                     if (isWideScreen) {
                         Surface(
-                            modifier = Modifier.fillMaxWidth(),
+                            modifier = expressiveItemModifier().fillMaxWidth(),
                             shape = M3Shapes.CornerMedium,
                             color = MaterialTheme.colorScheme.surfaceContainerLow
                         ) {
@@ -619,7 +619,8 @@ fun NutritionScreen(
                     } else {
                         LazyCardRowContainer(
                             index = index,
-                            totalCount = state.filteredFoods.size
+                            totalCount = state.filteredFoods.size,
+                            modifier = expressiveItemModifier()
                         ) {
                             FoodEntryRowItem(
                                 item = food,

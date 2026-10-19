@@ -9,11 +9,16 @@ import androidx.compose.material3.dynamicDarkColorScheme
 import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
+
+val LocalReducedMotion = staticCompositionLocalOf { false }
 
 // ==========================================
 // Material Design 3 Color Schemes
@@ -118,12 +123,29 @@ fun PersonalRecordsTheme(
         }
     }
 
-    MaterialTheme(
-        colorScheme = colorScheme,
-        typography = Typography,
-        shapes = Shapes,
-        content = content
-    )
+    val context = LocalContext.current
+    val isReducedMotion = remember(context) {
+        try {
+            android.provider.Settings.Global.getFloat(
+                context.contentResolver,
+                android.provider.Settings.Global.ANIMATOR_DURATION_SCALE,
+                1f
+            ) == 0f
+        } catch (_: Exception) {
+            false
+        }
+    }
+
+    CompositionLocalProvider(
+        LocalReducedMotion provides isReducedMotion
+    ) {
+        MaterialTheme(
+            colorScheme = colorScheme,
+            typography = Typography,
+            shapes = Shapes,
+            content = content
+        )
+    }
 }
 
 // ==========================================
@@ -264,6 +286,9 @@ object M3ExpressiveMotion {
             stiffness = SLOW_EFFECTS_STIFFNESS,
             visibilityThreshold = visibilityThreshold
         )
+
+    @Composable
+    fun isReducedMotion(): Boolean = LocalReducedMotion.current
 }
 
 

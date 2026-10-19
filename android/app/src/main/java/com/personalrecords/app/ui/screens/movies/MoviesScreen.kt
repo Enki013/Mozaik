@@ -384,7 +384,7 @@ fun MoviesScreen(
                     ) { index, film ->
                         if (isWideScreen) {
                             Surface(
-                                modifier = Modifier.fillMaxWidth(),
+                                modifier = expressiveItemModifier().fillMaxWidth(),
                                 shape = M3Shapes.CornerMedium,
                                 color = MaterialTheme.colorScheme.surfaceContainerLow
                             ) {
@@ -396,7 +396,8 @@ fun MoviesScreen(
                         } else {
                             LazyCardRowContainer(
                                 index = index,
-                                totalCount = state.filteredFilms.size
+                                totalCount = state.filteredFilms.size,
+                                modifier = expressiveItemModifier()
                             ) {
                                 FilmRowItem(
                                     film = film,
