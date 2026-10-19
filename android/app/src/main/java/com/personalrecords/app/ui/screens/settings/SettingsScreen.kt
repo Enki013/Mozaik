@@ -308,7 +308,6 @@ fun SettingsScreen(
                                     modifier = Modifier
                                         .padding(start = 8.dp)
                                         .expressiveShake(trigger = if (!ok) state.connectionSuccess else null)
-                                        .expressiveSuccessPop(trigger = if (ok) state.connectionSuccess else null)
                                 ) {
                                     Row(
                                         verticalAlignment = Alignment.CenterVertically,
