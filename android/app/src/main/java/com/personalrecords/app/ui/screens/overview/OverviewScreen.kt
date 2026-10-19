@@ -212,9 +212,7 @@ fun OverviewScreen(
                 // Entegrasyonlar Card
                 item(key = "overview_integrations", contentType = "integrations") {
                     Card(
-                        modifier = expressiveItemModifier()
-                            .fillMaxWidth()
-                            .expressiveSuccessPop(trigger = state.syncMessage),
+                        modifier = expressiveItemModifier().fillMaxWidth(),
                         shape = M3Shapes.CornerLarge,
                         colors = CardDefaults.cardColors(
                             containerColor = MaterialTheme.colorScheme.surfaceContainerLow
