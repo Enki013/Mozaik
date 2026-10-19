@@ -7,24 +7,67 @@
     <group
         android:pivotX="54"
         android:pivotY="54">
-        <!-- Back Container Card -->
+        <!-- Elevated Rim / Soft Base Shadow -->
         <path
-            android:fillColor="#2D3A4B"
-            android:pathData="M37,33 h34 c3.3,0 6,2.7 6,6 v34 c0,3.3 -2.7,6 -6,6 h-34 c-3.3,0 -6,-2.7 -6,-6 v-34 c0,-3.3 2.7,-6 6,-6 z" />
-        <!-- Front Active Card -->
+            android:fillColor="#E2E8F0"
+            android:pathData="M 54,24.50 A 29.50,29.50 0 1,0 54,83.50 A 29.50,29.50 0 1,0 54,24.50 Z" />
+
+        <!-- Vinyl Record Disc Body -->
         <path
-            android:fillColor="#90CAF9"
-            android:pathData="M41,37 h30 c2.2,0 4,1.8 4,4 v30 c0,2.2 -1.8,4 -4,4 h-30 c-2.2,0 -4,-1.8 -4,-4 v-30 c0,-2.2 1.8,-4 4,-4 z" />
-        <!-- Health Pulse Track -->
+            android:fillColor="#0F172A"
+            android:pathData="M 54,25.50 A 28.50,28.50 0 1,0 54,82.50 A 28.50,28.50 0 1,0 54,25.50 Z" />
+
+        <!-- Outer Vinyl Groove Track -->
         <path
-            android:strokeColor="#0A1828"
-            android:strokeWidth="2.8"
+            android:strokeColor="#1E293B"
+            android:strokeWidth="1.2"
+            android:pathData="M 54,29.50 A 24.50,24.50 0 1,0 54,78.50 A 24.50,24.50 0 1,0 54,29.50 Z" />
+
+        <!-- 4 Domain Pillar Capsule Arcs -->
+        <!-- Health Connect (Rose / Coral) - Top-Right -->
+        <path
+            android:strokeColor="#FB7185"
+            android:strokeWidth="5.2"
             android:strokeLineCap="round"
-            android:strokeLineJoin="round"
-            android:pathData="M45,55 h4.5 l3,-6 l4.5,13 l3,-8 l2.5,2 h5" />
-        <!-- Star Accent Dot -->
+            android:pathData="M 61.12,36.38 A 19.00,19.00 0 0 1 71.62,46.88" />
+
+        <!-- Goodreads Books (Warm Amber) - Bottom-Right -->
         <path
-            android:fillColor="#FFD54F"
-            android:pathData="M66,43 a2.5,2.5 0 1,0 0.001,0 Z" />
+            android:strokeColor="#FBBF24"
+            android:strokeWidth="5.2"
+            android:strokeLineCap="round"
+            android:pathData="M 71.62,61.12 A 19.00,19.00 0 0 1 61.12,71.62" />
+
+        <!-- FatSecret Nutrition (Emerald / Mint) - Bottom-Left -->
+        <path
+            android:strokeColor="#34D399"
+            android:strokeWidth="5.2"
+            android:strokeLineCap="round"
+            android:pathData="M 46.88,71.62 A 19.00,19.00 0 0 1 36.38,61.12" />
+
+        <!-- Letterboxd Cinema (Electric Indigo) - Top-Left -->
+        <path
+            android:strokeColor="#818CF8"
+            android:strokeWidth="5.2"
+            android:strokeLineCap="round"
+            android:pathData="M 36.38,46.88 A 19.00,19.00 0 0 1 46.88,36.38" />
+
+        <!-- Inner Vinyl Groove Track -->
+        <path
+            android:strokeColor="#1E293B"
+            android:strokeWidth="1.0"
+            android:pathData="M 54,41.00 A 13.00,13.00 0 1,0 54,67.00 A 13.00,13.00 0 1,0 54,41.00 Z" />
+
+        <!-- Center Spindle Hub -->
+        <path
+            android:fillColor="#1E293B"
+            android:strokeColor="#334155"
+            android:strokeWidth="0.8"
+            android:pathData="M 54,44.50 A 9.50,9.50 0 1,0 54,63.50 A 9.50,9.50 0 1,0 54,44.50 Z" />
+
+        <!-- Milestone Sparkle Star (✦) -->
+        <path
+            android:fillColor="#FFFFFF"
+            android:pathData="M 54,46.80 Q 54,54 61.20,54 Q 54,54 54,61.20 Q 54,54 46.80,54 Q 54,54 54,46.80 Z" />
     </group>
 </vector>
