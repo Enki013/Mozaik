@@ -2973,50 +2973,85 @@ fun HealthRecordDetailBottomSheet(
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Column(
-                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
-                        verticalArrangement = Arrangement.spacedBy(6.dp)
+                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
+                        verticalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
                         if (record.start_time.isNotBlank()) {
                             val startFormatted = record.start_time.replace('T', ' ').take(19)
                             val endFormatted = record.end_time.replace('T', ' ').take(19)
-                            val windowStr = if (endFormatted.isNotBlank() && endFormatted != startFormatted) {
-                                "$startFormatted → $endFormatted"
-                            } else {
-                                startFormatted
+                            val windowStr = when {
+                                startFormatted.isBlank() -> endFormatted
+                                endFormatted.isBlank() || endFormatted == startFormatted -> startFormatted
+                                startFormatted.take(10) == endFormatted.take(10) -> {
+                                    val date = startFormatted.take(10)
+                                    val startTime = startFormatted.drop(11)
+                                    val endTime = endFormatted.drop(11)
+                                    "$date · $startTime → $endTime"
+                                }
+                                else -> "$startFormatted → $endFormatted"
                             }
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
+                                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                                verticalAlignment = Alignment.Top
                             ) {
-                                Text(
-                                    text = stringResource(R.string.health_detail_time_range),
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                Icon(
+                                    imageVector = Icons.Default.Schedule,
+                                    contentDescription = null,
+                                    modifier = Modifier
+                                        .size(16.dp)
+                                        .padding(top = 2.dp),
+                                    tint = MaterialTheme.colorScheme.primary
                                 )
-                                Text(
-                                    text = windowStr,
-                                    style = MaterialTheme.typography.labelSmallEmphasized,
-                                    color = MaterialTheme.colorScheme.onSurface
-                                )
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = stringResource(R.string.health_detail_time_range),
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                    Spacer(modifier = Modifier.height(2.dp))
+                                    Text(
+                                        text = windowStr,
+                                        style = MaterialTheme.typography.bodySmallEmphasized,
+                                        color = MaterialTheme.colorScheme.onSurface
+                                    )
+                                }
                             }
                         }
+
+                        if (record.start_time.isNotBlank() && record.data_origin.isNotBlank()) {
+                            HorizontalDivider(
+                                color = MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.6f)
+                            )
+                        }
+
                         if (record.data_origin.isNotBlank()) {
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
+                                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                                verticalAlignment = Alignment.Top
                             ) {
-                                Text(
-                                    text = stringResource(R.string.health_detail_source),
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                Icon(
+                                    imageVector = Icons.Default.Apps,
+                                    contentDescription = null,
+                                    modifier = Modifier
+                                        .size(16.dp)
+                                        .padding(top = 2.dp),
+                                    tint = MaterialTheme.colorScheme.primary
                                 )
-                                Text(
-                                    text = record.data_origin,
-                                    style = MaterialTheme.typography.labelSmallEmphasized,
-                                    color = MaterialTheme.colorScheme.onSurface
-                                )
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = stringResource(R.string.health_detail_source),
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                    Spacer(modifier = Modifier.height(2.dp))
+                                    Text(
+                                        text = record.data_origin,
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurface
+                                    )
+                                }
                             }
                         }
                     }
