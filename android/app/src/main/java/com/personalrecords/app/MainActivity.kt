@@ -283,26 +283,60 @@ fun MainAppHost() {
                 val target = targetState.destination.route
                 if (target in detailSubRoutes) {
                     slideInHorizontally(
-                        initialOffsetX = { (it * 0.18f).toInt() },
-                        animationSpec = M3ExpressiveMotion.defaultSpatial()
-                    ) + fadeIn(animationSpec = M3ExpressiveMotion.defaultEffects())
+                        initialOffsetX = { fullWidth -> fullWidth },
+                        animationSpec = androidx.compose.animation.core.spring(
+                            dampingRatio = 0.85f,
+                            stiffness = 380f,
+                            visibilityThreshold = androidx.compose.ui.unit.IntOffset.VisibilityThreshold
+                        )
+                    )
                 } else {
                     EnterTransition.None
                 }
             },
             exitTransition = {
-                ExitTransition.None
+                val initial = initialState.destination.route
+                val target = targetState.destination.route
+                if (initial in detailSubRoutes && target in detailSubRoutes) {
+                    slideOutHorizontally(
+                        targetOffsetX = { fullWidth -> -(fullWidth * 0.25f).toInt() },
+                        animationSpec = androidx.compose.animation.core.spring(
+                            dampingRatio = androidx.compose.animation.core.Spring.DampingRatioNoBouncy,
+                            stiffness = 400f,
+                            visibilityThreshold = androidx.compose.ui.unit.IntOffset.VisibilityThreshold
+                        )
+                    )
+                } else {
+                    ExitTransition.None
+                }
             },
             popEnterTransition = {
-                EnterTransition.None
+                val initial = initialState.destination.route
+                val target = targetState.destination.route
+                if (initial in detailSubRoutes && target in detailSubRoutes) {
+                    slideInHorizontally(
+                        initialOffsetX = { fullWidth -> -(fullWidth * 0.25f).toInt() },
+                        animationSpec = androidx.compose.animation.core.spring(
+                            dampingRatio = 0.85f,
+                            stiffness = 380f,
+                            visibilityThreshold = androidx.compose.ui.unit.IntOffset.VisibilityThreshold
+                        )
+                    )
+                } else {
+                    EnterTransition.None
+                }
             },
             popExitTransition = {
                 val initial = initialState.destination.route
                 if (initial in detailSubRoutes) {
-                    scaleOut(
-                        targetScale = 0.94f,
-                        animationSpec = M3ExpressiveMotion.fastSpatial()
-                    ) + fadeOut(animationSpec = M3ExpressiveMotion.fastEffects())
+                    slideOutHorizontally(
+                        targetOffsetX = { fullWidth -> fullWidth },
+                        animationSpec = androidx.compose.animation.core.spring(
+                            dampingRatio = androidx.compose.animation.core.Spring.DampingRatioNoBouncy,
+                            stiffness = 400f,
+                            visibilityThreshold = androidx.compose.ui.unit.IntOffset.VisibilityThreshold
+                        )
+                    )
                 } else {
                     ExitTransition.None
                 }
