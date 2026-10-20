@@ -45,6 +45,7 @@ import com.personalrecords.app.ui.navigation.Screen
 import com.personalrecords.app.ui.navigation.bottomNavScreens
 import com.personalrecords.app.ui.navigation.recordsSubRoutes
 import com.personalrecords.app.ui.screens.books.*
+import com.personalrecords.app.ui.screens.health.*
 import com.personalrecords.app.ui.screens.movies.*
 import com.personalrecords.app.ui.screens.notifications.*
 import com.personalrecords.app.ui.screens.nutrition.*
@@ -126,6 +127,11 @@ fun MainAppHost() {
     val timelineVm: TimelineViewModel = viewModel(factory = AppViewModelFactory())
     val recordsVm: RecordsViewModel = viewModel(factory = AppViewModelFactory())
     val settingsVm: SettingsViewModel = viewModel(factory = AppViewModelFactory())
+    val nutritionVm: NutritionViewModel = viewModel(factory = AppViewModelFactory())
+    val booksVm: BooksViewModel = viewModel(factory = AppViewModelFactory())
+    val moviesVm: MoviesViewModel = viewModel(factory = AppViewModelFactory())
+    val notificationsVm: NotificationsViewModel = viewModel(factory = AppViewModelFactory())
+    val healthConnectVm: HealthConnectViewModel = viewModel(factory = AppViewModelFactory())
 
     val overviewScrollFlow = remember { MutableSharedFlow<Unit>(extraBufferCapacity = 1) }
     val overviewRefreshFlow = remember { MutableSharedFlow<Unit>(extraBufferCapacity = 1) }
@@ -359,41 +365,36 @@ fun MainAppHost() {
             }
 
             composable(Screen.Nutrition.route) {
-                val vm: NutritionViewModel = viewModel(factory = AppViewModelFactory())
                 NutritionScreen(
-                    viewModel = vm,
+                    viewModel = nutritionVm,
                     onNavigateBack = { navController.popBackStack() }
                 )
             }
 
             composable(Screen.Books.route) {
-                val vm: BooksViewModel = viewModel(factory = AppViewModelFactory())
                 BooksScreen(
-                    viewModel = vm,
+                    viewModel = booksVm,
                     onNavigateBack = { navController.popBackStack() }
                 )
             }
 
             composable(Screen.Movies.route) {
-                val vm: MoviesViewModel = viewModel(factory = AppViewModelFactory())
                 MoviesScreen(
-                    viewModel = vm,
+                    viewModel = moviesVm,
                     onNavigateBack = { navController.popBackStack() }
                 )
             }
 
             composable(Screen.Notifications.route) {
-                val vm: NotificationsViewModel = viewModel(factory = AppViewModelFactory())
                 NotificationsScreen(
-                    viewModel = vm,
+                    viewModel = notificationsVm,
                     onNavigateBack = { navController.popBackStack() }
                 )
             }
 
             composable(Screen.HealthConnect.route) {
-                val vm: com.personalrecords.app.ui.screens.health.HealthConnectViewModel = viewModel(factory = AppViewModelFactory())
-                com.personalrecords.app.ui.screens.health.HealthConnectScreen(
-                    viewModel = vm,
+                HealthConnectScreen(
+                    viewModel = healthConnectVm,
                     onNavigateBack = { navController.popBackStack() }
                 )
             }

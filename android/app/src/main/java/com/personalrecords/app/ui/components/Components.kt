@@ -1406,21 +1406,25 @@ fun Modifier.expressiveSuccessPop(
 
 /**
  * MD3 Expressive physics for lazy list item placement and appearance.
+ * fadeInSpec is disabled (null) on initial list entry to prevent heavy concurrent alpha animations
+ * during screen navigation transitions, preserving pure 120 FPS hardware translation.
  */
 fun LazyItemScope.expressiveItemModifier(
     modifier: Modifier = Modifier
 ): Modifier = modifier.animateItem(
-    fadeInSpec = M3ExpressiveMotion.fastEffects(),
+    fadeInSpec = null,
     placementSpec = M3ExpressiveMotion.defaultSpatial()
 )
 
 /**
  * MD3 Expressive physics for lazy grid item placement and appearance.
+ * fadeInSpec is disabled (null) on initial list entry to prevent heavy concurrent alpha animations
+ * during screen navigation transitions, preserving pure 120 FPS hardware translation.
  */
 fun LazyGridItemScope.expressiveItemModifier(
     modifier: Modifier = Modifier
 ): Modifier = modifier.animateItem(
-    fadeInSpec = M3ExpressiveMotion.fastEffects(),
+    fadeInSpec = null,
     placementSpec = M3ExpressiveMotion.defaultSpatial()
 )
 

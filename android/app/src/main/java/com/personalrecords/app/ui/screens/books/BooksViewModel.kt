@@ -17,6 +17,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.util.Locale
 
+@Immutable
 data class BooksUiState(
     val isLoading: Boolean = true,
     val isFiltering: Boolean = false,

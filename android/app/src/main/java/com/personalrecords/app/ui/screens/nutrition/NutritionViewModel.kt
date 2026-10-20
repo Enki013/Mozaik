@@ -21,6 +21,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
+@Immutable
 data class NutritionUiState(
     val isLoading: Boolean = true,
     val isFiltering: Boolean = false,
