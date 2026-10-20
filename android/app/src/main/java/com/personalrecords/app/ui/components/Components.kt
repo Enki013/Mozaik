@@ -936,7 +936,8 @@ fun LinearWavyProgressIndicator(
             val startX = halfStroke
             val endX = (activeEndX - halfStroke).coerceAtLeast(startX)
             wavePath.rewind()
-            val steps = ((endX - startX) / 2f).toInt().coerceAtLeast(2)
+            val stepPx = (waveLenPx / 16f).coerceIn(3.5f, 6f)
+            val steps = ((endX - startX) / stepPx).toInt().coerceAtLeast(2)
             for (i in 0..steps) {
                 val x = startX + (endX - startX) * (i.toFloat() / steps)
                 val angle = (x / waveLenPx) * (2f * Math.PI.toFloat()) + phase

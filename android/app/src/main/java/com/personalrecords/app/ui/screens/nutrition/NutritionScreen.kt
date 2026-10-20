@@ -47,6 +47,12 @@ fun NutritionScreen(
     var showTargetDialog by remember { mutableStateOf(false) }
     var showDatePicker by remember { mutableStateOf(false) }
     var selectedFood by remember { mutableStateOf<FoodEntryDto?>(null) }
+    var animationStarted by remember { mutableStateOf(false) }
+
+    LaunchedEffect(Unit) {
+        kotlinx.coroutines.delay(360L) // Wait for NavHost slide-in transition to finish before animating gauge
+        animationStarted = true
+    }
     val configuration = LocalConfiguration.current
     val isWideScreen = configuration.screenWidthDp >= 600
     val isTwoPane = configuration.screenWidthDp >= 840
@@ -238,7 +244,7 @@ fun NutritionScreen(
                             (state.todayCalories / target).toFloat().coerceIn(0f, 1f)
                         } else 0f
                         val animatedProgressState = animateFloatAsState(
-                            targetValue = progressPct,
+                            targetValue = if (animationStarted) progressPct else 0f,
                             animationSpec = M3ExpressiveMotion.defaultSpatial(),
                             label = "prog"
                         )
