@@ -7,26 +7,47 @@ import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.*
 import androidx.compose.ui.graphics.vector.ImageVector
 import com.personalrecords.app.R
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.Transient
 
+@Serializable
 sealed class Screen(
-    val route: String,
-    @StringRes val titleRes: Int,
-    val icon: ImageVector,
-    val selectedIcon: ImageVector = icon,
-    @StringRes val navLabelRes: Int = titleRes
+    @Transient val route: String = "",
+    @Transient @StringRes val titleRes: Int = 0,
+    @Transient val icon: ImageVector = Icons.Default.Circle,
+    @Transient val selectedIcon: ImageVector = icon,
+    @Transient @StringRes val navLabelRes: Int = titleRes
 ) {
-    object Overview : Screen("overview", R.string.title_overview, Icons.Outlined.Dashboard, Icons.Filled.Dashboard, R.string.nav_overview)
-    object Timeline : Screen("timeline", R.string.title_timeline, Icons.Outlined.Timeline, Icons.Filled.Timeline, R.string.nav_timeline)
-    object Records : Screen("records", R.string.title_records, Icons.Outlined.Folder, Icons.Filled.Folder, R.string.nav_records)
-    object Settings : Screen("settings", R.string.title_settings, Icons.Outlined.Settings, Icons.Filled.Settings, R.string.nav_settings)
+    @Serializable
+    data object Overview : Screen("overview", R.string.title_overview, Icons.Outlined.Dashboard, Icons.Filled.Dashboard, R.string.nav_overview)
+
+    @Serializable
+    data object Timeline : Screen("timeline", R.string.title_timeline, Icons.Outlined.Timeline, Icons.Filled.Timeline, R.string.nav_timeline)
+
+    @Serializable
+    data object Records : Screen("records", R.string.title_records, Icons.Outlined.Folder, Icons.Filled.Folder, R.string.nav_records)
+
+    @Serializable
+    data object Settings : Screen("settings", R.string.title_settings, Icons.Outlined.Settings, Icons.Filled.Settings, R.string.nav_settings)
 
     // Domain Detail Screens
-    object Nutrition : Screen("nutrition", R.string.title_nutrition, Icons.Default.Restaurant, navLabelRes = R.string.nav_nutrition)
-    object Books : Screen("books", R.string.title_books, Icons.AutoMirrored.Filled.MenuBook, navLabelRes = R.string.nav_books)
-    object Movies : Screen("movies", R.string.title_movies, Icons.Default.Movie, navLabelRes = R.string.nav_movies)
-    object Notifications : Screen("notifications", R.string.title_notifications, Icons.Default.Notifications, navLabelRes = R.string.nav_notifications)
-    object HealthConnect : Screen("health_connect", R.string.title_health_connect, Icons.Default.Favorite, navLabelRes = R.string.nav_health_connect)
-    object Language : Screen("language", R.string.settings_language_screen_title, Icons.Default.Language, navLabelRes = R.string.settings_language_screen_title)
+    @Serializable
+    data object Nutrition : Screen("nutrition", R.string.title_nutrition, Icons.Default.Restaurant, navLabelRes = R.string.nav_nutrition)
+
+    @Serializable
+    data object Books : Screen("books", R.string.title_books, Icons.AutoMirrored.Filled.MenuBook, navLabelRes = R.string.nav_books)
+
+    @Serializable
+    data object Movies : Screen("movies", R.string.title_movies, Icons.Default.Movie, navLabelRes = R.string.nav_movies)
+
+    @Serializable
+    data object Notifications : Screen("notifications", R.string.title_notifications, Icons.Default.Notifications, navLabelRes = R.string.nav_notifications)
+
+    @Serializable
+    data object HealthConnect : Screen("health_connect", R.string.title_health_connect, Icons.Default.Favorite, navLabelRes = R.string.nav_health_connect)
+
+    @Serializable
+    data object Language : Screen("language", R.string.settings_language_screen_title, Icons.Default.Language, navLabelRes = R.string.settings_language_screen_title)
 }
 
 val bottomNavScreens = listOf(
@@ -34,6 +55,24 @@ val bottomNavScreens = listOf(
     Screen.Timeline,
     Screen.Records,
     Screen.Settings
+)
+
+val detailScreens = setOf(
+    Screen.Nutrition,
+    Screen.Books,
+    Screen.Movies,
+    Screen.Notifications,
+    Screen.HealthConnect,
+    Screen.Language
+)
+
+val recordsSubScreens = setOf(
+    Screen.Records,
+    Screen.Nutrition,
+    Screen.Books,
+    Screen.Movies,
+    Screen.Notifications,
+    Screen.HealthConnect
 )
 
 val recordsSubRoutes = setOf(

@@ -41,9 +41,11 @@ import com.personalrecords.app.core.theme.PersonalRecordsTheme
 import com.personalrecords.app.core.theme.labelLargeEmphasized
 import com.personalrecords.app.core.theme.labelSmallEmphasized
 import com.personalrecords.app.ui.AppViewModelFactory
+import androidx.navigation.NavDestination.Companion.hasRoute
 import com.personalrecords.app.ui.navigation.Screen
 import com.personalrecords.app.ui.navigation.bottomNavScreens
-import com.personalrecords.app.ui.navigation.recordsSubRoutes
+import com.personalrecords.app.ui.navigation.detailScreens
+import com.personalrecords.app.ui.navigation.recordsSubScreens
 import com.personalrecords.app.ui.screens.books.*
 import com.personalrecords.app.ui.screens.health.*
 import com.personalrecords.app.ui.screens.movies.*
@@ -145,35 +147,30 @@ fun MainAppHost() {
     val settingsScrollFlow = remember { MutableSharedFlow<Unit>(extraBufferCapacity = 1) }
     val settingsRefreshFlow = remember { MutableSharedFlow<Unit>(extraBufferCapacity = 1) }
 
-    val detailSubRoutes = remember {
-        setOf(
-            Screen.Nutrition.route,
-            Screen.Books.route,
-            Screen.Movies.route,
-            Screen.Notifications.route,
-            Screen.HealthConnect.route,
-            Screen.Language.route
-        )
-    }
-
     var isRecordsWarm by remember { mutableStateOf(false) }
     var isTimelineWarm by remember { mutableStateOf(false) }
     var isSettingsWarm by remember { mutableStateOf(false) }
 
     val navBackStackEntry by navController.currentBackStackEntryAsState()
-    val currentRoute = navBackStackEntry?.destination?.route ?: Screen.Overview.route
-    val isDetailRoute = currentRoute in detailSubRoutes
+    val destination = navBackStackEntry?.destination
+    val isDetailRoute = destination != null && detailScreens.any { destination.hasRoute(it::class) }
 
-    var lastActivePeerTab by remember { mutableStateOf(Screen.Overview.route) }
-    if (!isDetailRoute) {
-        lastActivePeerTab = currentRoute
+    var lastActivePeerTab by remember { mutableStateOf<Screen>(Screen.Overview) }
+    if (!isDetailRoute && destination != null) {
+        when {
+            destination.hasRoute<Screen.Overview>() -> lastActivePeerTab = Screen.Overview
+            destination.hasRoute<Screen.Timeline>() -> lastActivePeerTab = Screen.Timeline
+            destination.hasRoute<Screen.Records>() -> lastActivePeerTab = Screen.Records
+            destination.hasRoute<Screen.Settings>() -> lastActivePeerTab = Screen.Settings
+        }
     }
 
     LaunchedEffect(lastActivePeerTab) {
         when (lastActivePeerTab) {
-            Screen.Timeline.route -> timelineVm.ensureLoaded()
-            Screen.Records.route -> recordsVm.ensureLoaded()
-            Screen.Settings.route -> settingsVm.ensureLoaded()
+            Screen.Timeline -> timelineVm.ensureLoaded()
+            Screen.Records -> recordsVm.ensureLoaded()
+            Screen.Settings -> settingsVm.ensureLoaded()
+            else -> {}
         }
     }
 
@@ -209,7 +206,7 @@ fun MainAppHost() {
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .keepWarmTab(visible = lastActivePeerTab == Screen.Overview.route)
+                    .keepWarmTab(visible = lastActivePeerTab == Screen.Overview)
             ) {
             OverviewScreen(
                 viewModel = overviewVm,
@@ -217,77 +214,77 @@ fun MainAppHost() {
                 refreshFlow = overviewRefreshFlow,
                 onNavigateToTimeline = {
                     timelineVm.ensureLoaded()
-                    navController.navigate(Screen.Timeline.route) {
+                    navController.navigate(Screen.Timeline) {
                         popUpTo(navController.graph.findStartDestination().id) { saveState = true }
                         launchSingleTop = true
                         restoreState = true
                     }
                 },
-                onNavigateToNutrition = { navController.navigate(Screen.Nutrition.route) },
-                onNavigateToBooks = { navController.navigate(Screen.Books.route) },
-                onNavigateToMovies = { navController.navigate(Screen.Movies.route) },
-                onNavigateToSettings = { navController.navigate(Screen.Settings.route) }
+                onNavigateToNutrition = { navController.navigate(Screen.Nutrition) },
+                onNavigateToBooks = { navController.navigate(Screen.Books) },
+                onNavigateToMovies = { navController.navigate(Screen.Movies) },
+                onNavigateToSettings = { navController.navigate(Screen.Settings) }
             )
         }
 
-        if (isTimelineWarm || lastActivePeerTab == Screen.Timeline.route) {
+        if (isTimelineWarm || lastActivePeerTab == Screen.Timeline) {
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .keepWarmTab(visible = lastActivePeerTab == Screen.Timeline.route)
+                    .keepWarmTab(visible = lastActivePeerTab == Screen.Timeline)
             ) {
                 TimelineScreen(
                     viewModel = timelineVm,
                     scrollToTopFlow = timelineScrollFlow,
                     refreshFlow = timelineRefreshFlow,
-                    onNavigateToNutrition = { navController.navigate(Screen.Nutrition.route) },
-                    onNavigateToBooks = { navController.navigate(Screen.Books.route) },
-                    onNavigateToMovies = { navController.navigate(Screen.Movies.route) }
+                    onNavigateToNutrition = { navController.navigate(Screen.Nutrition) },
+                    onNavigateToBooks = { navController.navigate(Screen.Books) },
+                    onNavigateToMovies = { navController.navigate(Screen.Movies) }
                 )
             }
         }
 
-        if (isRecordsWarm || lastActivePeerTab == Screen.Records.route) {
+        if (isRecordsWarm || lastActivePeerTab == Screen.Records) {
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .keepWarmTab(visible = lastActivePeerTab == Screen.Records.route)
+                    .keepWarmTab(visible = lastActivePeerTab == Screen.Records)
             ) {
                 RecordsScreen(
                     viewModel = recordsVm,
                     scrollToTopFlow = recordsScrollFlow,
                     refreshFlow = recordsRefreshFlow,
-                    onNavigateToNutrition = { navController.navigate(Screen.Nutrition.route) },
-                    onNavigateToBooks = { navController.navigate(Screen.Books.route) },
-                    onNavigateToMovies = { navController.navigate(Screen.Movies.route) },
-                    onNavigateToNotifications = { navController.navigate(Screen.Notifications.route) },
-                    onNavigateToHealthConnect = { navController.navigate(Screen.HealthConnect.route) }
+                    onNavigateToNutrition = { navController.navigate(Screen.Nutrition) },
+                    onNavigateToBooks = { navController.navigate(Screen.Books) },
+                    onNavigateToMovies = { navController.navigate(Screen.Movies) },
+                    onNavigateToNotifications = { navController.navigate(Screen.Notifications) },
+                    onNavigateToHealthConnect = { navController.navigate(Screen.HealthConnect) }
                 )
             }
         }
 
-        if (isSettingsWarm || lastActivePeerTab == Screen.Settings.route) {
+        if (isSettingsWarm || lastActivePeerTab == Screen.Settings) {
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .keepWarmTab(visible = lastActivePeerTab == Screen.Settings.route)
+                    .keepWarmTab(visible = lastActivePeerTab == Screen.Settings)
             ) {
                 SettingsScreen(
                     viewModel = settingsVm,
                     scrollToTopFlow = settingsScrollFlow,
                     refreshFlow = settingsRefreshFlow,
-                    onNavigateToLanguage = { navController.navigate(Screen.Language.route) }
+                    onNavigateToLanguage = { navController.navigate(Screen.Language) }
                 )
             }
         }
 
         NavHost(
             navController = navController,
-            startDestination = Screen.Overview.route,
+            startDestination = Screen.Overview,
             modifier = Modifier.fillMaxSize(),
             enterTransition = {
-                val target = targetState.destination.route
-                if (target in detailSubRoutes) {
+                val target = targetState.destination
+                if (detailScreens.any { target.hasRoute(it::class) }) {
                     slideInHorizontally(
                         initialOffsetX = { fullWidth -> fullWidth },
                         animationSpec = androidx.compose.animation.core.spring(
@@ -301,9 +298,9 @@ fun MainAppHost() {
                 }
             },
             exitTransition = {
-                val initial = initialState.destination.route
-                val target = targetState.destination.route
-                if (initial in detailSubRoutes && target in detailSubRoutes) {
+                val initial = initialState.destination
+                val target = targetState.destination
+                if (detailScreens.any { initial.hasRoute(it::class) } && detailScreens.any { target.hasRoute(it::class) }) {
                     slideOutHorizontally(
                         targetOffsetX = { fullWidth -> -(fullWidth * 0.25f).toInt() },
                         animationSpec = androidx.compose.animation.core.spring(
@@ -317,9 +314,9 @@ fun MainAppHost() {
                 }
             },
             popEnterTransition = {
-                val initial = initialState.destination.route
-                val target = targetState.destination.route
-                if (initial in detailSubRoutes && target in detailSubRoutes) {
+                val initial = initialState.destination
+                val target = targetState.destination
+                if (detailScreens.any { initial.hasRoute(it::class) } && detailScreens.any { target.hasRoute(it::class) }) {
                     slideInHorizontally(
                         initialOffsetX = { fullWidth -> -(fullWidth * 0.25f).toInt() },
                         animationSpec = androidx.compose.animation.core.spring(
@@ -333,8 +330,8 @@ fun MainAppHost() {
                 }
             },
             popExitTransition = {
-                val initial = initialState.destination.route
-                if (initial in detailSubRoutes) {
+                val initial = initialState.destination
+                if (detailScreens.any { initial.hasRoute(it::class) }) {
                     slideOutHorizontally(
                         targetOffsetX = { fullWidth -> fullWidth },
                         animationSpec = androidx.compose.animation.core.spring(
@@ -348,58 +345,58 @@ fun MainAppHost() {
                 }
             }
         ) {
-            composable(Screen.Overview.route) {
+            composable<Screen.Overview> {
                 Spacer(modifier = Modifier.fillMaxSize())
             }
 
-            composable(Screen.Timeline.route) {
+            composable<Screen.Timeline> {
                 Spacer(modifier = Modifier.fillMaxSize())
             }
 
-            composable(Screen.Records.route) {
+            composable<Screen.Records> {
                 Spacer(modifier = Modifier.fillMaxSize())
             }
 
-            composable(Screen.Settings.route) {
+            composable<Screen.Settings> {
                 Spacer(modifier = Modifier.fillMaxSize())
             }
 
-            composable(Screen.Nutrition.route) {
+            composable<Screen.Nutrition> {
                 NutritionScreen(
                     viewModel = nutritionVm,
                     onNavigateBack = { navController.popBackStack() }
                 )
             }
 
-            composable(Screen.Books.route) {
+            composable<Screen.Books> {
                 BooksScreen(
                     viewModel = booksVm,
                     onNavigateBack = { navController.popBackStack() }
                 )
             }
 
-            composable(Screen.Movies.route) {
+            composable<Screen.Movies> {
                 MoviesScreen(
                     viewModel = moviesVm,
                     onNavigateBack = { navController.popBackStack() }
                 )
             }
 
-            composable(Screen.Notifications.route) {
+            composable<Screen.Notifications> {
                 NotificationsScreen(
                     viewModel = notificationsVm,
                     onNavigateBack = { navController.popBackStack() }
                 )
             }
 
-            composable(Screen.HealthConnect.route) {
+            composable<Screen.HealthConnect> {
                 HealthConnectScreen(
                     viewModel = healthConnectVm,
                     onNavigateBack = { navController.popBackStack() }
                 )
             }
 
-            composable(Screen.Language.route) {
+            composable<Screen.Language> {
                 val state by settingsVm.uiState.collectAsState()
                 LanguageSelectionScreen(
                     currentLanguage = state.appLanguage,
@@ -412,20 +409,22 @@ fun MainAppHost() {
 
         ExpressiveAdaptiveNavigation(
             navController = navController,
-            onScrollToTop = { route ->
-                when (route) {
-                    Screen.Overview.route -> overviewScrollFlow.tryEmit(Unit)
-                    Screen.Timeline.route -> timelineScrollFlow.tryEmit(Unit)
-                    Screen.Records.route -> recordsScrollFlow.tryEmit(Unit)
-                    Screen.Settings.route -> settingsScrollFlow.tryEmit(Unit)
+            onScrollToTop = { screen ->
+                when (screen) {
+                    Screen.Overview -> overviewScrollFlow.tryEmit(Unit)
+                    Screen.Timeline -> timelineScrollFlow.tryEmit(Unit)
+                    Screen.Records -> recordsScrollFlow.tryEmit(Unit)
+                    Screen.Settings -> settingsScrollFlow.tryEmit(Unit)
+                    else -> Unit
                 }
             },
-            onRefresh = { route ->
-                when (route) {
-                    Screen.Overview.route -> overviewRefreshFlow.tryEmit(Unit)
-                    Screen.Timeline.route -> timelineRefreshFlow.tryEmit(Unit)
-                    Screen.Records.route -> recordsRefreshFlow.tryEmit(Unit)
-                    Screen.Settings.route -> settingsRefreshFlow.tryEmit(Unit)
+            onRefresh = { screen ->
+                when (screen) {
+                    Screen.Overview -> overviewRefreshFlow.tryEmit(Unit)
+                    Screen.Timeline -> timelineRefreshFlow.tryEmit(Unit)
+                    Screen.Records -> recordsRefreshFlow.tryEmit(Unit)
+                    Screen.Settings -> settingsRefreshFlow.tryEmit(Unit)
+                    else -> Unit
                 }
             },
             isWideScreen = isWideScreen,
@@ -534,22 +533,13 @@ private fun CompanionSettingsButton(
 @Composable
 private fun ExpressiveAdaptiveNavigation(
     navController: NavHostController,
-    onScrollToTop: (String) -> Unit,
-    onRefresh: (String) -> Unit,
+    onScrollToTop: (Screen) -> Unit,
+    onRefresh: (Screen) -> Unit,
     isWideScreen: Boolean,
     modifier: Modifier = Modifier
 ) {
     val navBackStackEntry by navController.currentBackStackEntryAsState()
-    val backStackRoute = navBackStackEntry?.destination?.route
-    var optimisticRoute by remember { mutableStateOf<String?>(null) }
-
-    LaunchedEffect(backStackRoute) {
-        if (backStackRoute != null) {
-            optimisticRoute = backStackRoute
-        }
-    }
-
-    val currentRoute = optimisticRoute ?: backStackRoute
+    val destination = navBackStackEntry?.destination
 
     val coroutineScope = rememberCoroutineScope()
     var activeTabTapJob by remember { mutableStateOf<kotlinx.coroutines.Job?>(null) }
@@ -563,11 +553,11 @@ private fun ExpressiveAdaptiveNavigation(
         haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
 
         if (isSelected) {
-            if (screen == Screen.Records && backStackRoute != Screen.Records.route) {
-                optimisticRoute = Screen.Records.route
-                val popped = navController.popBackStack(Screen.Records.route, inclusive = false)
+            val dest = navBackStackEntry?.destination
+            if (screen == Screen.Records && dest?.hasRoute<Screen.Records>() != true) {
+                val popped = navController.popBackStack(Screen.Records, inclusive = false)
                 if (!popped) {
-                    navController.navigate(Screen.Records.route) {
+                    navController.navigate(Screen.Records) {
                         popUpTo(navController.graph.findStartDestination().id) {
                             saveState = true
                         }
@@ -575,16 +565,15 @@ private fun ExpressiveAdaptiveNavigation(
                         restoreState = true
                     }
                 }
-            } else if (screen == Screen.Settings && backStackRoute == Screen.Language.route) {
-                optimisticRoute = Screen.Settings.route
-                navController.popBackStack(Screen.Settings.route, inclusive = false)
+            } else if (screen == Screen.Settings && dest?.hasRoute<Screen.Language>() == true) {
+                navController.popBackStack(Screen.Settings, inclusive = false)
             } else {
                 if (activeTabTapJob?.isActive == true) {
                     activeTabTapJob?.cancel()
                     activeTabTapJob = null
-                    onRefresh(screen.route)
+                    onRefresh(screen)
                 } else {
-                    onScrollToTop(screen.route)
+                    onScrollToTop(screen)
                     activeTabTapJob = coroutineScope.launch {
                         kotlinx.coroutines.delay(220L)
                         activeTabTapJob = null
@@ -592,8 +581,7 @@ private fun ExpressiveAdaptiveNavigation(
                 }
             }
         } else {
-            optimisticRoute = screen.route
-            navController.navigate(screen.route) {
+            navController.navigate(screen) {
                 popUpTo(navController.graph.findStartDestination().id) {
                     saveState = true
                 }
@@ -603,8 +591,9 @@ private fun ExpressiveAdaptiveNavigation(
         }
     }
 
-    val settingsSelected = currentRoute == Screen.Settings.route ||
-        currentRoute == Screen.Language.route
+    val settingsSelected = destination?.let {
+        it.hasRoute<Screen.Settings>() || it.hasRoute<Screen.Language>()
+    } == true
 
     if (isWideScreen) {
         // Floating NavRail — M3 Expressive Vertical Floating Toolbar + Companion Action
@@ -636,10 +625,10 @@ private fun ExpressiveAdaptiveNavigation(
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
                         mainNavScreens.forEach { screen ->
-                            key(screen.route) {
+                            key(screen) {
                                 val selected = when (screen) {
-                                    Screen.Records -> currentRoute in recordsSubRoutes
-                                    else -> currentRoute == screen.route
+                                    Screen.Records -> destination?.let { dest -> recordsSubScreens.any { dest.hasRoute(it::class) } } == true
+                                    else -> destination?.hasRoute(screen::class) == true
                                 }
 
                                 val interactionSource = remember { MutableInteractionSource() }
@@ -749,10 +738,10 @@ private fun ExpressiveAdaptiveNavigation(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         mainNavScreens.forEach { screen ->
-                            key(screen.route) {
+                            key(screen) {
                                 val selected = when (screen) {
-                                    Screen.Records -> currentRoute in recordsSubRoutes
-                                    else -> currentRoute == screen.route
+                                    Screen.Records -> destination?.let { dest -> recordsSubScreens.any { dest.hasRoute(it::class) } } == true
+                                    else -> destination?.hasRoute(screen::class) == true
                                 }
 
                                 val interactionSource = remember { MutableInteractionSource() }
