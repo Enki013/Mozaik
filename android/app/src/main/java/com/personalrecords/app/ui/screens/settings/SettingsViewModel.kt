@@ -459,4 +459,12 @@ class SettingsViewModel(
             }
         }
     }
+
+    fun clearSyncStatusMessage() {
+        _uiState.update { it.copy(syncStatusMessage = null) }
+    }
+
+    fun clearMusicSaveMessage() {
+        _uiState.update { it.copy(musicSaveMessage = null) }
+    }
 }

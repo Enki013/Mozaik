@@ -7,6 +7,10 @@ import com.personalrecords.app.core.network.ApiService
 import com.personalrecords.app.core.network.model.*
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
+import retrofit2.HttpException
 
 class PersonalRecordsRepository(
     private val api: ApiService,
@@ -319,7 +323,7 @@ class PersonalRecordsRepository(
             val result = api.syncFatSecret(SyncFatSecretRequest(days))
             Resource.Success(result)
         } catch (e: Exception) {
-            Resource.Error(e.localizedMessage ?: "FatSecret sync başarısız", e)
+            Resource.Error(extractErrorMessage(e, "FatSecret sync başarısız"), e)
         }
     }
 
@@ -328,7 +332,7 @@ class PersonalRecordsRepository(
             val result = api.syncGoodreads()
             Resource.Success(result)
         } catch (e: Exception) {
-            Resource.Error(e.localizedMessage ?: "Goodreads sync başarısız", e)
+            Resource.Error(extractErrorMessage(e, "Goodreads sync başarısız"), e)
         }
     }
 
@@ -337,7 +341,7 @@ class PersonalRecordsRepository(
             val result = api.getGoodreadsSettings()
             Resource.Success(result)
         } catch (e: Exception) {
-            Resource.Error(e.localizedMessage ?: "Goodreads ayarları alınamadı", e)
+            Resource.Error(extractErrorMessage(e, "Goodreads ayarları alınamadı"), e)
         }
     }
 
@@ -346,7 +350,7 @@ class PersonalRecordsRepository(
             val result = api.saveGoodreadsSettings(SaveSyncSettingsRequest(feed_url = feedUrl, interval_minutes = intervalMinutes, enabled = enabled))
             Resource.Success(result)
         } catch (e: Exception) {
-            Resource.Error(e.localizedMessage ?: "Goodreads ayarları kaydedilemedi", e)
+            Resource.Error(extractErrorMessage(e, "Goodreads ayarları kaydedilemedi"), e)
         }
     }
 
@@ -355,7 +359,7 @@ class PersonalRecordsRepository(
             val result = api.syncLetterboxd()
             Resource.Success(result)
         } catch (e: Exception) {
-            Resource.Error(e.localizedMessage ?: "Letterboxd sync başarısız", e)
+            Resource.Error(extractErrorMessage(e, "Letterboxd sync başarısız"), e)
         }
     }
 
@@ -364,7 +368,7 @@ class PersonalRecordsRepository(
             val result = api.getLetterboxdSettings()
             Resource.Success(result)
         } catch (e: Exception) {
-            Resource.Error(e.localizedMessage ?: "Letterboxd ayarları alınamadı", e)
+            Resource.Error(extractErrorMessage(e, "Letterboxd ayarları alınamadı"), e)
         }
     }
 
@@ -584,7 +588,7 @@ class PersonalRecordsRepository(
             )
             Resource.Success(response)
         } catch (e: Exception) {
-            Resource.Error(e.localizedMessage ?: "Müzik ayarları kaydedilemedi", e)
+            Resource.Error(extractErrorMessage(e, "Müzik ayarları kaydedilemedi"), e)
         }
     }
 
@@ -595,7 +599,7 @@ class PersonalRecordsRepository(
             val response = api.syncLastFm(SyncLastFmRequest(allPages = allPages))
             Resource.Success(response)
         } catch (e: Exception) {
-            Resource.Error(e.localizedMessage ?: "Last.fm senkronizasyonu başarısız", e)
+            Resource.Error(extractErrorMessage(e, "Last.fm senkronizasyonu başarısız"), e)
         }
     }
 
@@ -604,6 +608,30 @@ class PersonalRecordsRepository(
         getCachedFilms()
         getCachedFoodEntries()
         getCachedHealthRecords()
+    }
+
+    private fun extractErrorMessage(e: Exception, defaultMessage: String): String {
+        if (e is HttpException) {
+            val errorJson = try {
+                e.response()?.errorBody()?.string()
+            } catch (_: Exception) {
+                null
+            }
+            if (!errorJson.isNullOrBlank()) {
+                try {
+                    val element = Json.parseToJsonElement(errorJson)
+                    if (element is JsonObject) {
+                        val errorVal = (element["error"] as? JsonPrimitive)?.content
+                        val messageVal = (element["message"] as? JsonPrimitive)?.content
+                        if (!errorVal.isNullOrBlank()) return errorVal
+                        if (!messageVal.isNullOrBlank()) return messageVal
+                    }
+                } catch (_: Exception) {
+                    // ignore JSON parsing failure
+                }
+            }
+        }
+        return e.localizedMessage ?: defaultMessage
     }
 }
 

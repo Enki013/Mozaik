@@ -2278,23 +2278,39 @@ app.post("/api/settings/music", async (c) => {
 
   const username = typeof body.lastfm_username === "string" ? body.lastfm_username.trim() : "";
   const apiKey = typeof body.lastfm_api_key === "string" ? body.lastfm_api_key.trim() : "";
+  const clearApiKey = body.clear_api_key === true || body.lastfm_api_key === "";
   const interval = typeof body.interval_minutes === "number" ? body.interval_minutes : 360;
   const enabled = body.enabled === false ? 0 : 1;
+
+  if (apiKey && !clearApiKey) {
+    if (apiKey.startsWith("http://") || apiKey.startsWith("https://")) {
+      return c.json({
+        ok: false,
+        error: "Geçersiz Last.fm API Key. Webhook URL'si değil, Last.fm API Key (32 karakterlik kod) girmelisiniz."
+      }, 400);
+    }
+    if (apiKey.length !== 32) {
+      return c.json({
+        ok: false,
+        error: `Geçersiz Last.fm API Key uzunluğu (${apiKey.length} karakter). Last.fm API Key tam olarak 32 karakter olmalıdır.`
+      }, 400);
+    }
+  }
 
   const existing = (await db.prepare("SELECT * FROM music_sync_settings WHERE id = 1").first()) as any;
 
   if (existing) {
-    const finalApiKey = apiKey !== "" ? apiKey : existing.lastfm_api_key;
+    const finalApiKey = clearApiKey ? "" : (apiKey !== "" ? apiKey : existing.lastfm_api_key);
     await db.prepare(`
       UPDATE music_sync_settings
       SET lastfm_username = ?, lastfm_api_key = ?, interval_minutes = ?, enabled = ?, updated_at = CURRENT_TIMESTAMP
       WHERE id = 1
-    `).bind(username, finalApiKey, interval, enabled).run();
+    `).bind(username || existing.lastfm_username, finalApiKey, interval, enabled).run();
   } else {
     await db.prepare(`
       INSERT INTO music_sync_settings (id, lastfm_username, lastfm_api_key, interval_minutes, enabled)
       VALUES (1, ?, ?, ?, ?)
-    `).bind(username, apiKey, interval, enabled).run();
+    `).bind(username, clearApiKey ? "" : apiKey, interval, enabled).run();
   }
 
   return c.json({ ok: true, message: "Müzik ayarları kaydedildi" });
@@ -2321,6 +2337,12 @@ app.post("/api/music/sync-lastfm", async (c) => {
   }
   if (!apiKey) {
     return c.json({ ok: false, error: "Last.fm API Key tanımlanmamış. Ayarlardan Last.fm API Key girin." }, 400);
+  }
+  if (apiKey.startsWith("http://") || apiKey.startsWith("https://") || apiKey.length !== 32) {
+    return c.json({
+      ok: false,
+      error: "Kayıtlı Last.fm API Key geçersiz (Webhook URL girilmiş olabilir). Lütfen Ayarlar > Last.fm bölümünden 32 haneli geçerli API Key girin."
+    }, 400);
   }
 
   const limit = Math.min(Math.max(parseInt(body.limit || "200", 10), 10), 200);
@@ -2449,7 +2471,18 @@ app.post("/api/music/sync-lastfm", async (c) => {
       VALUES ('lastfm', 'error', ?, ?, ?)
     `).bind(totalInserted, totalUpdated, err.message).run();
 
-    return c.json({ ok: false, error: err.message }, 500);
+    const isApiKeyError = err.message && (
+      err.message.includes("Invalid API key") ||
+      err.message.includes("error: 10") ||
+      err.message.includes("403") ||
+      err.message.includes("401")
+    );
+    const statusCode = isApiKeyError ? 400 : 500;
+    const errorMessage = isApiKeyError
+      ? "Geçersiz Last.fm API Anahtarı (Hata 10). Lütfen Ayarlar > Last.fm bölümünden geçerli 32 haneli API Key girin."
+      : err.message;
+
+    return c.json({ ok: false, error: errorMessage }, statusCode);
   }
 });
 

@@ -137,7 +137,10 @@ fun SettingsScreen(
     }
 
     LaunchedEffect(state.syncStatusMessage) {
-        state.syncStatusMessage?.let { snackbarHostState.showSnackbar(it) }
+        state.syncStatusMessage?.let {
+            snackbarHostState.showSnackbar(it)
+            viewModel.clearSyncStatusMessage()
+        }
     }
 
     LaunchedEffect(state.keySaveMessage) {
@@ -165,6 +168,7 @@ fun SettingsScreen(
     LaunchedEffect(state.musicSaveMessage) {
         state.musicSaveMessage?.let {
             snackbarHostState.showSnackbar(it)
+            viewModel.clearMusicSaveMessage()
             if (!it.startsWith("Hata") && !it.startsWith("Error")) {
                 showLastFmEditor = false
             }
