@@ -165,3 +165,41 @@ CREATE INDEX IF NOT EXISTS idx_health_records_date ON health_records(date_iso DE
 CREATE INDEX IF NOT EXISTS idx_health_records_type ON health_records(record_type);
 CREATE INDEX IF NOT EXISTS idx_health_records_category ON health_records(category);
 
+CREATE TABLE IF NOT EXISTS music_scrobbles (
+  id TEXT PRIMARY KEY,
+  track TEXT NOT NULL,
+  artist TEXT NOT NULL,
+  album TEXT,
+  album_artist TEXT,
+  duration INTEGER,
+  listened_at TEXT NOT NULL,
+  uts INTEGER NOT NULL,
+  source TEXT NOT NULL,
+  origin_url TEXT,
+  image_url TEXT,
+  raw_json TEXT NOT NULL,
+  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS idx_music_scrobbles_uts ON music_scrobbles(uts DESC);
+CREATE INDEX IF NOT EXISTS idx_music_scrobbles_artist ON music_scrobbles(artist);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_music_scrobbles_unique ON music_scrobbles(artist, track, uts);
+
+CREATE TABLE IF NOT EXISTS music_sync_settings (
+  id INTEGER PRIMARY KEY CHECK (id = 1),
+  lastfm_username TEXT,
+  lastfm_api_key TEXT,
+  interval_minutes INTEGER NOT NULL DEFAULT 360,
+  enabled INTEGER NOT NULL DEFAULT 1,
+  updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS music_sync_runs (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  source TEXT NOT NULL,
+  status TEXT NOT NULL,
+  inserted INTEGER NOT NULL DEFAULT 0,
+  updated INTEGER NOT NULL DEFAULT 0,
+  message TEXT,
+  ran_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+

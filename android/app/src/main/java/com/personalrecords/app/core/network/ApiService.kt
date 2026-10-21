@@ -99,5 +99,35 @@ interface ApiService {
         @Query("to") to: String? = null,
         @Query("limit") limit: Int = 300
     ): HealthConnectResponse
+
+    // Music & Audio
+    @GET("api/music")
+    suspend fun getMusicScrobbles(
+        @Query("page") page: Int = 1,
+        @Query("limit") limit: Int = 50,
+        @Query("search") search: String? = null,
+        @Query("artist") artist: String? = null,
+        @Query("album") album: String? = null,
+        @Query("source") source: String? = null,
+        @Query("date") date: String? = null,
+        @Query("from") from: String? = null,
+        @Query("to") to: String? = null
+    ): MusicResponse
+
+    @GET("api/music/stats")
+    suspend fun getMusicStats(): MusicStatsDto
+
+    @GET("api/settings/music")
+    suspend fun getMusicSettings(): MusicSettingsDto
+
+    @POST("api/settings/music")
+    suspend fun saveMusicSettings(
+        @Body request: SaveMusicSettingsRequest
+    ): SaveMusicSettingsResponse
+
+    @POST("api/music/sync-lastfm")
+    suspend fun syncLastFm(
+        @Body request: SyncLastFmRequest = SyncLastFmRequest()
+    ): SyncLastFmResponse
 }
 

@@ -41,6 +41,14 @@ class PersonalRecordsRepository(
         private set
 
     @Volatile
+    var cachedMusicScrobbles: List<MusicScrobbleDto>? = null
+        private set
+
+    @Volatile
+    var cachedMusicStats: MusicStatsDto? = null
+        private set
+
+    @Volatile
     var cachedHealthRecords: List<HealthRecordDto>? = null
         private set
 
@@ -505,6 +513,89 @@ class PersonalRecordsRepository(
                 )
             }
             Resource.Error(e.localizedMessage ?: "Health Connect kayıtları alınamadı", e)
+        }
+    }
+
+    suspend fun getMusicScrobbles(
+        page: Int = 1,
+        limit: Int = 50,
+        search: String? = null,
+        artist: String? = null,
+        album: String? = null,
+        source: String? = null,
+        date: String? = null,
+        from: String? = null,
+        to: String? = null
+    ): Resource<MusicResponse> = withContext(Dispatchers.IO) {
+        try {
+            val response = api.getMusicScrobbles(page, limit, search, artist, album, source, date, from, to)
+            if (page == 1 && search.isNullOrBlank() && artist.isNullOrBlank() && album.isNullOrBlank() && source.isNullOrBlank() && date.isNullOrBlank()) {
+                cachedMusicScrobbles = response.items
+            }
+            Resource.Success(response)
+        } catch (e: Exception) {
+            if (page == 1 && cachedMusicScrobbles != null) {
+                return@withContext Resource.Success(
+                    MusicResponse(
+                        count = cachedMusicScrobbles!!.size,
+                        total = cachedMusicScrobbles!!.size,
+                        items = cachedMusicScrobbles!!
+                    )
+                )
+            }
+            Resource.Error(e.localizedMessage ?: "Müzik kayıtları alınamadı", e)
+        }
+    }
+
+    suspend fun getMusicStats(): Resource<MusicStatsDto> = withContext(Dispatchers.IO) {
+        try {
+            val stats = api.getMusicStats()
+            cachedMusicStats = stats
+            Resource.Success(stats)
+        } catch (e: Exception) {
+            cachedMusicStats?.let { return@withContext Resource.Success(it) }
+            Resource.Error(e.localizedMessage ?: "Müzik istatistikleri alınamadı", e)
+        }
+    }
+
+    suspend fun getMusicSettings(): Resource<MusicSettingsDto> = withContext(Dispatchers.IO) {
+        try {
+            val settings = api.getMusicSettings()
+            Resource.Success(settings)
+        } catch (e: Exception) {
+            Resource.Error(e.localizedMessage ?: "Müzik ayarları alınamadı", e)
+        }
+    }
+
+    suspend fun saveMusicSettings(
+        username: String?,
+        apiKey: String?,
+        intervalMinutes: Int? = 360,
+        enabled: Boolean? = true
+    ): Resource<SaveMusicSettingsResponse> = withContext(Dispatchers.IO) {
+        try {
+            val response = api.saveMusicSettings(
+                SaveMusicSettingsRequest(
+                    lastfmUsername = username,
+                    lastfmApiKey = apiKey,
+                    intervalMinutes = intervalMinutes,
+                    enabled = enabled
+                )
+            )
+            Resource.Success(response)
+        } catch (e: Exception) {
+            Resource.Error(e.localizedMessage ?: "Müzik ayarları kaydedilemedi", e)
+        }
+    }
+
+    suspend fun syncLastFm(
+        allPages: Boolean = false
+    ): Resource<SyncLastFmResponse> = withContext(Dispatchers.IO) {
+        try {
+            val response = api.syncLastFm(SyncLastFmRequest(allPages = allPages))
+            Resource.Success(response)
+        } catch (e: Exception) {
+            Resource.Error(e.localizedMessage ?: "Last.fm senkronizasyonu başarısız", e)
         }
     }
 

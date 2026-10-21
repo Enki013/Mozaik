@@ -46,6 +46,9 @@ class AppViewModelFactory : ViewModelProvider.Factory {
             modelClass.isAssignableFrom(com.personalrecords.app.ui.screens.health.HealthConnectViewModel::class.java) -> {
                 com.personalrecords.app.ui.screens.health.HealthConnectViewModel(repository) as T
             }
+            modelClass.isAssignableFrom(com.personalrecords.app.ui.screens.music.MusicViewModel::class.java) -> {
+                com.personalrecords.app.ui.screens.music.MusicViewModel(repository) as T
+            }
             else -> throw IllegalArgumentException("Unknown ViewModel class: ${modelClass.name}")
         }
     }

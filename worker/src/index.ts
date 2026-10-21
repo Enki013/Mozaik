@@ -5,6 +5,8 @@ export interface Env {
   DB: D1Database;
   FATSECRET_CONSUMER_KEY?: string;
   FATSECRET_CONSUMER_SECRET?: string;
+  LASTFM_API_KEY?: string;
+  LASTFM_USERNAME?: string;
 }
 
 const app = new Hono<{ Bindings: Env }>();
@@ -77,33 +79,91 @@ async function ensureHealthTable(db: D1Database) {
   `).run();
 }
 
+async function ensureMusicTables(db: D1Database) {
+  await db.prepare(`
+    CREATE TABLE IF NOT EXISTS music_scrobbles (
+      id TEXT PRIMARY KEY,
+      track TEXT NOT NULL,
+      artist TEXT NOT NULL,
+      album TEXT,
+      album_artist TEXT,
+      duration INTEGER,
+      listened_at TEXT NOT NULL,
+      uts INTEGER NOT NULL,
+      source TEXT NOT NULL,
+      origin_url TEXT,
+      image_url TEXT,
+      raw_json TEXT NOT NULL,
+      created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+    )
+  `).run();
+  await db.prepare("CREATE INDEX IF NOT EXISTS idx_music_scrobbles_uts ON music_scrobbles(uts DESC)").run();
+  await db.prepare("CREATE INDEX IF NOT EXISTS idx_music_scrobbles_artist ON music_scrobbles(artist)").run();
+  await db.prepare("CREATE UNIQUE INDEX IF NOT EXISTS idx_music_scrobbles_unique ON music_scrobbles(artist, track, uts)").run();
+
+  await db.prepare(`
+    CREATE TABLE IF NOT EXISTS music_sync_settings (
+      id INTEGER PRIMARY KEY CHECK (id = 1),
+      lastfm_username TEXT,
+      lastfm_api_key TEXT,
+      interval_minutes INTEGER NOT NULL DEFAULT 360,
+      enabled INTEGER NOT NULL DEFAULT 1,
+      updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+    )
+  `).run();
+
+  await db.prepare(`
+    CREATE TABLE IF NOT EXISTS music_sync_runs (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      source TEXT NOT NULL,
+      status TEXT NOT NULL,
+      inserted INTEGER NOT NULL DEFAULT 0,
+      updated INTEGER NOT NULL DEFAULT 0,
+      message TEXT,
+      ran_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+    )
+  `).run();
+}
+
 // 2. Dashboard
 app.get("/api/dashboard", async (c) => {
   const db = c.env.DB;
   await ensureHealthTable(db);
+  await ensureMusicTables(db);
 
-  const [booksCount, filmsCount, foodsCount, notifCount, healthCount] = await Promise.all([
+  const [booksCount, filmsCount, foodsCount, notifCount, healthCount, musicCount] = await Promise.all([
     db.prepare("SELECT count(*) as c FROM goodreads_books").first<any>(),
     db.prepare("SELECT count(*) as c FROM letterboxd_films").first<any>(),
     db.prepare("SELECT count(*) as c FROM fatsecret_food_entries").first<any>(),
     db.prepare("SELECT count(*) as c FROM notifications").first<any>(),
     db.prepare("SELECT count(*) as c FROM health_records").first<any>(),
+    db.prepare("SELECT count(*) as c FROM music_scrobbles").first<any>(),
   ]);
 
   const today = todayDateInt();
-  const todayFood = await db
-    .prepare("SELECT count(*) as count, coalesce(sum(calories), 0) as calories FROM fatsecret_food_entries WHERE date_int = ?")
-    .bind(today)
-    .first<any>();
+  const todayIso = dateIntToISO(today);
+  const startOfTodayUts = Math.floor(new Date(todayIso + "T00:00:00+03:00").getTime() / 1000);
+  const [todayFood, todayMusic] = await Promise.all([
+    db
+      .prepare("SELECT count(*) as count, coalesce(sum(calories), 0) as calories FROM fatsecret_food_entries WHERE date_int = ?")
+      .bind(today)
+      .first<any>(),
+    db
+      .prepare("SELECT count(*) as count FROM music_scrobbles WHERE uts >= ?")
+      .bind(startOfTodayUts)
+      .first<any>(),
+  ]);
 
   const token = await db.prepare("SELECT id FROM fatsecret_tokens WHERE id = 1").first();
   const grSettings = await db.prepare("SELECT feed_url FROM goodreads_sync_settings WHERE id = 1").first<any>();
   const lbSettings = await db.prepare("SELECT feed_url FROM letterboxd_sync_settings WHERE id = 1").first<any>();
+  const musicSettings = await db.prepare("SELECT lastfm_username FROM music_sync_settings WHERE id = 1").first<any>();
 
-  const [fatRun, grRun, lbRun] = await Promise.all([
+  const [fatRun, grRun, lbRun, musicRun] = await Promise.all([
     db.prepare("SELECT * FROM fatsecret_sync_runs ORDER BY id DESC LIMIT 1").first(),
     db.prepare("SELECT * FROM goodreads_sync_runs ORDER BY id DESC LIMIT 1").first(),
     db.prepare("SELECT * FROM letterboxd_sync_runs ORDER BY id DESC LIMIT 1").first(),
+    db.prepare("SELECT * FROM music_sync_runs ORDER BY id DESC LIMIT 1").first(),
   ]);
 
   const calorieTargetRow = await db
@@ -118,22 +178,26 @@ app.get("/api/dashboard", async (c) => {
       fatsecret_food_entries: foodsCount?.c || 0,
       notifications: notifCount?.c || 0,
       health_records: healthCount?.c || 0,
+      music_scrobbles: musicCount?.c || 0,
     },
     today: {
-      date: dateIntToISO(today),
+      date: todayIso,
       fatsecret_entry_count: todayFood?.count || 0,
       fatsecret_calories: Math.round((todayFood?.calories || 0) * 100) / 100,
+      music_scrobbles: todayMusic?.count || 0,
     },
     connections: {
       fatsecret: !!token,
       goodreads_rss: !!(grSettings?.feed_url),
       letterboxd_rss: !!(lbSettings?.feed_url),
       health_connect: (healthCount?.c || 0) > 0,
+      music: (musicCount?.c || 0) > 0 || !!(musicSettings?.lastfm_username),
     },
     last_sync: {
       fatsecret: fatRun || null,
       goodreads: grRun || null,
       letterboxd: lbRun || null,
+      music: musicRun || null,
     },
     calorie_target: calorieTarget,
   });
@@ -403,6 +467,43 @@ app.get("/api/activity", async (c) => {
         active_calories: kcal,
         distance_km: distKm,
         avg_bpm: avgBpm,
+      },
+    });
+  }
+
+  // Music scrobbles
+  await ensureMusicTables(db);
+  const musicEntries = await db
+    .prepare("SELECT * FROM music_scrobbles ORDER BY uts DESC LIMIT ?")
+    .bind(limit * 3)
+    .all<any>();
+
+  for (const m of musicEntries.results) {
+    const dISO = m.listened_at ? m.listened_at.substring(0, 10) : "";
+    if (!dISO) continue;
+    if (minDateISO && dISO < minDateISO) continue;
+    if (maxDateISO && dISO > maxDateISO) continue;
+
+    allItems.push({
+      id: "music_" + m.id,
+      source: "music",
+      type: "music",
+      date: dISO,
+      time: m.listened_at && m.listened_at.length >= 16 ? m.listened_at.substring(11, 16) : "",
+      timestamp: m.listened_at || "",
+      title: m.track,
+      subtitle: m.artist + (m.album ? ` • ${m.album}` : ""),
+      details: {
+        id: m.id,
+        track: m.track,
+        artist: m.artist,
+        album: m.album,
+        album_artist: m.album_artist,
+        duration: m.duration,
+        image_url: m.image_url,
+        origin_url: m.origin_url,
+        source: m.source,
+        uts: m.uts,
       },
     });
   }
@@ -1787,7 +1888,7 @@ const handleHealthWebhook = async (c: any) => {
 
 const handleHealthWebhookStatus = async (c: any) => {
   await ensureHealthTable(c.env.DB);
-  const row = await c.env.DB.prepare("SELECT count(*) as c FROM health_records").first<any>();
+  const row = (await c.env.DB.prepare("SELECT count(*) as c FROM health_records").first()) as any;
   return c.json({
     ok: true,
     service: "health-connect-webhook",
@@ -1889,6 +1990,590 @@ app.get("/api/health-connect/records", async (c) => {
   });
 });
 
+// ==========================================
+// 17. MUSIC & AUDIO (Web Scrobbler & Last.fm)
+// ==========================================
+
+function extractLastFmImage(images: any): string {
+  if (!images || !Array.isArray(images) || images.length === 0) return "";
+  const order = ["extralarge", "large", "medium", "small"];
+  for (const size of order) {
+    const found = images.find((img: any) => img.size === size && img["#text"]);
+    if (found && found["#text"]) return found["#text"].trim();
+  }
+  const last = images[images.length - 1];
+  return last && last["#text"] ? last["#text"].trim() : "";
+}
+
+async function getLastFmCredentials(db: D1Database, env: Env): Promise<{ username: string; apiKey: string }> {
+  await ensureMusicTables(db);
+  const row = (await db.prepare("SELECT lastfm_username, lastfm_api_key FROM music_sync_settings WHERE id = 1").first()) as any;
+  const username = (row?.lastfm_username || env.LASTFM_USERNAME || "").trim();
+  const apiKey = (row?.lastfm_api_key || env.LASTFM_API_KEY || "").trim();
+  return { username, apiKey };
+}
+
+// Web Scrobbler Webhook Handler
+const handleMusicWebhook = async (c: any) => {
+  const db = c.env.DB;
+  await ensureMusicTables(db);
+
+  let body: any = null;
+  try {
+    body = await c.req.json();
+  } catch (e) {
+    return c.json({ ok: false, error: "Invalid JSON body" }, 200);
+  }
+
+  if (!body) {
+    return c.json({ ok: false, error: "Empty request body" }, 200);
+  }
+
+  // Web Scrobbler sends eventName: "scrobble" or "nowplaying"
+  const eventName = body.eventName || body.event || "scrobble";
+  if (eventName === "nowplaying") {
+    // Return 200 OK without saving to prevent spamming
+    return c.json({ ok: true, status: "nowplaying_ignored" }, 200);
+  }
+
+  const rawItems = Array.isArray(body) ? body : (Array.isArray(body.items) ? body.items : [body]);
+  let inserted = 0;
+  let updated = 0;
+
+  for (const item of rawItems) {
+    const song = item.data?.song || item.song;
+    const artist = (song?.processed?.artist || song?.parsed?.artist || item.artist || "").trim();
+    const track = (song?.processed?.track || song?.parsed?.track || item.track || item.title || "").trim();
+    const album = (song?.processed?.album || song?.parsed?.album || item.album || "").trim();
+    const albumArtist = (song?.processed?.albumArtist || song?.parsed?.albumArtist || item.albumArtist || item.album_artist || "").trim();
+    const duration = Number(song?.parsed?.duration || song?.duration || item.duration || 0);
+    const imageUrl = (song?.parsed?.trackArt || item.trackArt || item.image_url || item.imageUrl || "").trim();
+    const originUrl = (item.originUrl || song?.parsed?.originUrl || item.origin_url || "").trim();
+
+    let uts = Number(item.uts || item.timestamp || 0);
+    if (!uts || uts <= 0) {
+      uts = Math.floor(Date.now() / 1000);
+    }
+    const listenedAt = item.listened_at || new Date(uts * 1000).toISOString();
+    const source = item.source || "web_scrobbler";
+
+    if (!artist || !track) {
+      continue;
+    }
+
+    const id = (source === "lastfm" ? "lfm_" : "ws_") + hashStr(`${artist}:${track}:${uts}`);
+    const rawJson = JSON.stringify(item);
+
+    const existing = await db
+      .prepare("SELECT id FROM music_scrobbles WHERE artist = ? AND track = ? AND uts = ?")
+      .bind(artist, track, uts)
+      .first();
+
+    await db.prepare(`
+      INSERT INTO music_scrobbles (id, track, artist, album, album_artist, duration, listened_at, uts, source, origin_url, image_url, raw_json)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ON CONFLICT(artist, track, uts) DO UPDATE SET
+        album = CASE WHEN excluded.album != '' THEN excluded.album ELSE music_scrobbles.album END,
+        album_artist = CASE WHEN excluded.album_artist != '' THEN excluded.album_artist ELSE music_scrobbles.album_artist END,
+        duration = CASE WHEN excluded.duration > 0 THEN excluded.duration ELSE music_scrobbles.duration END,
+        image_url = CASE WHEN excluded.image_url != '' THEN excluded.image_url ELSE music_scrobbles.image_url END,
+        origin_url = CASE WHEN excluded.origin_url != '' THEN excluded.origin_url ELSE music_scrobbles.origin_url END
+    `).bind(
+      id, track, artist, album, albumArtist, duration, listenedAt, uts, source, originUrl, imageUrl, rawJson
+    ).run();
+
+    if (existing) updated++;
+    else inserted++;
+  }
+
+  return c.json({
+    ok: true,
+    status: "success",
+    inserted,
+    updated,
+    total: rawItems.length,
+    message: `${rawItems.length} scrobble başarıyla işlendi (${inserted} yeni, ${updated} güncellendi).`
+  }, 200);
+};
+
+const handleMusicWebhookStatus = async (c: any) => {
+  const db = c.env.DB;
+  await ensureMusicTables(db);
+  const row = (await db.prepare("SELECT count(*) as c FROM music_scrobbles").first()) as any;
+  return c.json({
+    ok: true,
+    service: "music-webhook",
+    status: "ready",
+    accepted_methods: ["POST"],
+    total_records: row?.c || 0,
+    instructions: "Web Scrobbler extension -> Options -> Accounts -> Webhook -> URL: [host]/api/webhooks/music",
+  });
+};
+
+app.get("/api/webhooks/music", handleMusicWebhookStatus);
+app.get("/api/webhooks/scrobbler", handleMusicWebhookStatus);
+app.get("/webhooks/music", handleMusicWebhookStatus);
+
+app.post("/api/webhooks/music", handleMusicWebhook);
+app.post("/api/webhooks/scrobbler", handleMusicWebhook);
+app.post("/webhooks/music", handleMusicWebhook);
+
+// 18. Query Music Scrobbles API
+app.get("/api/music", async (c) => {
+  const db = c.env.DB;
+  await ensureMusicTables(db);
+
+  const page = Math.max(parseInt(c.req.query("page") || "1", 10), 1);
+  const limit = Math.min(Math.max(parseInt(c.req.query("limit") || "50", 10), 1), 200);
+  const offset = (page - 1) * limit;
+
+  const search = c.req.query("search")?.trim();
+  const artist = c.req.query("artist")?.trim();
+  const album = c.req.query("album")?.trim();
+  const source = c.req.query("source")?.trim();
+  const date = c.req.query("date")?.trim();
+  const from = c.req.query("from")?.trim();
+  const to = c.req.query("to")?.trim();
+
+  let whereClauses: string[] = ["1=1"];
+  const params: any[] = [];
+
+  if (search) {
+    whereClauses.push("(track LIKE ? OR artist LIKE ? OR album LIKE ?)");
+    params.push(`%${search}%`, `%${search}%`, `%${search}%`);
+  }
+  if (artist) {
+    whereClauses.push("artist = ?");
+    params.push(artist);
+  }
+  if (album) {
+    whereClauses.push("album = ?");
+    params.push(album);
+  }
+  if (source) {
+    whereClauses.push("source = ?");
+    params.push(source);
+  }
+  if (date) {
+    whereClauses.push("listened_at LIKE ?");
+    params.push(`${date}%`);
+  } else {
+    if (from) {
+      const fromUts = isNaN(Number(from)) ? Math.floor(new Date(from).getTime() / 1000) : Number(from);
+      whereClauses.push("uts >= ?");
+      params.push(fromUts);
+    }
+    if (to) {
+      const toUts = isNaN(Number(to)) ? Math.floor(new Date(to).getTime() / 1000) : Number(to);
+      whereClauses.push("uts <= ?");
+      params.push(toUts);
+    }
+  }
+
+  const whereSql = whereClauses.join(" AND ");
+
+  const [countRow, rows] = await Promise.all([
+    db.prepare(`SELECT count(*) as total FROM music_scrobbles WHERE ${whereSql}`).bind(...params).first<any>(),
+    db.prepare(`SELECT * FROM music_scrobbles WHERE ${whereSql} ORDER BY uts DESC LIMIT ? OFFSET ?`).bind(...params, limit, offset).all<any>(),
+  ]);
+
+  const total = countRow?.total || 0;
+  return c.json({
+    page,
+    limit,
+    total,
+    totalPages: Math.ceil(total / limit),
+    count: rows.results.length,
+    items: rows.results,
+  });
+});
+
+// 19. Query Music Stats API
+app.get("/api/music/stats", async (c) => {
+  const db = c.env.DB;
+  await ensureMusicTables(db);
+
+  const nowUts = Math.floor(Date.now() / 1000);
+  const todayDate = dateIntToISO(todayDateInt());
+  const startOfTodayUts = Math.floor(new Date(todayDate + "T00:00:00+03:00").getTime() / 1000);
+  const startOfWeekUts = nowUts - (7 * 86400);
+  const startOfMonthUts = nowUts - (30 * 86400);
+
+  const [
+    totalRow,
+    todayRow,
+    weekRow,
+    monthRow,
+    uniqueArtistsRow,
+    uniqueAlbumsRow,
+    topArtistsRows,
+    topAlbumsRows,
+    recentRows,
+    lastSyncRow
+  ] = await Promise.all([
+    db.prepare("SELECT count(*) as c FROM music_scrobbles").first<any>(),
+    db.prepare("SELECT count(*) as c FROM music_scrobbles WHERE uts >= ?").bind(startOfTodayUts).first<any>(),
+    db.prepare("SELECT count(*) as c FROM music_scrobbles WHERE uts >= ?").bind(startOfWeekUts).first<any>(),
+    db.prepare("SELECT count(*) as c FROM music_scrobbles WHERE uts >= ?").bind(startOfMonthUts).first<any>(),
+    db.prepare("SELECT count(DISTINCT artist) as c FROM music_scrobbles").first<any>(),
+    db.prepare("SELECT count(DISTINCT album) as c FROM music_scrobbles WHERE album != ''").first<any>(),
+    db.prepare(`
+      SELECT artist, count(*) as count, max(image_url) as image_url
+      FROM music_scrobbles
+      GROUP BY artist
+      ORDER BY count DESC
+      LIMIT 10
+    `).all<any>(),
+    db.prepare(`
+      SELECT album, artist, count(*) as count, max(image_url) as image_url
+      FROM music_scrobbles
+      WHERE album != ''
+      GROUP BY album, artist
+      ORDER BY count DESC
+      LIMIT 10
+    `).all<any>(),
+    db.prepare("SELECT * FROM music_scrobbles ORDER BY uts DESC LIMIT 5").all<any>(),
+    db.prepare("SELECT * FROM music_sync_runs ORDER BY id DESC LIMIT 1").first<any>(),
+  ]);
+
+  return c.json({
+    total_scrobbles: totalRow?.c || 0,
+    today_scrobbles: todayRow?.c || 0,
+    week_scrobbles: weekRow?.c || 0,
+    month_scrobbles: monthRow?.c || 0,
+    unique_artists: uniqueArtistsRow?.c || 0,
+    unique_albums: uniqueAlbumsRow?.c || 0,
+    top_artists: topArtistsRows.results,
+    top_albums: topAlbumsRows.results,
+    recent_scrobbles: recentRows.results,
+    last_sync: lastSyncRow || null,
+  });
+});
+
+// 20. Music Settings API
+app.get("/api/settings/music", async (c) => {
+  const db = c.env.DB;
+  await ensureMusicTables(db);
+  const row = (await db.prepare("SELECT * FROM music_sync_settings WHERE id = 1").first()) as any;
+  const username = row?.lastfm_username || c.env.LASTFM_USERNAME || "";
+  const hasApiKey = !!(row?.lastfm_api_key || c.env.LASTFM_API_KEY);
+
+  const host = c.req.header("host") || "your-worker.workers.dev";
+  const proto = c.req.header("x-forwarded-proto") || "https";
+  const webhookUrl = `${proto}://${host}/api/webhooks/music`;
+
+  return c.json({
+    lastfm_username: username,
+    lastfm_api_key_set: hasApiKey,
+    interval_minutes: row?.interval_minutes || 360,
+    enabled: row?.enabled !== 0,
+    webhook_url: webhookUrl,
+  });
+});
+
+app.post("/api/settings/music", async (c) => {
+  const db = c.env.DB;
+  await ensureMusicTables(db);
+  const body = await c.req.json().catch(() => ({}));
+
+  const username = typeof body.lastfm_username === "string" ? body.lastfm_username.trim() : "";
+  const apiKey = typeof body.lastfm_api_key === "string" ? body.lastfm_api_key.trim() : "";
+  const interval = typeof body.interval_minutes === "number" ? body.interval_minutes : 360;
+  const enabled = body.enabled === false ? 0 : 1;
+
+  const existing = (await db.prepare("SELECT * FROM music_sync_settings WHERE id = 1").first()) as any;
+
+  if (existing) {
+    const finalApiKey = apiKey !== "" ? apiKey : existing.lastfm_api_key;
+    await db.prepare(`
+      UPDATE music_sync_settings
+      SET lastfm_username = ?, lastfm_api_key = ?, interval_minutes = ?, enabled = ?, updated_at = CURRENT_TIMESTAMP
+      WHERE id = 1
+    `).bind(username, finalApiKey, interval, enabled).run();
+  } else {
+    await db.prepare(`
+      INSERT INTO music_sync_settings (id, lastfm_username, lastfm_api_key, interval_minutes, enabled)
+      VALUES (1, ?, ?, ?, ?)
+    `).bind(username, apiKey, interval, enabled).run();
+  }
+
+  return c.json({ ok: true, message: "Müzik ayarları kaydedildi" });
+});
+
+// 21. Last.fm Sync API
+app.post("/api/music/sync-lastfm", async (c) => {
+  const db = c.env.DB;
+  await ensureMusicTables(db);
+
+  let body: any = {};
+  try {
+    body = await c.req.json();
+  } catch (e) {
+    // empty body is fine
+  }
+
+  const creds = await getLastFmCredentials(db, c.env);
+  const username = (body.username || creds.username).trim();
+  const apiKey = (body.apiKey || creds.apiKey).trim();
+
+  if (!username) {
+    return c.json({ ok: false, error: "Last.fm kullanıcı adı tanımlanmamış." }, 400);
+  }
+  if (!apiKey) {
+    return c.json({ ok: false, error: "Last.fm API Key tanımlanmamış. Ayarlardan Last.fm API Key girin." }, 400);
+  }
+
+  const limit = Math.min(Math.max(parseInt(body.limit || "200", 10), 10), 200);
+  const page = Math.max(parseInt(body.page || "1", 10), 1);
+  const maxPages = body.allPages ? Math.min(parseInt(body.maxPages || "10", 10), 20) : 1;
+  const incremental = body.incremental !== false && !body.page;
+
+  let fromUts: number | null = null;
+  if (body.fromUts) {
+    fromUts = Number(body.fromUts);
+  } else if (incremental) {
+    // Look for latest UTS from lastfm to only fetch new scrobbles
+    const maxRow = (await db.prepare("SELECT max(uts) as max_uts FROM music_scrobbles WHERE source = 'lastfm'").first()) as any;
+    if (maxRow?.max_uts) {
+      fromUts = Number(maxRow.max_uts) + 1;
+    }
+  }
+
+  let totalInserted = 0;
+  let totalUpdated = 0;
+  let totalProcessed = 0;
+  let totalPagesReported = 1;
+
+  try {
+    for (let p = page; p < page + maxPages; p++) {
+      const url = new URL("https://ws.audioscrobbler.com/2.0/");
+      url.searchParams.set("method", "user.getrecenttracks");
+      url.searchParams.set("user", username);
+      url.searchParams.set("api_key", apiKey);
+      url.searchParams.set("format", "json");
+      url.searchParams.set("limit", limit.toString());
+      url.searchParams.set("page", p.toString());
+      url.searchParams.set("extended", "1");
+      if (fromUts) {
+        url.searchParams.set("from", fromUts.toString());
+      }
+
+      const res = await fetch(url.toString(), {
+        headers: { "User-Agent": "PersonalRecordsApp/1.0" },
+      });
+
+      if (!res.ok) {
+        const txt = await res.text();
+        throw new Error(`Last.fm API Hatası: ${res.status} ${txt}`);
+      }
+
+      const data: any = await res.json();
+      if (data.error) {
+        throw new Error(`Last.fm API Hatası (${data.error}): ${data.message}`);
+      }
+
+      const recentTracks = data.recenttracks;
+      if (!recentTracks) break;
+
+      totalPagesReported = parseInt(recentTracks["@attr"]?.totalPages || "1", 10);
+      const rawTracks = recentTracks.track;
+      const tracks = Array.isArray(rawTracks) ? rawTracks : (rawTracks ? [rawTracks] : []);
+
+      if (tracks.length === 0) break;
+
+      for (const t of tracks) {
+        // Skip current playback (nowplaying="true" does not have date)
+        if (t["@attr"]?.nowplaying === "true") continue;
+
+        const uts = parseInt(t.date?.uts, 10);
+        if (!uts || isNaN(uts)) continue;
+
+        const artist = typeof t.artist === "object" ? (t.artist.name || t.artist["#text"] || "") : (t.artist || "");
+        const track = (t.name || "").trim();
+        const album = typeof t.album === "object" ? (t.album["#text"] || t.album.name || "") : (t.album || "");
+        const albumArtist = "";
+        const duration = 0;
+        const imageUrl = extractLastFmImage(t.image);
+        const originUrl = t.url || "";
+        const listenedAt = new Date(uts * 1000).toISOString();
+        const source = "lastfm";
+        const id = "lfm_" + hashStr(`${artist}:${track}:${uts}`);
+        const rawJson = JSON.stringify(t);
+
+        if (!artist || !track) continue;
+
+        const existing = await db
+          .prepare("SELECT id FROM music_scrobbles WHERE artist = ? AND track = ? AND uts = ?")
+          .bind(artist, track, uts)
+          .first();
+
+        await db.prepare(`
+          INSERT INTO music_scrobbles (id, track, artist, album, album_artist, duration, listened_at, uts, source, origin_url, image_url, raw_json)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          ON CONFLICT(artist, track, uts) DO UPDATE SET
+            album = CASE WHEN excluded.album != '' THEN excluded.album ELSE music_scrobbles.album END,
+            image_url = CASE WHEN excluded.image_url != '' THEN excluded.image_url ELSE music_scrobbles.image_url END,
+            origin_url = CASE WHEN excluded.origin_url != '' THEN excluded.origin_url ELSE music_scrobbles.origin_url END
+        `).bind(
+          id, track, artist, album, albumArtist, duration, listenedAt, uts, source, originUrl, imageUrl, rawJson
+        ).run();
+
+        if (existing) totalUpdated++;
+        else totalInserted++;
+        totalProcessed++;
+      }
+
+      if (p >= totalPagesReported) break;
+    }
+
+    await db.prepare(`
+      INSERT INTO music_sync_runs (source, status, inserted, updated, message)
+      VALUES ('lastfm', 'success', ?, ?, ?)
+    `).bind(
+      totalInserted,
+      totalUpdated,
+      `Last.fm senkronizasyonu tamamlandı: ${totalInserted} yeni, ${totalUpdated} güncellendi.`
+    ).run();
+
+    return c.json({
+      ok: true,
+      inserted: totalInserted,
+      updated: totalUpdated,
+      totalProcessed,
+      totalPages: totalPagesReported,
+      message: `Last.fm senkronizasyonu başarılı: ${totalInserted} yeni scrobble eklendi.`
+    });
+  } catch (err: any) {
+    await db.prepare(`
+      INSERT INTO music_sync_runs (source, status, inserted, updated, message)
+      VALUES ('lastfm', 'error', ?, ?, ?)
+    `).bind(totalInserted, totalUpdated, err.message).run();
+
+    return c.json({ ok: false, error: err.message }, 500);
+  }
+});
+
+// 22. Music Import API (CSV or JSON)
+app.post("/api/music/import", async (c) => {
+  const db = c.env.DB;
+  await ensureMusicTables(db);
+
+  const contentType = c.req.header("content-type") || "";
+  let items: any[] = [];
+
+  if (contentType.includes("application/json")) {
+    const body = await c.req.json().catch(() => null);
+    if (Array.isArray(body)) {
+      items = body;
+    } else if (body && Array.isArray(body.items)) {
+      items = body.items;
+    }
+  } else {
+    // CSV parsing
+    const text = await c.req.text();
+    const lines = text.split(/\r?\n/).filter((l) => l.trim().length > 0);
+    if (lines.length > 0) {
+      const headerLine = lines[0].toLowerCase();
+      const hasHeader = headerLine.includes("artist") || headerLine.includes("track") || headerLine.includes("title");
+      const startIdx = hasHeader ? 1 : 0;
+
+      for (let i = startIdx; i < lines.length; i++) {
+        const parts = lines[i].split(",").map((p) => p.trim().replace(/^"|"$/g, ""));
+        if (parts.length >= 3) {
+          let artist = "";
+          let track = "";
+          let album = "";
+          let timestampStr = "";
+
+          if (parts.length >= 4) {
+            artist = parts[0];
+            album = parts[1];
+            track = parts[2];
+            timestampStr = parts[3];
+          } else {
+            artist = parts[0];
+            track = parts[1];
+            timestampStr = parts[2];
+          }
+
+          let uts = Number(timestampStr);
+          if (!uts || isNaN(uts)) {
+            const parsed = new Date(timestampStr);
+            if (!isNaN(parsed.getTime())) {
+              uts = Math.floor(parsed.getTime() / 1000);
+            } else {
+              uts = Math.floor(Date.now() / 1000) - (lines.length - i) * 180;
+            }
+          }
+
+          items.push({
+            artist,
+            track,
+            album,
+            uts,
+            source: "csv_import",
+          });
+        }
+      }
+    }
+  }
+
+  if (items.length === 0) {
+    return c.json({ ok: false, error: "İçe aktarılacak scrobble verisi bulunamadı." }, 400);
+  }
+
+  let inserted = 0;
+  let updated = 0;
+
+  for (const item of items) {
+    const artist = (item.artist || "").trim();
+    const track = (item.track || item.title || "").trim();
+    const album = (item.album || "").trim();
+    const albumArtist = (item.album_artist || item.albumArtist || "").trim();
+    const duration = Number(item.duration || 0);
+    const imageUrl = (item.image_url || item.imageUrl || "").trim();
+    const originUrl = (item.origin_url || item.originUrl || "").trim();
+
+    let uts = Number(item.uts || item.timestamp || 0);
+    if (!uts || uts <= 0) {
+      uts = Math.floor(Date.now() / 1000);
+    }
+    const listenedAt = item.listened_at || new Date(uts * 1000).toISOString();
+    const source = item.source || "import";
+
+    if (!artist || !track) continue;
+
+    const id = "imp_" + hashStr(`${artist}:${track}:${uts}`);
+    const rawJson = JSON.stringify(item);
+
+    const existing = await db
+      .prepare("SELECT id FROM music_scrobbles WHERE artist = ? AND track = ? AND uts = ?")
+      .bind(artist, track, uts)
+      .first();
+
+    await db.prepare(`
+      INSERT INTO music_scrobbles (id, track, artist, album, album_artist, duration, listened_at, uts, source, origin_url, image_url, raw_json)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ON CONFLICT(artist, track, uts) DO UPDATE SET
+        album = CASE WHEN excluded.album != '' THEN excluded.album ELSE music_scrobbles.album END,
+        image_url = CASE WHEN excluded.image_url != '' THEN excluded.image_url ELSE music_scrobbles.image_url END
+    `).bind(
+      id, track, artist, album, albumArtist, duration, listenedAt, uts, source, originUrl, imageUrl, rawJson
+    ).run();
+
+    if (existing) updated++;
+    else inserted++;
+  }
+
+  return c.json({
+    ok: true,
+    total: items.length,
+    inserted,
+    updated,
+    message: `${items.length} scrobble başarıyla içe aktarıldı (${inserted} yeni, ${updated} güncellendi).`
+  });
+});
+
 
 // Simple Tag Extractor helper
 function extractTag(xml: string, tag: string): string {
@@ -1925,6 +2610,15 @@ export default {
           body: JSON.stringify({ days: 3 }),
         });
         await app.fetch(fsReq, env, ctx);
+      }
+      const musicCreds = await getLastFmCredentials(env.DB, env);
+      if (musicCreds.username && musicCreds.apiKey) {
+        const musicReq = new Request("http://localhost/api/music/sync-lastfm", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ incremental: true }),
+        });
+        await app.fetch(musicReq, env, ctx);
       }
     } catch (err) {
       console.error("Scheduled sync error:", err);

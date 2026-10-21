@@ -53,4 +53,10 @@ class Navigator(val state: NavigationState) {
     fun currentRoute(): NavKey {
         return state.backStacks[state.topLevelRoute]?.lastOrNull() ?: state.topLevelRoute
     }
+
+    fun canGoBack(): Boolean {
+        val currentStack = state.backStacks[state.topLevelRoute] ?: return false
+        val currentRoute = currentStack.lastOrNull() ?: return false
+        return currentRoute != state.startRoute
+    }
 }

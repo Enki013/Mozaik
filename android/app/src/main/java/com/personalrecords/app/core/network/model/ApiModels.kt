@@ -373,4 +373,156 @@ data class HealthConnectResponse(
     val summary: HealthConnectSummaryDto = HealthConnectSummaryDto()
 )
 
+// ==========================================
+// Music & Audio Models
+// ==========================================
+
+@Immutable
+@Serializable
+data class MusicScrobbleDto(
+    val id: String = "",
+    val track: String = "",
+    val artist: String = "",
+    val album: String = "",
+    @SerialName("album_artist")
+    val albumArtist: String = "",
+    val duration: Int = 0,
+    @SerialName("listened_at")
+    val listenedAt: String = "",
+    val uts: Long = 0L,
+    val source: String = "", // "web_scrobbler", "lastfm", "csv_import"
+    @SerialName("origin_url")
+    val originUrl: String = "",
+    @SerialName("image_url")
+    val imageUrl: String = "",
+    @SerialName("raw_json")
+    val rawJson: String = "",
+    @SerialName("created_at")
+    val createdAt: String = ""
+) {
+    val formattedDuration: String
+        get() {
+            if (duration <= 0) return ""
+            val mins = duration / 60
+            val secs = duration % 60
+            return "%d:%02d".format(mins, secs)
+        }
+
+    val formattedTime: String
+        get() = when {
+            listenedAt.length >= 16 -> listenedAt.substring(11, 16)
+            else -> ""
+        }
+
+    val formattedDate: String
+        get() = when {
+            listenedAt.length >= 10 -> listenedAt.substring(0, 10)
+            else -> ""
+        }
+}
+
+@Serializable
+data class MusicResponse(
+    val count: Int = 0,
+    val total: Int = 0,
+    val page: Int = 1,
+    val limit: Int = 50,
+    val totalPages: Int = 1,
+    val items: List<MusicScrobbleDto> = emptyList()
+)
+
+@Immutable
+@Serializable
+data class TopArtistDto(
+    val artist: String = "",
+    val count: Int = 0,
+    @SerialName("image_url")
+    val imageUrl: String = ""
+)
+
+@Immutable
+@Serializable
+data class TopAlbumDto(
+    val album: String = "",
+    val artist: String = "",
+    val count: Int = 0,
+    @SerialName("image_url")
+    val imageUrl: String = ""
+)
+
+@Immutable
+@Serializable
+data class MusicStatsDto(
+    @SerialName("total_scrobbles")
+    val totalScrobbles: Int = 0,
+    @SerialName("today_scrobbles")
+    val todayScrobbles: Int = 0,
+    @SerialName("week_scrobbles")
+    val weekScrobbles: Int = 0,
+    @SerialName("month_scrobbles")
+    val monthScrobbles: Int = 0,
+    @SerialName("unique_artists")
+    val uniqueArtists: Int = 0,
+    @SerialName("unique_albums")
+    val uniqueAlbums: Int = 0,
+    @SerialName("top_artists")
+    val topArtists: List<TopArtistDto> = emptyList(),
+    @SerialName("top_albums")
+    val topAlbums: List<TopAlbumDto> = emptyList(),
+    @SerialName("recent_scrobbles")
+    val recentScrobbles: List<MusicScrobbleDto> = emptyList()
+)
+
+@Immutable
+@Serializable
+data class MusicSettingsDto(
+    @SerialName("lastfm_username")
+    val lastfmUsername: String = "",
+    @SerialName("lastfm_api_key_set")
+    val lastfmApiKeySet: Boolean = false,
+    @SerialName("interval_minutes")
+    val intervalMinutes: Int = 360,
+    val enabled: Boolean = true,
+    @SerialName("webhook_url")
+    val webhookUrl: String = ""
+)
+
+@Serializable
+data class SaveMusicSettingsRequest(
+    @SerialName("lastfm_username")
+    val lastfmUsername: String? = null,
+    @SerialName("lastfm_api_key")
+    val lastfmApiKey: String? = null,
+    @SerialName("interval_minutes")
+    val intervalMinutes: Int? = null,
+    val enabled: Boolean? = null
+)
+
+@Serializable
+data class SaveMusicSettingsResponse(
+    val ok: Boolean = true,
+    val message: String = "",
+    val error: String? = null
+)
+
+@Serializable
+data class SyncLastFmRequest(
+    val username: String? = null,
+    val apiKey: String? = null,
+    val limit: Int? = null,
+    val page: Int? = null,
+    val fromUts: Long? = null,
+    val allPages: Boolean? = null
+)
+
+@Serializable
+data class SyncLastFmResponse(
+    val ok: Boolean = true,
+    val inserted: Int = 0,
+    val updated: Int = 0,
+    val totalProcessed: Int = 0,
+    val totalPages: Int = 1,
+    val message: String = ""
+)
+
 

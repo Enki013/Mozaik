@@ -2,6 +2,7 @@ package com.personalrecords.app
 
 import android.os.Bundle
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.animation.*
@@ -56,6 +57,7 @@ import com.personalrecords.app.ui.navigation.topLevelScreens
 import com.personalrecords.app.ui.screens.books.*
 import com.personalrecords.app.ui.screens.health.*
 import com.personalrecords.app.ui.screens.movies.*
+import com.personalrecords.app.ui.screens.music.*
 import com.personalrecords.app.ui.screens.notifications.*
 import com.personalrecords.app.ui.screens.nutrition.*
 import com.personalrecords.app.ui.screens.overview.*
@@ -132,6 +134,7 @@ private fun Any?.toScreen(): Screen? {
             this == "Movies" || this.contains("Movies") -> Screen.Movies
             this == "Notifications" || this.contains("Notifications") -> Screen.Notifications
             this == "HealthConnect" || this.contains("HealthConnect") -> Screen.HealthConnect
+            this == "Music" || this.contains("Music") -> Screen.Music
             this == "Language" || this.contains("Language") -> Screen.Language
             else -> null
         }
@@ -157,6 +160,7 @@ fun MainAppHost() {
     val moviesVm: MoviesViewModel = viewModel(factory = AppViewModelFactory())
     val notificationsVm: NotificationsViewModel = viewModel(factory = AppViewModelFactory())
     val healthConnectVm: HealthConnectViewModel = viewModel(factory = AppViewModelFactory())
+    val musicVm: MusicViewModel = viewModel(factory = AppViewModelFactory())
 
     val overviewScrollFlow = remember { MutableSharedFlow<Unit>(extraBufferCapacity = 1) }
     val overviewRefreshFlow = remember { MutableSharedFlow<Unit>(extraBufferCapacity = 1) }
@@ -199,6 +203,7 @@ fun MainAppHost() {
                 onNavigateToNutrition = { navigator.navigate(Screen.Nutrition) },
                 onNavigateToBooks = { navigator.navigate(Screen.Books) },
                 onNavigateToMovies = { navigator.navigate(Screen.Movies) },
+                onNavigateToMusic = { navigator.navigate(Screen.Music) },
                 onNavigateToSettings = { navigator.navigate(Screen.Settings) }
             )
         }
@@ -223,7 +228,8 @@ fun MainAppHost() {
                 onNavigateToBooks = { navigator.navigate(Screen.Books) },
                 onNavigateToMovies = { navigator.navigate(Screen.Movies) },
                 onNavigateToNotifications = { navigator.navigate(Screen.Notifications) },
-                onNavigateToHealthConnect = { navigator.navigate(Screen.HealthConnect) }
+                onNavigateToHealthConnect = { navigator.navigate(Screen.HealthConnect) },
+                onNavigateToMusic = { navigator.navigate(Screen.Music) }
             )
         }
 
@@ -271,6 +277,13 @@ fun MainAppHost() {
             )
         }
 
+        entry<Screen.Music> {
+            MusicScreen(
+                viewModel = musicVm,
+                onNavigateBack = { navigator.goBack() }
+            )
+        }
+
         entry<Screen.Language> {
             val state by settingsVm.uiState.collectAsState()
             LanguageSelectionScreen(
@@ -279,6 +292,10 @@ fun MainAppHost() {
                 onNavigateBack = { navigator.goBack() }
             )
         }
+    }
+
+    BackHandler(enabled = navigator.canGoBack()) {
+        navigator.goBack()
     }
 
     Box(modifier = Modifier.fillMaxSize()) {

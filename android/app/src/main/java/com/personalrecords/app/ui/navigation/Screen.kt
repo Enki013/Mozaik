@@ -48,6 +48,9 @@ sealed class Screen(
     data object HealthConnect : Screen("health_connect", R.string.title_health_connect, Icons.Default.Favorite, navLabelRes = R.string.nav_health_connect)
 
     @Serializable
+    data object Music : Screen("music", R.string.title_music, Icons.Default.MusicNote, navLabelRes = R.string.nav_music)
+
+    @Serializable
     data object Language : Screen("language", R.string.settings_language_screen_title, Icons.Default.Language, navLabelRes = R.string.settings_language_screen_title)
 }
 
@@ -71,6 +74,7 @@ val detailScreens = setOf(
     Screen.Movies,
     Screen.Notifications,
     Screen.HealthConnect,
+    Screen.Music,
     Screen.Language
 )
 
@@ -80,7 +84,8 @@ val recordsSubScreens = setOf(
     Screen.Books,
     Screen.Movies,
     Screen.Notifications,
-    Screen.HealthConnect
+    Screen.HealthConnect,
+    Screen.Music
 )
 
 val recordsSubRoutes = setOf(
@@ -89,6 +94,7 @@ val recordsSubRoutes = setOf(
     Screen.Books.route,
     Screen.Movies.route,
     Screen.Notifications.route,
-    Screen.HealthConnect.route
+    Screen.HealthConnect.route,
+    Screen.Music.route
 )
 

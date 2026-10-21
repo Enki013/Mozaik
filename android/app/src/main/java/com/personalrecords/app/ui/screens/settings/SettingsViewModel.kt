@@ -39,6 +39,14 @@ data class SettingsUiState(
     val isLoadingGoodreads: Boolean = false,
     val isSavingGoodreads: Boolean = false,
     val goodreadsSaveMessage: String? = null,
+    // Music & Scrobbler
+    val lastfmUsername: String = "",
+    val lastfmApiKey: String = "",
+    val lastfmApiKeySet: Boolean = false,
+    val musicWebhookUrl: String = "",
+    val isLoadingMusicSettings: Boolean = false,
+    val isSavingMusicSettings: Boolean = false,
+    val musicSaveMessage: String? = null,
     // Language
     val appLanguage: String = "system"
 )
@@ -81,6 +89,7 @@ class SettingsViewModel(
         loadFatSecretSettings()
         loadLetterboxdSettings()
         loadGoodreadsSettings()
+        loadMusicSettings()
     }
 
     fun loadFatSecretSettings() {
@@ -363,6 +372,63 @@ class SettingsViewModel(
                     }
                 }
                 else -> _uiState.update { it.copy(isSavingGoodreads = false) }
+            }
+        }
+    }
+
+    fun loadMusicSettings() {
+        viewModelScope.launch {
+            _uiState.update { it.copy(isLoadingMusicSettings = true) }
+            when (val result = repository.getMusicSettings()) {
+                is Resource.Success -> {
+                    _uiState.update {
+                        it.copy(
+                            isLoadingMusicSettings = false,
+                            lastfmUsername = result.data.lastfmUsername,
+                            lastfmApiKeySet = result.data.lastfmApiKeySet,
+                            musicWebhookUrl = result.data.webhookUrl
+                        )
+                    }
+                }
+                else -> _uiState.update { it.copy(isLoadingMusicSettings = false) }
+            }
+        }
+    }
+
+    fun updateLastfmUsername(username: String) {
+        _uiState.update { it.copy(lastfmUsername = username, musicSaveMessage = null) }
+    }
+
+    fun updateLastfmApiKey(apiKey: String) {
+        _uiState.update { it.copy(lastfmApiKey = apiKey, musicSaveMessage = null) }
+    }
+
+    fun saveMusicSettings() {
+        viewModelScope.launch {
+            _uiState.update { it.copy(isSavingMusicSettings = true, musicSaveMessage = null) }
+            val username = _uiState.value.lastfmUsername.trim()
+            val apiKey = _uiState.value.lastfmApiKey.trim().takeIf { it.isNotBlank() }
+            val result = repository.saveMusicSettings(username = username, apiKey = apiKey)
+            when (result) {
+                is Resource.Success -> {
+                    _uiState.update {
+                        it.copy(
+                            isSavingMusicSettings = false,
+                            musicSaveMessage = "Müzik ayarları kaydedildi",
+                            lastfmApiKey = ""
+                        )
+                    }
+                    loadMusicSettings()
+                }
+                is Resource.Error -> {
+                    _uiState.update {
+                        it.copy(
+                            isSavingMusicSettings = false,
+                            musicSaveMessage = result.message
+                        )
+                    }
+                }
+                else -> _uiState.update { it.copy(isSavingMusicSettings = false) }
             }
         }
     }

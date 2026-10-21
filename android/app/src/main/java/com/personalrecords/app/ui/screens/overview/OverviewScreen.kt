@@ -13,6 +13,7 @@ import androidx.compose.material.icons.automirrored.filled.*
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import coil.compose.AsyncImage
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
@@ -35,6 +36,7 @@ fun OverviewScreen(
     onNavigateToNutrition: () -> Unit = {},
     onNavigateToBooks: () -> Unit = {},
     onNavigateToMovies: () -> Unit = {},
+    onNavigateToMusic: () -> Unit = {},
     onNavigateToSettings: (() -> Unit)? = null
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
@@ -157,6 +159,7 @@ fun OverviewScreen(
                     val booksCount = counts["goodreads_books"] ?: counts["books"] ?: 0
                     val filmsCount = counts["letterboxd_films"] ?: counts["films"] ?: 0
                     val foodsCount = counts["fatsecret_food_entries"] ?: counts["foods"] ?: 0
+                    val musicCount = counts["music_scrobbles"] ?: counts["music"] ?: 0
 
                     Column(
                         modifier = expressiveItemModifier(),
@@ -196,14 +199,15 @@ fun OverviewScreen(
                                 onClick = onNavigateToMovies
                             )
                             MetricCard(
-                                title = stringResource(R.string.overview_metric_food_log),
-                                value = stringResource(R.string.overview_metric_foods_count, foodsCount),
-                                badgeText = stringResource(R.string.badge_data),
-                                note = stringResource(R.string.overview_metric_foods_note),
+                                title = stringResource(R.string.title_music),
+                                value = "$musicCount parça",
+                                badgeText = "Scrobbler",
+                                note = "Web & Last.fm",
                                 modifier = Modifier.weight(1f),
-                                badgeBg = domainNutritionContainer(),
-                                badgeColor = domainNutritionOnContainer(),
-                                onClick = onNavigateToNutrition
+                                badgeBg = MaterialTheme.colorScheme.primaryContainer,
+                                badgeColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                                valueIcon = Icons.Default.MusicNote,
+                                onClick = onNavigateToMusic
                             )
                         }
                     }
@@ -263,6 +267,18 @@ fun OverviewScreen(
                                 subtitle = stringResource(R.string.overview_integration_letterboxd_desc),
                                 isSyncing = state.isSyncing == "letterboxd",
                                 onSync = { viewModel.syncService("letterboxd") }
+                            )
+                            HorizontalDivider(
+                                modifier = Modifier.padding(vertical = 8.dp),
+                                color = MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.5f)
+                            )
+
+                            // Last.fm Row
+                            SyncRow(
+                                title = "Last.fm",
+                                subtitle = "Müzik scrobble geçmişi ve senkronizasyon",
+                                isSyncing = state.isSyncing == "lastfm",
+                                onSync = { viewModel.syncService("lastfm") }
                             )
                         }
                     }
@@ -456,6 +472,7 @@ fun ActivityRowItem(
         "goodreads" -> Icons.AutoMirrored.Filled.MenuBook
         "letterboxd" -> Icons.Default.Movie
         "notification" -> Icons.Default.Notifications
+        "music" -> Icons.Default.MusicNote
         else -> Icons.Default.Bookmark
     }
 
@@ -498,6 +515,31 @@ fun ActivityRowItem(
                         tint = domainNutritionOnContainer(),
                         modifier = Modifier.size(18.dp)
                     )
+                }
+            }
+            "music" -> {
+                Box(
+                    modifier = Modifier
+                        .size(38.dp)
+                        .clip(M3Shapes.CornerSmall)
+                        .background(MaterialTheme.colorScheme.primaryContainer),
+                    contentAlignment = Alignment.Center
+                ) {
+                    if (item.image_url?.isNotBlank() == true) {
+                        AsyncImage(
+                            model = item.image_url,
+                            contentDescription = null,
+                            modifier = Modifier.fillMaxSize(),
+                            contentScale = androidx.compose.ui.layout.ContentScale.Crop
+                        )
+                    } else {
+                        Icon(
+                            imageVector = Icons.Default.MusicNote,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
                 }
             }
             else -> {

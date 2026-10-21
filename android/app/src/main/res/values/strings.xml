@@ -347,5 +347,37 @@
     <string name="settings_health_step_3">3. Choose your sync interval and tap \'Sync Now\'. Your health records will appear automatically.</string>
     <string name="adaptive_select_item_title">Select an Item</string>
     <string name="adaptive_select_item_subtitle">Choose an item from the list to view its complete details here.</string>
+
+    <!-- Music & Audio Screen -->
+    <string name="title_music">Music &amp; Audio</string>
+    <string name="nav_music">Music</string>
+    <string name="music_stats_total">Total Scrobbles</string>
+    <string name="music_stats_today">Today</string>
+    <string name="music_stats_artists">Artists</string>
+    <string name="music_stats_albums">Albums</string>
+    <string name="music_filter_all">All</string>
+    <string name="music_filter_lastfm">Last.fm</string>
+    <string name="music_filter_scrobbler">Web Scrobbler</string>
+    <string name="music_search_hint">Search track, artist, album…</string>
+    <string name="music_empty_title">No music scrobbles yet</string>
+    <string name="music_empty_desc">Scrobble music using Web Scrobbler extension or sync your Last.fm history.</string>
+    <string name="music_sync_lastfm">Sync Last.fm</string>
+    <string name="music_syncing">Syncing Last.fm…</string>
+    <string name="music_settings_title">Music &amp; Scrobbler Settings</string>
+    <string name="music_settings_webhook_url">Web Scrobbler Webhook URL</string>
+    <string name="music_settings_copy_webhook">Copy Webhook URL</string>
+    <string name="music_settings_webhook_desc">In Web Scrobbler extension -> Options -> Accounts -> Webhook, paste this URL.</string>
+    <string name="music_settings_lastfm_user">Last.fm Username</string>
+    <string name="music_settings_lastfm_key">Last.fm API Key</string>
+    <string name="music_settings_save">Save Music Settings</string>
+    <string name="music_settings_saved">Music settings saved successfully.</string>
+    <string name="music_detail_artist">Artist</string>
+    <string name="music_detail_album">Album</string>
+    <string name="music_detail_duration">Duration</string>
+    <string name="music_detail_source">Source</string>
+    <string name="music_detail_time">Listened At</string>
+    <string name="records_item_music_count">Music &amp; Audio · %1$d scrobbles</string>
+    <string name="timeline_count_music">%1$d songs</string>
+    <string name="timeline_filter_music">Music</string>
 </resources>
 

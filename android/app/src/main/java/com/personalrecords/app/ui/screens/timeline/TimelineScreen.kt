@@ -21,6 +21,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import coil.compose.AsyncImage
 import com.personalrecords.app.R
 import com.personalrecords.app.core.network.model.ActivityItemDto
 import com.personalrecords.app.core.theme.*
@@ -30,7 +31,7 @@ private val DayCardTopShape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.d
 private val DayCardMiddleShape = androidx.compose.ui.graphics.RectangleShape
 private val DayCardBottomShape = RoundedCornerShape(bottomStart = 16.dp, bottomEnd = 16.dp)
 private val TimelineDayOptions = listOf(7, 14, 30, 90)
-private val TimelineSourceKeys = listOf("all", "fatsecret", "health_connect", "goodreads", "letterboxd", "notification")
+private val TimelineSourceKeys = listOf("all", "fatsecret", "health_connect", "music", "goodreads", "letterboxd", "notification")
 
 @OptIn(ExperimentalMaterial3Api::class, androidx.compose.foundation.ExperimentalFoundationApi::class)
 @Composable
@@ -261,6 +262,7 @@ fun TimelineScreen(
                                     when (key) {
                                         "fatsecret" -> stringResource(R.string.timeline_filter_nutrition)
                                         "health_connect" -> stringResource(R.string.timeline_filter_health)
+                                        "music" -> stringResource(R.string.timeline_filter_music)
                                         "goodreads" -> stringResource(R.string.timeline_filter_books)
                                         "letterboxd" -> stringResource(R.string.timeline_filter_movies)
                                         "notification" -> stringResource(R.string.timeline_filter_notifications)
@@ -271,6 +273,7 @@ fun TimelineScreen(
                                     when (key) {
                                         "fatsecret" -> Icons.Default.Restaurant
                                         "health_connect" -> Icons.Default.Favorite
+                                        "music" -> Icons.Default.MusicNote
                                         "goodreads" -> Icons.AutoMirrored.Filled.MenuBook
                                         "letterboxd" -> Icons.Default.Movie
                                         "notification" -> Icons.Default.Notifications
@@ -627,6 +630,18 @@ private fun TimelineSectionHeaderItem(
                             modifier = Modifier.padding(horizontal = 7.dp, vertical = 2.dp)
                         )
                     }
+                } else if (entry.source == "music") {
+                    Surface(
+                        shape = M3Shapes.CornerFull,
+                        color = MaterialTheme.colorScheme.primaryContainer
+                    ) {
+                        Text(
+                            text = stringResource(R.string.timeline_count_music, entry.itemCount),
+                            color = MaterialTheme.colorScheme.onPrimaryContainer,
+                            style = MaterialTheme.typography.labelSmall,
+                            modifier = Modifier.padding(horizontal = 7.dp, vertical = 2.dp)
+                        )
+                    }
                 }
             }
         }
@@ -675,6 +690,7 @@ fun TimelineItemCard(
     val fallbackIcon = when (item.source) {
         "fatsecret" -> Icons.Default.Restaurant
         "health_connect" -> Icons.Default.Favorite
+        "music" -> Icons.Default.MusicNote
         "goodreads" -> Icons.AutoMirrored.Filled.MenuBook
         "letterboxd" -> Icons.Default.Movie
         "notification" -> Icons.Default.Notifications
@@ -742,6 +758,31 @@ fun TimelineItemCard(
                         tint = domainHealthOnContainer(),
                         modifier = Modifier.size(18.dp)
                     )
+                }
+            }
+            "music" -> {
+                Box(
+                    modifier = Modifier
+                        .size(38.dp)
+                        .clip(M3Shapes.CornerSmall)
+                        .background(MaterialTheme.colorScheme.primaryContainer),
+                    contentAlignment = Alignment.Center
+                ) {
+                    if (item.image_url?.isNotBlank() == true) {
+                        AsyncImage(
+                            model = item.image_url,
+                            contentDescription = null,
+                            modifier = Modifier.fillMaxSize(),
+                            contentScale = androidx.compose.ui.layout.ContentScale.Crop
+                        )
+                    } else {
+                        Icon(
+                            imageVector = Icons.Default.MusicNote,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
                 }
             }
             else -> {

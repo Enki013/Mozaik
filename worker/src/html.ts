@@ -391,6 +391,11 @@ export function renderDashboardHtml(): string {
           <div class="metric-value" id="m-foods-count">0</div>
           <div class="metric-sub">FatSecret Geçmişi</div>
         </div>
+        <div class="metric-card">
+          <div class="metric-label">Müzik Dinleme</div>
+          <div class="metric-value" id="m-music-count">0</div>
+          <div class="metric-sub">Web Scrobbler & Last.fm</div>
+        </div>
       </div>
 
       <div class="card">
@@ -507,6 +512,9 @@ export function renderDashboardHtml(): string {
         document.getElementById('m-books-count').innerText = data.counts.goodreads_books;
         document.getElementById('m-films-count').innerText = data.counts.letterboxd_films;
         document.getElementById('m-foods-count').innerText = data.counts.fatsecret_food_entries;
+        if (document.getElementById('m-music-count')) {
+          document.getElementById('m-music-count').innerText = data.counts.music_scrobbles || 0;
+        }
 
         document.getElementById('b-books').innerText = '📚 ' + data.counts.goodreads_books + ' Kitap';
         document.getElementById('b-films').innerText = '🎬 ' + data.counts.letterboxd_films + ' Film';
@@ -535,6 +543,7 @@ export function renderDashboardHtml(): string {
             if (it.type === 'meal') icon = '🥗';
             else if (it.type === 'book') icon = '📚';
             else if (it.type === 'film') icon = '🎬';
+            else if (it.type === 'music') icon = '🎵';
 
             html += '<div class="timeline-item">';
             html += '<div class="timeline-icon">' + icon + '</div>';

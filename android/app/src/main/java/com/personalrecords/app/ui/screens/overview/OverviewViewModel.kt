@@ -64,6 +64,18 @@ class OverviewViewModel(
                 "fatsecret" -> repository.syncFatSecret(30)
                 "goodreads" -> repository.syncGoodreads()
                 "letterboxd" -> repository.syncLetterboxd()
+                "lastfm", "music" -> {
+                    when (val lfm = repository.syncLastFm()) {
+                        is Resource.Success -> Resource.Success(
+                            com.personalrecords.app.core.network.model.SyncResultDto(
+                                success = true,
+                                message = lfm.data.message
+                            )
+                        )
+                        is Resource.Error -> Resource.Error(lfm.message ?: "Last.fm eşitlenemedi")
+                        else -> Resource.Error("Last.fm eşitlenemedi")
+                    }
+                }
                 else -> Resource.Error("Bilinmeyen servis")
             }
             when (result) {

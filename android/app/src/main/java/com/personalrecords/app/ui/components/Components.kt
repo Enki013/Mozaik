@@ -96,7 +96,9 @@ import com.personalrecords.app.core.network.model.BookDto
 import com.personalrecords.app.core.network.model.FilmDto
 import com.personalrecords.app.core.network.model.FoodEntryDto
 import com.personalrecords.app.core.network.model.HealthRecordDto
+import com.personalrecords.app.core.network.model.MusicScrobbleDto
 import com.personalrecords.app.core.network.model.NotificationDto
+import com.personalrecords.app.ui.screens.music.MusicDetailBottomSheet
 import com.personalrecords.app.core.theme.*
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
@@ -3194,6 +3196,22 @@ fun ActivityItemDetailBottomSheet(
                 data_origin = d.str("data_origin")
             )
             HealthRecordDetailBottomSheet(record = rec, onDismiss = onDismiss)
+        }
+        "music" -> {
+            val scrobble = MusicScrobbleDto(
+                id = d.str("id").ifBlank { item.id.removePrefix("music_") },
+                track = d.str("track").ifBlank { item.title },
+                artist = d.str("artist").ifBlank { item.subtitle.substringBefore(" • ") },
+                album = d.str("album").ifBlank { if (item.subtitle.contains(" • ")) item.subtitle.substringAfter(" • ") else "" },
+                albumArtist = d.str("album_artist"),
+                duration = d.intVal("duration"),
+                listenedAt = item.timestamp ?: item.date,
+                uts = d.str("uts").toLongOrNull() ?: 0L,
+                source = d.str("source").ifBlank { "lastfm" },
+                originUrl = d.str("origin_url"),
+                imageUrl = item.image_url ?: d.str("image_url")
+            )
+            MusicDetailBottomSheet(scrobble = scrobble, onDismiss = onDismiss)
         }
         else -> {
             val postTime = item.timestamp?.takeIf { it.length >= 16 }

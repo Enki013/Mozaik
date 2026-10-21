@@ -347,5 +347,37 @@
     <string name="settings_health_step_3">3. Eşitleme sıklığını seçip \'Sync Now\' butonuna basın. Sağlık verileriniz otomatik işlenecektir.</string>
     <string name="adaptive_select_item_title">Bir Öğe Seçin</string>
     <string name="adaptive_select_item_subtitle">Detaylarını ve eylemlerini burada görüntülemek için listeden bir öğe seçin.</string>
+
+    <!-- Music & Audio Screen -->
+    <string name="title_music">Müzik &amp; Ses</string>
+    <string name="nav_music">Müzik</string>
+    <string name="music_stats_total">Toplam Dinleme</string>
+    <string name="music_stats_today">Bugün</string>
+    <string name="music_stats_artists">Sanatçı</string>
+    <string name="music_stats_albums">Albüm</string>
+    <string name="music_filter_all">Tümü</string>
+    <string name="music_filter_lastfm">Last.fm</string>
+    <string name="music_filter_scrobbler">Web Scrobbler</string>
+    <string name="music_search_hint">Şarkı, sanatçı, albüm ara…</string>
+    <string name="music_empty_title">Henüz müzik kaydı bulunmuyor</string>
+    <string name="music_empty_desc">Web Scrobbler eklentisiyle müzik dinleyin veya Last.fm geçmişinizi senkronize edin.</string>
+    <string name="music_sync_lastfm">Last.fm Senkronize Et</string>
+    <string name="music_syncing">Last.fm senkronize ediliyor…</string>
+    <string name="music_settings_title">Müzik &amp; Scrobbler Ayarları</string>
+    <string name="music_settings_webhook_url">Web Scrobbler Webhook URL</string>
+    <string name="music_settings_copy_webhook">Webhook URL Kopyala</string>
+    <string name="music_settings_webhook_desc">Web Scrobbler ayarları -> Hesaplar -> Webhook kısmına bu URL\'yi yapıştırın.</string>
+    <string name="music_settings_lastfm_user">Last.fm Kullanıcı Adı</string>
+    <string name="music_settings_lastfm_key">Last.fm API Key</string>
+    <string name="music_settings_save">Müzik Ayarlarını Kaydet</string>
+    <string name="music_settings_saved">Müzik ayarları başarıyla kaydedildi.</string>
+    <string name="music_detail_artist">Sanatçı</string>
+    <string name="music_detail_album">Albüm</string>
+    <string name="music_detail_duration">Süre</string>
+    <string name="music_detail_source">Kaynak</string>
+    <string name="music_detail_time">Dinleme Zamanı</string>
+    <string name="records_item_music_count">Müzik &amp; Ses · %1$d dinleme</string>
+    <string name="timeline_count_music">%1$d şarkı</string>
+    <string name="timeline_filter_music">Müzik</string>
 </resources>
 

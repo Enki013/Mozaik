@@ -37,7 +37,8 @@ fun RecordsScreen(
     onNavigateToBooks: () -> Unit = {},
     onNavigateToMovies: () -> Unit = {},
     onNavigateToNotifications: () -> Unit = {},
-    onNavigateToHealthConnect: () -> Unit = {}
+    onNavigateToHealthConnect: () -> Unit = {},
+    onNavigateToMusic: () -> Unit = {}
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
@@ -87,6 +88,7 @@ fun RecordsScreen(
             val foodsCount = counts["fatsecret_food_entries"] ?: counts["foods"] ?: 0
             val notifsCount = counts["notifications"] ?: 0
             val healthCount = counts["health_records"] ?: 0
+            val musicCount = counts["music_scrobbles"] ?: counts["music"] ?: 0
 
             LazyColumn(
                 state = listState,
@@ -188,17 +190,12 @@ fun RecordsScreen(
                                 modifier = Modifier.padding(horizontal = 12.dp)
                             )
                             RecordItemRow(
-                                icon = Icons.Default.Headphones,
-                                iconBg = MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.5f),
-                                iconTint = MaterialTheme.colorScheme.onTertiaryContainer,
+                                icon = Icons.Default.MusicNote,
+                                iconBg = MaterialTheme.colorScheme.primaryContainer,
+                                iconTint = MaterialTheme.colorScheme.primary,
                                 title = stringResource(R.string.records_item_music_title),
-                                subtitle = stringResource(R.string.records_item_music_sub),
-                                badgeText = stringResource(R.string.badge_planned),
-                                onClick = {
-                                    coroutineScope.launch {
-                                        snackbarHostState.showSnackbar(musicToast)
-                                    }
-                                }
+                                subtitle = if (musicCount > 0) stringResource(R.string.records_item_music_count, musicCount) else stringResource(R.string.records_item_music_sub),
+                                onClick = onNavigateToMusic
                             )
                         }
                     }

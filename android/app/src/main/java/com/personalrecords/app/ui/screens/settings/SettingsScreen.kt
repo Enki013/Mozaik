@@ -5,6 +5,7 @@ import android.content.Intent
 import android.os.Build
 import android.os.Environment
 import android.provider.MediaStore
+import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
@@ -796,6 +797,179 @@ fun SettingsScreen(
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                             }
+                        }
+                    }
+                }
+
+                // ==========================================
+                // SECTION 2.6: Müzik & Scrobbler Entegrasyonu
+                // ==========================================
+                item {
+                    SettingsSectionTitle(title = stringResource(R.string.music_settings_title))
+                }
+                item {
+                    SettingsCard {
+                        val cleanBaseUrl = state.serverUrl.trim().trimEnd('/')
+                        val musicWebhookUrl = state.musicWebhookUrl.ifBlank {
+                            if (cleanBaseUrl.isNotBlank()) "$cleanBaseUrl/api/webhooks/music" else "https://.../api/webhooks/music"
+                        }
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Row(
+                                modifier = Modifier.weight(1f),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(10.dp)
+                            ) {
+                                SettingsIconBox(
+                                    icon = Icons.Default.MusicNote,
+                                    containerColor = MaterialTheme.colorScheme.primaryContainer,
+                                    contentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                                )
+                                Column(modifier = Modifier.weight(1f, fill = false)) {
+                                    Text(
+                                        text = "Web Scrobbler & Last.fm",
+                                        style = MaterialTheme.typography.titleMediumEmphasized,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                    Text(
+                                        text = "Müzik dinleme geçmişinizi otomatik senkronize edin",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                }
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(12.dp))
+
+                        // Part 1: Web Scrobbler Webhook
+                        Text(
+                            text = "1. Web Scrobbler Tarayıcı Eklentisi Webhook",
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = stringResource(R.string.music_settings_webhook_desc),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        Surface(
+                            shape = M3Shapes.CornerMedium,
+                            color = MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.6f),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 12.dp, vertical = 8.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = musicWebhookUrl,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.primary,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                    modifier = Modifier.weight(1f)
+                                )
+                                IconButton(
+                                    onClick = {
+                                        clipboardManager.setText(AnnotatedString(musicWebhookUrl))
+                                        Toast.makeText(context, "Webhook URL kopyalandı", Toast.LENGTH_SHORT).show()
+                                    },
+                                    modifier = Modifier.size(32.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.ContentCopy,
+                                        contentDescription = stringResource(R.string.music_settings_copy_webhook),
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                }
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(16.dp))
+                        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+                        Spacer(modifier = Modifier.height(12.dp))
+
+                        // Part 2: Last.fm Settings
+                        Text(
+                            text = "2. Last.fm Entegrasyonu (Geçmiş ve Otomatik Sync)",
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        OutlinedTextField(
+                            value = state.lastfmUsername,
+                            onValueChange = { viewModel.updateLastfmUsername(it) },
+                            label = { Text(stringResource(R.string.music_settings_lastfm_user)) },
+                            placeholder = { Text("Örn: enes832") },
+                            leadingIcon = {
+                                Icon(Icons.Default.Person, contentDescription = null, modifier = Modifier.size(20.dp))
+                            },
+                            singleLine = true,
+                            shape = M3Shapes.CornerMedium,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        OutlinedTextField(
+                            value = state.lastfmApiKey,
+                            onValueChange = { viewModel.updateLastfmApiKey(it) },
+                            label = {
+                                Text(
+                                    if (state.lastfmApiKeySet && state.lastfmApiKey.isBlank()) {
+                                        "Last.fm API Key (Kayıtlı ✓)"
+                                    } else {
+                                        stringResource(R.string.music_settings_lastfm_key)
+                                    }
+                                )
+                            },
+                            placeholder = { Text("Last.fm 32 haneli API Key") },
+                            leadingIcon = {
+                                Icon(Icons.Default.Key, contentDescription = null, modifier = Modifier.size(20.dp))
+                            },
+                            singleLine = true,
+                            shape = M3Shapes.CornerMedium,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+
+                        state.musicSaveMessage?.let { msg ->
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text(
+                                text = msg,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.height(12.dp))
+
+                        Button(
+                            onClick = { viewModel.saveMusicSettings() },
+                            enabled = !state.isSavingMusicSettings,
+                            shape = M3Shapes.CornerFull,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            if (state.isSavingMusicSettings) {
+                                CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
+                                Spacer(modifier = Modifier.width(8.dp))
+                            }
+                            Text(stringResource(R.string.music_settings_save))
                         }
                     }
                 }
