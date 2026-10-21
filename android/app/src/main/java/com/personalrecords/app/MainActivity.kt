@@ -1,6 +1,11 @@
 package com.personalrecords.app
 
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.content.Context
+import android.content.Intent
 import android.os.Bundle
+import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
@@ -74,6 +79,7 @@ import kotlinx.coroutines.launch
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        handleClipboardIntent(intent)
         enableEdgeToEdge()
         setContent {
             val preferences = remember { PersonalRecordsApp.instance.preferences }
@@ -90,6 +96,23 @@ class MainActivity : ComponentActivity() {
                 }
             }
         }
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        handleClipboardIntent(intent)
+    }
+
+    private fun handleClipboardIntent(intent: Intent?) {
+        val text = intent?.getStringExtra("clipboard_text") ?: return
+        try {
+            val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+            val clip = ClipData.newPlainText("Copied Text", text)
+            clipboard.setPrimaryClip(clip)
+            val preview = if (text.length > 24) text.take(24) + "..." else text
+            Toast.makeText(this, "Panoya kopyalandı: $preview", Toast.LENGTH_SHORT).show()
+        } catch (_: Exception) {}
     }
 }
 
