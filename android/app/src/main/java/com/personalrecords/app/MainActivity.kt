@@ -119,6 +119,26 @@ fun ProvideLocalizedApp(
     }
 }
 
+private fun Any?.toScreen(): Screen? {
+    return when (this) {
+        is Screen -> this
+        is String -> when {
+            this == "Overview" || this.contains("Overview") -> Screen.Overview
+            this == "Timeline" || this.contains("Timeline") -> Screen.Timeline
+            this == "Records" || this.contains("Records") -> Screen.Records
+            this == "Settings" || this.contains("Settings") -> Screen.Settings
+            this == "Nutrition" || this.contains("Nutrition") -> Screen.Nutrition
+            this == "Books" || this.contains("Books") -> Screen.Books
+            this == "Movies" || this.contains("Movies") -> Screen.Movies
+            this == "Notifications" || this.contains("Notifications") -> Screen.Notifications
+            this == "HealthConnect" || this.contains("HealthConnect") -> Screen.HealthConnect
+            this == "Language" || this.contains("Language") -> Screen.Language
+            else -> null
+        }
+        else -> null
+    }
+}
+
 @Composable
 fun MainAppHost() {
     val activity = LocalContext.current as? ComponentActivity
@@ -276,22 +296,16 @@ fun MainAppHost() {
                 },
                 modifier = Modifier.fillMaxSize(),
                 transitionSpec = {
-                    val initialKey = initialState.entries.lastOrNull()?.contentKey as? Screen
-                    val targetKey = targetState.entries.lastOrNull()?.contentKey as? Screen
+                    val initialKey = initialState.key.toScreen()
+                        ?: initialState.entries.lastOrNull()?.contentKey.toScreen()
+                    val targetKey = targetState.key.toScreen()
+                        ?: targetState.entries.lastOrNull()?.contentKey.toScreen()
                     val isTargetDetail = targetKey in detailScreens
                     val isInitialDetail = initialKey in detailScreens
 
                     if (isTargetDetail && !isInitialDetail) {
-                        slideInHorizontally(
-                            initialOffsetX = { fullWidth -> fullWidth },
-                            animationSpec = androidx.compose.animation.core.spring(
-                                dampingRatio = 0.85f,
-                                stiffness = 380f,
-                                visibilityThreshold = androidx.compose.ui.unit.IntOffset.VisibilityThreshold
-                            )
-                        ) togetherWith ExitTransition.None
-                    } else if (isTargetDetail && isInitialDetail) {
-                        slideInHorizontally(
+                        // Opening detail screen from root tab: detail slides in from right, root slides back 25%
+                        (slideInHorizontally(
                             initialOffsetX = { fullWidth -> fullWidth },
                             animationSpec = androidx.compose.animation.core.spring(
                                 dampingRatio = 0.85f,
@@ -305,28 +319,44 @@ fun MainAppHost() {
                                 stiffness = 400f,
                                 visibilityThreshold = androidx.compose.ui.unit.IntOffset.VisibilityThreshold
                             )
-                        )
-                    } else {
-                        EnterTransition.None togetherWith ExitTransition.None
-                    }
-                },
-                popTransitionSpec = {
-                    val initialKey = initialState.entries.lastOrNull()?.contentKey as? Screen
-                    val targetKey = targetState.entries.lastOrNull()?.contentKey as? Screen
-                    val isInitialDetail = initialKey in detailScreens
-                    val isTargetDetail = targetKey in detailScreens
-
-                    if (isInitialDetail && !isTargetDetail) {
-                        EnterTransition.None togetherWith slideOutHorizontally(
-                            targetOffsetX = { fullWidth -> fullWidth },
+                        )).apply {
+                            targetContentZIndex = 1f
+                        }
+                    } else if (isTargetDetail && isInitialDetail) {
+                        // Navigating between detail screens
+                        (slideInHorizontally(
+                            initialOffsetX = { fullWidth -> fullWidth },
+                            animationSpec = androidx.compose.animation.core.spring(
+                                dampingRatio = 0.85f,
+                                stiffness = 380f,
+                                visibilityThreshold = androidx.compose.ui.unit.IntOffset.VisibilityThreshold
+                            )
+                        ) togetherWith slideOutHorizontally(
+                            targetOffsetX = { fullWidth -> -(fullWidth * 0.25f).toInt() },
                             animationSpec = androidx.compose.animation.core.spring(
                                 dampingRatio = androidx.compose.animation.core.Spring.DampingRatioNoBouncy,
                                 stiffness = 400f,
                                 visibilityThreshold = androidx.compose.ui.unit.IntOffset.VisibilityThreshold
                             )
-                        )
-                    } else if (isInitialDetail && isTargetDetail) {
-                        slideInHorizontally(
+                        )).apply {
+                            targetContentZIndex = 1f
+                        }
+                    } else {
+                        // Top-level tab switch (Overview <-> Timeline <-> Records <-> Settings)
+                        EnterTransition.None togetherWith ExitTransition.None
+                    }
+                },
+                popTransitionSpec = {
+                    val initialKey = initialState.key.toScreen()
+                        ?: initialState.entries.lastOrNull()?.contentKey.toScreen()
+                    val targetKey = targetState.key.toScreen()
+                        ?: targetState.entries.lastOrNull()?.contentKey.toScreen()
+                    val isInitialDetail = initialKey in detailScreens
+                    val isTargetDetail = targetKey in detailScreens
+
+                    if (isInitialDetail && !isTargetDetail) {
+                        // Popping detail screen back to root tab: detail slides out to right, root slides forward from -25%
+                        (slideInHorizontally(
                             initialOffsetX = { fullWidth -> -(fullWidth * 0.25f).toInt() },
                             animationSpec = androidx.compose.animation.core.spring(
                                 dampingRatio = 0.85f,
@@ -340,20 +370,50 @@ fun MainAppHost() {
                                 stiffness = 400f,
                                 visibilityThreshold = androidx.compose.ui.unit.IntOffset.VisibilityThreshold
                             )
-                        )
+                        )).apply {
+                            targetContentZIndex = -1f
+                        }
+                    } else if (isInitialDetail && isTargetDetail) {
+                        // Popping between detail screens
+                        (slideInHorizontally(
+                            initialOffsetX = { fullWidth -> -(fullWidth * 0.25f).toInt() },
+                            animationSpec = androidx.compose.animation.core.spring(
+                                dampingRatio = 0.85f,
+                                stiffness = 380f,
+                                visibilityThreshold = androidx.compose.ui.unit.IntOffset.VisibilityThreshold
+                            )
+                        ) togetherWith slideOutHorizontally(
+                            targetOffsetX = { fullWidth -> fullWidth },
+                            animationSpec = androidx.compose.animation.core.spring(
+                                dampingRatio = androidx.compose.animation.core.Spring.DampingRatioNoBouncy,
+                                stiffness = 400f,
+                                visibilityThreshold = androidx.compose.ui.unit.IntOffset.VisibilityThreshold
+                            )
+                        )).apply {
+                            targetContentZIndex = -1f
+                        }
                     } else {
                         EnterTransition.None togetherWith ExitTransition.None
                     }
                 },
                 predictivePopTransitionSpec = { _ ->
-                    EnterTransition.None togetherWith slideOutHorizontally(
+                    (slideInHorizontally(
+                        initialOffsetX = { fullWidth -> -(fullWidth * 0.25f).toInt() },
+                        animationSpec = androidx.compose.animation.core.spring(
+                            dampingRatio = 0.85f,
+                            stiffness = 380f,
+                            visibilityThreshold = androidx.compose.ui.unit.IntOffset.VisibilityThreshold
+                        )
+                    ) togetherWith slideOutHorizontally(
                         targetOffsetX = { fullWidth -> fullWidth },
                         animationSpec = androidx.compose.animation.core.spring(
                             dampingRatio = androidx.compose.animation.core.Spring.DampingRatioNoBouncy,
                             stiffness = 400f,
                             visibilityThreshold = androidx.compose.ui.unit.IntOffset.VisibilityThreshold
                         )
-                    )
+                    )).apply {
+                        targetContentZIndex = -1f
+                    }
                 }
             )
         }
