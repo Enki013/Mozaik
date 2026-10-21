@@ -178,6 +178,8 @@
     <string name="toast_download_failed">Download failed.</string>
 
     <string name="action_clear">Clear</string>
+    <string name="action_copy">Copy</string>
+    <string name="action_open">Open</string>
     <string name="timeline_filter_reset">Reset</string>
     <string name="settings_section_media">Culture &amp; Media Synchronization</string>
     <string name="settings_section_goodreads">Goodreads Integration</string>
@@ -355,6 +357,13 @@
     <string name="music_stats_today">Today</string>
     <string name="music_stats_artists">Artists</string>
     <string name="music_stats_albums">Albums</string>
+    <string name="music_top_artists">Top Artists</string>
+    <string name="sort_newest">Newest</string>
+    <string name="sort_oldest">Oldest</string>
+    <string name="sort_track">Track</string>
+    <string name="sort_artist">Artist</string>
+    <string name="music_copied">Copied: %1$s</string>
+    <string name="music_open_failed">Could not open link</string>
     <string name="music_filter_all">All</string>
     <string name="music_filter_lastfm">Last.fm</string>
     <string name="music_filter_scrobbler">Web Scrobbler</string>

@@ -178,6 +178,8 @@
     <string name="toast_download_failed">İndirme başarısız oldu.</string>
 
     <string name="action_clear">Temizle</string>
+    <string name="action_copy">Kopyala</string>
+    <string name="action_open">Aç</string>
     <string name="timeline_filter_reset">Sıfırla</string>
     <string name="settings_section_media">Kültür &amp; Medya Senkronizasyonu</string>
     <string name="settings_section_goodreads">Goodreads Entegrasyonu</string>
@@ -355,6 +357,13 @@
     <string name="music_stats_today">Bugün</string>
     <string name="music_stats_artists">Sanatçı</string>
     <string name="music_stats_albums">Albüm</string>
+    <string name="music_top_artists">En Çok Dinlenen Sanatçılar</string>
+    <string name="sort_newest">En Yeni</string>
+    <string name="sort_oldest">Eskiden Yeniye</string>
+    <string name="sort_track">Şarkı Adı</string>
+    <string name="sort_artist">Sanatçı Adı</string>
+    <string name="music_copied">Kopyalandı: %1$s</string>
+    <string name="music_open_failed">Bağlantı açılamadı</string>
     <string name="music_filter_all">Tümü</string>
     <string name="music_filter_lastfm">Last.fm</string>
     <string name="music_filter_scrobbler">Web Scrobbler</string>

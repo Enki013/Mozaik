@@ -5,10 +5,8 @@ import androidx.compose.animation.core.*
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.animateScrollBy
 import androidx.compose.foundation.interaction.InteractionSource
 import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.interaction.PressInteraction
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyItemScope
@@ -25,7 +23,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.RectangleShape
@@ -33,7 +30,6 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.ContentDrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.clipRect
-import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.graphics.drawscope.scale
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.draw.clipToBounds
@@ -51,7 +47,6 @@ import androidx.compose.ui.node.PointerInputModifierNode
 import androidx.compose.ui.node.invalidateDraw
 import androidx.compose.ui.platform.InspectorInfo
 import androidx.compose.ui.unit.Velocity
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
@@ -65,7 +60,6 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.pulltorefresh.PullToRefreshDefaults
 import androidx.compose.material3.pulltorefresh.PullToRefreshState
 import androidx.compose.material3.pulltorefresh.pullToRefresh
@@ -935,13 +929,12 @@ fun LinearWavyProgressIndicator(
 
         // 1. Active Wavy Segment
         if (p > 0.005f) {
-            val startX = halfStroke
-            val endX = (activeEndX - halfStroke).coerceAtLeast(startX)
+            val endX = (activeEndX - halfStroke).coerceAtLeast(halfStroke)
             wavePath.rewind()
             val stepPx = (waveLenPx / 16f).coerceIn(3.5f, 6f)
-            val steps = ((endX - startX) / stepPx).toInt().coerceAtLeast(2)
+            val steps = ((endX - halfStroke) / stepPx).toInt().coerceAtLeast(2)
             for (i in 0..steps) {
-                val x = startX + (endX - startX) * (i.toFloat() / steps)
+                val x = halfStroke + (endX - halfStroke) * (i.toFloat() / steps)
                 val angle = (x / waveLenPx) * (2f * Math.PI.toFloat()) + phase
                 val y = cy + ampPx * kotlin.math.sin(angle)
                 if (i == 0) {
@@ -954,12 +947,12 @@ fun LinearWavyProgressIndicator(
             val strokeStyle = Stroke(width = strokePx, cap = StrokeCap.Round)
             if (activeSegments.isNotEmpty() && totalWeight > 0f) {
                 var cumulative = 0f
-                val span = endX - startX
+                val span = endX - halfStroke
                 activeSegments.forEachIndexed { index, (weight, segColor) ->
                     val segFraction = weight / totalWeight
-                    val segStartX = startX + span * cumulative
+                    val segStartX = halfStroke + span * cumulative
                     cumulative += segFraction
-                    val segEndX = startX + span * cumulative
+                    val segEndX = halfStroke + span * cumulative
 
                     val clipLeft = if (index == 0) 0f else segStartX
                     val clipRight = if (index == activeSegments.lastIndex) w else segEndX
@@ -2620,7 +2613,7 @@ fun BookDetailBottomSheet(
 fun BookDetailPaneCard(
     book: BookDto,
     onClose: (() -> Unit)? = null,
-    modifier: Modifier = Modifier
+    @SuppressLint("ModifierParameter") modifier: Modifier = Modifier
 ) {
     Surface(
         modifier = modifier.fillMaxSize(),
@@ -2812,7 +2805,7 @@ fun NotificationDetailBottomSheet(
 fun NotificationDetailPaneCard(
     notif: NotificationDto,
     onClose: (() -> Unit)? = null,
-    modifier: Modifier = Modifier
+    @SuppressLint("ModifierParameter") modifier: Modifier = Modifier
 ) {
     Surface(
         modifier = modifier.fillMaxSize(),

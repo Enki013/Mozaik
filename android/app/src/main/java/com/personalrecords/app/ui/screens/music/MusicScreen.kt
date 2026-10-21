@@ -5,7 +5,6 @@ import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
-import android.widget.Toast
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
@@ -19,6 +18,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.Sort
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
@@ -41,6 +41,9 @@ import com.personalrecords.app.R
 import com.personalrecords.app.core.network.model.MusicScrobbleDto
 import com.personalrecords.app.core.theme.*
 import com.personalrecords.app.ui.components.*
+import kotlinx.coroutines.launch
+
+private val MusicSourceKeys = listOf("all", "lastfm", "web_scrobbler")
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -50,6 +53,8 @@ fun MusicScreen(
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     var selectedScrobble by remember { mutableStateOf<MusicScrobbleDto?>(null) }
+    var showDatePicker by remember { mutableStateOf(false) }
+    val coroutineScope = rememberCoroutineScope()
     val context = LocalContext.current
 
     val snackbarHostState = remember { SnackbarHostState() }
@@ -83,10 +88,34 @@ fun MusicScreen(
         }
     }
 
+    if (showDatePicker) {
+        ExpressiveDateFilterDialog(
+            initialStartDate = state.selectedDateFilter ?: state.fromDateFilter,
+            initialEndDate = state.toDateFilter,
+            onDismissRequest = { showDatePicker = false },
+            onDateSelected = { date ->
+                viewModel.setDateFilter(date)
+            },
+            onDateRangeSelected = { start, end ->
+                viewModel.setDateRangeFilter(start, end)
+            },
+            onClear = {
+                viewModel.clearDateFilter()
+            }
+        )
+    }
+
     Scaffold(
         modifier = Modifier.fillMaxSize(),
         contentWindowInsets = WindowInsets.statusBars,
-        snackbarHost = { SnackbarHost(snackbarHostState) },
+        snackbarHost = {
+            SnackbarHost(
+                hostState = snackbarHostState,
+                modifier = Modifier
+                    .navigationBarsPadding()
+                    .padding(bottom = 96.dp)
+            )
+        },
         topBar = {
             TopAppBar(
                 title = {
@@ -141,7 +170,7 @@ fun MusicScreen(
             } else {
                 LazyColumn(
                     modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(bottom = 96.dp)
+                    contentPadding = PaddingValues(top = 8.dp, bottom = 144.dp)
                 ) {
                     // 1. Metrics Grid
                     item(key = "music_metrics") {
@@ -162,7 +191,7 @@ fun MusicScreen(
                                     .padding(top = 8.dp, bottom = 4.dp)
                             ) {
                                 Text(
-                                    text = "En Çok Dinlenen Sanatçılar",
+                                    text = stringResource(R.string.music_top_artists),
                                     style = MaterialTheme.typography.labelLarge,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                     modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
@@ -175,15 +204,19 @@ fun MusicScreen(
                                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                                 ) {
                                     state.stats.topArtists.take(8).forEach { artist ->
-                                        SuggestionChip(
-                                            onClick = { viewModel.setSearchQuery(artist.artist) },
+                                        val isSelected = state.selectedArtist == artist.artist
+                                        ExpressiveFilterChip(
+                                            selected = isSelected,
+                                            onClick = {
+                                                viewModel.setArtistFilter(if (isSelected) null else artist.artist)
+                                            },
                                             label = {
                                                 Text(
                                                     text = "${artist.artist} (${artist.count})",
                                                     style = MaterialTheme.typography.labelMedium
                                                 )
                                             },
-                                            icon = {
+                                            leadingIcon = {
                                                 if (artist.imageUrl.isNotBlank()) {
                                                     AsyncImage(
                                                         model = artist.imageUrl,
@@ -200,11 +233,7 @@ fun MusicScreen(
                                                         modifier = Modifier.size(16.dp)
                                                     )
                                                 }
-                                            },
-                                            shape = M3Shapes.CornerFull,
-                                            colors = SuggestionChipDefaults.suggestionChipColors(
-                                                containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
-                                            )
+                                            }
                                         )
                                     }
                                 }
@@ -214,83 +243,208 @@ fun MusicScreen(
 
                     // 3. Search and Filters
                     item(key = "search_and_filters") {
-                        Column(
+                        Surface(
+                            color = MaterialTheme.colorScheme.surface,
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(horizontal = 16.dp, vertical = 8.dp),
-                            verticalArrangement = Arrangement.spacedBy(10.dp)
+                                .padding(bottom = 8.dp)
                         ) {
-                            OutlinedTextField(
-                                value = state.searchQuery,
-                                onValueChange = { viewModel.setSearchQuery(it) },
-                                placeholder = {
-                                    Text(stringResource(R.string.music_search_hint))
-                                },
-                                leadingIcon = {
-                                    Icon(
-                                        imageVector = Icons.Default.Search,
-                                        contentDescription = null,
-                                        tint = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                },
-                                trailingIcon = {
-                                    if (state.searchQuery.isNotBlank()) {
-                                        IconButton(onClick = { viewModel.setSearchQuery("") }) {
-                                            Icon(
-                                                imageVector = Icons.Default.Close,
-                                                contentDescription = stringResource(R.string.action_clear)
-                                            )
-                                        }
-                                    }
-                                },
-                                singleLine = true,
-                                shape = M3Shapes.CornerLarge,
-                                colors = OutlinedTextFieldDefaults.colors(
-                                    focusedContainerColor = MaterialTheme.colorScheme.surfaceContainerLowest,
-                                    unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainerLowest,
-                                    focusedBorderColor = MaterialTheme.colorScheme.primary,
-                                    unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant
-                                ),
-                                modifier = Modifier.fillMaxWidth()
-                            )
-
-                            // Filter Chips Row
-                            Row(
+                            Column(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .horizontalScroll(rememberScrollState()),
-                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                    .padding(horizontal = 16.dp, vertical = 4.dp),
+                                verticalArrangement = Arrangement.spacedBy(8.dp)
                             ) {
-                                ExpressiveFilterChip(
-                                    selected = state.selectedFilter == "all",
-                                    onClick = { viewModel.setFilter("all") },
-                                    label = { Text(stringResource(R.string.music_filter_all)) },
+                                OutlinedTextField(
+                                    value = state.searchQuery,
+                                    onValueChange = { viewModel.setSearchQuery(it) },
+                                    placeholder = {
+                                        Text(
+                                            text = stringResource(R.string.music_search_hint),
+                                            style = MaterialTheme.typography.bodyMedium,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    },
                                     leadingIcon = {
-                                        Icon(Icons.Default.LibraryMusic, contentDescription = null, modifier = Modifier.size(16.dp))
-                                    }
+                                        Icon(
+                                            imageVector = Icons.Default.Search,
+                                            contentDescription = null,
+                                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            modifier = Modifier.size(20.dp)
+                                        )
+                                    },
+                                    trailingIcon = {
+                                        if (state.searchQuery.isNotBlank()) {
+                                            IconButton(onClick = { viewModel.setSearchQuery("") }) {
+                                                Icon(
+                                                    imageVector = Icons.Default.Clear,
+                                                    contentDescription = stringResource(R.string.action_clear),
+                                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                    modifier = Modifier.size(18.dp)
+                                                )
+                                            }
+                                        }
+                                    },
+                                    singleLine = true,
+                                    shape = M3Shapes.CornerFull,
+                                    colors = OutlinedTextFieldDefaults.colors(
+                                        focusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                                        unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+                                        focusedBorderColor = MaterialTheme.colorScheme.primary,
+                                        unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant
+                                    ),
+                                    modifier = Modifier.fillMaxWidth()
                                 )
-                                ExpressiveFilterChip(
-                                    selected = state.selectedFilter == "lastfm",
-                                    onClick = { viewModel.setFilter("lastfm") },
-                                    label = { Text(stringResource(R.string.music_filter_lastfm)) },
-                                    leadingIcon = {
-                                        Icon(Icons.Default.CloudSync, contentDescription = null, modifier = Modifier.size(16.dp))
+
+                                // Filter Chips Row
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .horizontalScroll(rememberScrollState()),
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    val hasActiveDate = state.selectedDateFilter != null || state.fromDateFilter != null
+                                    val dateLabel = formatDateRangeChipLabel(
+                                        singleDate = state.selectedDateFilter,
+                                        fromDate = state.fromDateFilter,
+                                        toDate = state.toDateFilter,
+                                        defaultText = stringResource(R.string.filter_pick_date)
+                                    )
+
+                                    ExpressiveFilterChip(
+                                        selected = hasActiveDate,
+                                        onClick = { showDatePicker = true },
+                                        leadingIcon = {
+                                            Icon(
+                                                imageVector = if (hasActiveDate) Icons.Default.DateRange else Icons.Default.CalendarMonth,
+                                                contentDescription = null,
+                                                modifier = Modifier.size(FilterChipDefaults.IconSize)
+                                            )
+                                        },
+                                        trailingIcon = if (hasActiveDate) {
+                                            {
+                                                Icon(
+                                                    imageVector = Icons.Default.Close,
+                                                    contentDescription = null,
+                                                    modifier = Modifier
+                                                        .size(14.dp)
+                                                        .clickable {
+                                                            viewModel.clearDateFilter()
+                                                        }
+                                                )
+                                            }
+                                        } else null,
+                                        label = {
+                                            Text(
+                                                text = dateLabel,
+                                                style = MaterialTheme.typography.labelMedium
+                                            )
+                                        }
+                                    )
+
+                                    ExpressiveConnectedButtonGroup(
+                                        items = MusicSourceKeys,
+                                        selectedItem = state.selectedFilter,
+                                        onItemSelected = { source ->
+                                            if (state.selectedFilter != source) {
+                                                viewModel.setFilter(source)
+                                            }
+                                        },
+                                        labelProvider = { source ->
+                                            when (source) {
+                                                "lastfm" -> stringResource(R.string.music_filter_lastfm)
+                                                "web_scrobbler" -> stringResource(R.string.music_filter_scrobbler)
+                                                else -> stringResource(R.string.music_filter_all)
+                                            }
+                                        },
+                                        iconProvider = { source, _ ->
+                                            when (source) {
+                                                "lastfm" -> Icons.Default.CloudSync
+                                                "web_scrobbler" -> Icons.Default.Extension
+                                                else -> Icons.Default.LibraryMusic
+                                            }
+                                        }
+                                    )
+
+                                    if (state.selectedArtist != null) {
+                                        ExpressiveFilterChip(
+                                            selected = true,
+                                            onClick = { viewModel.setArtistFilter(null) },
+                                            leadingIcon = {
+                                                Icon(
+                                                    imageVector = Icons.Default.Person,
+                                                    contentDescription = null,
+                                                    modifier = Modifier.size(FilterChipDefaults.IconSize)
+                                                )
+                                            },
+                                            trailingIcon = {
+                                                Icon(
+                                                    imageVector = Icons.Default.Close,
+                                                    contentDescription = null,
+                                                    modifier = Modifier.size(14.dp)
+                                                )
+                                            },
+                                            label = {
+                                                Text(
+                                                    text = state.selectedArtist ?: "",
+                                                    style = MaterialTheme.typography.labelMedium
+                                                )
+                                            }
+                                        )
                                     }
-                                )
-                                ExpressiveFilterChip(
-                                    selected = state.selectedFilter == "web_scrobbler",
-                                    onClick = { viewModel.setFilter("web_scrobbler") },
-                                    label = { Text(stringResource(R.string.music_filter_scrobbler)) },
-                                    leadingIcon = {
-                                        Icon(Icons.Default.Extension, contentDescription = null, modifier = Modifier.size(16.dp))
+
+                                    val (sortLabel, sortIcon) = when (state.sortBy) {
+                                        "date_asc" -> stringResource(R.string.sort_oldest) to Icons.Default.ArrowUpward
+                                        "track" -> stringResource(R.string.sort_track) to Icons.Default.SortByAlpha
+                                        "artist" -> stringResource(R.string.sort_artist) to Icons.Default.Person
+                                        else -> stringResource(R.string.sort_newest) to Icons.Default.ArrowDownward
                                     }
-                                )
+                                    ExpressiveAssistChip(
+                                        onClick = {
+                                            val nextSort = when (state.sortBy) {
+                                                "date_desc" -> "date_asc"
+                                                "date_asc" -> "track"
+                                                "track" -> "artist"
+                                                else -> "date_desc"
+                                            }
+                                            viewModel.setSortBy(nextSort)
+                                        },
+                                        leadingIcon = {
+                                            Icon(
+                                                imageVector = sortIcon,
+                                                contentDescription = null,
+                                                tint = MaterialTheme.colorScheme.primary,
+                                                modifier = Modifier.size(16.dp)
+                                            )
+                                        },
+                                        label = {
+                                            Text(
+                                                text = sortLabel,
+                                                style = MaterialTheme.typography.labelMediumEmphasized,
+                                                color = MaterialTheme.colorScheme.primary
+                                            )
+                                        },
+                                        colors = borderlessAssistChipColors()
+                                    )
+                                }
                             }
                         }
                     }
 
-                    // 4. Empty State
-                    if (state.filteredScrobbles.isEmpty()) {
+                    // 4. Loading or Empty State
+                    if ((state.isLoading || state.isFiltering) && state.filteredScrobbles.isEmpty()) {
+                        item(key = "music_loading") {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(200.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                ContainedLoadingIndicator(size = 44.dp)
+                            }
+                        }
+                    } else if (state.filteredScrobbles.isEmpty()) {
                         item(key = "empty_state") {
                             EmptyMusicView(
                                 onSyncClick = { viewModel.syncLastFm() },
@@ -317,7 +471,12 @@ fun MusicScreen(
     selectedScrobble?.let { scrobble ->
         MusicDetailBottomSheet(
             scrobble = scrobble,
-            onDismiss = { selectedScrobble = null }
+            onDismiss = { selectedScrobble = null },
+            onShowSnackbar = { msg ->
+                coroutineScope.launch {
+                    snackbarHostState.showSnackbar(msg)
+                }
+            }
         )
     }
 }
@@ -575,10 +734,18 @@ private fun EmptyMusicView(
 @Composable
 fun MusicDetailBottomSheet(
     scrobble: MusicScrobbleDto,
-    onDismiss: () -> Unit
+    onDismiss: () -> Unit,
+    onShowSnackbar: ((String) -> Unit)? = null
 ) {
     val context = LocalContext.current
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val notify = { message: String ->
+        if (onShowSnackbar != null) {
+            onShowSnackbar(message)
+        } else {
+            android.widget.Toast.makeText(context, message, android.widget.Toast.LENGTH_SHORT).show()
+        }
+    }
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -691,14 +858,14 @@ fun MusicDetailBottomSheet(
                         val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
                         val clip = ClipData.newPlainText("Track", "${scrobble.artist} - ${scrobble.track}")
                         clipboard.setPrimaryClip(clip)
-                        Toast.makeText(context, "Kopyalandı: ${scrobble.artist} - ${scrobble.track}", Toast.LENGTH_SHORT).show()
+                        notify(context.getString(R.string.music_copied, "${scrobble.artist} - ${scrobble.track}"))
                     },
                     shape = M3Shapes.CornerFull,
                     modifier = Modifier.weight(1f)
                 ) {
                     Icon(imageVector = Icons.Default.ContentCopy, contentDescription = null, modifier = Modifier.size(16.dp))
                     Spacer(modifier = Modifier.width(6.dp))
-                    Text("Kopyala")
+                    Text(stringResource(R.string.action_copy))
                 }
 
                 if (scrobble.originUrl.isNotBlank()) {
@@ -708,7 +875,7 @@ fun MusicDetailBottomSheet(
                                 val intent = Intent(Intent.ACTION_VIEW, Uri.parse(scrobble.originUrl))
                                 context.startActivity(intent)
                             } catch (e: Exception) {
-                                Toast.makeText(context, "Bağlantı açılamadı", Toast.LENGTH_SHORT).show()
+                                notify(context.getString(R.string.music_open_failed))
                             }
                         },
                         shape = M3Shapes.CornerFull,
@@ -717,7 +884,7 @@ fun MusicDetailBottomSheet(
                     ) {
                         Icon(imageVector = Icons.Default.OpenInNew, contentDescription = null, modifier = Modifier.size(16.dp))
                         Spacer(modifier = Modifier.width(6.dp))
-                        Text("Aç")
+                        Text(stringResource(R.string.action_open))
                     }
                 }
             }
