@@ -27,25 +27,32 @@ import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.togetherWith
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.navigation.NavGraph.Companion.findStartDestination
-import androidx.navigation.NavHostController
-import androidx.navigation.compose.*
 import kotlin.math.roundToInt
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.navigation3.runtime.entryProvider
+import androidx.navigation3.ui.NavDisplay
 import com.personalrecords.app.core.theme.M3ExpressiveMotion
 import com.personalrecords.app.core.theme.M3Shapes
 import com.personalrecords.app.core.theme.PersonalRecordsTheme
 import com.personalrecords.app.core.theme.labelLargeEmphasized
 import com.personalrecords.app.core.theme.labelSmallEmphasized
 import com.personalrecords.app.ui.AppViewModelFactory
-import androidx.navigation.NavDestination.Companion.hasRoute
+import com.personalrecords.app.ui.navigation.Navigator
 import com.personalrecords.app.ui.navigation.Screen
 import com.personalrecords.app.ui.navigation.bottomNavScreens
 import com.personalrecords.app.ui.navigation.detailScreens
 import com.personalrecords.app.ui.navigation.recordsSubScreens
+import com.personalrecords.app.ui.navigation.rememberAppNavigationState
+import com.personalrecords.app.ui.navigation.topLevelScreens
 import com.personalrecords.app.ui.screens.books.*
 import com.personalrecords.app.ui.screens.health.*
 import com.personalrecords.app.ui.screens.movies.*
@@ -112,18 +119,14 @@ fun ProvideLocalizedApp(
     }
 }
 
-private fun Modifier.keepWarmTab(visible: Boolean): Modifier = this.layout { measurable, constraints ->
-    val placeable = measurable.measure(constraints)
-    layout(placeable.width, placeable.height) {
-        if (visible) {
-            placeable.place(0, 0)
-        }
-    }
-}
-
 @Composable
 fun MainAppHost() {
-    val navController = rememberNavController()
+    val activity = LocalContext.current as? ComponentActivity
+    val navigationState = rememberAppNavigationState(
+        startRoute = Screen.Overview,
+        topLevelRoutes = topLevelScreens
+    )
+    val navigator = remember { Navigator(navigationState) }
 
     val overviewVm: OverviewViewModel = viewModel(factory = AppViewModelFactory())
     val timelineVm: TimelineViewModel = viewModel(factory = AppViewModelFactory())
@@ -147,26 +150,8 @@ fun MainAppHost() {
     val settingsScrollFlow = remember { MutableSharedFlow<Unit>(extraBufferCapacity = 1) }
     val settingsRefreshFlow = remember { MutableSharedFlow<Unit>(extraBufferCapacity = 1) }
 
-    var isRecordsWarm by remember { mutableStateOf(false) }
-    var isTimelineWarm by remember { mutableStateOf(false) }
-    var isSettingsWarm by remember { mutableStateOf(false) }
-
-    val navBackStackEntry by navController.currentBackStackEntryAsState()
-    val destination = navBackStackEntry?.destination
-    val isDetailRoute = destination != null && detailScreens.any { destination.hasRoute(it::class) }
-
-    var lastActivePeerTab by remember { mutableStateOf<Screen>(Screen.Overview) }
-    if (!isDetailRoute && destination != null) {
-        when {
-            destination.hasRoute<Screen.Overview>() -> lastActivePeerTab = Screen.Overview
-            destination.hasRoute<Screen.Timeline>() -> lastActivePeerTab = Screen.Timeline
-            destination.hasRoute<Screen.Records>() -> lastActivePeerTab = Screen.Records
-            destination.hasRoute<Screen.Settings>() -> lastActivePeerTab = Screen.Settings
-        }
-    }
-
-    LaunchedEffect(lastActivePeerTab) {
-        when (lastActivePeerTab) {
+    LaunchedEffect(navigationState.topLevelRoute) {
+        when (navigationState.topLevelRoute) {
             Screen.Timeline -> timelineVm.ensureLoaded()
             Screen.Records -> recordsVm.ensureLoaded()
             Screen.Settings -> settingsVm.ensureLoaded()
@@ -175,23 +160,106 @@ fun MainAppHost() {
     }
 
     LaunchedEffect(Unit) {
-        // Allow initial startup and OverviewScreen animations to settle first
-        kotlinx.coroutines.delay(550L)
         PersonalRecordsApp.instance.repository.prewarmRoomCaches()
         recordsVm.ensureLoaded()
-        kotlinx.coroutines.delay(220L)
-        isRecordsWarm = true
-        kotlinx.coroutines.delay(250L)
         timelineVm.ensureLoaded()
-        kotlinx.coroutines.delay(450L)
-        isTimelineWarm = true
-        kotlinx.coroutines.delay(300L)
         settingsVm.ensureLoaded()
-        isSettingsWarm = true
     }
 
     val configuration = androidx.compose.ui.platform.LocalConfiguration.current
     val isWideScreen = configuration.screenWidthDp >= 600
+
+    val entryProvider = entryProvider<androidx.navigation3.runtime.NavKey> {
+        entry<Screen.Overview> {
+            OverviewScreen(
+                viewModel = overviewVm,
+                scrollToTopFlow = overviewScrollFlow,
+                refreshFlow = overviewRefreshFlow,
+                onNavigateToTimeline = { navigator.navigate(Screen.Timeline) },
+                onNavigateToNutrition = { navigator.navigate(Screen.Nutrition) },
+                onNavigateToBooks = { navigator.navigate(Screen.Books) },
+                onNavigateToMovies = { navigator.navigate(Screen.Movies) },
+                onNavigateToSettings = { navigator.navigate(Screen.Settings) }
+            )
+        }
+
+        entry<Screen.Timeline> {
+            TimelineScreen(
+                viewModel = timelineVm,
+                scrollToTopFlow = timelineScrollFlow,
+                refreshFlow = timelineRefreshFlow,
+                onNavigateToNutrition = { navigator.navigate(Screen.Nutrition) },
+                onNavigateToBooks = { navigator.navigate(Screen.Books) },
+                onNavigateToMovies = { navigator.navigate(Screen.Movies) }
+            )
+        }
+
+        entry<Screen.Records> {
+            RecordsScreen(
+                viewModel = recordsVm,
+                scrollToTopFlow = recordsScrollFlow,
+                refreshFlow = recordsRefreshFlow,
+                onNavigateToNutrition = { navigator.navigate(Screen.Nutrition) },
+                onNavigateToBooks = { navigator.navigate(Screen.Books) },
+                onNavigateToMovies = { navigator.navigate(Screen.Movies) },
+                onNavigateToNotifications = { navigator.navigate(Screen.Notifications) },
+                onNavigateToHealthConnect = { navigator.navigate(Screen.HealthConnect) }
+            )
+        }
+
+        entry<Screen.Settings> {
+            SettingsScreen(
+                viewModel = settingsVm,
+                scrollToTopFlow = settingsScrollFlow,
+                refreshFlow = settingsRefreshFlow,
+                onNavigateToLanguage = { navigator.navigate(Screen.Language) }
+            )
+        }
+
+        entry<Screen.Nutrition> {
+            NutritionScreen(
+                viewModel = nutritionVm,
+                onNavigateBack = { navigator.goBack() }
+            )
+        }
+
+        entry<Screen.Books> {
+            BooksScreen(
+                viewModel = booksVm,
+                onNavigateBack = { navigator.goBack() }
+            )
+        }
+
+        entry<Screen.Movies> {
+            MoviesScreen(
+                viewModel = moviesVm,
+                onNavigateBack = { navigator.goBack() }
+            )
+        }
+
+        entry<Screen.Notifications> {
+            NotificationsScreen(
+                viewModel = notificationsVm,
+                onNavigateBack = { navigator.goBack() }
+            )
+        }
+
+        entry<Screen.HealthConnect> {
+            HealthConnectScreen(
+                viewModel = healthConnectVm,
+                onNavigateBack = { navigator.goBack() }
+            )
+        }
+
+        entry<Screen.Language> {
+            val state by settingsVm.uiState.collectAsState()
+            LanguageSelectionScreen(
+                currentLanguage = state.appLanguage,
+                onLanguageSelected = { lang -> settingsVm.setLanguage(lang) },
+                onNavigateBack = { navigator.goBack() }
+            )
+        }
+    }
 
     Box(modifier = Modifier.fillMaxSize()) {
         Box(
@@ -199,140 +267,86 @@ fun MainAppHost() {
                 .fillMaxSize()
                 .padding(start = if (isWideScreen) 88.dp else 0.dp)
         ) {
-            // Persistent Peer Tabs Layer: keeps Overview, Timeline, Records, and Settings
-            // warm in memory (measured once, unplaced when inactive so 0 GPU/touch/recomposition cost).
-            // Keeping the active peer tab placed during detail route transitions prevents a Frame-1
-            // layout invalidation and blank background flash while the detail screen slides/fades in.
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .keepWarmTab(visible = lastActivePeerTab == Screen.Overview)
-            ) {
-            OverviewScreen(
-                viewModel = overviewVm,
-                scrollToTopFlow = overviewScrollFlow,
-                refreshFlow = overviewRefreshFlow,
-                onNavigateToTimeline = {
-                    timelineVm.ensureLoaded()
-                    navController.navigate(Screen.Timeline) {
-                        popUpTo(navController.graph.findStartDestination().id) { saveState = true }
-                        launchSingleTop = true
-                        restoreState = true
+            NavDisplay(
+                entries = navigationState.toDecoratedEntries(entryProvider),
+                onBack = {
+                    if (!navigator.goBack()) {
+                        activity?.finish()
                     }
                 },
-                onNavigateToNutrition = { navController.navigate(Screen.Nutrition) },
-                onNavigateToBooks = { navController.navigate(Screen.Books) },
-                onNavigateToMovies = { navController.navigate(Screen.Movies) },
-                onNavigateToSettings = { navController.navigate(Screen.Settings) }
-            )
-        }
+                modifier = Modifier.fillMaxSize(),
+                transitionSpec = {
+                    val initialKey = initialState.entries.lastOrNull()?.contentKey as? Screen
+                    val targetKey = targetState.entries.lastOrNull()?.contentKey as? Screen
+                    val isTargetDetail = targetKey in detailScreens
+                    val isInitialDetail = initialKey in detailScreens
 
-        if (isTimelineWarm || lastActivePeerTab == Screen.Timeline) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .keepWarmTab(visible = lastActivePeerTab == Screen.Timeline)
-            ) {
-                TimelineScreen(
-                    viewModel = timelineVm,
-                    scrollToTopFlow = timelineScrollFlow,
-                    refreshFlow = timelineRefreshFlow,
-                    onNavigateToNutrition = { navController.navigate(Screen.Nutrition) },
-                    onNavigateToBooks = { navController.navigate(Screen.Books) },
-                    onNavigateToMovies = { navController.navigate(Screen.Movies) }
-                )
-            }
-        }
-
-        if (isRecordsWarm || lastActivePeerTab == Screen.Records) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .keepWarmTab(visible = lastActivePeerTab == Screen.Records)
-            ) {
-                RecordsScreen(
-                    viewModel = recordsVm,
-                    scrollToTopFlow = recordsScrollFlow,
-                    refreshFlow = recordsRefreshFlow,
-                    onNavigateToNutrition = { navController.navigate(Screen.Nutrition) },
-                    onNavigateToBooks = { navController.navigate(Screen.Books) },
-                    onNavigateToMovies = { navController.navigate(Screen.Movies) },
-                    onNavigateToNotifications = { navController.navigate(Screen.Notifications) },
-                    onNavigateToHealthConnect = { navController.navigate(Screen.HealthConnect) }
-                )
-            }
-        }
-
-        if (isSettingsWarm || lastActivePeerTab == Screen.Settings) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .keepWarmTab(visible = lastActivePeerTab == Screen.Settings)
-            ) {
-                SettingsScreen(
-                    viewModel = settingsVm,
-                    scrollToTopFlow = settingsScrollFlow,
-                    refreshFlow = settingsRefreshFlow,
-                    onNavigateToLanguage = { navController.navigate(Screen.Language) }
-                )
-            }
-        }
-
-        NavHost(
-            navController = navController,
-            startDestination = Screen.Overview,
-            modifier = Modifier.fillMaxSize(),
-            enterTransition = {
-                val target = targetState.destination
-                if (detailScreens.any { target.hasRoute(it::class) }) {
-                    slideInHorizontally(
-                        initialOffsetX = { fullWidth -> fullWidth },
-                        animationSpec = androidx.compose.animation.core.spring(
-                            dampingRatio = 0.85f,
-                            stiffness = 380f,
-                            visibilityThreshold = androidx.compose.ui.unit.IntOffset.VisibilityThreshold
+                    if (isTargetDetail && !isInitialDetail) {
+                        slideInHorizontally(
+                            initialOffsetX = { fullWidth -> fullWidth },
+                            animationSpec = androidx.compose.animation.core.spring(
+                                dampingRatio = 0.85f,
+                                stiffness = 380f,
+                                visibilityThreshold = androidx.compose.ui.unit.IntOffset.VisibilityThreshold
+                            )
+                        ) togetherWith ExitTransition.None
+                    } else if (isTargetDetail && isInitialDetail) {
+                        slideInHorizontally(
+                            initialOffsetX = { fullWidth -> fullWidth },
+                            animationSpec = androidx.compose.animation.core.spring(
+                                dampingRatio = 0.85f,
+                                stiffness = 380f,
+                                visibilityThreshold = androidx.compose.ui.unit.IntOffset.VisibilityThreshold
+                            )
+                        ) togetherWith slideOutHorizontally(
+                            targetOffsetX = { fullWidth -> -(fullWidth * 0.25f).toInt() },
+                            animationSpec = androidx.compose.animation.core.spring(
+                                dampingRatio = androidx.compose.animation.core.Spring.DampingRatioNoBouncy,
+                                stiffness = 400f,
+                                visibilityThreshold = androidx.compose.ui.unit.IntOffset.VisibilityThreshold
+                            )
                         )
-                    )
-                } else {
-                    EnterTransition.None
-                }
-            },
-            exitTransition = {
-                val initial = initialState.destination
-                val target = targetState.destination
-                if (detailScreens.any { initial.hasRoute(it::class) } && detailScreens.any { target.hasRoute(it::class) }) {
-                    slideOutHorizontally(
-                        targetOffsetX = { fullWidth -> -(fullWidth * 0.25f).toInt() },
-                        animationSpec = androidx.compose.animation.core.spring(
-                            dampingRatio = androidx.compose.animation.core.Spring.DampingRatioNoBouncy,
-                            stiffness = 400f,
-                            visibilityThreshold = androidx.compose.ui.unit.IntOffset.VisibilityThreshold
+                    } else {
+                        EnterTransition.None togetherWith ExitTransition.None
+                    }
+                },
+                popTransitionSpec = {
+                    val initialKey = initialState.entries.lastOrNull()?.contentKey as? Screen
+                    val targetKey = targetState.entries.lastOrNull()?.contentKey as? Screen
+                    val isInitialDetail = initialKey in detailScreens
+                    val isTargetDetail = targetKey in detailScreens
+
+                    if (isInitialDetail && !isTargetDetail) {
+                        EnterTransition.None togetherWith slideOutHorizontally(
+                            targetOffsetX = { fullWidth -> fullWidth },
+                            animationSpec = androidx.compose.animation.core.spring(
+                                dampingRatio = androidx.compose.animation.core.Spring.DampingRatioNoBouncy,
+                                stiffness = 400f,
+                                visibilityThreshold = androidx.compose.ui.unit.IntOffset.VisibilityThreshold
+                            )
                         )
-                    )
-                } else {
-                    ExitTransition.None
-                }
-            },
-            popEnterTransition = {
-                val initial = initialState.destination
-                val target = targetState.destination
-                if (detailScreens.any { initial.hasRoute(it::class) } && detailScreens.any { target.hasRoute(it::class) }) {
-                    slideInHorizontally(
-                        initialOffsetX = { fullWidth -> -(fullWidth * 0.25f).toInt() },
-                        animationSpec = androidx.compose.animation.core.spring(
-                            dampingRatio = 0.85f,
-                            stiffness = 380f,
-                            visibilityThreshold = androidx.compose.ui.unit.IntOffset.VisibilityThreshold
+                    } else if (isInitialDetail && isTargetDetail) {
+                        slideInHorizontally(
+                            initialOffsetX = { fullWidth -> -(fullWidth * 0.25f).toInt() },
+                            animationSpec = androidx.compose.animation.core.spring(
+                                dampingRatio = 0.85f,
+                                stiffness = 380f,
+                                visibilityThreshold = androidx.compose.ui.unit.IntOffset.VisibilityThreshold
+                            )
+                        ) togetherWith slideOutHorizontally(
+                            targetOffsetX = { fullWidth -> fullWidth },
+                            animationSpec = androidx.compose.animation.core.spring(
+                                dampingRatio = androidx.compose.animation.core.Spring.DampingRatioNoBouncy,
+                                stiffness = 400f,
+                                visibilityThreshold = androidx.compose.ui.unit.IntOffset.VisibilityThreshold
+                            )
                         )
-                    )
-                } else {
-                    EnterTransition.None
-                }
-            },
-            popExitTransition = {
-                val initial = initialState.destination
-                if (detailScreens.any { initial.hasRoute(it::class) }) {
-                    slideOutHorizontally(
+                    } else {
+                        EnterTransition.None togetherWith ExitTransition.None
+                    }
+                },
+                predictivePopTransitionSpec = { _ ->
+                    EnterTransition.None togetherWith slideOutHorizontally(
                         targetOffsetX = { fullWidth -> fullWidth },
                         animationSpec = androidx.compose.animation.core.spring(
                             dampingRatio = androidx.compose.animation.core.Spring.DampingRatioNoBouncy,
@@ -340,75 +354,12 @@ fun MainAppHost() {
                             visibilityThreshold = androidx.compose.ui.unit.IntOffset.VisibilityThreshold
                         )
                     )
-                } else {
-                    ExitTransition.None
                 }
-            }
-        ) {
-            composable<Screen.Overview> {
-                Spacer(modifier = Modifier.fillMaxSize())
-            }
-
-            composable<Screen.Timeline> {
-                Spacer(modifier = Modifier.fillMaxSize())
-            }
-
-            composable<Screen.Records> {
-                Spacer(modifier = Modifier.fillMaxSize())
-            }
-
-            composable<Screen.Settings> {
-                Spacer(modifier = Modifier.fillMaxSize())
-            }
-
-            composable<Screen.Nutrition> {
-                NutritionScreen(
-                    viewModel = nutritionVm,
-                    onNavigateBack = { navController.popBackStack() }
-                )
-            }
-
-            composable<Screen.Books> {
-                BooksScreen(
-                    viewModel = booksVm,
-                    onNavigateBack = { navController.popBackStack() }
-                )
-            }
-
-            composable<Screen.Movies> {
-                MoviesScreen(
-                    viewModel = moviesVm,
-                    onNavigateBack = { navController.popBackStack() }
-                )
-            }
-
-            composable<Screen.Notifications> {
-                NotificationsScreen(
-                    viewModel = notificationsVm,
-                    onNavigateBack = { navController.popBackStack() }
-                )
-            }
-
-            composable<Screen.HealthConnect> {
-                HealthConnectScreen(
-                    viewModel = healthConnectVm,
-                    onNavigateBack = { navController.popBackStack() }
-                )
-            }
-
-            composable<Screen.Language> {
-                val state by settingsVm.uiState.collectAsState()
-                LanguageSelectionScreen(
-                    currentLanguage = state.appLanguage,
-                    onLanguageSelected = { lang -> settingsVm.setLanguage(lang) },
-                    onNavigateBack = { navController.popBackStack() }
-                )
-            }
-        }
+            )
         }
 
         ExpressiveAdaptiveNavigation(
-            navController = navController,
+            navigator = navigator,
             onScrollToTop = { screen ->
                 when (screen) {
                     Screen.Overview -> overviewScrollFlow.tryEmit(Unit)
@@ -532,15 +483,12 @@ private fun CompanionSettingsButton(
 
 @Composable
 private fun ExpressiveAdaptiveNavigation(
-    navController: NavHostController,
+    navigator: Navigator,
     onScrollToTop: (Screen) -> Unit,
     onRefresh: (Screen) -> Unit,
     isWideScreen: Boolean,
     modifier: Modifier = Modifier
 ) {
-    val navBackStackEntry by navController.currentBackStackEntryAsState()
-    val destination = navBackStackEntry?.destination
-
     val coroutineScope = rememberCoroutineScope()
     var activeTabTapJob by remember { mutableStateOf<kotlinx.coroutines.Job?>(null) }
     val haptic = LocalHapticFeedback.current
@@ -549,24 +497,16 @@ private fun ExpressiveAdaptiveNavigation(
     }
     val secondaryContainerColor = MaterialTheme.colorScheme.secondaryContainer
 
+    val topLevelRoute = navigator.state.topLevelRoute
+    val currentRoute = navigator.currentRoute()
+
     fun handleNavClick(screen: Screen, isSelected: Boolean) {
         haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
 
         if (isSelected) {
-            val dest = navBackStackEntry?.destination
-            if (screen == Screen.Records && dest?.hasRoute<Screen.Records>() != true) {
-                val popped = navController.popBackStack(Screen.Records, inclusive = false)
-                if (!popped) {
-                    navController.navigate(Screen.Records) {
-                        popUpTo(navController.graph.findStartDestination().id) {
-                            saveState = true
-                        }
-                        launchSingleTop = true
-                        restoreState = true
-                    }
-                }
-            } else if (screen == Screen.Settings && dest?.hasRoute<Screen.Language>() == true) {
-                navController.popBackStack(Screen.Settings, inclusive = false)
+            val currentStack = navigator.state.backStacks[screen]
+            if (currentStack != null && currentStack.size > 1) {
+                navigator.onReselect(screen)
             } else {
                 if (activeTabTapJob?.isActive == true) {
                     activeTabTapJob?.cancel()
@@ -581,19 +521,11 @@ private fun ExpressiveAdaptiveNavigation(
                 }
             }
         } else {
-            navController.navigate(screen) {
-                popUpTo(navController.graph.findStartDestination().id) {
-                    saveState = true
-                }
-                launchSingleTop = true
-                restoreState = true
-            }
+            navigator.navigate(screen)
         }
     }
 
-    val settingsSelected = destination?.let {
-        it.hasRoute<Screen.Settings>() || it.hasRoute<Screen.Language>()
-    } == true
+    val settingsSelected = topLevelRoute == Screen.Settings || currentRoute == Screen.Language
 
     if (isWideScreen) {
         // Floating NavRail — M3 Expressive Vertical Floating Toolbar + Companion Action
@@ -627,8 +559,8 @@ private fun ExpressiveAdaptiveNavigation(
                         mainNavScreens.forEach { screen ->
                             key(screen) {
                                 val selected = when (screen) {
-                                    Screen.Records -> destination?.let { dest -> recordsSubScreens.any { dest.hasRoute(it::class) } } == true
-                                    else -> destination?.hasRoute(screen::class) == true
+                                    Screen.Records -> topLevelRoute == Screen.Records || currentRoute in recordsSubScreens
+                                    else -> topLevelRoute == screen && currentRoute !in recordsSubScreens && currentRoute != Screen.Language
                                 }
 
                                 val interactionSource = remember { MutableInteractionSource() }
@@ -740,8 +672,8 @@ private fun ExpressiveAdaptiveNavigation(
                         mainNavScreens.forEach { screen ->
                             key(screen) {
                                 val selected = when (screen) {
-                                    Screen.Records -> destination?.let { dest -> recordsSubScreens.any { dest.hasRoute(it::class) } } == true
-                                    else -> destination?.hasRoute(screen::class) == true
+                                    Screen.Records -> topLevelRoute == Screen.Records || currentRoute in recordsSubScreens
+                                    else -> topLevelRoute == screen && currentRoute !in recordsSubScreens && currentRoute != Screen.Language
                                 }
 
                                 val interactionSource = remember { MutableInteractionSource() }

@@ -7,6 +7,7 @@ import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.*
 import androidx.compose.ui.graphics.vector.ImageVector
 import com.personalrecords.app.R
+import androidx.navigation3.runtime.NavKey
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.Transient
 
@@ -17,7 +18,7 @@ sealed class Screen(
     @Transient val icon: ImageVector = Icons.Default.Circle,
     @Transient val selectedIcon: ImageVector = icon,
     @Transient @StringRes val navLabelRes: Int = titleRes
-) {
+) : NavKey {
     @Serializable
     data object Overview : Screen("overview", R.string.title_overview, Icons.Outlined.Dashboard, Icons.Filled.Dashboard, R.string.nav_overview)
 
@@ -51,6 +52,13 @@ sealed class Screen(
 }
 
 val bottomNavScreens = listOf(
+    Screen.Overview,
+    Screen.Timeline,
+    Screen.Records,
+    Screen.Settings
+)
+
+val topLevelScreens: Set<Screen> = setOf(
     Screen.Overview,
     Screen.Timeline,
     Screen.Records,
