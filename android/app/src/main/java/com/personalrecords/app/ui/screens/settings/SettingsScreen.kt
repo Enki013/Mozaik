@@ -72,6 +72,7 @@ fun SettingsScreen(
     var showKeyEditor by remember { mutableStateOf(false) }
     var showLetterboxdEditor by remember { mutableStateOf(false) }
     var showGoodreadsEditor by remember { mutableStateOf(false) }
+    var showLastFmEditor by remember { mutableStateOf(false) }
     var secretVisible by remember { mutableStateOf(false) }
 
     val clipboardManager = LocalClipboardManager.current
@@ -155,6 +156,15 @@ fun SettingsScreen(
             snackbarHostState.showSnackbar(it)
             if (!it.startsWith("Hata") && !it.startsWith("Error")) {
                 showGoodreadsEditor = false
+            }
+        }
+    }
+
+    LaunchedEffect(state.musicSaveMessage) {
+        state.musicSaveMessage?.let {
+            snackbarHostState.showSnackbar(it)
+            if (!it.startsWith("Hata") && !it.startsWith("Error")) {
+                showLastFmEditor = false
             }
         }
     }
@@ -802,10 +812,10 @@ fun SettingsScreen(
                 }
 
                 // ==========================================
-                // SECTION 2.6: Müzik & Scrobbler Entegrasyonu
+                // SECTION 2.6: Web Scrobbler Webhook Entegrasyonu
                 // ==========================================
                 item {
-                    SettingsSectionTitle(title = stringResource(R.string.music_settings_title))
+                    SettingsSectionTitle(title = stringResource(R.string.settings_section_music_webhook))
                 }
                 item {
                     SettingsCard {
@@ -831,13 +841,13 @@ fun SettingsScreen(
                                 )
                                 Column(modifier = Modifier.weight(1f, fill = false)) {
                                     Text(
-                                        text = "Web Scrobbler & Last.fm",
+                                        text = stringResource(R.string.settings_webscrobbler_title),
                                         style = MaterialTheme.typography.titleMediumEmphasized,
                                         maxLines = 1,
                                         overflow = TextOverflow.Ellipsis
                                     )
                                     Text(
-                                        text = "Müzik dinleme geçmişinizi otomatik senkronize edin",
+                                        text = stringResource(R.string.settings_webscrobbler_desc),
                                         style = MaterialTheme.typography.bodySmall,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                                         maxLines = 1,
@@ -847,129 +857,142 @@ fun SettingsScreen(
                             }
                         }
 
-                        Spacer(modifier = Modifier.height(12.dp))
+                        Spacer(modifier = Modifier.height(10.dp))
 
-                        // Part 1: Web Scrobbler Webhook
                         Text(
-                            text = "1. Web Scrobbler Tarayıcı Eklentisi Webhook",
-                            style = MaterialTheme.typography.titleSmall,
-                            fontWeight = FontWeight.SemiBold
-                        )
-                        Spacer(modifier = Modifier.height(4.dp))
-                        Text(
-                            text = stringResource(R.string.music_settings_webhook_desc),
+                            text = stringResource(R.string.settings_webscrobbler_summary),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
 
-                        Spacer(modifier = Modifier.height(8.dp))
+                        Spacer(modifier = Modifier.height(10.dp))
 
                         Surface(
                             shape = M3Shapes.CornerMedium,
-                            color = MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.6f),
+                            color = MaterialTheme.colorScheme.surfaceContainerHighest,
                             modifier = Modifier.fillMaxWidth()
                         ) {
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(horizontal = 12.dp, vertical = 8.dp),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
+                            Column(modifier = Modifier.padding(10.dp)) {
                                 Text(
-                                    text = musicWebhookUrl,
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.primary,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis,
-                                    modifier = Modifier.weight(1f)
+                                    text = stringResource(R.string.settings_target_webhook_url),
+                                    style = MaterialTheme.typography.labelSmallEmphasized,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
-                                IconButton(
-                                    onClick = {
-                                        clipboardManager.setText(AnnotatedString(musicWebhookUrl))
-                                        Toast.makeText(context, "Webhook URL kopyalandı", Toast.LENGTH_SHORT).show()
-                                    },
-                                    modifier = Modifier.size(32.dp)
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Default.ContentCopy,
-                                        contentDescription = stringResource(R.string.music_settings_copy_webhook),
-                                        modifier = Modifier.size(18.dp)
+                                Spacer(modifier = Modifier.height(4.dp))
+                                SelectionContainer {
+                                    Text(
+                                        text = musicWebhookUrl,
+                                        style = MaterialTheme.typography.bodySmallEmphasized,
+                                        color = MaterialTheme.colorScheme.primary
                                     )
                                 }
                             }
                         }
 
-                        Spacer(modifier = Modifier.height(16.dp))
-                        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
-                        Spacer(modifier = Modifier.height(12.dp))
-
-                        // Part 2: Last.fm Settings
-                        Text(
-                            text = "2. Last.fm Entegrasyonu (Geçmiş ve Otomatik Sync)",
-                            style = MaterialTheme.typography.titleSmall,
-                            fontWeight = FontWeight.SemiBold
-                        )
                         Spacer(modifier = Modifier.height(8.dp))
 
-                        OutlinedTextField(
-                            value = state.lastfmUsername,
-                            onValueChange = { viewModel.updateLastfmUsername(it) },
-                            label = { Text(stringResource(R.string.music_settings_lastfm_user)) },
-                            placeholder = { Text("Örn: enes832") },
-                            leadingIcon = {
-                                Icon(Icons.Default.Person, contentDescription = null, modifier = Modifier.size(20.dp))
-                            },
-                            singleLine = true,
-                            shape = M3Shapes.CornerMedium,
-                            modifier = Modifier.fillMaxWidth()
-                        )
-
-                        Spacer(modifier = Modifier.height(8.dp))
-
-                        OutlinedTextField(
-                            value = state.lastfmApiKey,
-                            onValueChange = { viewModel.updateLastfmApiKey(it) },
-                            label = {
-                                Text(
-                                    if (state.lastfmApiKeySet && state.lastfmApiKey.isBlank()) {
-                                        "Last.fm API Key (Kayıtlı ✓)"
-                                    } else {
-                                        stringResource(R.string.music_settings_lastfm_key)
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Button(
+                                onClick = {
+                                    clipboardManager.setText(AnnotatedString(musicWebhookUrl))
+                                    coroutineScope.launch {
+                                        snackbarHostState.showSnackbar(context.getString(R.string.toast_webhook_copied))
                                     }
-                                )
-                            },
-                            placeholder = { Text("Last.fm 32 haneli API Key") },
-                            leadingIcon = {
-                                Icon(Icons.Default.Key, contentDescription = null, modifier = Modifier.size(20.dp))
-                            },
-                            singleLine = true,
-                            shape = M3Shapes.CornerMedium,
-                            modifier = Modifier.fillMaxWidth()
-                        )
+                                },
+                                shape = M3Shapes.CornerMedium,
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .height(42.dp)
+                                    .expressivePressScale(remember { MutableInteractionSource() }),
+                                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp)
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.ContentCopy,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                    Text(
+                                        text = stringResource(R.string.action_copy_url),
+                                        style = MaterialTheme.typography.labelLargeEmphasized,
+                                        maxLines = 1,
+                                        softWrap = false,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                }
+                            }
 
-                        state.musicSaveMessage?.let { msg ->
-                            Spacer(modifier = Modifier.height(8.dp))
-                            Text(
-                                text = msg,
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.primary
-                            )
+                            OutlinedButton(
+                                onClick = {
+                                    val intent = Intent(
+                                        Intent.ACTION_VIEW,
+                                        "https://web-scrobbler.com/".toUri()
+                                    )
+                                    context.startActivity(intent)
+                                },
+                                shape = M3Shapes.CornerMedium,
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .height(42.dp)
+                                    .expressivePressScale(remember { MutableInteractionSource() }),
+                                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp)
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.OpenInBrowser,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                    Text(
+                                        text = "Web Scrobbler",
+                                        style = MaterialTheme.typography.labelLarge,
+                                        maxLines = 1,
+                                        softWrap = false,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                }
+                            }
                         }
 
-                        Spacer(modifier = Modifier.height(12.dp))
+                        Spacer(modifier = Modifier.height(10.dp))
 
-                        Button(
-                            onClick = { viewModel.saveMusicSettings() },
-                            enabled = !state.isSavingMusicSettings,
-                            shape = M3Shapes.CornerFull,
+                        Surface(
+                            shape = M3Shapes.CornerMedium,
+                            color = MaterialTheme.colorScheme.surfaceContainerHigh,
                             modifier = Modifier.fillMaxWidth()
                         ) {
-                            if (state.isSavingMusicSettings) {
-                                CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
-                                Spacer(modifier = Modifier.width(8.dp))
+                            Column(modifier = Modifier.padding(10.dp)) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.AutoMirrored.Filled.HelpOutline,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(16.dp),
+                                        tint = MaterialTheme.colorScheme.primary
+                                    )
+                                    Text(
+                                        text = stringResource(R.string.settings_setup_guide_title),
+                                        style = MaterialTheme.typography.labelMediumEmphasized
+                                    )
+                                }
+                                Spacer(modifier = Modifier.height(6.dp))
+                                Text(
+                                    text = "${stringResource(R.string.settings_webscrobbler_step_1)}\n${stringResource(R.string.settings_webscrobbler_step_2)}\n${stringResource(R.string.settings_webscrobbler_step_3)}",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
                             }
-                            Text(stringResource(R.string.music_settings_save))
                         }
                     }
                 }
@@ -1963,6 +1986,307 @@ fun SettingsScreen(
                                 contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp)
                             ) {
                                 if (state.isSyncing == "goodreads") {
+                                    ExpressiveLoadingIndicator(
+                                        size = 16.dp,
+                                        strokeWidth = 2.dp,
+                                        color = MaterialTheme.colorScheme.primary
+                                    )
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text(
+                                        text = stringResource(R.string.action_syncing),
+                                        style = MaterialTheme.typography.labelLarge,
+                                        maxLines = 1,
+                                        softWrap = false,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                } else {
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.Sync,
+                                            contentDescription = null,
+                                            modifier = Modifier.size(16.dp)
+                                        )
+                                        Text(
+                                            text = stringResource(R.string.action_sync),
+                                            style = MaterialTheme.typography.labelLarge,
+                                            maxLines = 1,
+                                            softWrap = false,
+                                            overflow = TextOverflow.Ellipsis
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                item {
+                    SettingsCard {
+                        // Last.fm Card Header
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Row(
+                                modifier = Modifier.weight(1f),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(10.dp)
+                            ) {
+                                SettingsIconBox(
+                                    icon = Icons.Default.MusicNote,
+                                    containerColor = MaterialTheme.colorScheme.primaryContainer,
+                                    contentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                                )
+                                Column(modifier = Modifier.weight(1f, fill = false)) {
+                                    Text(
+                                        text = stringResource(R.string.settings_lastfm_title),
+                                        style = MaterialTheme.typography.titleMediumEmphasized,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                    Text(
+                                        text = stringResource(R.string.settings_lastfm_desc),
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                }
+                            }
+
+                            if (state.lastfmUsername.isNotBlank()) {
+                                Surface(
+                                    shape = M3Shapes.CornerFull,
+                                    color = domainNutritionContainer(),
+                                    modifier = Modifier.padding(start = 8.dp)
+                                ) {
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
+                                    ) {
+                                        Box(
+                                            modifier = Modifier
+                                                .size(6.dp)
+                                                .background(domainNutritionOnContainer(), M3Shapes.CornerFull)
+                                        )
+                                        Text(
+                                            text = stringResource(R.string.badge_connected),
+                                            color = domainNutritionOnContainer(),
+                                            style = MaterialTheme.typography.labelSmallEmphasized,
+                                            maxLines = 1,
+                                            softWrap = false
+                                        )
+                                    }
+                                }
+                            }
+                        }
+
+                        // Configured Summary Box (nested inside 20dp SettingsCard -> 12dp CornerMedium)
+                        if (state.lastfmUsername.isNotBlank()) {
+                            Spacer(modifier = Modifier.height(10.dp))
+                            Surface(
+                                shape = M3Shapes.CornerMedium,
+                                color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.65f),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    modifier = Modifier.padding(12.dp)
+                                ) {
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                                        modifier = Modifier.weight(1f)
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.CheckCircle,
+                                            contentDescription = null,
+                                            tint = domainNutritionColor(),
+                                            modifier = Modifier.size(20.dp)
+                                        )
+                                        Column(modifier = Modifier.weight(1f)) {
+                                            Text(
+                                                text = "@${state.lastfmUsername}",
+                                                style = MaterialTheme.typography.titleSmallEmphasized
+                                            )
+                                            Text(
+                                                text = stringResource(R.string.settings_lastfm_connected_banner),
+                                                style = MaterialTheme.typography.bodySmall,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                maxLines = 1,
+                                                overflow = TextOverflow.Ellipsis
+                                            )
+                                        }
+                                    }
+                                    // Nested inside 12dp summary Surface -> 8dp CornerSmall
+                                    FilledTonalButton(
+                                        onClick = { showLastFmEditor = !showLastFmEditor },
+                                        shape = M3Shapes.CornerSmall,
+                                        modifier = Modifier
+                                            .height(34.dp)
+                                            .expressivePressScale(remember { MutableInteractionSource() }),
+                                        contentPadding = PaddingValues(horizontal = 10.dp, vertical = 0.dp)
+                                    ) {
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                        ) {
+                                            Icon(
+                                                imageVector = if (showLastFmEditor) Icons.Default.ExpandLess else Icons.Default.Edit,
+                                                contentDescription = null,
+                                                modifier = Modifier.size(14.dp)
+                                            )
+                                            Text(
+                                                text = if (showLastFmEditor) stringResource(R.string.action_cancel) else stringResource(R.string.action_edit),
+                                                style = MaterialTheme.typography.labelMedium,
+                                                maxLines = 1,
+                                                softWrap = false
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        // Editor / Initial Setup Inputs (Spatial spring for height + Effects spring for opacity)
+                        AnimatedVisibility(
+                            visible = state.lastfmUsername.isBlank() || showLastFmEditor,
+                            enter = expandVertically(
+                                animationSpec = M3ExpressiveMotion.defaultSpatial()
+                            ) + fadeIn(animationSpec = M3ExpressiveMotion.defaultEffects()),
+                            exit = shrinkVertically(
+                                animationSpec = M3ExpressiveMotion.defaultSpatial()
+                            ) + fadeOut(animationSpec = M3ExpressiveMotion.fastEffects())
+                        ) {
+                            Surface(
+                                shape = M3Shapes.CornerMedium,
+                                color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.65f),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(top = 8.dp)
+                            ) {
+                                Column(modifier = Modifier.padding(12.dp)) {
+                                    OutlinedTextField(
+                                        value = state.lastfmUsername,
+                                        onValueChange = { viewModel.updateLastfmUsername(it) },
+                                        modifier = Modifier.fillMaxWidth(),
+                                        label = { Text(stringResource(R.string.settings_lastfm_user_label)) },
+                                        placeholder = { Text(stringResource(R.string.settings_lastfm_user_hint)) },
+                                        singleLine = true,
+                                        leadingIcon = {
+                                            Icon(
+                                                imageVector = Icons.Default.AlternateEmail,
+                                                contentDescription = null,
+                                                tint = MaterialTheme.colorScheme.primary
+                                            )
+                                        },
+                                        trailingIcon = if (state.lastfmUsername.isNotBlank()) {
+                                            {
+                                                IconButton(onClick = { viewModel.updateLastfmUsername("") }) {
+                                                    Icon(Icons.Default.Clear, contentDescription = stringResource(R.string.action_clear))
+                                                }
+                                            }
+                                        } else null,
+                                        shape = M3Shapes.CornerSmall,
+                                        supportingText = {
+                                            Text(stringResource(R.string.settings_lastfm_support))
+                                        }
+                                    )
+
+                                    Spacer(modifier = Modifier.height(8.dp))
+
+                                    OutlinedTextField(
+                                        value = state.lastfmApiKey,
+                                        onValueChange = { viewModel.updateLastfmApiKey(it) },
+                                        modifier = Modifier.fillMaxWidth(),
+                                        label = {
+                                            Text(
+                                                if (state.lastfmApiKeySet && state.lastfmApiKey.isBlank()) {
+                                                    stringResource(R.string.settings_lastfm_key_saved)
+                                                } else {
+                                                    stringResource(R.string.settings_lastfm_key_label)
+                                                }
+                                            )
+                                        },
+                                        placeholder = { Text("Last.fm 32 haneli API Key") },
+                                        singleLine = true,
+                                        leadingIcon = {
+                                            Icon(
+                                                imageVector = Icons.Default.Key,
+                                                contentDescription = null,
+                                                tint = MaterialTheme.colorScheme.primary
+                                            )
+                                        },
+                                        trailingIcon = if (state.lastfmApiKey.isNotBlank()) {
+                                            {
+                                                IconButton(onClick = { viewModel.updateLastfmApiKey("") }) {
+                                                    Icon(Icons.Default.Clear, contentDescription = stringResource(R.string.action_clear))
+                                                }
+                                            }
+                                        } else null,
+                                        shape = M3Shapes.CornerSmall
+                                    )
+
+                                    Spacer(modifier = Modifier.height(8.dp))
+
+                                    Button(
+                                        onClick = {
+                                            viewModel.saveMusicSettings()
+                                            showLastFmEditor = false
+                                        },
+                                        enabled = !state.isSavingMusicSettings && state.lastfmUsername.isNotBlank(),
+                                        shape = M3Shapes.CornerSmall,
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .height(42.dp)
+                                            .expressivePressScale(remember { MutableInteractionSource() }),
+                                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp)
+                                    ) {
+                                        if (state.isSavingMusicSettings) {
+                                            ExpressiveLoadingIndicator(
+                                                size = 16.dp,
+                                                strokeWidth = 2.dp,
+                                                color = MaterialTheme.colorScheme.onPrimary
+                                            )
+                                        } else {
+                                            Row(
+                                                verticalAlignment = Alignment.CenterVertically,
+                                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                            ) {
+                                                Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(16.dp))
+                                                Text(
+                                                    text = stringResource(R.string.action_save),
+                                                    style = MaterialTheme.typography.labelLargeEmphasized,
+                                                    maxLines = 1,
+                                                    softWrap = false,
+                                                    overflow = TextOverflow.Ellipsis
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        if (state.lastfmUsername.isNotBlank()) {
+                            Spacer(modifier = Modifier.height(8.dp))
+                            FilledTonalButton(
+                                onClick = { viewModel.syncLastFm() },
+                                enabled = state.isSyncing == null,
+                                shape = M3Shapes.CornerMedium,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(42.dp)
+                                    .expressivePressScale(remember { MutableInteractionSource() }),
+                                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp)
+                            ) {
+                                if (state.isSyncing == "lastfm") {
                                     ExpressiveLoadingIndicator(
                                         size = 16.dp,
                                         strokeWidth = 2.dp,

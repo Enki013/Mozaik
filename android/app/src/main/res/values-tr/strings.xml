@@ -379,5 +379,20 @@
     <string name="records_item_music_count">Müzik &amp; Ses · %1$d dinleme</string>
     <string name="timeline_count_music">%1$d şarkı</string>
     <string name="timeline_filter_music">Müzik</string>
+    <string name="settings_section_music_webhook">Web Scrobbler Webhook Entegrasyonu</string>
+    <string name="settings_webscrobbler_title">Web Scrobbler</string>
+    <string name="settings_webscrobbler_desc">Tarayıcıdan müzik dinleme geçmişini aktarın</string>
+    <string name="settings_webscrobbler_summary">Chrome, Firefox ve Edge Web Scrobbler eklentisi (YouTube, Spotify Web, SoundCloud vb.) dinlemelerinizi sunucunuza iletir.</string>
+    <string name="settings_webscrobbler_step_1">1. Web Scrobbler ayarları -> Accounts -> Webhook bölümünü açın.</string>
+    <string name="settings_webscrobbler_step_2">2. Hedef Webhook URL\'sini yapıştırın ve kaydedin.</string>
+    <string name="settings_webscrobbler_step_3">3. Tarayıcınızda müzik dinlemeye başlayın; dinlemeler anında kaydedilir.</string>
+    <string name="settings_lastfm_title">Last.fm</string>
+    <string name="settings_lastfm_desc">Müzik dinleme geçmişi ve otomatik senkronizasyon</string>
+    <string name="settings_lastfm_user_label">Last.fm Kullanıcı Adı</string>
+    <string name="settings_lastfm_user_hint">enes832</string>
+    <string name="settings_lastfm_key_label">Last.fm API Key (Opsiyonel)</string>
+    <string name="settings_lastfm_key_saved">Last.fm API Key (Kayıtlı ✓)</string>
+    <string name="settings_lastfm_support">Geçmiş dinlemeleri eksiksiz çekmek için Last.fm API Key ekleyin.</string>
+    <string name="settings_lastfm_connected_banner">Last.fm hesabı bağlı · Otomatik senkronizasyon açık</string>
 </resources>
 

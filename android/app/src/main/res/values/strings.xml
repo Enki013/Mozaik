@@ -379,5 +379,20 @@
     <string name="records_item_music_count">Music &amp; Audio · %1$d scrobbles</string>
     <string name="timeline_count_music">%1$d songs</string>
     <string name="timeline_filter_music">Music</string>
+    <string name="settings_section_music_webhook">Web Scrobbler Webhook Integration</string>
+    <string name="settings_webscrobbler_title">Web Scrobbler</string>
+    <string name="settings_webscrobbler_desc">Stream music playback history from browser</string>
+    <string name="settings_webscrobbler_summary">The Web Scrobbler extension (YouTube, Spotify Web, SoundCloud etc.) pushes your scrobbles directly to your server.</string>
+    <string name="settings_webscrobbler_step_1">1. Open Web Scrobbler extension options -> Accounts -> Webhook.</string>
+    <string name="settings_webscrobbler_step_2">2. Paste the target Webhook URL above and save.</string>
+    <string name="settings_webscrobbler_step_3">3. Start listening to music in your browser; scrobbles appear instantly.</string>
+    <string name="settings_lastfm_title">Last.fm</string>
+    <string name="settings_lastfm_desc">Music scrobble history and automatic synchronization</string>
+    <string name="settings_lastfm_user_label">Last.fm Username</string>
+    <string name="settings_lastfm_user_hint">enes832</string>
+    <string name="settings_lastfm_key_label">Last.fm API Key (Optional)</string>
+    <string name="settings_lastfm_key_saved">Last.fm API Key (Configured ✓)</string>
+    <string name="settings_lastfm_support">Add a Last.fm API Key to fetch full historical scrobbles.</string>
+    <string name="settings_lastfm_connected_banner">Last.fm account connected · Auto-sync enabled</string>
 </resources>
 

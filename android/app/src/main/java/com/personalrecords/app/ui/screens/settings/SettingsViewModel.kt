@@ -261,6 +261,33 @@ class SettingsViewModel(
         }
     }
 
+    fun syncLastFm() {
+        viewModelScope.launch {
+            _uiState.update { it.copy(isSyncing = "lastfm", syncStatusMessage = null) }
+            val result = repository.syncLastFm(allPages = false)
+            when (result) {
+                is Resource.Success -> {
+                    val count = result.data.inserted + result.data.updated
+                    _uiState.update {
+                        it.copy(
+                            isSyncing = null,
+                            syncStatusMessage = "Last.fm eşitlendi: $count parça güncellendi!"
+                        )
+                    }
+                }
+                is Resource.Error -> {
+                    _uiState.update {
+                        it.copy(
+                            isSyncing = null,
+                            syncStatusMessage = "Hata: ${result.message}"
+                        )
+                    }
+                }
+                else -> _uiState.update { it.copy(isSyncing = null) }
+            }
+        }
+    }
+
     fun loadLetterboxdSettings() {
         viewModelScope.launch {
             _uiState.update { it.copy(isLoadingLetterboxd = true) }
