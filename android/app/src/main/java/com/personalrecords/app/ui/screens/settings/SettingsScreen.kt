@@ -74,6 +74,8 @@ fun SettingsScreen(
     var showGoodreadsEditor by remember { mutableStateOf(false) }
     var showLastFmEditor by remember { mutableStateOf(false) }
     var secretVisible by remember { mutableStateOf(false) }
+    var lastfmKeyVisible by remember { mutableStateOf(false) }
+    var lastfmKeyCleared by remember(showLastFmEditor) { mutableStateOf(false) }
 
     val clipboardManager = LocalClipboardManager.current
 
@@ -2201,21 +2203,25 @@ fun SettingsScreen(
 
                                     Spacer(modifier = Modifier.height(8.dp))
 
+                                    val isKeyPreConfigured = state.lastfmApiKeySet && !lastfmKeyCleared && state.lastfmApiKey.isBlank()
+                                    val displayKey = if (isKeyPreConfigured) "********************************" else state.lastfmApiKey
+
                                     OutlinedTextField(
-                                        value = state.lastfmApiKey,
-                                        onValueChange = { viewModel.updateLastfmApiKey(it) },
-                                        modifier = Modifier.fillMaxWidth(),
-                                        label = {
-                                            Text(
-                                                if (state.lastfmApiKeySet && state.lastfmApiKey.isBlank()) {
-                                                    stringResource(R.string.settings_lastfm_key_saved)
-                                                } else {
-                                                    stringResource(R.string.settings_lastfm_key_label)
-                                                }
-                                            )
+                                        value = displayKey,
+                                        onValueChange = { input ->
+                                            if (isKeyPreConfigured) {
+                                                lastfmKeyCleared = true
+                                                val clean = input.replace("*", "").replace("•", "")
+                                                viewModel.updateLastfmApiKey(clean)
+                                            } else {
+                                                viewModel.updateLastfmApiKey(input)
+                                            }
                                         },
-                                        placeholder = { Text("Last.fm 32 haneli API Key") },
+                                        modifier = Modifier.fillMaxWidth(),
+                                        label = { Text(stringResource(R.string.settings_lastfm_key_label)) },
+                                        placeholder = { Text(stringResource(R.string.settings_lastfm_key_hint)) },
                                         singleLine = true,
+                                        visualTransformation = if (lastfmKeyVisible) VisualTransformation.None else PasswordVisualTransformation(),
                                         leadingIcon = {
                                             Icon(
                                                 imageVector = Icons.Default.Key,
@@ -2223,13 +2229,40 @@ fun SettingsScreen(
                                                 tint = MaterialTheme.colorScheme.primary
                                             )
                                         },
-                                        trailingIcon = if (state.lastfmApiKey.isNotBlank()) {
-                                            {
-                                                IconButton(onClick = { viewModel.updateLastfmApiKey("") }) {
-                                                    Icon(Icons.Default.Clear, contentDescription = stringResource(R.string.action_clear))
+                                        trailingIcon = {
+                                            if (displayKey.isNotBlank()) {
+                                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                                    IconButton(onClick = { lastfmKeyVisible = !lastfmKeyVisible }) {
+                                                        Icon(
+                                                            imageVector = if (lastfmKeyVisible) Icons.Default.VisibilityOff else Icons.Default.Visibility,
+                                                            contentDescription = null,
+                                                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                                        )
+                                                    }
+                                                    IconButton(
+                                                        onClick = {
+                                                            lastfmKeyCleared = true
+                                                            viewModel.updateLastfmApiKey("")
+                                                        }
+                                                    ) {
+                                                        Icon(
+                                                            imageVector = Icons.Default.Clear,
+                                                            contentDescription = stringResource(R.string.action_clear),
+                                                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                                        )
+                                                    }
                                                 }
                                             }
-                                        } else null,
+                                        },
+                                        supportingText = {
+                                            Text(
+                                                if (isKeyPreConfigured) {
+                                                    stringResource(R.string.settings_lastfm_key_saved_hint)
+                                                } else {
+                                                    stringResource(R.string.settings_lastfm_support)
+                                                }
+                                            )
+                                        },
                                         shape = M3Shapes.CornerSmall
                                     )
 

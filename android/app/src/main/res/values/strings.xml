@@ -392,6 +392,8 @@
     <string name="settings_lastfm_user_hint">enes832</string>
     <string name="settings_lastfm_key_label">Last.fm API Key (Optional)</string>
     <string name="settings_lastfm_key_saved">Last.fm API Key (Configured ✓)</string>
+    <string name="settings_lastfm_key_hint">Last.fm 32-character API Key</string>
+    <string name="settings_lastfm_key_saved_hint">API Key is configured and protected (••••••••). Clear to enter a new key.</string>
     <string name="settings_lastfm_support">Add a Last.fm API Key to fetch full historical scrobbles.</string>
     <string name="settings_lastfm_connected_banner">Last.fm account connected · Auto-sync enabled</string>
 </resources>

@@ -392,6 +392,8 @@
     <string name="settings_lastfm_user_hint">enes832</string>
     <string name="settings_lastfm_key_label">Last.fm API Key (Opsiyonel)</string>
     <string name="settings_lastfm_key_saved">Last.fm API Key (Kayıtlı ✓)</string>
+    <string name="settings_lastfm_key_hint">Last.fm 32 haneli API Key</string>
+    <string name="settings_lastfm_key_saved_hint">API Key kayıtlı ve korunuyor (••••••••). Değiştirmek için temizleyebilirsiniz.</string>
     <string name="settings_lastfm_support">Geçmiş dinlemeleri eksiksiz çekmek için Last.fm API Key ekleyin.</string>
     <string name="settings_lastfm_connected_banner">Last.fm hesabı bağlı · Otomatik senkronizasyon açık</string>
 </resources>
