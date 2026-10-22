@@ -34,6 +34,7 @@ data class MusicUiState(
     val toDateFilter: String? = null,
     val sortBy: String = "date_desc", // "date_desc", "date_asc", "track", "artist"
     val searchQuery: String = "",
+    val webhookUrl: String = "",
     val error: String? = null,
     val syncMessage: String? = null
 )
@@ -144,6 +145,8 @@ class MusicViewModel(
     private suspend fun fetchData(isRefresh: Boolean) {
         val scrobblesRes = repository.getMusicScrobbles(limit = 100)
         val statsRes = repository.getMusicStats()
+        val settingsRes = repository.getMusicSettings()
+        val webhookUrl = (settingsRes as? Resource.Success)?.data?.webhookUrl.orEmpty()
 
         when (scrobblesRes) {
             is Resource.Success -> {
@@ -169,6 +172,7 @@ class MusicViewModel(
                         scrobbles = items,
                         filteredScrobbles = filtered,
                         stats = stats,
+                        webhookUrl = if (webhookUrl.isNotBlank()) webhookUrl else it.webhookUrl,
                         error = null
                     )
                 }

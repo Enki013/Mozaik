@@ -1331,11 +1331,11 @@ fun Modifier.expressiveShake(
                     animationSpec = keyframes {
                         durationMillis = 320
                         0f at 0
-                        -amplitudePx at 50 using FastOutLinearInEasing
+                        amplitudePx at 50 using FastOutLinearInEasing
                         amplitudePx * 0.7f at 110 using FastOutSlowInEasing
-                        -amplitudePx * 0.45f at 170 using FastOutSlowInEasing
+                        amplitudePx * 0.45f at 170 using FastOutSlowInEasing
                         amplitudePx * 0.2f at 230 using FastOutSlowInEasing
-                        -amplitudePx * 0.08f at 280 using FastOutSlowInEasing
+                        amplitudePx * 0.08f at 280 using FastOutSlowInEasing
                         0f at 320 using LinearOutSlowInEasing
                     }
                 )
@@ -1348,53 +1348,6 @@ fun Modifier.expressiveShake(
             alpha = animAlpha.value
         } else {
             translationX = animOffset.value
-        }
-    }
-}
-
-/**
- * MD3 Expressive Success Pop Modifier.
- *
- * Implements a celebratory scale pop (1.0f -> 1.12f -> 1.0f) using
- * [M3ExpressiveMotion.fastSpatial] overshoot spring.
- * Enhances dopamine loop upon sync completion or action confirmation.
- * Respects Reduced Motion by skipping spatial scale.
- */
-@Composable
-fun Modifier.expressiveSuccessPop(
-    trigger: Any?,
-    maxScale: Float = 1.12f,
-    enabled: Boolean = true
-): Modifier {
-    if (!enabled) return this
-    val haptic = LocalHapticFeedback.current
-    val isReducedMotion = LocalReducedMotion.current
-    val scaleAnim = remember { Animatable(1f) }
-
-    LaunchedEffect(trigger) {
-        if (trigger != null && trigger != false && trigger != "") {
-            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-            if (isReducedMotion) {
-                scaleAnim.snapTo(1f)
-            } else {
-                scaleAnim.snapTo(1f)
-                scaleAnim.animateTo(
-                    targetValue = maxScale,
-                    animationSpec = tween(durationMillis = 90, easing = FastOutSlowInEasing)
-                )
-                scaleAnim.animateTo(
-                    targetValue = 1f,
-                    animationSpec = M3ExpressiveMotion.fastSpatial()
-                )
-            }
-        }
-    }
-
-    return this.graphicsLayer {
-        if (!isReducedMotion) {
-            val s = scaleAnim.value
-            scaleX = s
-            scaleY = s
         }
     }
 }
@@ -1551,7 +1504,7 @@ fun parseIsoDateToMillis(dateStr: String?): Long? {
     return try {
         val clean = dateStr.trim().replace('/', '-')
         utcIsoFormatter.get()!!.parse(clean)?.time
-    } catch (e: Exception) {
+    } catch (_: Exception) {
         null
     }
 }
@@ -1562,7 +1515,7 @@ fun formatIsoToReadableDate(dateStr: String): String {
         val date = localIsoParser.get()!!.parse(clean) ?: return dateStr
         val outputFormatter = SimpleDateFormat("d MMM yyyy", Locale.getDefault())
         outputFormatter.format(date)
-    } catch (e: Exception) {
+    } catch (_: Exception) {
         dateStr
     }
 }
@@ -1573,7 +1526,7 @@ fun formatIsoToShortDate(dateStr: String): String {
         val date = localIsoParser.get()!!.parse(clean) ?: return dateStr
         val outputFormatter = SimpleDateFormat("d MMM", Locale.getDefault())
         outputFormatter.format(date)
-    } catch (e: Exception) {
+    } catch (_: Exception) {
         dateStr
     }
 }
@@ -2077,13 +2030,12 @@ fun FoodEntryDetailBottomSheet(
 }
 
 @Composable
-fun FoodEntryDetailPaneCard(
+fun Modifier.FoodEntryDetailPaneCard(
     item: FoodEntryDto,
-    onClose: (() -> Unit)? = null,
-    modifier: Modifier = Modifier
+    onClose: (() -> Unit)? = null
 ) {
     Surface(
-        modifier = modifier.fillMaxSize(),
+        modifier = fillMaxSize(),
         shape = M3Shapes.CornerLarge,
         color = MaterialTheme.colorScheme.surfaceContainerLow
     ) {

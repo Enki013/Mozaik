@@ -200,9 +200,9 @@ fun OverviewScreen(
                             )
                             MetricCard(
                                 title = stringResource(R.string.title_music),
-                                value = "$musicCount parça",
-                                badgeText = "Scrobbler",
-                                note = "Web & Last.fm",
+                                value = stringResource(R.string.overview_metric_music_count, musicCount),
+                                badgeText = "Last.fm",
+                                note = stringResource(R.string.overview_metric_music_note),
                                 modifier = Modifier.weight(1f),
                                 badgeBg = MaterialTheme.colorScheme.primaryContainer,
                                 badgeColor = MaterialTheme.colorScheme.onPrimaryContainer,
@@ -275,8 +275,8 @@ fun OverviewScreen(
 
                             // Last.fm Row
                             SyncRow(
-                                title = "Last.fm",
-                                subtitle = "Müzik scrobble geçmişi ve senkronizasyon",
+                                title = stringResource(R.string.overview_integration_lastfm),
+                                subtitle = stringResource(R.string.overview_integration_lastfm_desc),
                                 isSyncing = state.isSyncing == "lastfm",
                                 onSync = { viewModel.syncService("lastfm") }
                             )

@@ -56,6 +56,8 @@
     <string name="overview_metric_today_calories">Consumed Today</string>
     <string name="overview_metric_kcal">%1$s kcal</string>
     <string name="overview_metric_meals_count">%1$s meal entries</string>
+    <string name="overview_metric_music_count">%1$s tracks</string>
+    <string name="overview_metric_music_note">Last.fm</string>
     <string name="overview_metric_library">Library</string>
     <string name="overview_metric_books_count">%1$s books</string>
     <string name="overview_metric_books_note">Total recorded</string>
@@ -73,6 +75,8 @@
     <string name="overview_integration_goodreads_desc">Books &amp; Shelves</string>
     <string name="overview_integration_letterboxd">Letterboxd RSS</string>
     <string name="overview_integration_letterboxd_desc">Films &amp; Ratings</string>
+    <string name="overview_integration_lastfm">Last.fm</string>
+    <string name="overview_integration_lastfm_desc">Music scrobble history and sync</string>
     <string name="overview_recent_activities_title">Recent Activities</string>
     <string name="overview_recent_activities_subtitle">Meals, books and films stream</string>
     <string name="overview_no_activities">No activity records yet.</string>
@@ -402,8 +406,14 @@
     <string name="settings_lastfm_key_label">Last.fm API Key (Optional)</string>
     <string name="settings_lastfm_key_saved">Last.fm API Key (Configured ✓)</string>
     <string name="settings_lastfm_key_hint">Last.fm 32-character API Key</string>
-    <string name="settings_lastfm_key_saved_hint">API Key is configured and protected (••••••••). Clear to enter a new key.</string>
     <string name="settings_lastfm_support">Add a Last.fm API Key to fetch full historical scrobbles.</string>
     <string name="settings_lastfm_connected_banner">Last.fm account connected · Auto-sync enabled</string>
+    <string name="badge_brand_integration">Brand Integration</string>
+    <string name="badge_extension">Browser Extension</string>
+    <string name="action_open_webscrobbler">Web Scrobbler Official Site</string>
+    <string name="music_action_scrobbler_info">Web Scrobbler Integration</string>
+    <string name="music_empty_webscrobbler_title">No Web Scrobbler records yet</string>
+    <string name="music_empty_webscrobbler_desc">Install the Web Scrobbler extension in your browser to stream music playback here.</string>
+    <string name="music_empty_webscrobbler_action">View Web Scrobbler Setup</string>
 </resources>
 

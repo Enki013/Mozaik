@@ -56,6 +56,8 @@
     <string name="overview_metric_today_calories">Bugün Alınan</string>
     <string name="overview_metric_kcal">%1$s kcal</string>
     <string name="overview_metric_meals_count">%1$s öğün kaydı</string>
+    <string name="overview_metric_music_count">%1$s parça</string>
+    <string name="overview_metric_music_note">Last.fm</string>
     <string name="overview_metric_library">Kütüphane</string>
     <string name="overview_metric_books_count">%1$s kitap</string>
     <string name="overview_metric_books_note">Toplam kayıtlı</string>
@@ -73,6 +75,8 @@
     <string name="overview_integration_goodreads_desc">Kitaplar &amp; Raflar</string>
     <string name="overview_integration_letterboxd">Letterboxd RSS</string>
     <string name="overview_integration_letterboxd_desc">Filmler &amp; Puanlar</string>
+    <string name="overview_integration_lastfm">Last.fm</string>
+    <string name="overview_integration_lastfm_desc">Müzik scrobble geçmişi ve senkronizasyon</string>
     <string name="overview_recent_activities_title">Son Aktiviteler</string>
     <string name="overview_recent_activities_subtitle">Öğün, kitap ve film akışı</string>
     <string name="overview_no_activities">Henüz aktivite kaydı bulunmuyor.</string>
@@ -402,8 +406,14 @@
     <string name="settings_lastfm_key_label">Last.fm API Key (Opsiyonel)</string>
     <string name="settings_lastfm_key_saved">Last.fm API Key (Kayıtlı ✓)</string>
     <string name="settings_lastfm_key_hint">Last.fm 32 haneli API Key</string>
-    <string name="settings_lastfm_key_saved_hint">API Key kayıtlı ve korunuyor (••••••••). Değiştirmek için temizleyebilirsiniz.</string>
     <string name="settings_lastfm_support">Geçmiş dinlemeleri eksiksiz çekmek için Last.fm API Key ekleyin.</string>
     <string name="settings_lastfm_connected_banner">Last.fm hesabı bağlı · Otomatik senkronizasyon açık</string>
+    <string name="badge_brand_integration">Brand Entegrasyonu</string>
+    <string name="badge_extension">Tarayıcı Eklentisi</string>
+    <string name="action_open_webscrobbler">Web Scrobbler Resmi Sitesi</string>
+    <string name="music_action_scrobbler_info">Web Scrobbler Entegrasyonu</string>
+    <string name="music_empty_webscrobbler_title">Henüz Web Scrobbler kaydı yok</string>
+    <string name="music_empty_webscrobbler_desc">Tarayıcınıza Web Scrobbler eklentisini kurarak dinlediğiniz müzikleri buraya aktarın.</string>
+    <string name="music_empty_webscrobbler_action">Web Scrobbler Kurulumunu Gör</string>
 </resources>
 

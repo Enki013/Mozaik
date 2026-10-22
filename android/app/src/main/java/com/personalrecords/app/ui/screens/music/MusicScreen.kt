@@ -16,8 +16,10 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.HelpOutline
 import androidx.compose.material.icons.automirrored.filled.Sort
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.*
@@ -54,6 +56,7 @@ fun MusicScreen(
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     var selectedScrobble by remember { mutableStateOf<MusicScrobbleDto?>(null) }
     var showDatePicker by remember { mutableStateOf(false) }
+    var showWebScrobblerSheet by remember { mutableStateOf(false) }
     val coroutineScope = rememberCoroutineScope()
     val context = LocalContext.current
 
@@ -135,6 +138,15 @@ fun MusicScreen(
                     }
                 },
                 actions = {
+                    IconButton(
+                        onClick = { showWebScrobblerSheet = true }
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Extension,
+                            contentDescription = stringResource(R.string.music_action_scrobbler_info),
+                            tint = MaterialTheme.colorScheme.onSurface
+                        )
+                    }
                     IconButton(
                         onClick = { viewModel.syncLastFm() },
                         enabled = !state.isSyncingLastFm
@@ -447,7 +459,9 @@ fun MusicScreen(
                     } else if (state.filteredScrobbles.isEmpty()) {
                         item(key = "empty_state") {
                             EmptyMusicView(
+                                isWebScrobblerFilter = state.selectedFilter == "web_scrobbler",
                                 onSyncClick = { viewModel.syncLastFm() },
+                                onWebScrobblerClick = { showWebScrobblerSheet = true },
                                 isSyncing = state.isSyncingLastFm
                             )
                         }
@@ -466,6 +480,18 @@ fun MusicScreen(
                 }
             }
         }
+    }
+
+    if (showWebScrobblerSheet) {
+        WebScrobblerBrandBottomSheet(
+            webhookUrl = state.webhookUrl,
+            onDismiss = { showWebScrobblerSheet = false },
+            onShowSnackbar = { msg ->
+                coroutineScope.launch {
+                    snackbarHostState.showSnackbar(msg)
+                }
+            }
+        )
     }
 
     selectedScrobble?.let { scrobble ->
@@ -660,7 +686,9 @@ private fun ScrobbleListItem(
 
 @Composable
 private fun EmptyMusicView(
+    isWebScrobblerFilter: Boolean,
     onSyncClick: () -> Unit,
+    onWebScrobblerClick: () -> Unit,
     isSyncing: Boolean
 ) {
     Card(
@@ -683,49 +711,283 @@ private fun EmptyMusicView(
                 modifier = Modifier
                     .size(64.dp)
                     .clip(CircleShape)
-                    .background(MaterialTheme.colorScheme.primaryContainer),
+                    .background(
+                        if (isWebScrobblerFilter) MaterialTheme.colorScheme.tertiaryContainer
+                        else MaterialTheme.colorScheme.primaryContainer
+                    ),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
-                    imageVector = Icons.Default.MusicNote,
+                    imageVector = if (isWebScrobblerFilter) Icons.Default.Extension else Icons.Default.MusicNote,
                     contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                    tint = if (isWebScrobblerFilter) MaterialTheme.colorScheme.onTertiaryContainer
+                    else MaterialTheme.colorScheme.onPrimaryContainer,
                     modifier = Modifier.size(32.dp)
                 )
             }
 
             Text(
-                text = stringResource(R.string.music_empty_title),
+                text = if (isWebScrobblerFilter) stringResource(R.string.music_empty_webscrobbler_title)
+                else stringResource(R.string.music_empty_title),
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.onSurface
             )
 
             Text(
-                text = stringResource(R.string.music_empty_desc),
+                text = if (isWebScrobblerFilter) stringResource(R.string.music_empty_webscrobbler_desc)
+                else stringResource(R.string.music_empty_desc),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(horizontal = 8.dp)
             )
 
-            Button(
-                onClick = onSyncClick,
-                enabled = !isSyncing,
-                shape = M3Shapes.CornerFull,
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = MaterialTheme.colorScheme.primary
-                )
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Sync,
-                    contentDescription = null,
-                    modifier = Modifier.size(18.dp)
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(
-                    text = if (isSyncing) stringResource(R.string.music_syncing) else stringResource(R.string.music_sync_lastfm)
-                )
+            if (isWebScrobblerFilter) {
+                Button(
+                    onClick = onWebScrobblerClick,
+                    shape = M3Shapes.CornerFull,
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.tertiary
+                    )
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Extension,
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = stringResource(R.string.music_empty_webscrobbler_action),
+                        style = MaterialTheme.typography.labelLargeEmphasized
+                    )
+                }
+            } else {
+                Button(
+                    onClick = onSyncClick,
+                    enabled = !isSyncing,
+                    shape = M3Shapes.CornerFull,
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.primary
+                    )
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Sync,
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = if (isSyncing) stringResource(R.string.music_syncing) else stringResource(R.string.music_sync_lastfm),
+                        style = MaterialTheme.typography.labelLargeEmphasized
+                    )
+                }
             }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun WebScrobblerBrandBottomSheet(
+    webhookUrl: String,
+    onDismiss: () -> Unit,
+    onShowSnackbar: (String) -> Unit
+) {
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val context = LocalContext.current
+    val clipboardManager = remember {
+        context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+    }
+    val effectiveWebhookUrl = webhookUrl.ifBlank {
+        "https://.../api/webhooks/music"
+    }
+
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = sheetState,
+        shape = M3Shapes.CornerExtraLarge,
+        containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 20.dp, vertical = 8.dp)
+                .navigationBarsPadding(),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            // Header Row: Extension Icon + Title + Brand Badge
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Row(
+                    modifier = Modifier.weight(1f),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(48.dp)
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(MaterialTheme.colorScheme.tertiaryContainer),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Extension,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onTertiaryContainer,
+                            modifier = Modifier.size(24.dp)
+                        )
+                    }
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = stringResource(R.string.settings_webscrobbler_title),
+                            style = MaterialTheme.typography.titleMediumEmphasized,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                        Text(
+                            text = stringResource(R.string.settings_webscrobbler_desc),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+
+                Surface(
+                    shape = M3Shapes.CornerFull,
+                    color = MaterialTheme.colorScheme.tertiaryContainer
+                ) {
+                    Text(
+                        text = stringResource(R.string.badge_brand_integration),
+                        color = MaterialTheme.colorScheme.onTertiaryContainer,
+                        style = MaterialTheme.typography.labelSmallEmphasized,
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
+                    )
+                }
+            }
+
+            Text(
+                text = stringResource(R.string.settings_webscrobbler_summary),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+
+            // Webhook Target URL box
+            Surface(
+                shape = M3Shapes.CornerMedium,
+                color = MaterialTheme.colorScheme.surfaceContainerHighest,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(modifier = Modifier.padding(12.dp)) {
+                    Text(
+                        text = stringResource(R.string.settings_target_webhook_url),
+                        style = MaterialTheme.typography.labelSmallEmphasized,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    SelectionContainer {
+                        Text(
+                            text = effectiveWebhookUrl,
+                            style = MaterialTheme.typography.bodySmallEmphasized,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                }
+            }
+
+            // Action Buttons
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Button(
+                    onClick = {
+                        val clip = ClipData.newPlainText("Webhook URL", effectiveWebhookUrl)
+                        clipboardManager.setPrimaryClip(clip)
+                        onShowSnackbar(context.getString(R.string.toast_webhook_copied))
+                    },
+                    shape = M3Shapes.CornerMedium,
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.ContentCopy,
+                        contentDescription = null,
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(
+                        text = stringResource(R.string.action_copy_url),
+                        style = MaterialTheme.typography.labelLargeEmphasized,
+                        maxLines = 1,
+                        softWrap = false,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+
+                OutlinedButton(
+                    onClick = {
+                        try {
+                            val intent = Intent(
+                                Intent.ACTION_VIEW,
+                                Uri.parse("https://web-scrobbler.com/")
+                            )
+                            context.startActivity(intent)
+                        } catch (e: Exception) {
+                            onShowSnackbar(context.getString(R.string.music_open_failed))
+                        }
+                    },
+                    shape = M3Shapes.CornerMedium,
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.OpenInBrowser,
+                        contentDescription = null,
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(
+                        text = "Web Scrobbler",
+                        style = MaterialTheme.typography.labelLarge,
+                        maxLines = 1,
+                        softWrap = false,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+            }
+
+            // 3-step setup guide
+            Surface(
+                shape = M3Shapes.CornerMedium,
+                color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(modifier = Modifier.padding(12.dp)) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.HelpOutline,
+                            contentDescription = null,
+                            modifier = Modifier.size(16.dp),
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                        Text(
+                            text = stringResource(R.string.settings_setup_guide_title),
+                            style = MaterialTheme.typography.labelMediumEmphasized
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Text(
+                        text = "${stringResource(R.string.settings_webscrobbler_step_1)}\n${stringResource(R.string.settings_webscrobbler_step_2)}\n${stringResource(R.string.settings_webscrobbler_step_3)}",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
         }
     }
 }
