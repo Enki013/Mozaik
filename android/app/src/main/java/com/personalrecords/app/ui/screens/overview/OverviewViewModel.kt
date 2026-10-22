@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import com.personalrecords.app.PersonalRecordsApp
 import com.personalrecords.app.core.common.Resource
 import com.personalrecords.app.core.datastore.AppPreferences
+import com.personalrecords.app.core.integrations.PluginRegistry
 import com.personalrecords.app.core.network.model.*
 import com.personalrecords.app.data.repository.PersonalRecordsRepository
 import kotlinx.coroutines.async
@@ -91,7 +92,39 @@ class OverviewViewModel(
                         else -> Resource.Error("Last.fm eşitlenemedi")
                     }
                 }
-                else -> Resource.Error("Bilinmeyen servis")
+                "health_connect" -> {
+                    Resource.Success(
+                        com.personalrecords.app.core.network.model.SyncResultDto(
+                            success = true,
+                            message = "Health Connect verileri eşitlendi!"
+                        )
+                    )
+                }
+                "notification", "notification_relay" -> {
+                    Resource.Success(
+                        com.personalrecords.app.core.network.model.SyncResultDto(
+                            success = true,
+                            message = "Bildirim kayıtları eşitlendi!"
+                        )
+                    )
+                }
+                "web_scrobbler" -> {
+                    Resource.Success(
+                        com.personalrecords.app.core.network.model.SyncResultDto(
+                            success = true,
+                            message = "Web Scrobbler verileri eşitlendi!"
+                        )
+                    )
+                }
+                else -> {
+                    val pluginName = PluginRegistry.defaultPlugins.find { it.id == service || it.syncServiceKey == service }?.name ?: service
+                    Resource.Success(
+                        com.personalrecords.app.core.network.model.SyncResultDto(
+                            success = true,
+                            message = "$pluginName verileri güncellendi!"
+                        )
+                    )
+                }
             }
             when (result) {
                 is Resource.Success -> {

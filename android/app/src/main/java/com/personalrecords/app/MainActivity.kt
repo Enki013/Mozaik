@@ -389,7 +389,8 @@ fun MainAppHost() {
                         viewModel = settingsVm,
                         scrollToTopFlow = settingsScrollFlow,
                         refreshFlow = settingsRefreshFlow,
-                        onNavigateToLanguage = { navigator.navigate(Screen.Language) }
+                        onNavigateToLanguage = { navigator.navigate(Screen.Language) },
+                        onNavigateToIntegrationsCatalog = { navigator.navigate(Screen.IntegrationsCatalog) }
                     )
                 }
             }

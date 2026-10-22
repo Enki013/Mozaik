@@ -41,6 +41,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.personalrecords.app.R
+import com.personalrecords.app.core.integrations.IntegrationPlugin
 import com.personalrecords.app.core.theme.*
 import com.personalrecords.app.ui.components.*
 import kotlinx.coroutines.Dispatchers
@@ -63,7 +64,8 @@ fun SettingsScreen(
     viewModel: SettingsViewModel,
     scrollToTopFlow: kotlinx.coroutines.flow.Flow<Unit>? = null,
     refreshFlow: kotlinx.coroutines.flow.Flow<Unit>? = null,
-    onNavigateToLanguage: () -> Unit = {}
+    onNavigateToLanguage: () -> Unit = {},
+    onNavigateToIntegrationsCatalog: () -> Unit = {}
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
@@ -78,6 +80,13 @@ fun SettingsScreen(
     var lastfmKeyCleared by remember(showLastFmEditor) { mutableStateOf(false) }
 
     val clipboardManager = LocalClipboardManager.current
+
+    val otherActivePlugins = remember(state.enabledPluginIds) {
+        com.personalrecords.app.core.integrations.PluginRegistry.defaultPlugins.filter { plugin ->
+            (plugin.id in state.enabledPluginIds) &&
+                plugin.id !in setOf("notification", "notification_relay", "health_connect", "fatsecret", "letterboxd", "goodreads", "lastfm", "web_scrobbler")
+        }
+    }
 
     fun triggerDownload(url: String, filename: String) {
         coroutineScope.launch {
@@ -453,13 +462,101 @@ fun SettingsScreen(
                 }
 
                 // ==========================================
-                // SECTION 2: Bildirim Webhook Entegrasyonu
+                // DYNAMIC INTEGRATIONS & PLUGINS SECTION
                 // ==========================================
-                item {
-                    SettingsSectionTitle(title = stringResource(R.string.settings_section_webhook))
+                item(key = "section_integrations_header") {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 4.dp, vertical = 6.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Column(modifier = Modifier.weight(1f, fill = false)) {
+                            Text(
+                                text = stringResource(R.string.settings_section_integrations),
+                                style = MaterialTheme.typography.titleMediumEmphasized,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                            Text(
+                                text = stringResource(R.string.settings_section_integrations_desc),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        Spacer(modifier = Modifier.width(8.dp))
+                        FilledTonalButton(
+                            onClick = onNavigateToIntegrationsCatalog,
+                            shape = M3Shapes.CornerFull,
+                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
+                            modifier = Modifier.height(34.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Add,
+                                contentDescription = null,
+                                modifier = Modifier.size(16.dp)
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(
+                                text = stringResource(R.string.settings_integrations_catalog_action),
+                                style = MaterialTheme.typography.labelMedium
+                            )
+                        }
+                    }
                 }
-                item {
-                    SettingsCard {
+
+                if (state.enabledPluginIds.isEmpty()) {
+                    item(key = "empty_integrations_card") {
+                        SettingsCard {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                            ) {
+                                SettingsIconBox(
+                                    icon = Icons.Default.Extension,
+                                    containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                                    contentColor = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = stringResource(R.string.settings_integrations_empty_title),
+                                        style = MaterialTheme.typography.titleSmallEmphasized,
+                                        color = MaterialTheme.colorScheme.onSurface
+                                    )
+                                    Spacer(modifier = Modifier.height(2.dp))
+                                    Text(
+                                        text = stringResource(R.string.settings_integrations_empty_desc),
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                            }
+                            Spacer(modifier = Modifier.height(12.dp))
+                            Button(
+                                onClick = onNavigateToIntegrationsCatalog,
+                                shape = M3Shapes.CornerMedium,
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Extension,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(
+                                    text = stringResource(R.string.settings_open_catalog),
+                                    style = MaterialTheme.typography.labelLarge
+                                )
+                            }
+                        }
+                    }
+                }
+
+                // 1. Notification Webhook
+                if (state.enabledPluginIds.contains("notification") || state.enabledPluginIds.contains("notification_relay")) {
+                    item(key = "config_notification") {
+                        SettingsCard {
                         val cleanBaseUrl = state.serverUrl.trim().trimEnd('/')
                         val webhookUrl = if (cleanBaseUrl.isNotBlank()) "$cleanBaseUrl/api/webhooks/notification" else "https://.../api/webhooks/notification"
 
@@ -634,15 +731,12 @@ fun SettingsScreen(
                         }
                     }
                 }
-
-                // ==========================================
-                // SECTION 2.5: Health Connect Webhook Entegrasyonu
-                // ==========================================
-                item {
-                    SettingsSectionTitle(title = stringResource(R.string.settings_section_health_webhook))
                 }
-                item {
-                    SettingsCard {
+
+                // 2. Health Connect Webhook
+                if (state.enabledPluginIds.contains("health_connect")) {
+                    item(key = "config_health_connect") {
+                        SettingsCard {
                         val cleanBaseUrl = state.serverUrl.trim().trimEnd('/')
                         val healthWebhookUrl = if (cleanBaseUrl.isNotBlank()) "$cleanBaseUrl/api/webhooks/health" else "https://.../api/webhooks/health"
 
@@ -816,15 +910,12 @@ fun SettingsScreen(
                         }
                     }
                 }
-
-                // ==========================================
-                // SECTION 3: Beslenme & FatSecret BYOK
-                // ==========================================
-                item {
-                    SettingsSectionTitle(title = stringResource(R.string.settings_section_fatsecret))
                 }
-                item {
-                    SettingsCard {
+
+                // 3. FatSecret BYOK
+                if (state.enabledPluginIds.contains("fatsecret")) {
+                    item(key = "config_fatsecret") {
+                        SettingsCard {
                         // Header
                         Row(
                             modifier = Modifier.fillMaxWidth(),
@@ -1296,15 +1387,12 @@ fun SettingsScreen(
                         }
                     }
                 }
-
-                // ==========================================
-                // SECTION 4: Medya & Kültür Senkronizasyonu
-                // ==========================================
-                item {
-                    SettingsSectionTitle(title = stringResource(R.string.settings_section_media))
                 }
-                item {
-                    SettingsCard {
+
+                // 4. Letterboxd RSS
+                if (state.enabledPluginIds.contains("letterboxd")) {
+                    item(key = "config_letterboxd") {
+                        SettingsCard {
                         // Letterboxd Card Header
                         Row(
                             modifier = Modifier.fillMaxWidth(),
@@ -1572,9 +1660,12 @@ fun SettingsScreen(
                         }
                     }
                 }
+                }
 
-                item {
-                    SettingsCard {
+                // 5. Goodreads RSS
+                if (state.enabledPluginIds.contains("goodreads")) {
+                    item(key = "config_goodreads") {
+                        SettingsCard {
                         // Goodreads Card Header
                         Row(
                             modifier = Modifier.fillMaxWidth(),
@@ -1842,9 +1933,12 @@ fun SettingsScreen(
                         }
                     }
                 }
+                }
 
-                item {
-                    SettingsCard {
+                // 6. Last.fm API
+                if (state.enabledPluginIds.contains("lastfm")) {
+                    item(key = "config_lastfm") {
+                        SettingsCard {
                         // Last.fm Card Header
                         Row(
                             modifier = Modifier.fillMaxWidth(),
@@ -2165,10 +2259,12 @@ fun SettingsScreen(
                         }
                     }
                 }
+                }
 
-                // Web Scrobbler Brand Integration Card (Media & Culture Section)
-                item {
-                    SettingsCard {
+                // 7. Web Scrobbler Brand Integration Card
+                if (state.enabledPluginIds.contains("web_scrobbler")) {
+                    item(key = "config_web_scrobbler") {
+                        SettingsCard {
                         val cleanBaseUrl = state.serverUrl.trim().trimEnd('/')
                         val musicWebhookUrl = state.musicWebhookUrl.ifBlank {
                             if (cleanBaseUrl.isNotBlank()) "$cleanBaseUrl/api/webhooks/music" else "https://.../api/webhooks/music"
@@ -2371,6 +2467,24 @@ fun SettingsScreen(
                             }
                         }
                     }
+                }
+                }
+
+                // 8. Other Active Plugins (Dynamic catalog plugins like Spotify or future plugins)
+                items(
+                    items = otherActivePlugins,
+                    key = { "config_${it.id}" }
+                ) { plugin ->
+                    GenericPluginSettingsCard(
+                        plugin = plugin,
+                        serverUrl = state.serverUrl,
+                        onOpenCatalog = onNavigateToIntegrationsCatalog,
+                        onShowToast = { msg ->
+                            coroutineScope.launch {
+                                snackbarHostState.showSnackbar(msg)
+                            }
+                        }
+                    )
                 }
 
                 // ==========================================
@@ -2717,5 +2831,258 @@ private fun extractGoodreadsId(url: String): String {
         return match.groupValues[1]
     }
     return trimmed
+}
+
+@Composable
+private fun GenericPluginSettingsCard(
+    plugin: IntegrationPlugin,
+    serverUrl: String,
+    onOpenCatalog: () -> Unit,
+    onShowToast: (String) -> Unit
+) {
+    val context = LocalContext.current
+    val clipboardManager = LocalClipboardManager.current
+    val cleanBaseUrl = serverUrl.trim().trimEnd('/')
+    val webhookUrl = remember(cleanBaseUrl, plugin.webhookPath) {
+        if (!plugin.webhookPath.isNullOrBlank()) {
+            if (cleanBaseUrl.isNotBlank()) "$cleanBaseUrl${plugin.webhookPath}" else "https://...${plugin.webhookPath}"
+        } else null
+    }
+
+    SettingsCard {
+        // Plugin Header
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Row(
+                modifier = Modifier.weight(1f),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                SettingsIconBox(
+                    icon = plugin.icon,
+                    containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                    contentColor = MaterialTheme.colorScheme.onSecondaryContainer
+                )
+                Column(modifier = Modifier.weight(1f, fill = false)) {
+                    Text(
+                        text = plugin.name,
+                        style = MaterialTheme.typography.titleMediumEmphasized,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    Text(
+                        text = plugin.shortDescription,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+            }
+
+            Surface(
+                shape = M3Shapes.CornerFull,
+                color = MaterialTheme.colorScheme.secondaryContainer,
+                modifier = Modifier.padding(start = 8.dp)
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(6.dp)
+                            .background(MaterialTheme.colorScheme.onSecondaryContainer, M3Shapes.CornerFull)
+                    )
+                    Text(
+                        text = plugin.badge.ifBlank { plugin.type.displayName },
+                        color = MaterialTheme.colorScheme.onSecondaryContainer,
+                        style = MaterialTheme.typography.labelSmallEmphasized,
+                        maxLines = 1,
+                        softWrap = false
+                    )
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(10.dp))
+
+        Text(
+            text = plugin.longDescription,
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+
+        // Webhook Box if available
+        if (webhookUrl != null) {
+            Spacer(modifier = Modifier.height(10.dp))
+            Surface(
+                shape = M3Shapes.CornerMedium,
+                color = MaterialTheme.colorScheme.surfaceContainerHighest,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(modifier = Modifier.padding(10.dp)) {
+                    Text(
+                        text = stringResource(R.string.settings_target_webhook_url),
+                        style = MaterialTheme.typography.labelSmallEmphasized,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    SelectionContainer {
+                        Text(
+                            text = webhookUrl,
+                            style = MaterialTheme.typography.bodySmallEmphasized,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Button(
+                onClick = {
+                    clipboardManager.setText(AnnotatedString(webhookUrl))
+                    onShowToast(context.getString(R.string.toast_webhook_copied))
+                },
+                shape = M3Shapes.CornerMedium,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(42.dp)
+                    .expressivePressScale(remember { MutableInteractionSource() }),
+                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp)
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.ContentCopy,
+                        contentDescription = null,
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Text(
+                        text = stringResource(R.string.action_copy_url),
+                        style = MaterialTheme.typography.labelLargeEmphasized,
+                        maxLines = 1,
+                        softWrap = false,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+            }
+        }
+
+        // Action Buttons: Official Site & Manage in Catalog
+        if (plugin.officialUrl != null || plugin.setupSteps.isNotEmpty()) {
+            Spacer(modifier = Modifier.height(8.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                if (plugin.officialUrl != null) {
+                    OutlinedButton(
+                        onClick = {
+                            try {
+                                val intent = Intent(Intent.ACTION_VIEW, plugin.officialUrl.toUri())
+                                context.startActivity(intent)
+                            } catch (e: Exception) {
+                                onShowToast(e.message ?: "URL açılamadı")
+                            }
+                        },
+                        shape = M3Shapes.CornerMedium,
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(42.dp)
+                            .expressivePressScale(remember { MutableInteractionSource() }),
+                        contentPadding = PaddingValues(horizontal = 10.dp, vertical = 0.dp)
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.OpenInBrowser,
+                                contentDescription = null,
+                                modifier = Modifier.size(16.dp)
+                            )
+                            Text(
+                                text = stringResource(R.string.settings_open_website),
+                                style = MaterialTheme.typography.labelLarge,
+                                maxLines = 1,
+                                softWrap = false,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
+                    }
+                }
+
+                FilledTonalButton(
+                    onClick = onOpenCatalog,
+                    shape = M3Shapes.CornerMedium,
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(42.dp)
+                        .expressivePressScale(remember { MutableInteractionSource() }),
+                    contentPadding = PaddingValues(horizontal = 10.dp, vertical = 0.dp)
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Extension,
+                            contentDescription = null,
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Text(
+                            text = stringResource(R.string.settings_manage_in_catalog),
+                            style = MaterialTheme.typography.labelLarge,
+                            maxLines = 1,
+                            softWrap = false,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+                }
+            }
+        }
+
+        // Setup steps guide box
+        if (plugin.setupSteps.isNotEmpty()) {
+            Spacer(modifier = Modifier.height(10.dp))
+            Surface(
+                shape = M3Shapes.CornerMedium,
+                color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(modifier = Modifier.padding(10.dp)) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.HelpOutline,
+                            contentDescription = null,
+                            modifier = Modifier.size(16.dp),
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                        Text(
+                            text = stringResource(R.string.settings_setup_guide_title),
+                            style = MaterialTheme.typography.labelMediumEmphasized
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Text(
+                        text = plugin.setupSteps.mapIndexed { idx, step -> "${idx + 1}. $step" }.joinToString("\n"),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+        }
+    }
 }
 

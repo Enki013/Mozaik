@@ -435,5 +435,15 @@
     <string name="catalog_banner_title">Modüler Servis Ekosistemi</string>
     <string name="catalog_banner_desc">Kişisel verilerinizi toplamak için istediğiniz eklentiyi aktif edin veya yapılandırın.</string>
     <string name="catalog_webhook_status_active">Webhook Bağlantısı Aktif</string>
+
+    <!-- Dynamic Settings Integrations -->
+    <string name="settings_section_integrations">Aktif Entegrasyonlar ve Eklentiler</string>
+    <string name="settings_section_integrations_desc">Katalogdan aktif edilen servislerin yapılandırmaları</string>
+    <string name="settings_integrations_catalog_action">Katalog</string>
+    <string name="settings_integrations_empty_title">Aktif Entegrasyon Bulunmuyor</string>
+    <string name="settings_integrations_empty_desc">Servisleri bağlamak ve veri senkronizasyonunu etkinleştirmek için Entegrasyon Kataloğu\'ndan eklenti seçin.</string>
+    <string name="settings_open_catalog">Entegrasyon Kataloğu\'nu Aç</string>
+    <string name="settings_manage_in_catalog">Katalogda Yönet</string>
+    <string name="settings_open_website">Web Sitesi</string>
 </resources>
 

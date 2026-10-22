@@ -1,8 +1,5 @@
 package com.personalrecords.app.ui.screens.overview
 
-import android.content.ClipData
-import android.content.ClipboardManager
-import android.content.Context
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -19,20 +16,16 @@ import androidx.compose.runtime.*
 import coil.compose.AsyncImage
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.personalrecords.app.R
-import com.personalrecords.app.core.integrations.IntegrationPlugin
-import com.personalrecords.app.core.integrations.IntegrationType
 import com.personalrecords.app.core.integrations.PluginRegistry
 import com.personalrecords.app.core.theme.*
 import com.personalrecords.app.ui.components.*
 
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class, androidx.compose.foundation.ExperimentalFoundationApi::class)
 @Composable
@@ -50,7 +43,6 @@ fun OverviewScreen(
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
-    val coroutineScope = rememberCoroutineScope()
     var selectedActivity by remember { mutableStateOf<com.personalrecords.app.core.network.model.ActivityItemDto?>(null) }
 
     LaunchedEffect(state.syncMessage) {
@@ -321,27 +313,15 @@ fun OverviewScreen(
                                         )
                                     }
 
-                                    if (plugin.type == IntegrationType.WEBHOOK) {
-                                        WebhookPluginRow(
-                                            plugin = plugin,
-                                            serverBaseUrl = state.serverBaseUrl,
-                                            onConfigure = onNavigateToIntegrationsCatalog,
-                                            onCopied = { msg ->
-                                                coroutineScope.launch {
-                                                    snackbarHostState.showSnackbar(msg)
-                                                }
-                                            }
-                                        )
-                                    } else {
-                                        SyncRow(
-                                            title = plugin.name,
-                                            subtitle = plugin.shortDescription,
-                                            isSyncing = state.isSyncing == plugin.syncServiceKey,
-                                            onSync = {
-                                                plugin.syncServiceKey?.let { viewModel.syncService(it) }
-                                            }
-                                        )
-                                    }
+                                    val syncKey = plugin.syncServiceKey ?: plugin.id
+                                    SyncRow(
+                                        title = plugin.name,
+                                        subtitle = plugin.shortDescription,
+                                        isSyncing = state.isSyncing == syncKey,
+                                        onSync = {
+                                            viewModel.syncService(syncKey)
+                                        }
+                                    )
                                 }
                             }
                         }
@@ -477,7 +457,11 @@ fun SyncRow(
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Column(modifier = Modifier.weight(1f)) {
+        Column(
+            modifier = Modifier
+                .weight(1f)
+                .padding(end = 8.dp)
+        ) {
             Text(
                 text = title,
                 style = MaterialTheme.typography.bodyMediumEmphasized,
@@ -657,122 +641,6 @@ fun ActivityRowItem(
                         softWrap = false
                     )
                 }
-            }
-        }
-    }
-}
-
-@Composable
-private fun WebhookPluginRow(
-    plugin: IntegrationPlugin,
-    serverBaseUrl: String,
-    onConfigure: () -> Unit,
-    onCopied: (String) -> Unit
-) {
-    val context = LocalContext.current
-    val clipboardManager = remember {
-        context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-    }
-    val cleanBaseUrl = serverBaseUrl.trim().trimEnd('/')
-    val targetUrl = remember(cleanBaseUrl, plugin.webhookPath) {
-        if (cleanBaseUrl.isNotBlank() && plugin.webhookPath != null) {
-            "$cleanBaseUrl${plugin.webhookPath}"
-        } else {
-            "https://...${plugin.webhookPath.orEmpty()}"
-        }
-    }
-
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 4.dp),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Row(
-            modifier = Modifier.weight(1f),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(10.dp)
-        ) {
-            Box(
-                modifier = Modifier
-                    .size(36.dp)
-                    .clip(M3Shapes.CornerSmall)
-                    .background(MaterialTheme.colorScheme.tertiaryContainer),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    imageVector = plugin.icon,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onTertiaryContainer,
-                    modifier = Modifier.size(18.dp)
-                )
-            }
-            Column(modifier = Modifier.weight(1f)) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(6.dp)
-                ) {
-                    Text(
-                        text = plugin.name,
-                        style = MaterialTheme.typography.titleSmallEmphasized,
-                        color = MaterialTheme.colorScheme.onSurface,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.weight(1f, fill = false)
-                    )
-                    Surface(
-                        shape = M3Shapes.CornerFull,
-                        color = MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.7f)
-                    ) {
-                        Text(
-                            text = plugin.badge,
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onTertiaryContainer,
-                            maxLines = 1,
-                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 1.dp)
-                        )
-                    }
-                }
-                Text(
-                    text = plugin.shortDescription,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-            }
-        }
-
-        Row(
-            horizontalArrangement = Arrangement.spacedBy(4.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            IconButton(
-                onClick = {
-                    val clip = ClipData.newPlainText("Webhook URL", targetUrl)
-                    clipboardManager.setPrimaryClip(clip)
-                    onCopied(context.getString(R.string.toast_webhook_copied))
-                },
-                modifier = Modifier.size(36.dp)
-            ) {
-                Icon(
-                    imageVector = Icons.Default.ContentCopy,
-                    contentDescription = stringResource(R.string.action_copy_url),
-                    tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(18.dp)
-                )
-            }
-            IconButton(
-                onClick = onConfigure,
-                modifier = Modifier.size(36.dp)
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Tune,
-                    contentDescription = stringResource(R.string.catalog_configure),
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.size(18.dp)
-                )
             }
         }
     }

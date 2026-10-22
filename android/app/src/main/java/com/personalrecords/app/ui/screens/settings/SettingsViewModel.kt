@@ -48,7 +48,9 @@ data class SettingsUiState(
     val isSavingMusicSettings: Boolean = false,
     val musicSaveMessage: String? = null,
     // Language
-    val appLanguage: String = "system"
+    val appLanguage: String = "system",
+    // Integration Plugins
+    val enabledPluginIds: Set<String> = emptySet()
 )
 
 class SettingsViewModel(
@@ -62,12 +64,18 @@ class SettingsViewModel(
 
     init {
         viewModelScope.launch {
-            val url = preferences.serverBaseUrl.first()
-            _uiState.update { it.copy(serverUrl = url) }
+            preferences.serverBaseUrl.collect { url ->
+                _uiState.update { it.copy(serverUrl = url) }
+            }
         }
         viewModelScope.launch {
             preferences.appLanguage.collect { lang ->
                 _uiState.update { it.copy(appLanguage = lang) }
+            }
+        }
+        viewModelScope.launch {
+            preferences.enabledIntegrationPlugins.collect { enabledSet ->
+                _uiState.update { it.copy(enabledPluginIds = enabledSet) }
             }
         }
     }

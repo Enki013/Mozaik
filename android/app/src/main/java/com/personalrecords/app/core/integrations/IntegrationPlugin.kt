@@ -57,6 +57,7 @@ object PluginRegistry {
             badge = "Tarayıcı Eklentisi",
             shortDescription = "Chrome, Firefox ve Edge tarayıcınızdan dinlenen müzikleri anında sunucunuza aktarın.",
             longDescription = "YouTube, Spotify Web, SoundCloud, Bandcamp ve 300'den fazla web müzik çalarını destekleyen açık kaynaklı Web Scrobbler eklentisi. Dinlemelerinizi doğrudan sunucunuzun webhook adresine iletir.",
+            syncServiceKey = "web_scrobbler",
             webhookPath = "/api/webhooks/music",
             officialUrl = "https://web-scrobbler.com/",
             setupSteps = listOf(
@@ -157,6 +158,7 @@ object PluginRegistry {
             badge = "Android Webhook",
             shortDescription = "Adım, uyku, nabız ve antrenman verilerini aktarın.",
             longDescription = "Açık kaynaklı Health Connect Webhook yardımcısı ile Android cihazınızdaki sağlık ve aktivite ölçümlerini sunucunuza iletir.",
+            syncServiceKey = "health_connect",
             webhookPath = "/api/webhooks/health",
             officialUrl = "https://github.com/Enki013/health-connect-webhook",
             setupSteps = listOf(
@@ -177,6 +179,7 @@ object PluginRegistry {
             badge = "Sistem Webhook",
             shortDescription = "Android bildirim akışını güvenli biçimde sunucuya aktarın.",
             longDescription = "Notification Relay uygulaması ile gelen cihaz bildirimlerini kategorize ederek zaman tünelinize kaydeder.",
+            syncServiceKey = "notification_relay",
             webhookPath = "/api/webhooks/notification",
             setupSteps = listOf(
                 "Notification Relay APK'sını kurun ve Bildirim Erişimi verin.",
@@ -196,6 +199,7 @@ object PluginRegistry {
             badge = "Geliştirme Aşamasında",
             shortDescription = "Doğrudan Spotify Connect ve anlık çalan şarkı senkronizasyonu.",
             longDescription = "Spotify Developer API anahtarlarıyla çalma listeleri ve anlık çalan şarkı senkronizasyonu.",
+            syncServiceKey = "spotify",
             officialUrl = "https://developer.spotify.com",
             setupSteps = listOf(
                 "Geliştirme aşamasında: Spotify Client ID ve Secret desteği yakında eklenecektir."

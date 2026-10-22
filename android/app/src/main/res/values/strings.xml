@@ -435,5 +435,15 @@
     <string name="catalog_banner_title">Modular Service Ecosystem</string>
     <string name="catalog_banner_desc">Activate or configure any plugin to ingest your personal records seamlessly.</string>
     <string name="catalog_webhook_status_active">Webhook Connection Active</string>
+
+    <!-- Dynamic Settings Integrations -->
+    <string name="settings_section_integrations">Active Integrations &amp; Plugins</string>
+    <string name="settings_section_integrations_desc">Configurations for services activated from catalog</string>
+    <string name="settings_integrations_catalog_action">Catalog</string>
+    <string name="settings_integrations_empty_title">No Active Integrations</string>
+    <string name="settings_integrations_empty_desc">Select plugins from the Integrations Catalog to connect services and enable synchronization.</string>
+    <string name="settings_open_catalog">Open Integrations Catalog</string>
+    <string name="settings_manage_in_catalog">Manage in Catalog</string>
+    <string name="settings_open_website">Website</string>
 </resources>
 
