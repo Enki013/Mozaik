@@ -415,5 +415,25 @@
     <string name="music_empty_webscrobbler_title">Henüz Web Scrobbler kaydı yok</string>
     <string name="music_empty_webscrobbler_desc">Tarayıcınıza Web Scrobbler eklentisini kurarak dinlediğiniz müzikleri buraya aktarın.</string>
     <string name="music_empty_webscrobbler_action">Web Scrobbler Kurulumunu Gör</string>
+
+    <!-- Integrations Catalog & Plugin System -->
+    <string name="title_integrations_catalog">Entegrasyon Kataloğu</string>
+    <string name="catalog_subtitle">Modüler servis eklentileri ve veri kaynakları</string>
+    <string name="catalog_search_hint">Eklenti ara (Last.fm, Scrobbler, Kitap, Film…)…</string>
+    <string name="catalog_add_integration">Entegrasyon Ekle</string>
+    <string name="catalog_plugin_active">Aktif</string>
+    <string name="catalog_plugin_inactive">Pasif</string>
+    <string name="catalog_filter_all">Tümü</string>
+    <string name="catalog_filter_music">Müzik &amp; Ses</string>
+    <string name="catalog_filter_media">Kültür &amp; Medya</string>
+    <string name="catalog_filter_health">Sağlık &amp; Yaşam</string>
+    <string name="catalog_filter_system">Sistem &amp; Cihaz</string>
+    <string name="catalog_configure">Yapılandır</string>
+    <string name="catalog_setup_webhook">Webhook Kurulumu</string>
+    <string name="catalog_empty_search">Aramanıza uygun entegrasyon eklentisi bulunamadı.</string>
+    <string name="catalog_empty_active">Henüz aktif entegrasyon bulunmuyor. Katalogdan (+) dilediğiniz eklentiyi etkinleştirebilirsiniz.</string>
+    <string name="catalog_banner_title">Modüler Servis Ekosistemi</string>
+    <string name="catalog_banner_desc">Kişisel verilerinizi toplamak için istediğiniz eklentiyi aktif edin veya yapılandırın.</string>
+    <string name="catalog_webhook_status_active">Webhook Bağlantısı Aktif</string>
 </resources>
 

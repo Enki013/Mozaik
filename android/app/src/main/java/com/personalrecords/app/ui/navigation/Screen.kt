@@ -52,6 +52,9 @@ sealed class Screen(
 
     @Serializable
     data object Language : Screen("language", R.string.settings_language_screen_title, Icons.Default.Language, navLabelRes = R.string.settings_language_screen_title)
+
+    @Serializable
+    data object IntegrationsCatalog : Screen("integrations_catalog", R.string.title_integrations_catalog, Icons.Default.Extension, navLabelRes = R.string.title_integrations_catalog)
 }
 
 val bottomNavScreens = listOf(
@@ -75,7 +78,8 @@ val detailScreens = setOf(
     Screen.Notifications,
     Screen.HealthConnect,
     Screen.Music,
-    Screen.Language
+    Screen.Language,
+    Screen.IntegrationsCatalog
 )
 
 val recordsSubScreens = setOf(

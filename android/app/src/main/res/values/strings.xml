@@ -415,5 +415,25 @@
     <string name="music_empty_webscrobbler_title">No Web Scrobbler records yet</string>
     <string name="music_empty_webscrobbler_desc">Install the Web Scrobbler extension in your browser to stream music playback here.</string>
     <string name="music_empty_webscrobbler_action">View Web Scrobbler Setup</string>
+
+    <!-- Integrations Catalog & Plugin System -->
+    <string name="title_integrations_catalog">Integrations Catalog</string>
+    <string name="catalog_subtitle">Modular service plugins and data sources</string>
+    <string name="catalog_search_hint">Search plugins (Last.fm, Scrobbler, Books, Films…)…</string>
+    <string name="catalog_add_integration">Add Integration</string>
+    <string name="catalog_plugin_active">Active</string>
+    <string name="catalog_plugin_inactive">Inactive</string>
+    <string name="catalog_filter_all">All</string>
+    <string name="catalog_filter_music">Music &amp; Audio</string>
+    <string name="catalog_filter_media">Culture &amp; Media</string>
+    <string name="catalog_filter_health">Health &amp; Life</string>
+    <string name="catalog_filter_system">System &amp; Device</string>
+    <string name="catalog_configure">Configure</string>
+    <string name="catalog_setup_webhook">Setup Webhook</string>
+    <string name="catalog_empty_search">No integration plugin matches your search.</string>
+    <string name="catalog_empty_active">No active integrations. Enable any plugin from the catalog (+).</string>
+    <string name="catalog_banner_title">Modular Service Ecosystem</string>
+    <string name="catalog_banner_desc">Activate or configure any plugin to ingest your personal records seamlessly.</string>
+    <string name="catalog_webhook_status_active">Webhook Connection Active</string>
 </resources>
 

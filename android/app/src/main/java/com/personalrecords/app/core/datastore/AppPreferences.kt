@@ -6,6 +6,7 @@ import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
+import androidx.datastore.preferences.core.stringSetPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
@@ -17,7 +18,21 @@ class AppPreferences(private val context: Context) {
         val SERVER_BASE_URL = stringPreferencesKey("server_base_url")
         val CALORIE_TARGET = intPreferencesKey("calorie_target")
         val APP_LANGUAGE = stringPreferencesKey("app_language")
+        val ENABLED_INTEGRATION_PLUGINS = stringSetPreferencesKey("enabled_integration_plugins")
+        val DEFAULT_ENABLED_PLUGINS = setOf("fatsecret", "goodreads", "letterboxd", "lastfm")
         const val DEFAULT_BASE_URL = ""
+    }
+
+    val enabledIntegrationPlugins: Flow<Set<String>> = context.dataStore.data.map { prefs ->
+        prefs[ENABLED_INTEGRATION_PLUGINS] ?: DEFAULT_ENABLED_PLUGINS
+    }
+
+    suspend fun toggleIntegrationPlugin(pluginId: String, enabled: Boolean) {
+        context.dataStore.edit { prefs ->
+            val current = prefs[ENABLED_INTEGRATION_PLUGINS] ?: DEFAULT_ENABLED_PLUGINS
+            val updated = if (enabled) current + pluginId else current - pluginId
+            prefs[ENABLED_INTEGRATION_PLUGINS] = updated
+        }
     }
 
     val appLanguage: Flow<String> = context.dataStore.data.map { prefs ->

@@ -55,6 +55,7 @@ import com.personalrecords.app.ui.navigation.recordsSubScreens
 import com.personalrecords.app.ui.navigation.rememberAppNavigationState
 import com.personalrecords.app.ui.navigation.topLevelScreens
 import com.personalrecords.app.ui.screens.books.*
+import com.personalrecords.app.ui.screens.catalog.*
 import com.personalrecords.app.ui.screens.health.*
 import com.personalrecords.app.ui.screens.movies.*
 import com.personalrecords.app.ui.screens.music.*
@@ -170,6 +171,7 @@ fun MainAppHost() {
     val notificationsVm: NotificationsViewModel = viewModel(factory = AppViewModelFactory())
     val healthConnectVm: HealthConnectViewModel = viewModel(factory = AppViewModelFactory())
     val musicVm: MusicViewModel = viewModel(factory = AppViewModelFactory())
+    val catalogVm: IntegrationsCatalogViewModel = viewModel(factory = AppViewModelFactory())
 
     val overviewScrollFlow = remember { MutableSharedFlow<Unit>(extraBufferCapacity = 1) }
     val overviewRefreshFlow = remember { MutableSharedFlow<Unit>(extraBufferCapacity = 1) }
@@ -297,6 +299,14 @@ fun MainAppHost() {
                 onNavigateBack = { navigator.goBack() }
             )
         }
+
+        entry<Screen.IntegrationsCatalog> {
+            IntegrationsCatalogScreen(
+                viewModel = catalogVm,
+                onNavigateBack = { navigator.goBack() },
+                onNavigateToSettings = { navigator.navigate(Screen.Settings) }
+            )
+        }
     }
 
     BackHandler(enabled = navigator.canGoBack()) {
@@ -327,7 +337,8 @@ fun MainAppHost() {
                     onNavigateToBooks = { navigator.navigate(Screen.Books) },
                     onNavigateToMovies = { navigator.navigate(Screen.Movies) },
                     onNavigateToMusic = { navigator.navigate(Screen.Music) },
-                    onNavigateToSettings = { navigator.navigate(Screen.Settings) }
+                    onNavigateToSettings = { navigator.navigate(Screen.Settings) },
+                    onNavigateToIntegrationsCatalog = { navigator.navigate(Screen.IntegrationsCatalog) }
                 )
             }
 
@@ -695,7 +706,7 @@ private fun ExpressiveAdaptiveNavigation(
                             key(screen) {
                                 val selected = when (screen) {
                                     Screen.Records -> topLevelRoute == Screen.Records || currentRoute in recordsSubScreens
-                                    else -> topLevelRoute == screen && currentRoute !in recordsSubScreens && currentRoute != Screen.Language
+                                    else -> topLevelRoute == screen && currentRoute !in recordsSubScreens && currentRoute != Screen.Language && currentRoute != Screen.IntegrationsCatalog
                                 }
 
                                 val interactionSource = remember { MutableInteractionSource() }
@@ -808,7 +819,7 @@ private fun ExpressiveAdaptiveNavigation(
                             key(screen) {
                                 val selected = when (screen) {
                                     Screen.Records -> topLevelRoute == Screen.Records || currentRoute in recordsSubScreens
-                                    else -> topLevelRoute == screen && currentRoute !in recordsSubScreens && currentRoute != Screen.Language
+                                    else -> topLevelRoute == screen && currentRoute !in recordsSubScreens && currentRoute != Screen.Language && currentRoute != Screen.IntegrationsCatalog
                                 }
 
                                 val interactionSource = remember { MutableInteractionSource() }

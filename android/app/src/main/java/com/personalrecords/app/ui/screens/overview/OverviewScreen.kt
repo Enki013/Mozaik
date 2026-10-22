@@ -1,5 +1,8 @@
 package com.personalrecords.app.ui.screens.overview
 
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.content.Context
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -16,15 +19,20 @@ import androidx.compose.runtime.*
 import coil.compose.AsyncImage
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.personalrecords.app.R
+import com.personalrecords.app.core.integrations.IntegrationPlugin
+import com.personalrecords.app.core.integrations.IntegrationType
+import com.personalrecords.app.core.integrations.PluginRegistry
 import com.personalrecords.app.core.theme.*
 import com.personalrecords.app.ui.components.*
 
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class, androidx.compose.foundation.ExperimentalFoundationApi::class)
 @Composable
@@ -37,10 +45,12 @@ fun OverviewScreen(
     onNavigateToBooks: () -> Unit = {},
     onNavigateToMovies: () -> Unit = {},
     onNavigateToMusic: () -> Unit = {},
-    onNavigateToSettings: (() -> Unit)? = null
+    onNavigateToSettings: (() -> Unit)? = null,
+    onNavigateToIntegrationsCatalog: () -> Unit = {}
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
+    val coroutineScope = rememberCoroutineScope()
     var selectedActivity by remember { mutableStateOf<com.personalrecords.app.core.network.model.ActivityItemDto?>(null) }
 
     LaunchedEffect(state.syncMessage) {
@@ -213,7 +223,7 @@ fun OverviewScreen(
                     }
                 }
 
-                // Entegrasyonlar Card
+                // Entegrasyonlar & Senkronizasyon Card (Dynamic Plugin Ecosystem)
                 item(key = "overview_integrations", contentType = "integrations") {
                     Card(
                         modifier = expressiveItemModifier().fillMaxWidth(),
@@ -225,61 +235,115 @@ fun OverviewScreen(
                         border = null
                     ) {
                         Column(modifier = Modifier.padding(14.dp)) {
-                            Text(
-                                text = stringResource(R.string.overview_integrations_title),
-                                style = MaterialTheme.typography.titleMediumEmphasized,
-                                color = MaterialTheme.colorScheme.onSurface
-                            )
-                            Text(
-                                text = stringResource(R.string.overview_integrations_subtitle),
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
+                            // Header Row with Title + Subtitle and + Add Button
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = stringResource(R.string.overview_integrations_title),
+                                        style = MaterialTheme.typography.titleMediumEmphasized,
+                                        color = MaterialTheme.colorScheme.onSurface
+                                    )
+                                    Text(
+                                        text = stringResource(R.string.overview_integrations_subtitle),
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+
+                                FilledTonalIconButton(
+                                    onClick = onNavigateToIntegrationsCatalog,
+                                    modifier = Modifier.size(36.dp),
+                                    shape = M3Shapes.CornerMedium,
+                                    colors = IconButtonDefaults.filledTonalIconButtonColors(
+                                        containerColor = MaterialTheme.colorScheme.primaryContainer,
+                                        contentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                                    )
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Add,
+                                        contentDescription = stringResource(R.string.catalog_add_integration),
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                }
+                            }
+
                             Spacer(modifier = Modifier.height(10.dp))
 
-                            // FatSecret Row
-                            SyncRow(
-                                title = "FatSecret",
-                                subtitle = stringResource(R.string.overview_integration_fatsecret_desc),
-                                isSyncing = state.isSyncing == "fatsecret",
-                                onSync = { viewModel.syncService("fatsecret") }
-                            )
-                            HorizontalDivider(
-                                modifier = Modifier.padding(vertical = 8.dp),
-                                color = MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.5f)
-                            )
+                            val activePlugins = remember(state.enabledPluginIds) {
+                                PluginRegistry.defaultPlugins.filter { state.enabledPluginIds.contains(it.id) }
+                            }
 
-                            // Goodreads Row
-                            SyncRow(
-                                title = "Goodreads RSS",
-                                subtitle = stringResource(R.string.overview_integration_goodreads_desc),
-                                isSyncing = state.isSyncing == "goodreads",
-                                onSync = { viewModel.syncService("goodreads") }
-                            )
-                            HorizontalDivider(
-                                modifier = Modifier.padding(vertical = 8.dp),
-                                color = MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.5f)
-                            )
+                            if (activePlugins.isEmpty()) {
+                                Surface(
+                                    shape = M3Shapes.CornerMedium,
+                                    color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.5f),
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(vertical = 4.dp)
+                                ) {
+                                    Column(
+                                        modifier = Modifier.padding(12.dp),
+                                        horizontalAlignment = Alignment.CenterHorizontally,
+                                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                                    ) {
+                                        Text(
+                                            text = stringResource(R.string.catalog_empty_active),
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                        FilledTonalButton(
+                                            onClick = onNavigateToIntegrationsCatalog,
+                                            shape = M3Shapes.CornerSmall
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Default.Add,
+                                                contentDescription = null,
+                                                modifier = Modifier.size(16.dp)
+                                            )
+                                            Spacer(modifier = Modifier.width(6.dp))
+                                            Text(
+                                                text = stringResource(R.string.catalog_add_integration),
+                                                style = MaterialTheme.typography.labelMedium
+                                            )
+                                        }
+                                    }
+                                }
+                            } else {
+                                activePlugins.forEachIndexed { index, plugin ->
+                                    if (index > 0) {
+                                        HorizontalDivider(
+                                            modifier = Modifier.padding(vertical = 8.dp),
+                                            color = MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.5f)
+                                        )
+                                    }
 
-                            // Letterboxd Row
-                            SyncRow(
-                                title = "Letterboxd RSS",
-                                subtitle = stringResource(R.string.overview_integration_letterboxd_desc),
-                                isSyncing = state.isSyncing == "letterboxd",
-                                onSync = { viewModel.syncService("letterboxd") }
-                            )
-                            HorizontalDivider(
-                                modifier = Modifier.padding(vertical = 8.dp),
-                                color = MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.5f)
-                            )
-
-                            // Last.fm Row
-                            SyncRow(
-                                title = stringResource(R.string.overview_integration_lastfm),
-                                subtitle = stringResource(R.string.overview_integration_lastfm_desc),
-                                isSyncing = state.isSyncing == "lastfm",
-                                onSync = { viewModel.syncService("lastfm") }
-                            )
+                                    if (plugin.type == IntegrationType.WEBHOOK) {
+                                        WebhookPluginRow(
+                                            plugin = plugin,
+                                            serverBaseUrl = state.serverBaseUrl,
+                                            onConfigure = onNavigateToIntegrationsCatalog,
+                                            onCopied = { msg ->
+                                                coroutineScope.launch {
+                                                    snackbarHostState.showSnackbar(msg)
+                                                }
+                                            }
+                                        )
+                                    } else {
+                                        SyncRow(
+                                            title = plugin.name,
+                                            subtitle = plugin.shortDescription,
+                                            isSyncing = state.isSyncing == plugin.syncServiceKey,
+                                            onSync = {
+                                                plugin.syncServiceKey?.let { viewModel.syncService(it) }
+                                            }
+                                        )
+                                    }
+                                }
+                            }
                         }
                     }
                 }
@@ -593,6 +657,122 @@ fun ActivityRowItem(
                         softWrap = false
                     )
                 }
+            }
+        }
+    }
+}
+
+@Composable
+private fun WebhookPluginRow(
+    plugin: IntegrationPlugin,
+    serverBaseUrl: String,
+    onConfigure: () -> Unit,
+    onCopied: (String) -> Unit
+) {
+    val context = LocalContext.current
+    val clipboardManager = remember {
+        context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+    }
+    val cleanBaseUrl = serverBaseUrl.trim().trimEnd('/')
+    val targetUrl = remember(cleanBaseUrl, plugin.webhookPath) {
+        if (cleanBaseUrl.isNotBlank() && plugin.webhookPath != null) {
+            "$cleanBaseUrl${plugin.webhookPath}"
+        } else {
+            "https://...${plugin.webhookPath.orEmpty()}"
+        }
+    }
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 4.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Row(
+            modifier = Modifier.weight(1f),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(36.dp)
+                    .clip(M3Shapes.CornerSmall)
+                    .background(MaterialTheme.colorScheme.tertiaryContainer),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = plugin.icon,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onTertiaryContainer,
+                    modifier = Modifier.size(18.dp)
+                )
+            }
+            Column(modifier = Modifier.weight(1f)) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    Text(
+                        text = plugin.name,
+                        style = MaterialTheme.typography.titleSmallEmphasized,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f, fill = false)
+                    )
+                    Surface(
+                        shape = M3Shapes.CornerFull,
+                        color = MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.7f)
+                    ) {
+                        Text(
+                            text = plugin.badge,
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onTertiaryContainer,
+                            maxLines = 1,
+                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 1.dp)
+                        )
+                    }
+                }
+                Text(
+                    text = plugin.shortDescription,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+        }
+
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(4.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            IconButton(
+                onClick = {
+                    val clip = ClipData.newPlainText("Webhook URL", targetUrl)
+                    clipboardManager.setPrimaryClip(clip)
+                    onCopied(context.getString(R.string.toast_webhook_copied))
+                },
+                modifier = Modifier.size(36.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.ContentCopy,
+                    contentDescription = stringResource(R.string.action_copy_url),
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(18.dp)
+                )
+            }
+            IconButton(
+                onClick = onConfigure,
+                modifier = Modifier.size(36.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Tune,
+                    contentDescription = stringResource(R.string.catalog_configure),
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(18.dp)
+                )
             }
         }
     }

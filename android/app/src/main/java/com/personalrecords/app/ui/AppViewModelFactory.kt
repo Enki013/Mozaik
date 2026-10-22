@@ -20,7 +20,7 @@ class AppViewModelFactory : ViewModelProvider.Factory {
 
         return when {
             modelClass.isAssignableFrom(OverviewViewModel::class.java) -> {
-                OverviewViewModel(repository) as T
+                OverviewViewModel(repository, preferences) as T
             }
             modelClass.isAssignableFrom(TimelineViewModel::class.java) -> {
                 TimelineViewModel(repository) as T
@@ -48,6 +48,9 @@ class AppViewModelFactory : ViewModelProvider.Factory {
             }
             modelClass.isAssignableFrom(com.personalrecords.app.ui.screens.music.MusicViewModel::class.java) -> {
                 com.personalrecords.app.ui.screens.music.MusicViewModel(repository) as T
+            }
+            modelClass.isAssignableFrom(com.personalrecords.app.ui.screens.catalog.IntegrationsCatalogViewModel::class.java) -> {
+                com.personalrecords.app.ui.screens.catalog.IntegrationsCatalogViewModel(repository, preferences) as T
             }
             else -> throw IllegalArgumentException("Unknown ViewModel class: ${modelClass.name}")
         }

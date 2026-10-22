@@ -3,7 +3,9 @@ package com.personalrecords.app.ui.screens.overview
 import androidx.compose.runtime.Immutable
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.personalrecords.app.PersonalRecordsApp
 import com.personalrecords.app.core.common.Resource
+import com.personalrecords.app.core.datastore.AppPreferences
 import com.personalrecords.app.core.network.model.*
 import com.personalrecords.app.data.repository.PersonalRecordsRepository
 import kotlinx.coroutines.async
@@ -18,19 +20,32 @@ data class OverviewUiState(
     val isLoading: Boolean = true,
     val dashboard: DashboardDto? = null,
     val recentActivities: List<ActivityItemDto> = emptyList(),
-    val isSyncing: String? = null, // "fatsecret", "goodreads", "letterboxd"
+    val isSyncing: String? = null, // "fatsecret", "goodreads", "letterboxd", "lastfm"
     val syncMessage: String? = null,
-    val error: String? = null
+    val error: String? = null,
+    val enabledPluginIds: Set<String> = AppPreferences.DEFAULT_ENABLED_PLUGINS,
+    val serverBaseUrl: String = ""
 )
 
 class OverviewViewModel(
-    private val repository: PersonalRecordsRepository
+    private val repository: PersonalRecordsRepository,
+    private val preferences: AppPreferences = PersonalRecordsApp.instance.preferences
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(OverviewUiState())
     val uiState: StateFlow<OverviewUiState> = _uiState.asStateFlow()
 
     init {
+        viewModelScope.launch {
+            preferences.enabledIntegrationPlugins.collect { plugins ->
+                _uiState.update { it.copy(enabledPluginIds = plugins) }
+            }
+        }
+        viewModelScope.launch {
+            preferences.serverBaseUrl.collect { url ->
+                _uiState.update { it.copy(serverBaseUrl = url) }
+            }
+        }
         loadData()
     }
 
