@@ -16,6 +16,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
@@ -33,10 +34,16 @@ import androidx.compose.animation.ExitTransition
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
+import androidx.compose.ui.input.nestedscroll.NestedScrollSource
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import kotlin.math.abs
 import kotlin.math.roundToInt
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation3.runtime.entryProvider
@@ -315,7 +322,43 @@ fun MainAppHost() {
 
     val showFloatingNav = currentRoute !in setOf(Screen.IntegrationsCatalog, Screen.Language)
 
-    Box(modifier = Modifier.fillMaxSize()) {
+    var isBottomBarVisible by rememberSaveable { mutableStateOf(true) }
+    val density = LocalDensity.current
+    val scrollThresholdPx = remember(density) { with(density) { 8.dp.toPx() } }
+
+    val bottomBarNestedScrollConnection = remember(scrollThresholdPx) {
+        object : NestedScrollConnection {
+            override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
+                val dx = available.x
+                val dy = available.y
+                // Only react to predominantly vertical scrolls so horizontal pagers/chips aren't affected
+                if (abs(dy) > abs(dx) && abs(dy) > scrollThresholdPx) {
+                    if (dy < 0f) {
+                        // Scrolling DOWN into content -> Hide bottom bar (KernelSU Next behavior)
+                        if (isBottomBarVisible) {
+                            isBottomBarVisible = false
+                        }
+                    } else if (dy > 0f) {
+                        // Scrolling UP toward top -> Show bottom bar
+                        if (!isBottomBarVisible) {
+                            isBottomBarVisible = true
+                        }
+                    }
+                }
+                return Offset.Zero
+            }
+        }
+    }
+
+    LaunchedEffect(currentRoute, topLevelRoute) {
+        isBottomBarVisible = true
+    }
+
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .nestedScroll(bottomBarNestedScrollConnection)
+    ) {
         Box(
             modifier = Modifier
                 .fillMaxSize()
@@ -508,13 +551,13 @@ fun MainAppHost() {
         }
 
         AnimatedVisibility(
-            visible = showFloatingNav,
+            visible = showFloatingNav && (isWideScreen || isBottomBarVisible),
             enter = fadeIn(animationSpec = M3ExpressiveMotion.fastSpatial()) + slideInVertically(
-                initialOffsetY = { it },
+                initialOffsetY = { (it * 1.3f).roundToInt() },
                 animationSpec = M3ExpressiveMotion.fastSpatial()
             ),
-            exit = fadeOut(animationSpec = M3ExpressiveMotion.fastSpatial()) + slideOutVertically(
-                targetOffsetY = { it },
+            exit = fadeOut(animationSpec = M3ExpressiveMotion.fastEffects()) + slideOutVertically(
+                targetOffsetY = { (it * 1.3f).roundToInt() },
                 animationSpec = M3ExpressiveMotion.fastSpatial()
             ),
             modifier = if (isWideScreen) Modifier.align(Alignment.CenterStart) else Modifier.align(Alignment.BottomCenter)
@@ -522,6 +565,7 @@ fun MainAppHost() {
             ExpressiveAdaptiveNavigation(
                 navigator = navigator,
                 onScrollToTop = { screen ->
+                    isBottomBarVisible = true
                     when (screen) {
                         Screen.Overview -> overviewScrollFlow.tryEmit(Unit)
                         Screen.Timeline -> timelineScrollFlow.tryEmit(Unit)
@@ -531,6 +575,7 @@ fun MainAppHost() {
                     }
                 },
                 onRefresh = { screen ->
+                    isBottomBarVisible = true
                     when (screen) {
                         Screen.Overview -> overviewRefreshFlow.tryEmit(Unit)
                         Screen.Timeline -> timelineRefreshFlow.tryEmit(Unit)
