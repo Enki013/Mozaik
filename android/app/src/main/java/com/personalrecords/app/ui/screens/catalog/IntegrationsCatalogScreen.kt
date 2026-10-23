@@ -377,31 +377,42 @@ private fun CatalogPluginCard(
                         )
                     }
 
-                    Column(modifier = Modifier.weight(1f)) {
-                        FlowRow(
-                            verticalArrangement = Arrangement.Center,
+                    Column(
+                        modifier = Modifier
+                            .weight(1f)
+                            .padding(end = 4.dp),
+                        verticalArrangement = Arrangement.Center
+                    ) {
+                        Text(
+                            text = plugin.name,
+                            style = MaterialTheme.typography.titleMediumEmphasized,
+                            color = MaterialTheme.colorScheme.onSurface,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+
+                        Spacer(modifier = Modifier.height(3.dp))
+
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(6.dp)
                         ) {
-                            Text(
-                                text = plugin.name,
-                                style = MaterialTheme.typography.titleMediumEmphasized,
-                                color = MaterialTheme.colorScheme.onSurface
-                            )
                             val badgeLabel = if (plugin.badgeRes != 0) stringResource(plugin.badgeRes) else plugin.badge
                             Surface(
                                 shape = M3Shapes.CornerFull,
-                                color = if (plugin.isEnabled) MaterialTheme.colorScheme.primaryContainer
+                                color = if (plugin.isEnabled) MaterialTheme.colorScheme.secondaryContainer
                                 else MaterialTheme.colorScheme.surfaceContainerHigh
                             ) {
                                 Text(
                                     text = badgeLabel,
                                     style = MaterialTheme.typography.labelSmall,
-                                    color = if (plugin.isEnabled) MaterialTheme.colorScheme.onPrimaryContainer
+                                    color = if (plugin.isEnabled) MaterialTheme.colorScheme.onSecondaryContainer
                                     else MaterialTheme.colorScheme.onSurfaceVariant,
                                     modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
                                 )
                             }
-                            val statusLabel = if (plugin.isEnabled) "Aktif" else "Duraklatıldı"
+
+                            val statusLabel = if (plugin.isEnabled) stringResource(R.string.plugin_status_active) else stringResource(R.string.plugin_status_paused)
                             Surface(
                                 shape = M3Shapes.CornerFull,
                                 color = if (plugin.isEnabled) MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
@@ -410,7 +421,7 @@ private fun CatalogPluginCard(
                                 Row(
                                     verticalAlignment = Alignment.CenterVertically,
                                     horizontalArrangement = Arrangement.spacedBy(4.dp),
-                                    modifier = Modifier.padding(horizontal = 7.dp, vertical = 2.dp)
+                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
                                 ) {
                                     Box(
                                         modifier = Modifier

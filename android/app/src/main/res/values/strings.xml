@@ -456,6 +456,8 @@
     <string name="plugin_badge_android_webhook">Android Webhook</string>
     <string name="plugin_badge_system_webhook">System Webhook</string>
     <string name="plugin_badge_in_development">In Development</string>
+    <string name="plugin_status_active">Active</string>
+    <string name="plugin_status_paused">Paused</string>
 
     <!-- Plugin Descriptions -->
     <string name="plugin_desc_web_scrobbler">Directly scrobble music played in Chrome, Firefox, or Edge to your server.</string>

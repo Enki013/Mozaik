@@ -452,6 +452,8 @@
     <string name="plugin_badge_android_webhook">Android Webhook</string>
     <string name="plugin_badge_system_webhook">Sistem Webhook</string>
     <string name="plugin_badge_in_development">Geliştirme Aşamasında</string>
+    <string name="plugin_status_active">Aktif</string>
+    <string name="plugin_status_paused">Duraklatıldı</string>
 
     <!-- Plugin Descriptions -->
     <string name="plugin_desc_web_scrobbler">Chrome, Firefox ve Edge tarayıcınızdan dinlenen müzikleri anında sunucunuza aktarın.</string>
