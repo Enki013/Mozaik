@@ -2,8 +2,10 @@ package com.personalrecords.app.core.integrations
 
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.MenuBook
+import androidx.compose.material.icons.filled.Equalizer
 import androidx.compose.material.icons.filled.Extension
 import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.Headset
 import androidx.compose.material.icons.filled.Movie
 import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.Notifications
@@ -20,11 +22,11 @@ enum class IntegrationCategory(val labelRes: Int) {
     SYSTEM(R.string.catalog_filter_system)
 }
 
-enum class IntegrationType(val displayName: String) {
-    API_SYNC("API Senkronizasyonu"),
-    RSS_FEED("RSS Beslemesi"),
-    WEBHOOK("Webhook Entegrasyonu"),
-    OAUTH_BYOK("OAuth 1.0 (BYOK)")
+enum class IntegrationType(val displayNameRes: Int, val displayName: String) {
+    API_SYNC(R.string.integration_type_api_sync, "API Senkronizasyonu"),
+    RSS_FEED(R.string.integration_type_rss_feed, "RSS Beslemesi"),
+    WEBHOOK(R.string.integration_type_webhook, "Webhook Entegrasyonu"),
+    OAUTH_BYOK(R.string.integration_type_oauth_byok, "OAuth 1.0 (BYOK)")
 }
 
 data class IntegrationPlugin(
@@ -33,9 +35,12 @@ data class IntegrationPlugin(
     val category: IntegrationCategory,
     val type: IntegrationType,
     val icon: ImageVector,
-    val badge: String,
-    val shortDescription: String,
-    val longDescription: String,
+    val badgeRes: Int = 0,
+    val shortDescRes: Int = 0,
+    val longDescRes: Int = 0,
+    val badge: String = "",
+    val shortDescription: String = "",
+    val longDescription: String = "",
     val isEnabled: Boolean = false,
     val isConfigured: Boolean = false,
     val syncServiceKey: String? = null,
@@ -54,6 +59,9 @@ object PluginRegistry {
             category = IntegrationCategory.MUSIC,
             type = IntegrationType.WEBHOOK,
             icon = Icons.Default.Extension,
+            badgeRes = R.string.plugin_badge_browser_extension,
+            shortDescRes = R.string.plugin_desc_web_scrobbler,
+            longDescRes = R.string.plugin_long_desc_web_scrobbler,
             badge = "Tarayıcı Eklentisi",
             shortDescription = "Chrome, Firefox ve Edge tarayıcınızdan dinlenen müzikleri anında sunucunuza aktarın.",
             longDescription = "YouTube, Spotify Web, SoundCloud, Bandcamp ve 300'den fazla web müzik çalarını destekleyen açık kaynaklı Web Scrobbler eklentisi. Dinlemelerinizi doğrudan sunucunuzun webhook adresine iletir.",
@@ -75,6 +83,9 @@ object PluginRegistry {
             category = IntegrationCategory.MUSIC,
             type = IntegrationType.API_SYNC,
             icon = Icons.Default.MusicNote,
+            badgeRes = R.string.plugin_badge_api_sync,
+            shortDescRes = R.string.plugin_desc_lastfm,
+            longDescRes = R.string.plugin_long_desc_lastfm,
             badge = "API Senkronizasyonu",
             shortDescription = "Müzik dinleme geçmişi ve profil senkronizasyonu.",
             longDescription = "Last.fm hesabınızdaki dinleme geçmişini düzenli aralıklarla sunucunuza çeker ve müzik istatistiklerinizi günceller.",
@@ -95,6 +106,9 @@ object PluginRegistry {
             category = IntegrationCategory.MEDIA,
             type = IntegrationType.RSS_FEED,
             icon = Icons.AutoMirrored.Filled.MenuBook,
+            badgeRes = R.string.plugin_badge_rss_feed,
+            shortDescRes = R.string.plugin_desc_goodreads,
+            longDescRes = R.string.plugin_long_desc_goodreads,
             badge = "RSS Beslemesi",
             shortDescription = "Kitap okuma günlüğü ve raflar senkronizasyonu.",
             longDescription = "Goodreads profilinizin herkese açık RSS beslemesini kullanarak okuduğunuz ve okumayı planladığınız kitapları eşitler.",
@@ -115,6 +129,9 @@ object PluginRegistry {
             category = IntegrationCategory.MEDIA,
             type = IntegrationType.RSS_FEED,
             icon = Icons.Default.Movie,
+            badgeRes = R.string.plugin_badge_rss_feed,
+            shortDescRes = R.string.plugin_desc_letterboxd,
+            longDescRes = R.string.plugin_long_desc_letterboxd,
             badge = "RSS Beslemesi",
             shortDescription = "Film izleme günlüğü ve puanlar senkronizasyonu.",
             longDescription = "Letterboxd profilinizin RSS beslemesini okuyarak izlediğiniz filmleri, puanları ve günlük kayıtlarını sunucunuza aktarır.",
@@ -135,6 +152,9 @@ object PluginRegistry {
             category = IntegrationCategory.HEALTH,
             type = IntegrationType.OAUTH_BYOK,
             icon = Icons.Default.Restaurant,
+            badgeRes = R.string.plugin_badge_oauth_byok,
+            shortDescRes = R.string.plugin_desc_fatsecret,
+            longDescRes = R.string.plugin_long_desc_fatsecret,
             badge = "OAuth 1.0 (BYOK)",
             shortDescription = "Günlük kalori, makro ve öğün günlüğü entegrasyonu.",
             longDescription = "Kendi FatSecret Platform API anahtarlarınız (BYOK) ile güvenli bağlantı kurarak besin tüketim verilerinizi eşitler.",
@@ -155,6 +175,9 @@ object PluginRegistry {
             category = IntegrationCategory.HEALTH,
             type = IntegrationType.WEBHOOK,
             icon = Icons.Default.Favorite,
+            badgeRes = R.string.plugin_badge_android_webhook,
+            shortDescRes = R.string.plugin_desc_health_connect,
+            longDescRes = R.string.plugin_long_desc_health_connect,
             badge = "Android Webhook",
             shortDescription = "Adım, uyku, nabız ve antrenman verilerini aktarın.",
             longDescription = "Açık kaynaklı Health Connect Webhook yardımcısı ile Android cihazınızdaki sağlık ve aktivite ölçümlerini sunucunuza iletir.",
@@ -176,6 +199,9 @@ object PluginRegistry {
             category = IntegrationCategory.SYSTEM,
             type = IntegrationType.WEBHOOK,
             icon = Icons.Default.Notifications,
+            badgeRes = R.string.plugin_badge_system_webhook,
+            shortDescRes = R.string.plugin_desc_notification_relay,
+            longDescRes = R.string.plugin_long_desc_notification_relay,
             badge = "Sistem Webhook",
             shortDescription = "Android bildirim akışını güvenli biçimde sunucuya aktarın.",
             longDescription = "Notification Relay uygulaması ile gelen cihaz bildirimlerini kategorize ederek zaman tünelinize kaydeder.",
@@ -196,6 +222,9 @@ object PluginRegistry {
             category = IntegrationCategory.MUSIC,
             type = IntegrationType.API_SYNC,
             icon = Icons.Default.Podcasts,
+            badgeRes = R.string.plugin_badge_in_development,
+            shortDescRes = R.string.plugin_desc_spotify,
+            longDescRes = R.string.plugin_long_desc_spotify,
             badge = "Geliştirme Aşamasında",
             shortDescription = "Doğrudan Spotify Connect ve anlık çalan şarkı senkronizasyonu.",
             longDescription = "Spotify Developer API anahtarlarıyla çalma listeleri ve anlık çalan şarkı senkronizasyonu.",
@@ -205,6 +234,52 @@ object PluginRegistry {
                 "Geliştirme aşamasında: Spotify Client ID ve Secret desteği yakında eklenecektir."
             ),
             tags = listOf("spotify", "music", "streaming", "api")
+        ),
+
+        // 9. ListenBrainz Plugin
+        IntegrationPlugin(
+            id = "listenbrainz",
+            name = "ListenBrainz",
+            category = IntegrationCategory.MUSIC,
+            type = IntegrationType.API_SYNC,
+            icon = Icons.Default.Headset,
+            badgeRes = R.string.plugin_badge_listenbrainz,
+            shortDescRes = R.string.plugin_desc_listenbrainz,
+            longDescRes = R.string.plugin_long_desc_listenbrainz,
+            badge = "MetaBrainz",
+            shortDescription = "Açık kaynak müzik dinleme geçmişi ve profil senkronizasyonu.",
+            longDescription = "MetaBrainz destekli açık kaynak müzik topluluğu ListenBrainz'den dinleme geçmişinizi ve istatistiklerinizi eşitler.",
+            syncServiceKey = "listenbrainz",
+            officialUrl = "https://listenbrainz.org",
+            setupSteps = listOf(
+                "Ayarlar sekmesinden ListenBrainz kullanıcı adınızı girin.",
+                "İsteğe bağlı olarak ListenBrainz profilinizden User Token ekleyin.",
+                "Eşitle butonuna basarak dinlemelerinizi çekin."
+            ),
+            tags = listOf("music", "scrobble", "listenbrainz", "metabrainz", "open-source")
+        ),
+
+        // 10. Stats.fm Plugin
+        IntegrationPlugin(
+            id = "statsfm",
+            name = "Stats.fm",
+            category = IntegrationCategory.MUSIC,
+            type = IntegrationType.API_SYNC,
+            icon = Icons.Default.Equalizer,
+            badgeRes = R.string.plugin_badge_statsfm,
+            shortDescRes = R.string.plugin_desc_statsfm,
+            longDescRes = R.string.plugin_long_desc_statsfm,
+            badge = "Spotistats",
+            shortDescription = "Spotify dinlemeleri ve istatistik senkronizasyonu.",
+            longDescription = "Herkese açık Stats.fm (Spotistats) profilinizden Spotify akışlarını ve dinleme analitiklerini aktarır.",
+            syncServiceKey = "statsfm",
+            officialUrl = "https://stats.fm",
+            setupSteps = listOf(
+                "Stats.fm uygulamasında Profil -> Gizlilik Ayarları'ndan 'Recently Played' akışını herkese açık yapın.",
+                "Ayarlar sekmesinden Stats.fm kullanıcı adınızı girin.",
+                "Eşitle butonuna basarak dinleme verilerinizi aktarın."
+            ),
+            tags = listOf("music", "spotify", "statsfm", "spotistats", "streams", "analytics")
         )
     )
 }

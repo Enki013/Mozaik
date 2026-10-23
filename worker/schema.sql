@@ -188,6 +188,9 @@ CREATE TABLE IF NOT EXISTS music_sync_settings (
   id INTEGER PRIMARY KEY CHECK (id = 1),
   lastfm_username TEXT,
   lastfm_api_key TEXT,
+  listenbrainz_username TEXT,
+  listenbrainz_token TEXT,
+  statsfm_username TEXT,
   interval_minutes INTEGER NOT NULL DEFAULT 360,
   enabled INTEGER NOT NULL DEFAULT 1,
   updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP

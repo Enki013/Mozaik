@@ -75,16 +75,20 @@ fun SettingsScreen(
     var showLetterboxdEditor by remember { mutableStateOf(false) }
     var showGoodreadsEditor by remember { mutableStateOf(false) }
     var showLastFmEditor by remember { mutableStateOf(false) }
+    var showListenBrainzEditor by remember { mutableStateOf(false) }
+    var showStatsFmEditor by remember { mutableStateOf(false) }
     var secretVisible by remember { mutableStateOf(false) }
     var lastfmKeyVisible by remember { mutableStateOf(false) }
     var lastfmKeyCleared by remember(showLastFmEditor) { mutableStateOf(false) }
+    var listenBrainzTokenVisible by remember { mutableStateOf(false) }
+    var listenBrainzTokenCleared by remember(showListenBrainzEditor) { mutableStateOf(false) }
 
     val clipboardManager = LocalClipboardManager.current
 
     val otherActivePlugins = remember(state.enabledPluginIds) {
         com.personalrecords.app.core.integrations.PluginRegistry.defaultPlugins.filter { plugin ->
             (plugin.id in state.enabledPluginIds) &&
-                plugin.id !in setOf("notification", "notification_relay", "health_connect", "fatsecret", "letterboxd", "goodreads", "lastfm", "web_scrobbler")
+                plugin.id !in setOf("notification", "notification_relay", "health_connect", "fatsecret", "letterboxd", "goodreads", "lastfm", "listenbrainz", "statsfm", "web_scrobbler")
         }
     }
 
@@ -180,6 +184,26 @@ fun SettingsScreen(
             viewModel.clearMusicSaveMessage()
             if (!it.startsWith("Hata") && !it.startsWith("Error")) {
                 showLastFmEditor = false
+            }
+        }
+    }
+
+    LaunchedEffect(state.listenbrainzSaveMessage) {
+        state.listenbrainzSaveMessage?.let {
+            snackbarHostState.showSnackbar(it)
+            viewModel.clearListenbrainzSaveMessage()
+            if (!it.startsWith("Hata") && !it.startsWith("Error")) {
+                showListenBrainzEditor = false
+            }
+        }
+    }
+
+    LaunchedEffect(state.statsfmSaveMessage) {
+        state.statsfmSaveMessage?.let {
+            snackbarHostState.showSnackbar(it)
+            viewModel.clearStatsfmSaveMessage()
+            if (!it.startsWith("Hata") && !it.startsWith("Error")) {
+                showStatsFmEditor = false
             }
         }
     }
@@ -2261,7 +2285,605 @@ fun SettingsScreen(
                 }
                 }
 
-                // 7. Web Scrobbler Brand Integration Card
+                // 7. ListenBrainz API
+                if (state.enabledPluginIds.contains("listenbrainz")) {
+                    item(key = "config_listenbrainz") {
+                        SettingsCard {
+                            // ListenBrainz Card Header
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Row(
+                                    modifier = Modifier.weight(1f),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                                ) {
+                                    SettingsIconBox(
+                                        icon = Icons.Default.Headset,
+                                        containerColor = MaterialTheme.colorScheme.primaryContainer,
+                                        contentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                                    )
+                                    Column(modifier = Modifier.weight(1f, fill = false)) {
+                                        Text(
+                                            text = stringResource(R.string.settings_listenbrainz_title),
+                                            style = MaterialTheme.typography.titleMediumEmphasized,
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis
+                                        )
+                                        Text(
+                                            text = stringResource(R.string.settings_listenbrainz_desc),
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis
+                                        )
+                                    }
+                                }
+
+                                if (state.listenbrainzUsername.isNotBlank()) {
+                                    Surface(
+                                        shape = M3Shapes.CornerFull,
+                                        color = domainNutritionContainer(),
+                                        modifier = Modifier.padding(start = 8.dp)
+                                    ) {
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(4.dp),
+                                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
+                                        ) {
+                                            Box(
+                                                modifier = Modifier
+                                                    .size(6.dp)
+                                                    .background(domainNutritionOnContainer(), M3Shapes.CornerFull)
+                                            )
+                                            Text(
+                                                text = stringResource(R.string.badge_connected),
+                                                color = domainNutritionOnContainer(),
+                                                style = MaterialTheme.typography.labelSmallEmphasized,
+                                                maxLines = 1,
+                                                softWrap = false
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+
+                            // Configured Summary Box
+                            if (state.listenbrainzUsername.isNotBlank()) {
+                                Spacer(modifier = Modifier.height(10.dp))
+                                Surface(
+                                    shape = M3Shapes.CornerMedium,
+                                    color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.65f),
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        modifier = Modifier.padding(12.dp)
+                                    ) {
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(10.dp),
+                                            modifier = Modifier.weight(1f)
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Default.CheckCircle,
+                                                contentDescription = null,
+                                                tint = domainNutritionColor(),
+                                                modifier = Modifier.size(20.dp)
+                                            )
+                                            Column(modifier = Modifier.weight(1f)) {
+                                                Text(
+                                                    text = "@${state.listenbrainzUsername}",
+                                                    style = MaterialTheme.typography.titleSmallEmphasized
+                                                )
+                                                Text(
+                                                    text = if (state.listenbrainzTokenSet) {
+                                                        stringResource(R.string.settings_listenbrainz_token_set)
+                                                    } else {
+                                                        stringResource(R.string.settings_listenbrainz_hint)
+                                                    },
+                                                    style = MaterialTheme.typography.bodySmall,
+                                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                    maxLines = 1,
+                                                    overflow = TextOverflow.Ellipsis
+                                                )
+                                            }
+                                        }
+                                        FilledTonalButton(
+                                            onClick = { showListenBrainzEditor = !showListenBrainzEditor },
+                                            shape = M3Shapes.CornerSmall,
+                                            modifier = Modifier
+                                                .height(34.dp)
+                                                .expressivePressScale(remember { MutableInteractionSource() }),
+                                            contentPadding = PaddingValues(horizontal = 10.dp, vertical = 0.dp)
+                                        ) {
+                                            Row(
+                                                verticalAlignment = Alignment.CenterVertically,
+                                                horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                            ) {
+                                                Icon(
+                                                    imageVector = if (showListenBrainzEditor) Icons.Default.ExpandLess else Icons.Default.Edit,
+                                                    contentDescription = null,
+                                                    modifier = Modifier.size(14.dp)
+                                                )
+                                                Text(
+                                                    text = if (showListenBrainzEditor) stringResource(R.string.action_cancel) else stringResource(R.string.action_edit),
+                                                    style = MaterialTheme.typography.labelMedium,
+                                                    maxLines = 1,
+                                                    softWrap = false
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+
+                            // Editor / Initial Setup Inputs
+                            AnimatedVisibility(
+                                visible = state.listenbrainzUsername.isBlank() || showListenBrainzEditor,
+                                enter = expandVertically(
+                                    animationSpec = M3ExpressiveMotion.defaultSpatial()
+                                ) + fadeIn(animationSpec = M3ExpressiveMotion.defaultEffects()),
+                                exit = shrinkVertically(
+                                    animationSpec = M3ExpressiveMotion.defaultSpatial()
+                                ) + fadeOut(animationSpec = M3ExpressiveMotion.fastEffects())
+                            ) {
+                                Surface(
+                                    shape = M3Shapes.CornerMedium,
+                                    color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.65f),
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(top = 8.dp)
+                                ) {
+                                    Column(modifier = Modifier.padding(12.dp)) {
+                                        OutlinedTextField(
+                                            value = state.listenbrainzUsername,
+                                            onValueChange = { viewModel.updateListenBrainzUsername(it) },
+                                            modifier = Modifier.fillMaxWidth(),
+                                            label = { Text(stringResource(R.string.settings_listenbrainz_username)) },
+                                            placeholder = { Text("username") },
+                                            singleLine = true,
+                                            leadingIcon = {
+                                                Icon(
+                                                    imageVector = Icons.Default.AlternateEmail,
+                                                    contentDescription = null,
+                                                    tint = MaterialTheme.colorScheme.primary
+                                                )
+                                            },
+                                            trailingIcon = if (state.listenbrainzUsername.isNotBlank()) {
+                                                {
+                                                    IconButton(onClick = { viewModel.updateListenBrainzUsername("") }) {
+                                                        Icon(Icons.Default.Clear, contentDescription = stringResource(R.string.action_clear))
+                                                    }
+                                                }
+                                            } else null,
+                                            shape = M3Shapes.CornerSmall,
+                                            supportingText = {
+                                                Text(stringResource(R.string.settings_listenbrainz_hint))
+                                            }
+                                        )
+
+                                        Spacer(modifier = Modifier.height(8.dp))
+
+                                        val isTokenPreConfigured = state.listenbrainzTokenSet && !listenBrainzTokenCleared && state.listenbrainzToken.isBlank()
+                                        val displayToken = if (isTokenPreConfigured) "********************************" else state.listenbrainzToken
+
+                                        OutlinedTextField(
+                                            value = displayToken,
+                                            onValueChange = { input ->
+                                                if (isTokenPreConfigured) {
+                                                    listenBrainzTokenCleared = true
+                                                    val clean = input.replace("*", "").replace("•", "")
+                                                    viewModel.updateListenBrainzToken(clean)
+                                                } else {
+                                                    viewModel.updateListenBrainzToken(input)
+                                                }
+                                            },
+                                            modifier = Modifier.fillMaxWidth(),
+                                            label = { Text(stringResource(R.string.settings_listenbrainz_token)) },
+                                            placeholder = { Text("Token (optional)") },
+                                            singleLine = true,
+                                            visualTransformation = if (listenBrainzTokenVisible) VisualTransformation.None else PasswordVisualTransformation(),
+                                            leadingIcon = {
+                                                Icon(
+                                                    imageVector = Icons.Default.Key,
+                                                    contentDescription = null,
+                                                    tint = MaterialTheme.colorScheme.primary
+                                                )
+                                            },
+                                            trailingIcon = {
+                                                if (displayToken.isNotBlank()) {
+                                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                                        IconButton(onClick = { listenBrainzTokenVisible = !listenBrainzTokenVisible }) {
+                                                            Icon(
+                                                                imageVector = if (listenBrainzTokenVisible) Icons.Default.VisibilityOff else Icons.Default.Visibility,
+                                                                contentDescription = null,
+                                                                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                                            )
+                                                        }
+                                                        IconButton(
+                                                            onClick = {
+                                                                listenBrainzTokenCleared = true
+                                                                viewModel.updateListenBrainzToken("")
+                                                            }
+                                                        ) {
+                                                            Icon(
+                                                                imageVector = Icons.Default.Clear,
+                                                                contentDescription = stringResource(R.string.action_clear),
+                                                                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                                            )
+                                                        }
+                                                    }
+                                                }
+                                            },
+                                            shape = M3Shapes.CornerSmall
+                                        )
+
+                                        Spacer(modifier = Modifier.height(8.dp))
+
+                                        Button(
+                                            onClick = {
+                                                viewModel.saveListenBrainzSettings(clearToken = listenBrainzTokenCleared && state.listenbrainzToken.isBlank() && state.listenbrainzTokenSet)
+                                                showListenBrainzEditor = false
+                                            },
+                                            enabled = !state.isSavingListenBrainz && state.listenbrainzUsername.isNotBlank(),
+                                            shape = M3Shapes.CornerSmall,
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .height(42.dp)
+                                                .expressivePressScale(remember { MutableInteractionSource() }),
+                                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp)
+                                        ) {
+                                            if (state.isSavingListenBrainz) {
+                                                ExpressiveLoadingIndicator(
+                                                    size = 16.dp,
+                                                    strokeWidth = 2.dp,
+                                                    color = MaterialTheme.colorScheme.onPrimary
+                                                )
+                                            } else {
+                                                Row(
+                                                    verticalAlignment = Alignment.CenterVertically,
+                                                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                                ) {
+                                                    Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(16.dp))
+                                                    Text(
+                                                        text = stringResource(R.string.action_save),
+                                                        style = MaterialTheme.typography.labelLargeEmphasized,
+                                                        maxLines = 1,
+                                                        softWrap = false,
+                                                        overflow = TextOverflow.Ellipsis
+                                                    )
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+
+                            if (state.listenbrainzUsername.isNotBlank()) {
+                                Spacer(modifier = Modifier.height(8.dp))
+                                FilledTonalButton(
+                                    onClick = { viewModel.syncListenBrainz() },
+                                    enabled = state.isSyncing == null,
+                                    shape = M3Shapes.CornerMedium,
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(42.dp)
+                                        .expressivePressScale(remember { MutableInteractionSource() }),
+                                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp)
+                                ) {
+                                    if (state.isSyncing == "listenbrainz") {
+                                        ExpressiveLoadingIndicator(
+                                            size = 16.dp,
+                                            strokeWidth = 2.dp,
+                                            color = MaterialTheme.colorScheme.primary
+                                        )
+                                        Spacer(modifier = Modifier.width(8.dp))
+                                        Text(
+                                            text = stringResource(R.string.action_syncing),
+                                            style = MaterialTheme.typography.labelLarge,
+                                            maxLines = 1,
+                                            softWrap = false,
+                                            overflow = TextOverflow.Ellipsis
+                                        )
+                                    } else {
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Default.Sync,
+                                                contentDescription = null,
+                                                modifier = Modifier.size(16.dp)
+                                            )
+                                            Text(
+                                                text = stringResource(R.string.settings_listenbrainz_sync),
+                                                style = MaterialTheme.typography.labelLarge,
+                                                maxLines = 1,
+                                                softWrap = false,
+                                                overflow = TextOverflow.Ellipsis
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // 8. Stats.fm API
+                if (state.enabledPluginIds.contains("statsfm")) {
+                    item(key = "config_statsfm") {
+                        SettingsCard {
+                            // Stats.fm Card Header
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Row(
+                                    modifier = Modifier.weight(1f),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                                ) {
+                                    SettingsIconBox(
+                                        icon = Icons.Default.Equalizer,
+                                        containerColor = MaterialTheme.colorScheme.primaryContainer,
+                                        contentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                                    )
+                                    Column(modifier = Modifier.weight(1f, fill = false)) {
+                                        Text(
+                                            text = stringResource(R.string.settings_statsfm_title),
+                                            style = MaterialTheme.typography.titleMediumEmphasized,
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis
+                                        )
+                                        Text(
+                                            text = stringResource(R.string.settings_statsfm_desc),
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis
+                                        )
+                                    }
+                                }
+
+                                if (state.statsfmUsername.isNotBlank()) {
+                                    Surface(
+                                        shape = M3Shapes.CornerFull,
+                                        color = domainNutritionContainer(),
+                                        modifier = Modifier.padding(start = 8.dp)
+                                    ) {
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(4.dp),
+                                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
+                                        ) {
+                                            Box(
+                                                modifier = Modifier
+                                                    .size(6.dp)
+                                                    .background(domainNutritionOnContainer(), M3Shapes.CornerFull)
+                                            )
+                                            Text(
+                                                text = stringResource(R.string.badge_connected),
+                                                color = domainNutritionOnContainer(),
+                                                style = MaterialTheme.typography.labelSmallEmphasized,
+                                                maxLines = 1,
+                                                softWrap = false
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+
+                            // Configured Summary Box
+                            if (state.statsfmUsername.isNotBlank()) {
+                                Spacer(modifier = Modifier.height(10.dp))
+                                Surface(
+                                    shape = M3Shapes.CornerMedium,
+                                    color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.65f),
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        modifier = Modifier.padding(12.dp)
+                                    ) {
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(10.dp),
+                                            modifier = Modifier.weight(1f)
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Default.CheckCircle,
+                                                contentDescription = null,
+                                                tint = domainNutritionColor(),
+                                                modifier = Modifier.size(20.dp)
+                                            )
+                                            Column(modifier = Modifier.weight(1f)) {
+                                                Text(
+                                                    text = "@${state.statsfmUsername}",
+                                                    style = MaterialTheme.typography.titleSmallEmphasized
+                                                )
+                                                Text(
+                                                    text = stringResource(R.string.settings_statsfm_public_hint),
+                                                    style = MaterialTheme.typography.bodySmall,
+                                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                    maxLines = 1,
+                                                    overflow = TextOverflow.Ellipsis
+                                                )
+                                            }
+                                        }
+                                        FilledTonalButton(
+                                            onClick = { showStatsFmEditor = !showStatsFmEditor },
+                                            shape = M3Shapes.CornerSmall,
+                                            modifier = Modifier
+                                                .height(34.dp)
+                                                .expressivePressScale(remember { MutableInteractionSource() }),
+                                            contentPadding = PaddingValues(horizontal = 10.dp, vertical = 0.dp)
+                                        ) {
+                                            Row(
+                                                verticalAlignment = Alignment.CenterVertically,
+                                                horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                            ) {
+                                                Icon(
+                                                    imageVector = if (showStatsFmEditor) Icons.Default.ExpandLess else Icons.Default.Edit,
+                                                    contentDescription = null,
+                                                    modifier = Modifier.size(14.dp)
+                                                )
+                                                Text(
+                                                    text = if (showStatsFmEditor) stringResource(R.string.action_cancel) else stringResource(R.string.action_edit),
+                                                    style = MaterialTheme.typography.labelMedium,
+                                                    maxLines = 1,
+                                                    softWrap = false
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+
+                            // Editor / Initial Setup Inputs
+                            AnimatedVisibility(
+                                visible = state.statsfmUsername.isBlank() || showStatsFmEditor,
+                                enter = expandVertically(
+                                    animationSpec = M3ExpressiveMotion.defaultSpatial()
+                                ) + fadeIn(animationSpec = M3ExpressiveMotion.defaultEffects()),
+                                exit = shrinkVertically(
+                                    animationSpec = M3ExpressiveMotion.defaultSpatial()
+                                ) + fadeOut(animationSpec = M3ExpressiveMotion.fastEffects())
+                            ) {
+                                Surface(
+                                    shape = M3Shapes.CornerMedium,
+                                    color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.65f),
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(top = 8.dp)
+                                ) {
+                                    Column(modifier = Modifier.padding(12.dp)) {
+                                        OutlinedTextField(
+                                            value = state.statsfmUsername,
+                                            onValueChange = { viewModel.updateStatsFmUsername(it) },
+                                            modifier = Modifier.fillMaxWidth(),
+                                            label = { Text(stringResource(R.string.settings_statsfm_username)) },
+                                            placeholder = { Text("username or custom ID") },
+                                            singleLine = true,
+                                            leadingIcon = {
+                                                Icon(
+                                                    imageVector = Icons.Default.AlternateEmail,
+                                                    contentDescription = null,
+                                                    tint = MaterialTheme.colorScheme.primary
+                                                )
+                                            },
+                                            trailingIcon = if (state.statsfmUsername.isNotBlank()) {
+                                                {
+                                                    IconButton(onClick = { viewModel.updateStatsFmUsername("") }) {
+                                                        Icon(Icons.Default.Clear, contentDescription = stringResource(R.string.action_clear))
+                                                    }
+                                                }
+                                            } else null,
+                                            shape = M3Shapes.CornerSmall,
+                                            supportingText = {
+                                                Text(stringResource(R.string.settings_statsfm_public_hint))
+                                            }
+                                        )
+
+                                        Spacer(modifier = Modifier.height(8.dp))
+
+                                        Button(
+                                            onClick = {
+                                                viewModel.saveStatsFmSettings()
+                                                showStatsFmEditor = false
+                                            },
+                                            enabled = !state.isSavingStatsFm && state.statsfmUsername.isNotBlank(),
+                                            shape = M3Shapes.CornerSmall,
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .height(42.dp)
+                                                .expressivePressScale(remember { MutableInteractionSource() }),
+                                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp)
+                                        ) {
+                                            if (state.isSavingStatsFm) {
+                                                ExpressiveLoadingIndicator(
+                                                    size = 16.dp,
+                                                    strokeWidth = 2.dp,
+                                                    color = MaterialTheme.colorScheme.onPrimary
+                                                )
+                                            } else {
+                                                Row(
+                                                    verticalAlignment = Alignment.CenterVertically,
+                                                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                                ) {
+                                                    Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(16.dp))
+                                                    Text(
+                                                        text = stringResource(R.string.action_save),
+                                                        style = MaterialTheme.typography.labelLargeEmphasized,
+                                                        maxLines = 1,
+                                                        softWrap = false,
+                                                        overflow = TextOverflow.Ellipsis
+                                                    )
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+
+                            if (state.statsfmUsername.isNotBlank()) {
+                                Spacer(modifier = Modifier.height(8.dp))
+                                FilledTonalButton(
+                                    onClick = { viewModel.syncStatsFm() },
+                                    enabled = state.isSyncing == null,
+                                    shape = M3Shapes.CornerMedium,
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(42.dp)
+                                        .expressivePressScale(remember { MutableInteractionSource() }),
+                                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp)
+                                ) {
+                                    if (state.isSyncing == "statsfm") {
+                                        ExpressiveLoadingIndicator(
+                                            size = 16.dp,
+                                            strokeWidth = 2.dp,
+                                            color = MaterialTheme.colorScheme.primary
+                                        )
+                                        Spacer(modifier = Modifier.width(8.dp))
+                                        Text(
+                                            text = stringResource(R.string.action_syncing),
+                                            style = MaterialTheme.typography.labelLarge,
+                                            maxLines = 1,
+                                            softWrap = false,
+                                            overflow = TextOverflow.Ellipsis
+                                        )
+                                    } else {
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Default.Sync,
+                                                contentDescription = null,
+                                                modifier = Modifier.size(16.dp)
+                                            )
+                                            Text(
+                                                text = stringResource(R.string.settings_statsfm_sync),
+                                                style = MaterialTheme.typography.labelLarge,
+                                                maxLines = 1,
+                                                softWrap = false,
+                                                overflow = TextOverflow.Ellipsis
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // 9. Web Scrobbler Brand Integration Card
                 if (state.enabledPluginIds.contains("web_scrobbler")) {
                     item(key = "config_web_scrobbler") {
                         SettingsCard {

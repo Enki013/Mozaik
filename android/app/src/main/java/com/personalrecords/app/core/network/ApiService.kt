@@ -129,5 +129,15 @@ interface ApiService {
     suspend fun syncLastFm(
         @Body request: SyncLastFmRequest = SyncLastFmRequest()
     ): SyncLastFmResponse
+
+    @POST("api/music/sync-listenbrainz")
+    suspend fun syncListenBrainz(
+        @Body request: SyncListenBrainzRequest = SyncListenBrainzRequest()
+    ): SyncListenBrainzResponse
+
+    @POST("api/music/sync-statsfm")
+    suspend fun syncStatsFm(
+        @Body request: SyncStatsFmRequest = SyncStatsFmRequest()
+    ): SyncStatsFmResponse
 }
 

@@ -106,11 +106,24 @@ async function ensureMusicTables(db: D1Database) {
       id INTEGER PRIMARY KEY CHECK (id = 1),
       lastfm_username TEXT,
       lastfm_api_key TEXT,
+      listenbrainz_username TEXT,
+      listenbrainz_token TEXT,
+      statsfm_username TEXT,
       interval_minutes INTEGER NOT NULL DEFAULT 360,
       enabled INTEGER NOT NULL DEFAULT 1,
       updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
     )
   `).run();
+
+  try {
+    await db.prepare("ALTER TABLE music_sync_settings ADD COLUMN listenbrainz_username TEXT").run();
+  } catch (e) {}
+  try {
+    await db.prepare("ALTER TABLE music_sync_settings ADD COLUMN listenbrainz_token TEXT").run();
+  } catch (e) {}
+  try {
+    await db.prepare("ALTER TABLE music_sync_settings ADD COLUMN statsfm_username TEXT").run();
+  } catch (e) {}
 
   await db.prepare(`
     CREATE TABLE IF NOT EXISTS music_sync_runs (
@@ -2257,6 +2270,9 @@ app.get("/api/settings/music", async (c) => {
   const row = (await db.prepare("SELECT * FROM music_sync_settings WHERE id = 1").first()) as any;
   const username = row?.lastfm_username || c.env.LASTFM_USERNAME || "";
   const hasApiKey = !!(row?.lastfm_api_key || c.env.LASTFM_API_KEY);
+  const lbUsername = row?.listenbrainz_username || "";
+  const hasLbToken = !!row?.listenbrainz_token;
+  const statsfmUsername = row?.statsfm_username || "";
 
   const host = c.req.header("host") || "your-worker.workers.dev";
   const proto = c.req.header("x-forwarded-proto") || "https";
@@ -2265,6 +2281,9 @@ app.get("/api/settings/music", async (c) => {
   return c.json({
     lastfm_username: username,
     lastfm_api_key_set: hasApiKey,
+    listenbrainz_username: lbUsername,
+    listenbrainz_token_set: hasLbToken,
+    statsfm_username: statsfmUsername,
     interval_minutes: row?.interval_minutes || 360,
     enabled: row?.enabled !== 0,
     webhook_url: webhookUrl,
@@ -2279,6 +2298,13 @@ app.post("/api/settings/music", async (c) => {
   const username = typeof body.lastfm_username === "string" ? body.lastfm_username.trim() : "";
   const apiKey = typeof body.lastfm_api_key === "string" ? body.lastfm_api_key.trim() : "";
   const clearApiKey = body.clear_api_key === true || body.lastfm_api_key === "";
+
+  const lbUsername = typeof body.listenbrainz_username === "string" ? body.listenbrainz_username.trim() : null;
+  const lbToken = typeof body.listenbrainz_token === "string" ? body.listenbrainz_token.trim() : null;
+  const clearLbToken = body.clear_listenbrainz_token === true || body.listenbrainz_token === "";
+
+  const sfmUsername = typeof body.statsfm_username === "string" ? body.statsfm_username.trim() : null;
+
   const interval = typeof body.interval_minutes === "number" ? body.interval_minutes : 360;
   const enabled = body.enabled === false ? 0 : 1;
 
@@ -2301,16 +2327,21 @@ app.post("/api/settings/music", async (c) => {
 
   if (existing) {
     const finalApiKey = clearApiKey ? "" : (apiKey !== "" ? apiKey : existing.lastfm_api_key);
+    const finalLbToken = clearLbToken ? "" : (lbToken !== null ? lbToken : existing.listenbrainz_token);
+    const finalUsername = username !== "" ? username : (body.lastfm_username !== undefined ? "" : existing.lastfm_username);
+    const finalLbUsername = lbUsername !== null ? lbUsername : existing.listenbrainz_username;
+    const finalSfmUsername = sfmUsername !== null ? sfmUsername : existing.statsfm_username;
+
     await db.prepare(`
       UPDATE music_sync_settings
-      SET lastfm_username = ?, lastfm_api_key = ?, interval_minutes = ?, enabled = ?, updated_at = CURRENT_TIMESTAMP
+      SET lastfm_username = ?, lastfm_api_key = ?, listenbrainz_username = ?, listenbrainz_token = ?, statsfm_username = ?, interval_minutes = ?, enabled = ?, updated_at = CURRENT_TIMESTAMP
       WHERE id = 1
-    `).bind(username || existing.lastfm_username, finalApiKey, interval, enabled).run();
+    `).bind(finalUsername, finalApiKey, finalLbUsername, finalLbToken, finalSfmUsername, interval, enabled).run();
   } else {
     await db.prepare(`
-      INSERT INTO music_sync_settings (id, lastfm_username, lastfm_api_key, interval_minutes, enabled)
-      VALUES (1, ?, ?, ?, ?)
-    `).bind(username, clearApiKey ? "" : apiKey, interval, enabled).run();
+      INSERT INTO music_sync_settings (id, lastfm_username, lastfm_api_key, listenbrainz_username, listenbrainz_token, statsfm_username, interval_minutes, enabled)
+      VALUES (1, ?, ?, ?, ?, ?, ?, ?)
+    `).bind(username, clearApiKey ? "" : apiKey, lbUsername || "", clearLbToken ? "" : (lbToken || ""), sfmUsername || "", interval, enabled).run();
   }
 
   return c.json({ ok: true, message: "Müzik ayarları kaydedildi" });
@@ -2483,6 +2514,278 @@ app.post("/api/music/sync-lastfm", async (c) => {
       : err.message;
 
     return c.json({ ok: false, error: errorMessage }, statusCode);
+  }
+});
+
+// 21b. ListenBrainz Sync API
+app.post("/api/music/sync-listenbrainz", async (c) => {
+  const db = c.env.DB;
+  await ensureMusicTables(db);
+
+  let body: any = {};
+  try {
+    body = await c.req.json();
+  } catch (e) {}
+
+  const row = (await db.prepare("SELECT listenbrainz_username, listenbrainz_token FROM music_sync_settings WHERE id = 1").first()) as any;
+  const username = (body.username || row?.listenbrainz_username || "").trim();
+
+  if (!username) {
+    return c.json({ ok: false, error: "ListenBrainz kullanıcı adı tanımlanmamış. Ayarlardan kullanıcı adınızı girin." }, 400);
+  }
+
+  const limit = Math.min(Math.max(parseInt(body.count || "100", 10), 10), 100);
+
+  // Incremental: check max(uts)
+  let minTs: number | null = null;
+  if (body.minTs) {
+    minTs = Number(body.minTs);
+  } else {
+    const maxRow = (await db.prepare("SELECT max(uts) as max_uts FROM music_scrobbles WHERE source = 'listenbrainz'").first()) as any;
+    if (maxRow?.max_uts) {
+      minTs = Number(maxRow.max_uts);
+    }
+  }
+
+  let totalInserted = 0;
+  let totalUpdated = 0;
+  let totalProcessed = 0;
+
+  try {
+    const url = new URL(`https://api.listenbrainz.org/1/user/${encodeURIComponent(username)}/listens`);
+    url.searchParams.set("count", limit.toString());
+    if (minTs) {
+      url.searchParams.set("min_ts", minTs.toString());
+    }
+
+    const headers: Record<string, string> = {
+      "User-Agent": "PersonalRecordsApp/1.0 (https://github.com/Enki013/personal-records)",
+    };
+    if (row?.listenbrainz_token) {
+      headers["Authorization"] = `Token ${row.listenbrainz_token.trim()}`;
+    }
+
+    const res = await fetch(url.toString(), { headers });
+    if (!res.ok) {
+      const txt = await res.text();
+      throw new Error(`ListenBrainz API Hatası (${res.status}): ${txt}`);
+    }
+
+    const data: any = await res.json();
+    const payload = data.payload;
+    const listens = payload?.listens || [];
+
+    for (const l of listens) {
+      const uts = Number(l.listened_at);
+      if (!uts || isNaN(uts)) continue;
+
+      const meta = l.track_metadata || {};
+      const artist = (meta.artist_name || "").trim();
+      const track = (meta.track_name || "").trim();
+      const album = (meta.release_name || "").trim();
+      const albumArtist = "";
+      const duration = 0;
+
+      const mbid = meta.mbid_mapping?.release_mbid || meta.mbid_mapping?.recording_mbid;
+      const imageUrl = mbid ? `https://coverartarchive.org/release/${mbid}/front-250` : "";
+      const originUrl = meta.additional_info?.origin_url || (meta.additional_info?.spotify_id ? `https://open.spotify.com/track/${meta.additional_info.spotify_id}` : "");
+      const listenedAt = new Date(uts * 1000).toISOString();
+      const source = "listenbrainz";
+      const id = "lb_" + hashStr(`${artist}:${track}:${uts}`);
+      const rawJson = JSON.stringify(l);
+
+      if (!artist || !track) continue;
+
+      const existing = await db
+        .prepare("SELECT id FROM music_scrobbles WHERE artist = ? AND track = ? AND uts = ?")
+        .bind(artist, track, uts)
+        .first();
+
+      await db.prepare(`
+        INSERT INTO music_scrobbles (id, track, artist, album, album_artist, duration, listened_at, uts, source, origin_url, image_url, raw_json)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ON CONFLICT(artist, track, uts) DO UPDATE SET
+          album = CASE WHEN excluded.album != '' THEN excluded.album ELSE music_scrobbles.album END,
+          image_url = CASE WHEN excluded.image_url != '' THEN excluded.image_url ELSE music_scrobbles.image_url END,
+          origin_url = CASE WHEN excluded.origin_url != '' THEN excluded.origin_url ELSE music_scrobbles.origin_url END
+      `).bind(
+        id, track, artist, album, albumArtist, duration, listenedAt, uts, source, originUrl, imageUrl, rawJson
+      ).run();
+
+      if (existing) totalUpdated++;
+      else totalInserted++;
+      totalProcessed++;
+    }
+
+    await db.prepare(`
+      INSERT INTO music_sync_runs (source, status, inserted, updated, message)
+      VALUES ('listenbrainz', 'success', ?, ?, ?)
+    `).bind(
+      totalInserted,
+      totalUpdated,
+      `ListenBrainz senkronizasyonu tamamlandı: ${totalInserted} yeni, ${totalUpdated} güncellendi.`
+    ).run();
+
+    return c.json({
+      ok: true,
+      inserted: totalInserted,
+      updated: totalUpdated,
+      totalProcessed,
+      message: `ListenBrainz senkronizasyonu başarılı: ${totalInserted} yeni dinleme eklendi.`
+    });
+  } catch (err: any) {
+    await db.prepare(`
+      INSERT INTO music_sync_runs (source, status, inserted, updated, message)
+      VALUES ('listenbrainz', 'error', ?, ?, ?)
+    `).bind(totalInserted, totalUpdated, err.message).run();
+
+    return c.json({ ok: false, error: err.message }, 500);
+  }
+});
+
+// 21c. Stats.fm Sync API
+app.post("/api/music/sync-statsfm", async (c) => {
+  const db = c.env.DB;
+  await ensureMusicTables(db);
+
+  let body: any = {};
+  try {
+    body = await c.req.json();
+  } catch (e) {}
+
+  const row = (await db.prepare("SELECT statsfm_username FROM music_sync_settings WHERE id = 1").first()) as any;
+  const username = (body.username || row?.statsfm_username || "").trim();
+
+  if (!username) {
+    return c.json({ ok: false, error: "Stats.fm kullanıcı adı tanımlanmamış. Ayarlardan Stats.fm kullanıcı adınızı girin." }, 400);
+  }
+
+  let totalInserted = 0;
+  let totalUpdated = 0;
+  let totalProcessed = 0;
+
+  try {
+    const streamsUrl = `https://api.stats.fm/api/v1/users/${encodeURIComponent(username)}/streams?limit=100`;
+    const res = await fetch(streamsUrl, {
+      headers: { "User-Agent": "PersonalRecordsApp/1.0" },
+    });
+
+    if (!res.ok) {
+      if (res.status === 404) {
+        throw new Error(`Stats.fm kullanıcısı '${username}' bulunamadı. Lütfen kullanıcı adınızı kontrol edin.`);
+      }
+      if (res.status === 403) {
+        throw new Error("Stats.fm dinleme geçmişiniz gizli. Stats.fm uygulamasında Profil > Gizlilik Ayarları'ndan 'Recently Played' akışını herkese açık yapın.");
+      }
+      const txt = await res.text();
+      throw new Error(`Stats.fm API Hatası (${res.status}): ${txt}`);
+    }
+
+    const data: any = await res.json();
+    const items = Array.isArray(data.items) ? data.items : (Array.isArray(data) ? data : []);
+
+    if (items.length === 0) {
+      const topUrl = `https://api.stats.fm/api/v1/users/${encodeURIComponent(username)}/top/tracks?range=weeks`;
+      const topRes = await fetch(topUrl, {
+        headers: { "User-Agent": "PersonalRecordsApp/1.0" },
+      });
+      if (topRes.ok) {
+        const topData: any = await topRes.json();
+        const topItems = Array.isArray(topData.items) ? topData.items : [];
+        for (const it of topItems) {
+          const t = it.track || it;
+          const artist = t.artists?.[0]?.name || it.artistName || "";
+          const track = t.name || it.trackName || "";
+          const album = t.albums?.[0]?.name || it.albumName || "";
+          const imageUrl = t.albums?.[0]?.image || "";
+          const duration = Math.floor((t.durationMs || 0) / 1000);
+          const uts = Math.floor(Date.now() / 1000);
+          const listenedAt = new Date().toISOString();
+          const source = "statsfm";
+          const id = "sfm_" + hashStr(`${artist}:${track}:${uts}`);
+          const rawJson = JSON.stringify(it);
+
+          if (!artist || !track) continue;
+
+          await db.prepare(`
+            INSERT INTO music_scrobbles (id, track, artist, album, album_artist, duration, listened_at, uts, source, origin_url, image_url, raw_json)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT(artist, track, uts) DO UPDATE SET
+              album = CASE WHEN excluded.album != '' THEN excluded.album ELSE music_scrobbles.album END,
+              image_url = CASE WHEN excluded.image_url != '' THEN excluded.image_url ELSE music_scrobbles.image_url END
+          `).bind(
+            id, track, artist, album, "", duration, listenedAt, uts, source, "", imageUrl, rawJson
+          ).run();
+
+          totalInserted++;
+          totalProcessed++;
+        }
+      }
+    } else {
+      for (const item of items) {
+        const t = item.track || item;
+        const artist = t.artists?.[0]?.name || item.artistName || "";
+        const track = t.name || item.trackName || "";
+        const album = t.albums?.[0]?.name || item.albumName || "";
+        const imageUrl = t.albums?.[0]?.image || "";
+        const duration = Math.floor((item.playedMs || t.durationMs || 0) / 1000);
+
+        let uts = Math.floor(new Date(item.endTime || item.playedAt || item.timestamp || Date.now()).getTime() / 1000);
+        if (!uts || isNaN(uts) || uts <= 0) {
+          uts = Math.floor(Date.now() / 1000);
+        }
+
+        const listenedAt = new Date(uts * 1000).toISOString();
+        const source = "statsfm";
+        const id = "sfm_" + hashStr(`${artist}:${track}:${uts}`);
+        const rawJson = JSON.stringify(item);
+
+        if (!artist || !track) continue;
+
+        const existing = await db
+          .prepare("SELECT id FROM music_scrobbles WHERE artist = ? AND track = ? AND uts = ?")
+          .bind(artist, track, uts)
+          .first();
+
+        await db.prepare(`
+          INSERT INTO music_scrobbles (id, track, artist, album, album_artist, duration, listened_at, uts, source, origin_url, image_url, raw_json)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          ON CONFLICT(artist, track, uts) DO UPDATE SET
+            album = CASE WHEN excluded.album != '' THEN excluded.album ELSE music_scrobbles.album END,
+            image_url = CASE WHEN excluded.image_url != '' THEN excluded.image_url ELSE music_scrobbles.image_url END
+        `).bind(
+          id, track, artist, album, "", duration, listenedAt, uts, source, "", imageUrl, rawJson
+        ).run();
+
+        if (existing) totalUpdated++;
+        else totalInserted++;
+        totalProcessed++;
+      }
+    }
+
+    await db.prepare(`
+      INSERT INTO music_sync_runs (source, status, inserted, updated, message)
+      VALUES ('statsfm', 'success', ?, ?, ?)
+    `).bind(
+      totalInserted,
+      totalUpdated,
+      `Stats.fm senkronizasyonu tamamlandı: ${totalInserted} yeni, ${totalUpdated} güncellendi.`
+    ).run();
+
+    return c.json({
+      ok: true,
+      inserted: totalInserted,
+      updated: totalUpdated,
+      totalProcessed,
+      message: `Stats.fm senkronizasyonu başarılı: ${totalInserted} yeni dinleme aktarıldı.`
+    });
+  } catch (err: any) {
+    await db.prepare(`
+      INSERT INTO music_sync_runs (source, status, inserted, updated, message)
+      VALUES ('statsfm', 'error', ?, ?, ?)
+    `).bind(totalInserted, totalUpdated, err.message).run();
+
+    return c.json({ ok: false, error: err.message }, 500);
   }
 });
 

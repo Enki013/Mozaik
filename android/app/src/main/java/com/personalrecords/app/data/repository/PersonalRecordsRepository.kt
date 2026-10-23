@@ -572,16 +572,24 @@ class PersonalRecordsRepository(
     }
 
     suspend fun saveMusicSettings(
-        username: String?,
-        apiKey: String?,
+        username: String? = null,
+        apiKey: String? = null,
         intervalMinutes: Int? = 360,
-        enabled: Boolean? = true
+        enabled: Boolean? = true,
+        listenbrainzUsername: String? = null,
+        listenbrainzToken: String? = null,
+        clearListenbrainzToken: Boolean? = null,
+        statsfmUsername: String? = null
     ): Resource<SaveMusicSettingsResponse> = withContext(Dispatchers.IO) {
         try {
             val response = api.saveMusicSettings(
                 SaveMusicSettingsRequest(
                     lastfmUsername = username,
                     lastfmApiKey = apiKey,
+                    listenbrainzUsername = listenbrainzUsername,
+                    listenbrainzToken = listenbrainzToken,
+                    clearListenbrainzToken = clearListenbrainzToken,
+                    statsfmUsername = statsfmUsername,
                     intervalMinutes = intervalMinutes,
                     enabled = enabled
                 )
@@ -600,6 +608,40 @@ class PersonalRecordsRepository(
             Resource.Success(response)
         } catch (e: Exception) {
             Resource.Error(extractErrorMessage(e, "Last.fm senkronizasyonu başarısız"), e)
+        }
+    }
+
+    suspend fun syncListenBrainz(
+        username: String? = null,
+        count: Int? = null,
+        minTs: Long? = null
+    ): Resource<SyncListenBrainzResponse> = withContext(Dispatchers.IO) {
+        try {
+            val response = api.syncListenBrainz(
+                SyncListenBrainzRequest(
+                    username = username,
+                    count = count,
+                    minTs = minTs
+                )
+            )
+            Resource.Success(response)
+        } catch (e: Exception) {
+            Resource.Error(extractErrorMessage(e, "ListenBrainz senkronizasyonu başarısız"), e)
+        }
+    }
+
+    suspend fun syncStatsFm(
+        username: String? = null
+    ): Resource<SyncStatsFmResponse> = withContext(Dispatchers.IO) {
+        try {
+            val response = api.syncStatsFm(
+                SyncStatsFmRequest(
+                    username = username
+                )
+            )
+            Resource.Success(response)
+        } catch (e: Exception) {
+            Resource.Error(extractErrorMessage(e, "Stats.fm senkronizasyonu başarısız"), e)
         }
     }
 

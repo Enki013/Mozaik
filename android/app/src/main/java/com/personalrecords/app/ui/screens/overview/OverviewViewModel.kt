@@ -92,6 +92,38 @@ class OverviewViewModel(
                         else -> Resource.Error("Last.fm eşitlenemedi")
                     }
                 }
+                "listenbrainz" -> {
+                    when (val lb = repository.syncListenBrainz()) {
+                        is Resource.Success -> {
+                            val count = lb.data.inserted + lb.data.updated
+                            val defaultMsg = if (count > 0) "ListenBrainz eşitlendi ($count yeni/güncellenen)" else "ListenBrainz dinlemeleri güncel"
+                            Resource.Success(
+                                com.personalrecords.app.core.network.model.SyncResultDto(
+                                    success = true,
+                                    message = lb.data.message.ifBlank { defaultMsg }
+                                )
+                            )
+                        }
+                        is Resource.Error -> Resource.Error(lb.message ?: "ListenBrainz eşitlenemedi")
+                        else -> Resource.Error("ListenBrainz eşitlenemedi")
+                    }
+                }
+                "statsfm" -> {
+                    when (val sfm = repository.syncStatsFm()) {
+                        is Resource.Success -> {
+                            val count = sfm.data.inserted + sfm.data.updated
+                            val defaultMsg = if (count > 0) "Stats.fm eşitlendi ($count yeni/güncellenen)" else "Stats.fm dinlemeleri güncel"
+                            Resource.Success(
+                                com.personalrecords.app.core.network.model.SyncResultDto(
+                                    success = true,
+                                    message = sfm.data.message.ifBlank { defaultMsg }
+                                )
+                            )
+                        }
+                        is Resource.Error -> Resource.Error(sfm.message ?: "Stats.fm eşitlenemedi")
+                        else -> Resource.Error("Stats.fm eşitlenemedi")
+                    }
+                }
                 "health_connect" -> {
                     Resource.Success(
                         com.personalrecords.app.core.network.model.SyncResultDto(

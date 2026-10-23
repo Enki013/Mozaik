@@ -313,11 +313,13 @@ fun MainAppHost() {
         navigator.goBack()
     }
 
+    val showFloatingNav = currentRoute !in setOf(Screen.IntegrationsCatalog, Screen.Language)
+
     Box(modifier = Modifier.fillMaxSize()) {
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(start = if (isWideScreen) 88.dp else 0.dp)
+                .padding(start = if (isWideScreen && showFloatingNav) 88.dp else 0.dp)
         ) {
             // Persistent Peer Tabs Layer: keeps Overview, Timeline, Records, and Settings
             // warm in memory (measured once, unplaced when inactive so 0 GPU/touch/recomposition cost).
@@ -505,29 +507,41 @@ fun MainAppHost() {
             )
         }
 
-        ExpressiveAdaptiveNavigation(
-            navigator = navigator,
-            onScrollToTop = { screen ->
-                when (screen) {
-                    Screen.Overview -> overviewScrollFlow.tryEmit(Unit)
-                    Screen.Timeline -> timelineScrollFlow.tryEmit(Unit)
-                    Screen.Records -> recordsScrollFlow.tryEmit(Unit)
-                    Screen.Settings -> settingsScrollFlow.tryEmit(Unit)
-                    else -> Unit
-                }
-            },
-            onRefresh = { screen ->
-                when (screen) {
-                    Screen.Overview -> overviewRefreshFlow.tryEmit(Unit)
-                    Screen.Timeline -> timelineRefreshFlow.tryEmit(Unit)
-                    Screen.Records -> recordsRefreshFlow.tryEmit(Unit)
-                    Screen.Settings -> settingsRefreshFlow.tryEmit(Unit)
-                    else -> Unit
-                }
-            },
-            isWideScreen = isWideScreen,
+        AnimatedVisibility(
+            visible = showFloatingNav,
+            enter = fadeIn(animationSpec = M3ExpressiveMotion.fastSpatial()) + slideInVertically(
+                initialOffsetY = { it },
+                animationSpec = M3ExpressiveMotion.fastSpatial()
+            ),
+            exit = fadeOut(animationSpec = M3ExpressiveMotion.fastSpatial()) + slideOutVertically(
+                targetOffsetY = { it },
+                animationSpec = M3ExpressiveMotion.fastSpatial()
+            ),
             modifier = if (isWideScreen) Modifier.align(Alignment.CenterStart) else Modifier.align(Alignment.BottomCenter)
-        )
+        ) {
+            ExpressiveAdaptiveNavigation(
+                navigator = navigator,
+                onScrollToTop = { screen ->
+                    when (screen) {
+                        Screen.Overview -> overviewScrollFlow.tryEmit(Unit)
+                        Screen.Timeline -> timelineScrollFlow.tryEmit(Unit)
+                        Screen.Records -> recordsScrollFlow.tryEmit(Unit)
+                        Screen.Settings -> settingsScrollFlow.tryEmit(Unit)
+                        else -> Unit
+                    }
+                },
+                onRefresh = { screen ->
+                    when (screen) {
+                        Screen.Overview -> overviewRefreshFlow.tryEmit(Unit)
+                        Screen.Timeline -> timelineRefreshFlow.tryEmit(Unit)
+                        Screen.Records -> recordsRefreshFlow.tryEmit(Unit)
+                        Screen.Settings -> settingsRefreshFlow.tryEmit(Unit)
+                        else -> Unit
+                    }
+                },
+                isWideScreen = isWideScreen
+            )
+        }
     }
 }
 

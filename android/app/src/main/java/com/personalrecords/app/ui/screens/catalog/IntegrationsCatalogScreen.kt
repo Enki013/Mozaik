@@ -7,12 +7,12 @@ import android.content.Intent
 import android.net.Uri
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.*
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.selection.SelectionContainer
@@ -26,6 +26,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -67,23 +68,18 @@ fun IntegrationsCatalogScreen(
                 hostState = snackbarHostState,
                 modifier = Modifier
                     .navigationBarsPadding()
-                    .padding(bottom = 96.dp)
+                    .padding(bottom = 16.dp)
             )
         },
         topBar = {
             TopAppBar(
                 title = {
-                    Column {
-                        Text(
-                            text = stringResource(R.string.title_integrations_catalog),
-                            style = MaterialTheme.typography.titleLargeEmphasized
-                        )
-                        Text(
-                            text = stringResource(R.string.catalog_subtitle),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
+                    Text(
+                        text = stringResource(R.string.title_integrations_catalog),
+                        style = MaterialTheme.typography.titleLargeEmphasized,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
                 },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
@@ -93,16 +89,7 @@ fun IntegrationsCatalogScreen(
                         )
                     }
                 },
-                actions = {
-                    if (onNavigateToSettings != null) {
-                        IconButton(onClick = onNavigateToSettings) {
-                            Icon(
-                                imageVector = Icons.Default.Settings,
-                                contentDescription = stringResource(R.string.title_settings)
-                            )
-                        }
-                    }
-                },
+                actions = {},
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.surface
                 )
@@ -112,19 +99,20 @@ fun IntegrationsCatalogScreen(
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(innerPadding),
+                .padding(innerPadding)
+                .navigationBarsPadding(),
             contentPadding = PaddingValues(
-                start = 16.dp,
-                end = 16.dp,
                 top = 12.dp,
-                bottom = 120.dp
+                bottom = 24.dp
             ),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             // 1. Ecosystem Banner
             item(key = "catalog_banner") {
                 Card(
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp),
                     shape = M3Shapes.CornerLarge,
                     colors = CardDefaults.cardColors(
                         containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f)
@@ -198,7 +186,9 @@ fun IntegrationsCatalogScreen(
                         placeholder = {
                             Text(
                                 text = stringResource(R.string.catalog_search_hint),
-                                style = MaterialTheme.typography.bodyMedium
+                                style = MaterialTheme.typography.bodyMedium,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
                             )
                         },
                         leadingIcon = {
@@ -220,25 +210,39 @@ fun IntegrationsCatalogScreen(
                         },
                         singleLine = true,
                         shape = M3Shapes.CornerFull,
-                        modifier = Modifier.fillMaxWidth(),
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = MaterialTheme.colorScheme.primary,
-                            unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp),
+                        colors = TextFieldDefaults.colors(
+                            focusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                            unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                            disabledContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                            focusedIndicatorColor = Color.Transparent,
+                            unfocusedIndicatorColor = Color.Transparent,
+                            disabledIndicatorColor = Color.Transparent
                         )
                     )
 
-                    // Category Filter Chips
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .horizontalScroll(rememberScrollState()),
+                    // Category Filter Chips (Edge-to-edge scroll with contentPadding)
+                    LazyRow(
+                        modifier = Modifier.fillMaxWidth(),
+                        contentPadding = PaddingValues(horizontal = 16.dp),
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        IntegrationCategory.entries.forEach { cat ->
+                        items(IntegrationCategory.entries) { cat ->
                             val isSelected = state.selectedCategory == cat
                             ExpressiveFilterChip(
                                 selected = isSelected,
                                 onClick = { viewModel.setSelectedCategory(cat) },
+                                leadingIcon = if (isSelected) {
+                                    {
+                                        Icon(
+                                            imageVector = Icons.Default.Check,
+                                            contentDescription = null,
+                                            modifier = Modifier.size(FilterChipDefaults.IconSize)
+                                        )
+                                    }
+                                } else null,
                                 label = {
                                     Text(
                                         text = stringResource(cat.labelRes),
@@ -257,7 +261,7 @@ fun IntegrationsCatalogScreen(
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(vertical = 48.dp),
+                            .padding(horizontal = 16.dp, vertical = 48.dp),
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
@@ -281,10 +285,6 @@ fun IntegrationsCatalogScreen(
                         onOpenSettings = onNavigateToSettings
                     )
                 }
-            }
-
-            item(key = "catalog_bottom_spacer") {
-                Spacer(modifier = Modifier.height(100.dp))
             }
         }
     }
@@ -329,21 +329,18 @@ private fun CatalogPluginCard(
     }
 
     Card(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp),
         shape = M3Shapes.CornerLarge,
         colors = CardDefaults.cardColors(
-            containerColor = if (plugin.isEnabled) {
-                MaterialTheme.colorScheme.surfaceContainerLow
-            } else {
-                MaterialTheme.colorScheme.surfaceContainerLowest
-            }
+            containerColor = MaterialTheme.colorScheme.surfaceContainerLow
         ),
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
-        border = if (plugin.isEnabled) {
-            null
-        } else {
-            CardDefaults.outlinedCardBorder()
-        }
+        border = BorderStroke(
+            width = 1.dp,
+            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = if (plugin.isEnabled) 0.35f else 0.2f)
+        )
     ) {
         Column(
             modifier = Modifier
@@ -390,13 +387,14 @@ private fun CatalogPluginCard(
                                 style = MaterialTheme.typography.titleMediumEmphasized,
                                 color = MaterialTheme.colorScheme.onSurface
                             )
+                            val badgeLabel = if (plugin.badgeRes != 0) stringResource(plugin.badgeRes) else plugin.badge
                             Surface(
                                 shape = M3Shapes.CornerFull,
                                 color = if (plugin.isEnabled) MaterialTheme.colorScheme.primaryContainer
                                 else MaterialTheme.colorScheme.surfaceContainerHigh
                             ) {
                                 Text(
-                                    text = plugin.badge,
+                                    text = badgeLabel,
                                     style = MaterialTheme.typography.labelSmall,
                                     color = if (plugin.isEnabled) MaterialTheme.colorScheme.onPrimaryContainer
                                     else MaterialTheme.colorScheme.onSurfaceVariant,
@@ -404,45 +402,63 @@ private fun CatalogPluginCard(
                                 )
                             }
                         }
-                        Text(
-                            text = plugin.type.displayName,
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
                     }
                 }
 
                 Switch(
                     checked = plugin.isEnabled,
                     onCheckedChange = onToggle,
+                    thumbContent = if (plugin.isEnabled) {
+                        {
+                            Icon(
+                                imageVector = Icons.Default.Check,
+                                contentDescription = null,
+                                modifier = Modifier.size(SwitchDefaults.IconSize)
+                            )
+                        }
+                    } else null,
                     colors = SwitchDefaults.colors(
                         checkedThumbColor = MaterialTheme.colorScheme.primary,
-                        checkedTrackColor = MaterialTheme.colorScheme.primaryContainer
+                        checkedTrackColor = MaterialTheme.colorScheme.primaryContainer,
+                        uncheckedThumbColor = MaterialTheme.colorScheme.outline,
+                        uncheckedTrackColor = MaterialTheme.colorScheme.surfaceContainerHighest,
+                        uncheckedBorderColor = MaterialTheme.colorScheme.outline
                     )
                 )
             }
 
             Spacer(modifier = Modifier.height(8.dp))
 
+            val desc = if (plugin.shortDescRes != 0) stringResource(plugin.shortDescRes) else plugin.shortDescription
             Text(
-                text = plugin.shortDescription,
+                text = desc,
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
 
-            Spacer(modifier = Modifier.height(10.dp))
+            Spacer(modifier = Modifier.height(12.dp))
 
-            // Action Buttons Row
+            // Action Buttons Row - M3 Expressive Connected Button Group
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                horizontalArrangement = Arrangement.spacedBy(3.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 if (plugin.type == IntegrationType.WEBHOOK) {
+                    val hasOfficialUrl = plugin.officialUrl != null
+                    val webhookBtnShape = if (hasOfficialUrl) {
+                        RoundedCornerShape(topStart = 24.dp, bottomStart = 24.dp, topEnd = 8.dp, bottomEnd = 8.dp)
+                    } else {
+                        M3Shapes.CornerFull
+                    }
+
                     FilledTonalButton(
                         onClick = onConfigureWebhook,
-                        shape = M3Shapes.CornerSmall,
-                        modifier = Modifier.weight(1f)
+                        shape = webhookBtnShape,
+                        contentPadding = PaddingValues(horizontal = 14.dp, vertical = 4.dp),
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(38.dp)
                     ) {
                         Icon(
                             imageVector = Icons.Default.Tune,
@@ -455,12 +471,49 @@ private fun CatalogPluginCard(
                             style = MaterialTheme.typography.labelMedium
                         )
                     }
+
+                    if (hasOfficialUrl) {
+                        OutlinedIconButton(
+                            onClick = {
+                                try {
+                                    val intent = Intent(Intent.ACTION_VIEW, Uri.parse(plugin.officialUrl))
+                                    context.startActivity(intent)
+                                } catch (_: Exception) {}
+                            },
+                            shape = RoundedCornerShape(topStart = 8.dp, bottomStart = 8.dp, topEnd = 24.dp, bottomEnd = 24.dp),
+                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                            modifier = Modifier.size(38.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.OpenInBrowser,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
+                    }
                 } else if (plugin.syncServiceKey != null) {
-                    Button(
+                    val hasSettings = onOpenSettings != null
+                    val hasOfficialUrl = plugin.officialUrl != null
+
+                    val syncShape = if (hasSettings || hasOfficialUrl) {
+                        RoundedCornerShape(topStart = 24.dp, bottomStart = 24.dp, topEnd = 8.dp, bottomEnd = 8.dp)
+                    } else {
+                        M3Shapes.CornerFull
+                    }
+
+                    FilledTonalButton(
                         onClick = onSync,
                         enabled = plugin.isEnabled && !isSyncing,
-                        shape = M3Shapes.CornerSmall,
-                        modifier = Modifier.weight(1f)
+                        shape = syncShape,
+                        colors = ButtonDefaults.filledTonalButtonColors(
+                            containerColor = MaterialTheme.colorScheme.primaryContainer,
+                            contentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                        ),
+                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(38.dp)
                     ) {
                         Icon(
                             imageVector = Icons.Default.Sync,
@@ -476,11 +529,21 @@ private fun CatalogPluginCard(
                         )
                     }
 
-                    if (onOpenSettings != null) {
+                    if (hasSettings) {
+                        val configShape = if (hasOfficialUrl) {
+                            RoundedCornerShape(8.dp)
+                        } else {
+                            RoundedCornerShape(topStart = 8.dp, bottomStart = 8.dp, topEnd = 24.dp, bottomEnd = 24.dp)
+                        }
+
                         OutlinedButton(
                             onClick = onOpenSettings,
-                            shape = M3Shapes.CornerSmall,
-                            modifier = Modifier.weight(1f)
+                            shape = configShape,
+                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(38.dp)
                         ) {
                             Icon(
                                 imageVector = Icons.Default.Settings,
@@ -494,24 +557,26 @@ private fun CatalogPluginCard(
                             )
                         }
                     }
-                }
 
-                if (plugin.officialUrl != null) {
-                    OutlinedIconButton(
-                        onClick = {
-                            try {
-                                val intent = Intent(Intent.ACTION_VIEW, Uri.parse(plugin.officialUrl))
-                                context.startActivity(intent)
-                            } catch (_: Exception) {}
-                        },
-                        shape = M3Shapes.CornerSmall,
-                        modifier = Modifier.size(38.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.OpenInBrowser,
-                            contentDescription = null,
-                            modifier = Modifier.size(18.dp)
-                        )
+                    if (hasOfficialUrl) {
+                        OutlinedIconButton(
+                            onClick = {
+                                try {
+                                    val intent = Intent(Intent.ACTION_VIEW, Uri.parse(plugin.officialUrl))
+                                    context.startActivity(intent)
+                                } catch (_: Exception) {}
+                            },
+                            shape = RoundedCornerShape(topStart = 8.dp, bottomStart = 8.dp, topEnd = 24.dp, bottomEnd = 24.dp),
+                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                            modifier = Modifier.size(38.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.OpenInBrowser,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
                     }
                 }
             }
@@ -568,7 +633,7 @@ private fun PluginWebhookBottomSheet(
                     Box(
                         modifier = Modifier
                             .size(48.dp)
-                            .clip(RoundedCornerShape(12.dp))
+                            .clip(M3Shapes.CornerMedium)
                             .background(MaterialTheme.colorScheme.tertiaryContainer),
                         contentAlignment = Alignment.Center
                     ) {
@@ -585,20 +650,16 @@ private fun PluginWebhookBottomSheet(
                             style = MaterialTheme.typography.titleMediumEmphasized,
                             color = MaterialTheme.colorScheme.onSurface
                         )
-                        Text(
-                            text = plugin.type.displayName,
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
                     }
                 }
 
+                val badgeText = if (plugin.badgeRes != 0) stringResource(plugin.badgeRes) else plugin.badge
                 Surface(
                     shape = M3Shapes.CornerFull,
                     color = MaterialTheme.colorScheme.tertiaryContainer
                 ) {
                     Text(
-                        text = plugin.badge,
+                        text = badgeText,
                         color = MaterialTheme.colorScheme.onTertiaryContainer,
                         style = MaterialTheme.typography.labelSmallEmphasized,
                         modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
@@ -606,8 +667,9 @@ private fun PluginWebhookBottomSheet(
                 }
             }
 
+            val longDesc = if (plugin.longDescRes != 0) stringResource(plugin.longDescRes) else plugin.longDescription
             Text(
-                text = plugin.longDescription,
+                text = longDesc,
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -646,7 +708,7 @@ private fun PluginWebhookBottomSheet(
                         clipboardManager.setPrimaryClip(clip)
                         onShowSnackbar(context.getString(R.string.toast_webhook_copied))
                     },
-                    shape = M3Shapes.CornerMedium,
+                    shape = M3Shapes.CornerFull,
                     modifier = Modifier.weight(1f)
                 ) {
                     Icon(
@@ -674,7 +736,8 @@ private fun PluginWebhookBottomSheet(
                                 onShowSnackbar(context.getString(R.string.music_open_failed))
                             }
                         },
-                        shape = M3Shapes.CornerMedium,
+                        shape = M3Shapes.CornerFull,
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
                         modifier = Modifier.weight(1f)
                     ) {
                         Icon(

@@ -480,6 +480,12 @@ data class MusicSettingsDto(
     val lastfmUsername: String = "",
     @SerialName("lastfm_api_key_set")
     val lastfmApiKeySet: Boolean = false,
+    @SerialName("listenbrainz_username")
+    val listenbrainzUsername: String = "",
+    @SerialName("listenbrainz_token_set")
+    val listenbrainzTokenSet: Boolean = false,
+    @SerialName("statsfm_username")
+    val statsfmUsername: String = "",
     @SerialName("interval_minutes")
     val intervalMinutes: Int = 360,
     val enabled: Boolean = true,
@@ -493,6 +499,14 @@ data class SaveMusicSettingsRequest(
     val lastfmUsername: String? = null,
     @SerialName("lastfm_api_key")
     val lastfmApiKey: String? = null,
+    @SerialName("listenbrainz_username")
+    val listenbrainzUsername: String? = null,
+    @SerialName("listenbrainz_token")
+    val listenbrainzToken: String? = null,
+    @SerialName("clear_listenbrainz_token")
+    val clearListenbrainzToken: Boolean? = null,
+    @SerialName("statsfm_username")
+    val statsfmUsername: String? = null,
     @SerialName("interval_minutes")
     val intervalMinutes: Int? = null,
     val enabled: Boolean? = null
@@ -523,6 +537,38 @@ data class SyncLastFmResponse(
     val totalProcessed: Int = 0,
     val totalPages: Int = 1,
     val message: String = ""
+)
+
+@Serializable
+data class SyncListenBrainzRequest(
+    val username: String? = null,
+    val count: Int? = null,
+    val minTs: Long? = null
+)
+
+@Serializable
+data class SyncListenBrainzResponse(
+    val ok: Boolean = true,
+    val inserted: Int = 0,
+    val updated: Int = 0,
+    val totalProcessed: Int = 0,
+    val message: String = "",
+    val error: String? = null
+)
+
+@Serializable
+data class SyncStatsFmRequest(
+    val username: String? = null
+)
+
+@Serializable
+data class SyncStatsFmResponse(
+    val ok: Boolean = true,
+    val inserted: Int = 0,
+    val updated: Int = 0,
+    val totalProcessed: Int = 0,
+    val message: String = "",
+    val error: String? = null
 )
 
 

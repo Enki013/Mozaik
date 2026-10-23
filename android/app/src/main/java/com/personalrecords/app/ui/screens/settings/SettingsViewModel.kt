@@ -47,6 +47,16 @@ data class SettingsUiState(
     val isLoadingMusicSettings: Boolean = false,
     val isSavingMusicSettings: Boolean = false,
     val musicSaveMessage: String? = null,
+    // ListenBrainz
+    val listenbrainzUsername: String = "",
+    val listenbrainzToken: String = "",
+    val listenbrainzTokenSet: Boolean = false,
+    val isSavingListenBrainz: Boolean = false,
+    val listenbrainzSaveMessage: String? = null,
+    // Stats.fm
+    val statsfmUsername: String = "",
+    val isSavingStatsFm: Boolean = false,
+    val statsfmSaveMessage: String? = null,
     // Language
     val appLanguage: String = "system",
     // Integration Plugins
@@ -421,6 +431,9 @@ class SettingsViewModel(
                             isLoadingMusicSettings = false,
                             lastfmUsername = result.data.lastfmUsername,
                             lastfmApiKeySet = result.data.lastfmApiKeySet,
+                            listenbrainzUsername = result.data.listenbrainzUsername,
+                            listenbrainzTokenSet = result.data.listenbrainzTokenSet,
+                            statsfmUsername = result.data.statsfmUsername,
                             musicWebhookUrl = result.data.webhookUrl
                         )
                     }
@@ -466,6 +479,144 @@ class SettingsViewModel(
                 else -> _uiState.update { it.copy(isSavingMusicSettings = false) }
             }
         }
+    }
+
+    fun updateListenBrainzUsername(username: String) {
+        _uiState.update { it.copy(listenbrainzUsername = username, listenbrainzSaveMessage = null) }
+    }
+
+    fun updateListenBrainzToken(token: String) {
+        _uiState.update { it.copy(listenbrainzToken = token, listenbrainzSaveMessage = null) }
+    }
+
+    fun saveListenBrainzSettings(clearToken: Boolean = false) {
+        viewModelScope.launch {
+            _uiState.update { it.copy(isSavingListenBrainz = true, listenbrainzSaveMessage = null) }
+            val username = _uiState.value.listenbrainzUsername.trim()
+            val token = _uiState.value.listenbrainzToken.trim().takeIf { it.isNotBlank() }
+            val result = repository.saveMusicSettings(
+                listenbrainzUsername = username,
+                listenbrainzToken = if (clearToken) null else token,
+                clearListenbrainzToken = if (clearToken) true else null
+            )
+            when (result) {
+                is Resource.Success -> {
+                    _uiState.update {
+                        it.copy(
+                            isSavingListenBrainz = false,
+                            listenbrainzSaveMessage = "ListenBrainz ayarları kaydedildi",
+                            listenbrainzToken = ""
+                        )
+                    }
+                    loadMusicSettings()
+                }
+                is Resource.Error -> {
+                    _uiState.update {
+                        it.copy(
+                            isSavingListenBrainz = false,
+                            listenbrainzSaveMessage = "Hata: ${result.message}"
+                        )
+                    }
+                }
+                else -> _uiState.update { it.copy(isSavingListenBrainz = false) }
+            }
+        }
+    }
+
+    fun syncListenBrainz() {
+        viewModelScope.launch {
+            _uiState.update { it.copy(isSyncing = "listenbrainz", syncStatusMessage = null) }
+            val result = repository.syncListenBrainz()
+            when (result) {
+                is Resource.Success -> {
+                    val count = result.data.inserted + result.data.updated
+                    _uiState.update {
+                        it.copy(
+                            isSyncing = null,
+                            syncStatusMessage = "ListenBrainz eşitlendi: $count parça güncellendi!"
+                        )
+                    }
+                }
+                is Resource.Error -> {
+                    _uiState.update {
+                        it.copy(
+                            isSyncing = null,
+                            syncStatusMessage = "Hata: ${result.message}"
+                        )
+                    }
+                }
+                else -> _uiState.update { it.copy(isSyncing = null) }
+            }
+        }
+    }
+
+    fun updateStatsFmUsername(username: String) {
+        _uiState.update { it.copy(statsfmUsername = username, statsfmSaveMessage = null) }
+    }
+
+    fun saveStatsFmSettings() {
+        viewModelScope.launch {
+            _uiState.update { it.copy(isSavingStatsFm = true, statsfmSaveMessage = null) }
+            val username = _uiState.value.statsfmUsername.trim()
+            val result = repository.saveMusicSettings(
+                statsfmUsername = username
+            )
+            when (result) {
+                is Resource.Success -> {
+                    _uiState.update {
+                        it.copy(
+                            isSavingStatsFm = false,
+                            statsfmSaveMessage = "Stats.fm ayarları kaydedildi"
+                        )
+                    }
+                    loadMusicSettings()
+                }
+                is Resource.Error -> {
+                    _uiState.update {
+                        it.copy(
+                            isSavingStatsFm = false,
+                            statsfmSaveMessage = "Hata: ${result.message}"
+                        )
+                    }
+                }
+                else -> _uiState.update { it.copy(isSavingStatsFm = false) }
+            }
+        }
+    }
+
+    fun syncStatsFm() {
+        viewModelScope.launch {
+            _uiState.update { it.copy(isSyncing = "statsfm", syncStatusMessage = null) }
+            val result = repository.syncStatsFm()
+            when (result) {
+                is Resource.Success -> {
+                    val count = result.data.inserted + result.data.updated
+                    _uiState.update {
+                        it.copy(
+                            isSyncing = null,
+                            syncStatusMessage = "Stats.fm eşitlendi: $count akış güncellendi!"
+                        )
+                    }
+                }
+                is Resource.Error -> {
+                    _uiState.update {
+                        it.copy(
+                            isSyncing = null,
+                            syncStatusMessage = "Hata: ${result.message}"
+                        )
+                    }
+                }
+                else -> _uiState.update { it.copy(isSyncing = null) }
+            }
+        }
+    }
+
+    fun clearListenbrainzSaveMessage() {
+        _uiState.update { it.copy(listenbrainzSaveMessage = null) }
+    }
+
+    fun clearStatsfmSaveMessage() {
+        _uiState.update { it.copy(statsfmSaveMessage = null) }
     }
 
     fun clearSyncStatusMessage() {

@@ -419,7 +419,7 @@
     <!-- Integrations Catalog & Plugin System -->
     <string name="title_integrations_catalog">Entegrasyon Kataloğu</string>
     <string name="catalog_subtitle">Modüler servis eklentileri ve veri kaynakları</string>
-    <string name="catalog_search_hint">Eklenti ara (Last.fm, Scrobbler, Kitap, Film…)…</string>
+    <string name="catalog_search_hint">Entegrasyonlarda ara…</string>
     <string name="catalog_add_integration">Entegrasyon Ekle</string>
     <string name="catalog_plugin_active">Aktif</string>
     <string name="catalog_plugin_inactive">Pasif</string>
@@ -435,6 +435,63 @@
     <string name="catalog_banner_title">Modüler Servis Ekosistemi</string>
     <string name="catalog_banner_desc">Kişisel verilerinizi toplamak için istediğiniz eklentiyi aktif edin veya yapılandırın.</string>
     <string name="catalog_webhook_status_active">Webhook Bağlantısı Aktif</string>
+
+    <!-- Integration Types -->
+    <string name="integration_type_api_sync">API Senkronizasyonu</string>
+    <string name="integration_type_rss_feed">RSS Beslemesi</string>
+    <string name="integration_type_webhook">Webhook</string>
+    <string name="integration_type_oauth_byok">OAuth 1.0 (BYOK)</string>
+
+    <!-- Plugin Badges -->
+    <string name="plugin_badge_browser_extension">Tarayıcı Eklentisi</string>
+    <string name="plugin_badge_api_sync">API Senkronizasyonu</string>
+    <string name="plugin_badge_rss_feed">RSS Beslemesi</string>
+    <string name="plugin_badge_oauth_byok">OAuth 1.0 (BYOK)</string>
+    <string name="plugin_badge_android_webhook">Android Webhook</string>
+    <string name="plugin_badge_system_webhook">Sistem Webhook</string>
+    <string name="plugin_badge_in_development">Geliştirme Aşamasında</string>
+
+    <!-- Plugin Descriptions -->
+    <string name="plugin_desc_web_scrobbler">Chrome, Firefox ve Edge tarayıcınızdan dinlenen müzikleri anında sunucunuza aktarın.</string>
+    <string name="plugin_long_desc_web_scrobbler">YouTube, Spotify Web, SoundCloud, Bandcamp ve 300\'den fazla web müzik çalarını destekleyen açık kaynaklı Web Scrobbler eklentisi. Dinlemelerinizi doğrudan sunucunuzun webhook adresine iletir.</string>
+    <string name="plugin_desc_lastfm">Müzik dinleme geçmişi ve profil senkronizasyonu.</string>
+    <string name="plugin_long_desc_lastfm">Last.fm hesabınızdaki dinleme geçmişini düzenli aralıklarla sunucunuza çeker ve müzik istatistiklerinizi günceller.</string>
+    <string name="plugin_desc_goodreads">Kitap okuma günlüğü ve raflar senkronizasyonu.</string>
+    <string name="plugin_long_desc_goodreads">Goodreads profilinizin herkese açık RSS beslemesini kullanarak okuduğunuz ve okumayı planladığınız kitapları eşitler.</string>
+    <string name="plugin_desc_letterboxd">Film izleme günlüğü ve puanlar senkronizasyonu.</string>
+    <string name="plugin_long_desc_letterboxd">Letterboxd profilinizin RSS beslemesini okuyarak izlediğiniz filmleri, puanları ve günlük kayıtlarını sunucunuza aktarır.</string>
+    <string name="plugin_desc_fatsecret">Günlük kalori, makro ve öğün günlüğü entegrasyonu.</string>
+    <string name="plugin_long_desc_fatsecret">Kendi FatSecret Platform API anahtarlarınız (BYOK) ile güvenli bağlantı kurarak besin tüketim verilerinizi eşitler.</string>
+    <string name="plugin_desc_health_connect">Adım, uyku, nabız ve antrenman verilerini aktarın.</string>
+    <string name="plugin_long_desc_health_connect">Açık kaynaklı Health Connect Webhook yardımcısı ile Android cihazınızdaki sağlık ve aktivite ölçümlerini sunucunuza iletir.</string>
+    <string name="plugin_desc_notification_relay">Android bildirim akışını güvenli biçimde sunucuya aktarın.</string>
+    <string name="plugin_long_desc_notification_relay">Notification Relay uygulaması ile gelen cihaz bildirimlerini kategorize ederek zaman tünelinize kaydeder.</string>
+    <string name="plugin_desc_spotify">Doğrudan Spotify Connect ve anlık çalan şarkı senkronizasyonu.</string>
+    <string name="plugin_long_desc_spotify">Geliştirme aşamasında: Spotify Client ID ve Secret desteği yakında eklenecektir.</string>
+
+    <!-- ListenBrainz & Stats.fm Plugins -->
+    <string name="plugin_badge_listenbrainz">MetaBrainz</string>
+    <string name="plugin_desc_listenbrainz">Açık kaynak müzik dinleme geçmişi ve profil senkronizasyonu.</string>
+    <string name="plugin_long_desc_listenbrainz">MetaBrainz destekli açık kaynak müzik topluluğu ListenBrainz\'den dinleme geçmişinizi ve istatistiklerinizi eşitler.</string>
+    <string name="plugin_badge_statsfm">Spotistats</string>
+    <string name="plugin_desc_statsfm">Spotify dinlemeleri ve istatistik senkronizasyonu.</string>
+    <string name="plugin_long_desc_statsfm">Herkese açık Stats.fm (Spotistats) profilinizden Spotify akışlarını ve dinleme analitiklerini aktarır.</string>
+
+    <string name="settings_listenbrainz_title">ListenBrainz</string>
+    <string name="settings_listenbrainz_desc">MetaBrainz destekli açık kaynaklı müzik scrobble geçmişi</string>
+    <string name="settings_listenbrainz_username">ListenBrainz Kullanıcı Adı</string>
+    <string name="settings_listenbrainz_token">Kullanıcı Tokenı (İsteğe Bağlı)</string>
+    <string name="settings_listenbrainz_token_set">Kullanıcı Tokenı kayıtlı</string>
+    <string name="settings_listenbrainz_save">ListenBrainz Kaydet</string>
+    <string name="settings_listenbrainz_sync">ListenBrainz Eşitle</string>
+    <string name="settings_listenbrainz_hint">Dinlemeleri çekmek için yalnızca herkese açık kullanıcı adınız yeterlidir.</string>
+
+    <string name="settings_statsfm_title">Stats.fm</string>
+    <string name="settings_statsfm_desc">Stats.fm üzerinden Spotify dinleme akışları ve analitikleri</string>
+    <string name="settings_statsfm_username">Stats.fm Kullanıcı Adı / Özel ID</string>
+    <string name="settings_statsfm_save">Stats.fm Kaydet</string>
+    <string name="settings_statsfm_sync">Stats.fm Eşitle</string>
+    <string name="settings_statsfm_public_hint">Stats.fm gizlilik ayarlarından \'Son Çalınanlar\' (Recently Played) akışının herkese açık olduğundan emin olun.</string>
 
     <!-- Dynamic Settings Integrations -->
     <string name="settings_section_integrations">Aktif Entegrasyonlar ve Eklentiler</string>

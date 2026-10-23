@@ -419,7 +419,7 @@
     <!-- Integrations Catalog & Plugin System -->
     <string name="title_integrations_catalog">Integrations Catalog</string>
     <string name="catalog_subtitle">Modular service plugins and data sources</string>
-    <string name="catalog_search_hint">Search plugins (Last.fm, Scrobbler, Books, Films…)…</string>
+    <string name="catalog_search_hint">Search integrations…</string>
     <string name="catalog_add_integration">Add Integration</string>
     <string name="catalog_plugin_active">Active</string>
     <string name="catalog_plugin_inactive">Inactive</string>
@@ -435,6 +435,63 @@
     <string name="catalog_banner_title">Modular Service Ecosystem</string>
     <string name="catalog_banner_desc">Activate or configure any plugin to ingest your personal records seamlessly.</string>
     <string name="catalog_webhook_status_active">Webhook Connection Active</string>
+
+    <!-- Integration Types -->
+    <string name="integration_type_api_sync">API Sync</string>
+    <string name="integration_type_rss_feed">RSS Feed</string>
+    <string name="integration_type_webhook">Webhook</string>
+    <string name="integration_type_oauth_byok">OAuth 1.0 (BYOK)</string>
+
+    <!-- Plugin Badges -->
+    <string name="plugin_badge_browser_extension">Browser Extension</string>
+    <string name="plugin_badge_api_sync">API Sync</string>
+    <string name="plugin_badge_rss_feed">RSS Feed</string>
+    <string name="plugin_badge_oauth_byok">OAuth 1.0 (BYOK)</string>
+    <string name="plugin_badge_android_webhook">Android Webhook</string>
+    <string name="plugin_badge_system_webhook">System Webhook</string>
+    <string name="plugin_badge_in_development">In Development</string>
+
+    <!-- Plugin Descriptions -->
+    <string name="plugin_desc_web_scrobbler">Directly scrobble music played in Chrome, Firefox, or Edge to your server.</string>
+    <string name="plugin_long_desc_web_scrobbler">Supports YouTube, Spotify Web, SoundCloud, Bandcamp, and 300+ web music players. Scrobbles directly to your webhook endpoint.</string>
+    <string name="plugin_desc_lastfm">Music scrobble history and profile synchronization.</string>
+    <string name="plugin_long_desc_lastfm">Fetches scrobble history from Last.fm at regular intervals to keep your music statistics up to date.</string>
+    <string name="plugin_desc_goodreads">Book reading log and shelves synchronization.</string>
+    <string name="plugin_long_desc_goodreads">Syncs read and want-to-read books using your public Goodreads profile RSS feed.</string>
+    <string name="plugin_desc_letterboxd">Film diary and movie ratings synchronization.</string>
+    <string name="plugin_long_desc_letterboxd">Reads your Letterboxd RSS feed to import watched films, ratings, and diary entries to your server.</string>
+    <string name="plugin_desc_fatsecret">Daily calorie, macronutrient, and meal diary integration.</string>
+    <string name="plugin_long_desc_fatsecret">Securely connects using your own FatSecret Platform API keys (BYOK) to sync food and meal intake.</string>
+    <string name="plugin_desc_health_connect">Sync steps, sleep, heart rate, and workouts from your device.</string>
+    <string name="plugin_long_desc_health_connect">Uses the open-source Health Connect Webhook companion app to relay health and activity metrics to your server.</string>
+    <string name="plugin_desc_notification_relay">Capture and categorize Android device notification streams securely.</string>
+    <string name="plugin_long_desc_notification_relay">Captures incoming device notifications with Notification Relay and logs them to your personal timeline.</string>
+    <string name="plugin_desc_spotify">Direct Spotify Connect and playback tracking integration.</string>
+    <string name="plugin_long_desc_spotify">Coming soon: Playlist and currently playing track synchronization via Spotify Developer API.</string>
+
+    <!-- ListenBrainz & Stats.fm Plugins -->
+    <string name="plugin_badge_listenbrainz">MetaBrainz</string>
+    <string name="plugin_desc_listenbrainz">Open-source music scrobble history and profile sync.</string>
+    <string name="plugin_long_desc_listenbrainz">Sync your listening history and stats from ListenBrainz, the open-source music community powered by MetaBrainz.</string>
+    <string name="plugin_badge_statsfm">Spotistats</string>
+    <string name="plugin_desc_statsfm">Spotify streams and listening statistics sync.</string>
+    <string name="plugin_long_desc_statsfm">Sync Spotify streams, top tracks, and listening analytics from your public Stats.fm (Spotistats) profile.</string>
+
+    <string name="settings_listenbrainz_title">ListenBrainz</string>
+    <string name="settings_listenbrainz_desc">Open-source music scrobbling powered by MetaBrainz</string>
+    <string name="settings_listenbrainz_username">ListenBrainz Username</string>
+    <string name="settings_listenbrainz_token">User Token (Optional)</string>
+    <string name="settings_listenbrainz_token_set">User Token configured</string>
+    <string name="settings_listenbrainz_save">Save ListenBrainz</string>
+    <string name="settings_listenbrainz_sync">Sync ListenBrainz</string>
+    <string name="settings_listenbrainz_hint">Only your public username is needed to fetch scrobbles.</string>
+
+    <string name="settings_statsfm_title">Stats.fm</string>
+    <string name="settings_statsfm_desc">Spotify streams and listening analytics from Stats.fm</string>
+    <string name="settings_statsfm_username">Stats.fm Username / Custom ID</string>
+    <string name="settings_statsfm_save">Save Stats.fm</string>
+    <string name="settings_statsfm_sync">Sync Stats.fm</string>
+    <string name="settings_statsfm_public_hint">Make sure \'Recently Played\' is set to public in Stats.fm privacy settings.</string>
 
     <!-- Dynamic Settings Integrations -->
     <string name="settings_section_integrations">Active Integrations &amp; Plugins</string>
