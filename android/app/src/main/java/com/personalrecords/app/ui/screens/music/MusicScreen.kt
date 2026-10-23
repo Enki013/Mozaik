@@ -45,8 +45,7 @@ import com.personalrecords.app.core.network.model.MusicScrobbleDto
 import com.personalrecords.app.core.theme.*
 import com.personalrecords.app.ui.components.*
 import kotlinx.coroutines.launch
-
-private val MusicSourceKeys = listOf("all", "lastfm", "listenbrainz", "statsfm")
+import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -62,6 +61,25 @@ fun MusicScreen(
 
     val scrollBehavior = TopAppBarDefaults.enterAlwaysScrollBehavior(rememberTopAppBarState())
     val snackbarHostState = remember { SnackbarHostState() }
+
+    val availableSources = remember(state.scrobbles) {
+        val presentSources = state.scrobbles
+            .map { it.source.lowercase(Locale.ROOT).trim() }
+            .filter { it.isNotBlank() }
+            .distinct()
+
+        if (presentSources.size > 1) {
+            listOf("all") + presentSources
+        } else {
+            emptyList()
+        }
+    }
+
+    LaunchedEffect(availableSources) {
+        if (availableSources.isNotEmpty() && state.selectedFilter != "all" && state.selectedFilter !in availableSources) {
+            viewModel.setFilter("all")
+        }
+    }
 
     LaunchedEffect(state.syncMessage) {
         state.syncMessage?.let {
@@ -331,31 +349,35 @@ fun MusicScreen(
                                         }
                                     )
 
-                                    ExpressiveConnectedButtonGroup(
-                                        items = MusicSourceKeys,
-                                        selectedItem = state.selectedFilter,
-                                        onItemSelected = { source ->
-                                            if (state.selectedFilter != source) {
-                                                viewModel.setFilter(source)
+                                    if (availableSources.size > 1) {
+                                        ExpressiveConnectedButtonGroup(
+                                            items = availableSources,
+                                            selectedItem = if (state.selectedFilter in availableSources) state.selectedFilter else "all",
+                                            onItemSelected = { source ->
+                                                if (state.selectedFilter != source) {
+                                                    viewModel.setFilter(source)
+                                                }
+                                            },
+                                            labelProvider = { source ->
+                                                when (source) {
+                                                    "lastfm" -> stringResource(R.string.music_filter_lastfm)
+                                                    "listenbrainz" -> stringResource(R.string.music_filter_listenbrainz)
+                                                    "statsfm" -> stringResource(R.string.music_filter_statsfm)
+                                                    "all" -> stringResource(R.string.music_filter_all)
+                                                    else -> source.replaceFirstChar { if (it.isLowerCase()) it.titlecase(Locale.ROOT) else it.toString() }
+                                                }
+                                            },
+                                            iconProvider = { source, _ ->
+                                                when (source) {
+                                                    "lastfm" -> Icons.Default.CloudSync
+                                                    "listenbrainz" -> Icons.Default.GraphicEq
+                                                    "statsfm" -> Icons.Default.Equalizer
+                                                    "all" -> Icons.Default.LibraryMusic
+                                                    else -> Icons.Default.Source
+                                                }
                                             }
-                                        },
-                                        labelProvider = { source ->
-                                            when (source) {
-                                                "lastfm" -> stringResource(R.string.music_filter_lastfm)
-                                                "listenbrainz" -> stringResource(R.string.music_filter_listenbrainz)
-                                                "statsfm" -> stringResource(R.string.music_filter_statsfm)
-                                                else -> stringResource(R.string.music_filter_all)
-                                            }
-                                        },
-                                        iconProvider = { source, _ ->
-                                            when (source) {
-                                                "lastfm" -> Icons.Default.CloudSync
-                                                "listenbrainz" -> Icons.Default.GraphicEq
-                                                "statsfm" -> Icons.Default.Equalizer
-                                                else -> Icons.Default.LibraryMusic
-                                            }
-                                        }
-                                    )
+                                        )
+                                    }
 
                                     if (state.selectedArtist != null) {
                                         ExpressiveFilterChip(

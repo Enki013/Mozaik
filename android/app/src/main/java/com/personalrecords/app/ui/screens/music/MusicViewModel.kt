@@ -51,11 +51,9 @@ private fun filterAndSortMusicScrobbles(
 ): List<MusicScrobbleDto> {
     if (scrobbles.isEmpty()) return emptyList()
     val filtered = scrobbles.filter { item ->
-        val matchesSource = when (selectedFilter) {
-            "lastfm" -> item.source.equals("lastfm", ignoreCase = true)
-            "listenbrainz" -> item.source.equals("listenbrainz", ignoreCase = true)
-            "statsfm" -> item.source.equals("statsfm", ignoreCase = true)
-            else -> true
+        val matchesSource = when {
+            selectedFilter == "all" || selectedFilter.isBlank() -> true
+            else -> item.source.equals(selectedFilter, ignoreCase = true)
         }
         val matchesArtist = selectedArtist.isNullOrBlank() || item.artist.equals(selectedArtist, ignoreCase = true)
 
