@@ -2008,32 +2008,38 @@ fun FoodEntryDetailContent(
                         )
                     }
 
-                    // 3-segment macro bar
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(8.dp)
-                            .clip(M3Shapes.CornerFull)
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxHeight()
-                                .weight(carbPct.coerceAtLeast(0.01f))
-                                .background(domainBooksColor())
+                    val carbColor = domainBooksColor()
+                    val protColor = domainNutritionColor()
+                    val fatColor = domainRatingColor()
+
+                    val segments = if (totalMacroKcal > 0) {
+                        listOf(
+                            carbPct to carbColor,
+                            protPct to protColor,
+                            fatPct to fatColor
                         )
-                        Box(
-                            modifier = Modifier
-                                .fillMaxHeight()
-                                .weight(protPct.coerceAtLeast(0.01f))
-                                .background(domainNutritionColor())
-                        )
-                        Box(
-                            modifier = Modifier
-                                .fillMaxHeight()
-                                .weight(fatPct.coerceAtLeast(0.01f))
-                                .background(domainRatingColor())
-                        )
+                    } else null
+
+                    var sheetAnimStarted by remember { mutableStateOf(false) }
+                    LaunchedEffect(item) {
+                        sheetAnimStarted = true
                     }
+                    val animatedProgress = animateFloatAsState(
+                        targetValue = if (sheetAnimStarted) 1f else 0f,
+                        animationSpec = M3ExpressiveMotion.defaultSpatial(),
+                        label = "food_detail_macro_prog"
+                    )
+
+                    // MD3 Expressive Segmented Linear Progress Indicator
+                    SegmentedLinearProgressIndicator(
+                        progress = { animatedProgress.value },
+                        segments = segments,
+                        modifier = Modifier.fillMaxWidth(),
+                        barHeight = 8.dp,
+                        gap = 3.dp,
+                        trackGap = 4.dp,
+                        trackColor = MaterialTheme.colorScheme.surfaceContainerHighest
+                    )
 
                     // 3 Macro columns
                     Row(
