@@ -27,7 +27,7 @@ data class MusicUiState(
     val scrobbles: List<MusicScrobbleDto> = emptyList(),
     val filteredScrobbles: List<MusicScrobbleDto> = emptyList(),
     val stats: MusicStatsDto = MusicStatsDto(),
-    val selectedFilter: String = "all", // "all", "lastfm", "web_scrobbler"
+    val selectedFilter: String = "all", // "all", "lastfm", "listenbrainz", "statsfm"
     val selectedArtist: String? = null,
     val selectedDateFilter: String? = null,
     val fromDateFilter: String? = null,
@@ -53,7 +53,8 @@ private fun filterAndSortMusicScrobbles(
     val filtered = scrobbles.filter { item ->
         val matchesSource = when (selectedFilter) {
             "lastfm" -> item.source.equals("lastfm", ignoreCase = true)
-            "web_scrobbler" -> item.source.contains("scrobbl", ignoreCase = true)
+            "listenbrainz" -> item.source.equals("listenbrainz", ignoreCase = true)
+            "statsfm" -> item.source.equals("statsfm", ignoreCase = true)
             else -> true
         }
         val matchesArtist = selectedArtist.isNullOrBlank() || item.artist.equals(selectedArtist, ignoreCase = true)

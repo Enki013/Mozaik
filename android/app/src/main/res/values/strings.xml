@@ -361,6 +361,8 @@
     <string name="music_stats_today">Today</string>
     <string name="music_stats_artists">Artists</string>
     <string name="music_stats_albums">Albums</string>
+    <string name="music_stats_artists_count">%1$d artists</string>
+    <string name="music_stats_albums_count">%1$d albums</string>
     <string name="music_top_artists">Top Artists</string>
     <string name="sort_newest">Newest</string>
     <string name="sort_oldest">Oldest</string>
@@ -370,10 +372,12 @@
     <string name="music_open_failed">Could not open link</string>
     <string name="music_filter_all">All</string>
     <string name="music_filter_lastfm">Last.fm</string>
+    <string name="music_filter_listenbrainz">ListenBrainz</string>
+    <string name="music_filter_statsfm">Stats.fm</string>
     <string name="music_filter_scrobbler">Web Scrobbler</string>
     <string name="music_search_hint">Search track, artist, album…</string>
     <string name="music_empty_title">No music scrobbles yet</string>
-    <string name="music_empty_desc">Scrobble music using Web Scrobbler extension or sync your Last.fm history.</string>
+    <string name="music_empty_desc">Sync your music history from Last.fm, ListenBrainz, or Stats.fm.</string>
     <string name="music_sync_lastfm">Sync Last.fm</string>
     <string name="music_syncing">Syncing Last.fm…</string>
     <string name="music_settings_title">Music &amp; Scrobbler Settings</string>

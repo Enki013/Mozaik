@@ -31,6 +31,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
@@ -45,7 +46,7 @@ import com.personalrecords.app.core.theme.*
 import com.personalrecords.app.ui.components.*
 import kotlinx.coroutines.launch
 
-private val MusicSourceKeys = listOf("all", "lastfm", "web_scrobbler")
+private val MusicSourceKeys = listOf("all", "lastfm", "listenbrainz", "statsfm")
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -56,10 +57,10 @@ fun MusicScreen(
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     var selectedScrobble by remember { mutableStateOf<MusicScrobbleDto?>(null) }
     var showDatePicker by remember { mutableStateOf(false) }
-    var showWebScrobblerSheet by remember { mutableStateOf(false) }
     val coroutineScope = rememberCoroutineScope()
     val context = LocalContext.current
 
+    val scrollBehavior = TopAppBarDefaults.enterAlwaysScrollBehavior(rememberTopAppBarState())
     val snackbarHostState = remember { SnackbarHostState() }
 
     LaunchedEffect(state.syncMessage) {
@@ -73,21 +74,6 @@ fun MusicScreen(
         state.error?.let {
             snackbarHostState.showSnackbar(it)
             viewModel.clearError()
-        }
-    }
-
-    val syncRotation = remember { Animatable(0f) }
-    LaunchedEffect(state.isSyncingLastFm) {
-        if (state.isSyncingLastFm) {
-            syncRotation.animateTo(
-                targetValue = syncRotation.value + 360f,
-                animationSpec = infiniteRepeatable(
-                    animation = tween(1000, easing = LinearEasing),
-                    repeatMode = RepeatMode.Restart
-                )
-            )
-        } else {
-            syncRotation.snapTo(0f)
         }
     }
 
@@ -109,7 +95,9 @@ fun MusicScreen(
     }
 
     Scaffold(
-        modifier = Modifier.fillMaxSize(),
+        modifier = Modifier
+            .fillMaxSize()
+            .nestedScroll(scrollBehavior.nestedScrollConnection),
         contentWindowInsets = WindowInsets.statusBars,
         snackbarHost = {
             SnackbarHost(
@@ -127,6 +115,7 @@ fun MusicScreen(
                         style = MaterialTheme.typography.titleLargeEmphasized
                     )
                 },
+                scrollBehavior = scrollBehavior,
                 navigationIcon = {
                     if (onNavigateBack != null) {
                         IconButton(onClick = onNavigateBack) {
@@ -137,37 +126,24 @@ fun MusicScreen(
                         }
                     }
                 },
-                actions = {
-                    IconButton(
-                        onClick = { showWebScrobblerSheet = true }
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Extension,
-                            contentDescription = stringResource(R.string.music_action_scrobbler_info),
-                            tint = MaterialTheme.colorScheme.onSurface
-                        )
-                    }
-                    IconButton(
-                        onClick = { viewModel.syncLastFm() },
-                        enabled = !state.isSyncingLastFm
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Sync,
-                            contentDescription = stringResource(R.string.music_sync_lastfm),
-                            modifier = Modifier.rotate(syncRotation.value),
-                            tint = if (state.isSyncingLastFm) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
-                        )
-                    }
-                },
+                actions = {},
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.surface
                 )
             )
         }
     ) { innerPadding ->
+        var isRefreshing by remember { mutableStateOf(false) }
+        LaunchedEffect(state.isLoading) {
+            if (!state.isLoading) isRefreshing = false
+        }
+
         ExpressivePullToRefreshBox(
-            isRefreshing = state.isRefreshing,
-            onRefresh = { viewModel.refresh() },
+            isRefreshing = isRefreshing,
+            onRefresh = {
+                isRefreshing = true
+                viewModel.refresh()
+            },
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
@@ -366,14 +342,16 @@ fun MusicScreen(
                                         labelProvider = { source ->
                                             when (source) {
                                                 "lastfm" -> stringResource(R.string.music_filter_lastfm)
-                                                "web_scrobbler" -> stringResource(R.string.music_filter_scrobbler)
+                                                "listenbrainz" -> stringResource(R.string.music_filter_listenbrainz)
+                                                "statsfm" -> stringResource(R.string.music_filter_statsfm)
                                                 else -> stringResource(R.string.music_filter_all)
                                             }
                                         },
                                         iconProvider = { source, _ ->
                                             when (source) {
                                                 "lastfm" -> Icons.Default.CloudSync
-                                                "web_scrobbler" -> Icons.Default.Extension
+                                                "listenbrainz" -> Icons.Default.GraphicEq
+                                                "statsfm" -> Icons.Default.Equalizer
                                                 else -> Icons.Default.LibraryMusic
                                             }
                                         }
@@ -459,9 +437,7 @@ fun MusicScreen(
                     } else if (state.filteredScrobbles.isEmpty()) {
                         item(key = "empty_state") {
                             EmptyMusicView(
-                                isWebScrobblerFilter = state.selectedFilter == "web_scrobbler",
                                 onSyncClick = { viewModel.syncLastFm() },
-                                onWebScrobblerClick = { showWebScrobblerSheet = true },
                                 isSyncing = state.isSyncingLastFm
                             )
                         }
@@ -480,18 +456,6 @@ fun MusicScreen(
                 }
             }
         }
-    }
-
-    if (showWebScrobblerSheet) {
-        WebScrobblerBrandBottomSheet(
-            webhookUrl = state.webhookUrl,
-            onDismiss = { showWebScrobblerSheet = false },
-            onShowSnackbar = { msg ->
-                coroutineScope.launch {
-                    snackbarHostState.showSnackbar(msg)
-                }
-            }
-        )
     }
 
     selectedScrobble?.let { scrobble ->
@@ -514,66 +478,31 @@ private fun MusicMetricsHeader(
     uniqueArtists: Int,
     uniqueAlbums: Int
 ) {
-    Column(
+    Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 8.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp)
+            .padding(horizontal = 12.dp)
+            .padding(bottom = 8.dp),
+        horizontalArrangement = Arrangement.spacedBy(6.dp)
     ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            MetricCard(
-                title = stringResource(R.string.music_stats_total),
-                value = totalScrobbles.toString(),
-                badgeText = "All Time",
-                note = "Scrobbles",
-                valueIcon = Icons.Default.MusicNote,
-                valueIconTint = MaterialTheme.colorScheme.primary,
-                badgeBg = MaterialTheme.colorScheme.primaryContainer,
-                badgeColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                modifier = Modifier.weight(1f)
-            )
-            MetricCard(
-                title = stringResource(R.string.music_stats_today),
-                value = todayScrobbles.toString(),
-                badgeText = "Today",
-                note = "Tracks",
-                valueIcon = Icons.Default.Today,
-                valueIconTint = MaterialTheme.colorScheme.secondary,
-                badgeBg = MaterialTheme.colorScheme.secondaryContainer,
-                badgeColor = MaterialTheme.colorScheme.onSecondaryContainer,
-                modifier = Modifier.weight(1f)
-            )
-        }
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            MetricCard(
-                title = stringResource(R.string.music_stats_artists),
-                value = uniqueArtists.toString(),
-                badgeText = "Artists",
-                note = "Unique",
-                valueIcon = Icons.Default.Person,
-                valueIconTint = MaterialTheme.colorScheme.tertiary,
-                badgeBg = MaterialTheme.colorScheme.tertiaryContainer,
-                badgeColor = MaterialTheme.colorScheme.onTertiaryContainer,
-                modifier = Modifier.weight(1f)
-            )
-            MetricCard(
-                title = stringResource(R.string.music_stats_albums),
-                value = uniqueAlbums.toString(),
-                badgeText = "Albums",
-                note = "Unique",
-                valueIcon = Icons.Default.Album,
-                valueIconTint = domainCinemaColor(),
-                badgeBg = domainCinemaContainer(),
-                badgeColor = domainCinemaOnContainer(),
-                modifier = Modifier.weight(1f)
-            )
-        }
+        MetricCard(
+            title = stringResource(R.string.music_stats_total),
+            value = "$totalScrobbles",
+            badgeText = stringResource(R.string.music_filter_lastfm),
+            note = stringResource(R.string.music_stats_artists_count, uniqueArtists),
+            modifier = Modifier.weight(1f),
+            badgeBg = domainMusicContainer(),
+            badgeColor = domainMusicOnContainer()
+        )
+        MetricCard(
+            title = stringResource(R.string.music_stats_today),
+            value = "$todayScrobbles",
+            badgeText = stringResource(R.string.music_stats_today),
+            note = stringResource(R.string.music_stats_albums_count, uniqueAlbums),
+            modifier = Modifier.weight(1f),
+            badgeBg = domainRatingContainer(),
+            badgeColor = domainRatingOnContainer()
+        )
     }
 }
 
@@ -652,11 +581,11 @@ private fun ScrobbleListItem(
                 horizontalAlignment = Alignment.End,
                 verticalArrangement = Arrangement.spacedBy(4.dp)
             ) {
-                val sourceLabel = if (scrobble.source.contains("lastfm", ignoreCase = true)) "Last.fm" else "Web Scrobbler"
-                val sourceColor = if (scrobble.source.contains("lastfm", ignoreCase = true)) {
-                    MaterialTheme.colorScheme.error
-                } else {
-                    MaterialTheme.colorScheme.primary
+                val (sourceLabel, sourceColor) = when {
+                    scrobble.source.contains("lastfm", ignoreCase = true) -> "Last.fm" to MaterialTheme.colorScheme.error
+                    scrobble.source.contains("listenbrainz", ignoreCase = true) -> "ListenBrainz" to domainBooksColor()
+                    scrobble.source.contains("statsfm", ignoreCase = true) -> "Stats.fm" to domainNutritionColor()
+                    else -> scrobble.source.replaceFirstChar { it.uppercase() } to MaterialTheme.colorScheme.primary
                 }
 
                 Surface(
@@ -686,9 +615,7 @@ private fun ScrobbleListItem(
 
 @Composable
 private fun EmptyMusicView(
-    isWebScrobblerFilter: Boolean,
     onSyncClick: () -> Unit,
-    onWebScrobblerClick: () -> Unit,
     isSyncing: Boolean
 ) {
     Card(
@@ -711,283 +638,50 @@ private fun EmptyMusicView(
                 modifier = Modifier
                     .size(64.dp)
                     .clip(CircleShape)
-                    .background(
-                        if (isWebScrobblerFilter) MaterialTheme.colorScheme.tertiaryContainer
-                        else MaterialTheme.colorScheme.primaryContainer
-                    ),
+                    .background(MaterialTheme.colorScheme.primaryContainer),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
-                    imageVector = if (isWebScrobblerFilter) Icons.Default.Extension else Icons.Default.MusicNote,
+                    imageVector = Icons.Default.MusicNote,
                     contentDescription = null,
-                    tint = if (isWebScrobblerFilter) MaterialTheme.colorScheme.onTertiaryContainer
-                    else MaterialTheme.colorScheme.onPrimaryContainer,
+                    tint = MaterialTheme.colorScheme.onPrimaryContainer,
                     modifier = Modifier.size(32.dp)
                 )
             }
 
             Text(
-                text = if (isWebScrobblerFilter) stringResource(R.string.music_empty_webscrobbler_title)
-                else stringResource(R.string.music_empty_title),
+                text = stringResource(R.string.music_empty_title),
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.onSurface
             )
 
             Text(
-                text = if (isWebScrobblerFilter) stringResource(R.string.music_empty_webscrobbler_desc)
-                else stringResource(R.string.music_empty_desc),
+                text = stringResource(R.string.music_empty_desc),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(horizontal = 8.dp)
             )
 
-            if (isWebScrobblerFilter) {
-                Button(
-                    onClick = onWebScrobblerClick,
-                    shape = M3Shapes.CornerFull,
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = MaterialTheme.colorScheme.tertiary
-                    )
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Extension,
-                        contentDescription = null,
-                        modifier = Modifier.size(18.dp)
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        text = stringResource(R.string.music_empty_webscrobbler_action),
-                        style = MaterialTheme.typography.labelLargeEmphasized
-                    )
-                }
-            } else {
-                Button(
-                    onClick = onSyncClick,
-                    enabled = !isSyncing,
-                    shape = M3Shapes.CornerFull,
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = MaterialTheme.colorScheme.primary
-                    )
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Sync,
-                        contentDescription = null,
-                        modifier = Modifier.size(18.dp)
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        text = if (isSyncing) stringResource(R.string.music_syncing) else stringResource(R.string.music_sync_lastfm),
-                        style = MaterialTheme.typography.labelLargeEmphasized
-                    )
-                }
-            }
-        }
-    }
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun WebScrobblerBrandBottomSheet(
-    webhookUrl: String,
-    onDismiss: () -> Unit,
-    onShowSnackbar: (String) -> Unit
-) {
-    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-    val context = LocalContext.current
-    val clipboardManager = remember {
-        context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-    }
-    val effectiveWebhookUrl = webhookUrl.ifBlank {
-        "https://.../api/webhooks/music"
-    }
-
-    ModalBottomSheet(
-        onDismissRequest = onDismiss,
-        sheetState = sheetState,
-        shape = M3Shapes.CornerExtraLarge,
-        containerColor = MaterialTheme.colorScheme.surfaceContainerLow
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 20.dp, vertical = 8.dp)
-                .navigationBarsPadding(),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
-        ) {
-            // Header Row: Extension Icon + Title + Brand Badge
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
+            Button(
+                onClick = onSyncClick,
+                enabled = !isSyncing,
+                shape = M3Shapes.CornerFull,
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.primary
+                )
             ) {
-                Row(
-                    modifier = Modifier.weight(1f),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .size(48.dp)
-                            .clip(RoundedCornerShape(12.dp))
-                            .background(MaterialTheme.colorScheme.tertiaryContainer),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Extension,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.onTertiaryContainer,
-                            modifier = Modifier.size(24.dp)
-                        )
-                    }
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            text = stringResource(R.string.settings_webscrobbler_title),
-                            style = MaterialTheme.typography.titleMediumEmphasized,
-                            color = MaterialTheme.colorScheme.onSurface
-                        )
-                        Text(
-                            text = stringResource(R.string.settings_webscrobbler_desc),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                }
-
-                Surface(
-                    shape = M3Shapes.CornerFull,
-                    color = MaterialTheme.colorScheme.tertiaryContainer
-                ) {
-                    Text(
-                        text = stringResource(R.string.badge_brand_integration),
-                        color = MaterialTheme.colorScheme.onTertiaryContainer,
-                        style = MaterialTheme.typography.labelSmallEmphasized,
-                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
-                    )
-                }
+                Icon(
+                    imageVector = Icons.Default.Sync,
+                    contentDescription = null,
+                    modifier = Modifier.size(18.dp)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = if (isSyncing) stringResource(R.string.music_syncing) else stringResource(R.string.music_sync_lastfm),
+                    style = MaterialTheme.typography.labelLargeEmphasized
+                )
             }
-
-            Text(
-                text = stringResource(R.string.settings_webscrobbler_summary),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-
-            // Webhook Target URL box
-            Surface(
-                shape = M3Shapes.CornerMedium,
-                color = MaterialTheme.colorScheme.surfaceContainerHighest,
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Column(modifier = Modifier.padding(12.dp)) {
-                    Text(
-                        text = stringResource(R.string.settings_target_webhook_url),
-                        style = MaterialTheme.typography.labelSmallEmphasized,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    Spacer(modifier = Modifier.height(4.dp))
-                    SelectionContainer {
-                        Text(
-                            text = effectiveWebhookUrl,
-                            style = MaterialTheme.typography.bodySmallEmphasized,
-                            color = MaterialTheme.colorScheme.primary
-                        )
-                    }
-                }
-            }
-
-            // Action Buttons
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                Button(
-                    onClick = {
-                        val clip = ClipData.newPlainText("Webhook URL", effectiveWebhookUrl)
-                        clipboardManager.setPrimaryClip(clip)
-                        onShowSnackbar(context.getString(R.string.toast_webhook_copied))
-                    },
-                    shape = M3Shapes.CornerMedium,
-                    modifier = Modifier.weight(1f)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.ContentCopy,
-                        contentDescription = null,
-                        modifier = Modifier.size(16.dp)
-                    )
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text(
-                        text = stringResource(R.string.action_copy_url),
-                        style = MaterialTheme.typography.labelLargeEmphasized,
-                        maxLines = 1,
-                        softWrap = false,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                }
-
-                OutlinedButton(
-                    onClick = {
-                        try {
-                            val intent = Intent(
-                                Intent.ACTION_VIEW,
-                                Uri.parse("https://web-scrobbler.com/")
-                            )
-                            context.startActivity(intent)
-                        } catch (e: Exception) {
-                            onShowSnackbar(context.getString(R.string.music_open_failed))
-                        }
-                    },
-                    shape = M3Shapes.CornerMedium,
-                    modifier = Modifier.weight(1f)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.OpenInBrowser,
-                        contentDescription = null,
-                        modifier = Modifier.size(16.dp)
-                    )
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text(
-                        text = "Web Scrobbler",
-                        style = MaterialTheme.typography.labelLarge,
-                        maxLines = 1,
-                        softWrap = false,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                }
-            }
-
-            // 3-step setup guide
-            Surface(
-                shape = M3Shapes.CornerMedium,
-                color = MaterialTheme.colorScheme.surfaceContainerHigh,
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Column(modifier = Modifier.padding(12.dp)) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(6.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.HelpOutline,
-                            contentDescription = null,
-                            modifier = Modifier.size(16.dp),
-                            tint = MaterialTheme.colorScheme.primary
-                        )
-                        Text(
-                            text = stringResource(R.string.settings_setup_guide_title),
-                            style = MaterialTheme.typography.labelMediumEmphasized
-                        )
-                    }
-                    Spacer(modifier = Modifier.height(6.dp))
-                    Text(
-                        text = "${stringResource(R.string.settings_webscrobbler_step_1)}\n${stringResource(R.string.settings_webscrobbler_step_2)}\n${stringResource(R.string.settings_webscrobbler_step_3)}",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.height(8.dp))
         }
     }
 }
@@ -1093,9 +787,15 @@ fun MusicDetailBottomSheet(
                     )
                 }
 
+                val displaySource = when {
+                    scrobble.source.contains("lastfm", ignoreCase = true) -> "Last.fm"
+                    scrobble.source.contains("listenbrainz", ignoreCase = true) -> "ListenBrainz"
+                    scrobble.source.contains("statsfm", ignoreCase = true) -> "Stats.fm"
+                    else -> scrobble.source.replaceFirstChar { it.uppercase() }
+                }
                 DetailInfoRow(
                     label = stringResource(R.string.music_detail_source),
-                    value = if (scrobble.source.contains("lastfm", ignoreCase = true)) "Last.fm" else "Web Scrobbler",
+                    value = displaySource,
                     icon = Icons.Default.Source
                 )
 

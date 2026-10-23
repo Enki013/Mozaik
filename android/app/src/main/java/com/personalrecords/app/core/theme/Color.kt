@@ -130,6 +130,14 @@ val HealthCrimsonDark = Color(0xFFF48FB1)
 val HealthCrimsonDarkContainer = Color(0xFF880E4F)
 val HealthCrimsonDarkOnContainer = Color(0xFFFCE4EC)
 
+// Music / Audio (Crimson / Coral)
+val MusicAccent = Color(0xFFD32F2F)
+val MusicAccentContainer = Color(0xFFFFCDD2)
+val MusicAccentOnContainer = Color(0xFFB71C1C)
+val MusicAccentDark = Color(0xFFEF9A9A)
+val MusicAccentDarkContainer = Color(0xFFB71C1C)
+val MusicAccentDarkOnContainer = Color(0xFFFFCDD2)
+
 // Backward compatibility references for existing code
 val PrimaryViolet = md_theme_light_primary
 val PrimaryVioletDark = md_theme_light_primaryContainer
