@@ -269,15 +269,18 @@ fun NutritionScreen(
                             else -> protColor
                         }
 
-                        // MD3 Expressive Wavy Linear Progress Indicator
-                        LinearWavyProgressIndicator(
+                        // MD3 Expressive Segmented Linear Progress Indicator
+                        SegmentedLinearProgressIndicator(
                             progress = { animatedProgressState.value },
+                            segments = macroSegments,
                             modifier = Modifier.fillMaxWidth(),
-                            color = barColor,
-                            trackColor = MaterialTheme.colorScheme.surfaceContainerHighest,
-                            segments = macroSegments
+                            barHeight = 8.dp,
+                            gap = 3.dp,
+                            trackGap = 4.dp,
+                            singleColor = barColor,
+                            trackColor = MaterialTheme.colorScheme.surfaceContainerHighest
                         )
-                        Spacer(modifier = Modifier.height(6.dp))
+                        Spacer(modifier = Modifier.height(8.dp))
 
                         Row(
                             modifier = Modifier.fillMaxWidth(),
@@ -375,17 +378,30 @@ fun NutritionScreen(
                         val protColor = domainNutritionColor()
                         val fatColor = domainRatingColor()
 
-                        // Multi-segment Bar
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(8.dp)
-                                .clip(M3Shapes.CornerFull)
-                        ) {
-                            Box(modifier = Modifier.fillMaxHeight().weight(carbPct.coerceAtLeast(0.01f)).background(carbColor))
-                            Box(modifier = Modifier.fillMaxHeight().weight(protPct.coerceAtLeast(0.01f)).background(protColor))
-                            Box(modifier = Modifier.fillMaxHeight().weight(fatPct.coerceAtLeast(0.01f)).background(fatColor))
-                        }
+                        val breakdownSegments = if (totalKcal > 0) {
+                            listOf(
+                                carbPct to carbColor,
+                                protPct to protColor,
+                                fatPct to fatColor
+                            )
+                        } else null
+
+                        val animatedBreakdownProgress = animateFloatAsState(
+                            targetValue = if (animationStarted) 1f else 0f,
+                            animationSpec = M3ExpressiveMotion.defaultSpatial(),
+                            label = "breakdown_prog"
+                        )
+
+                        // MD3 Expressive Segmented Linear Progress Indicator
+                        SegmentedLinearProgressIndicator(
+                            progress = { animatedBreakdownProgress.value },
+                            segments = breakdownSegments,
+                            modifier = Modifier.fillMaxWidth(),
+                            barHeight = 8.dp,
+                            gap = 3.dp,
+                            trackGap = 4.dp,
+                            trackColor = MaterialTheme.colorScheme.surfaceContainerHighest
+                        )
                         Spacer(modifier = Modifier.height(8.dp))
 
                         Row(

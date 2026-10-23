@@ -56,7 +56,9 @@ import coil.compose.AsyncImage
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.animation.Crossfade
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -995,6 +997,120 @@ fun LinearWavyProgressIndicator(
                 radius = halfStroke,
                 center = Offset(trackEndX, cy)
             )
+        }
+    }
+}
+
+/**
+ * MD3 Expressive Segmented Linear Progress Indicator.
+ *
+ * Visualizes multi-category or nutrient distribution (such as Carbs, Protein, Fat)
+ * as discrete, capsule-shaped pills with fully rounded caps (Material 3 CornerFull)
+ * separated by a minimal spacing (`gap`).
+ *
+ * For determinate progress tracking, an inactive track with rounded caps is rendered for the
+ * remaining progress, separated from the active segments by `trackGap`.
+ */
+@Composable
+fun SegmentedLinearProgressIndicator(
+    progress: () -> Float,
+    segments: List<Pair<Float, Color>>?,
+    modifier: Modifier = Modifier,
+    barHeight: Dp = 8.dp,
+    gap: Dp = 3.dp,
+    trackGap: Dp = 4.dp,
+    trackColor: Color = MaterialTheme.colorScheme.surfaceContainerHighest,
+    singleColor: Color = MaterialTheme.colorScheme.primary,
+    drawStopIndicator: Boolean = false
+) {
+    val activeSegments = remember(segments) {
+        segments?.filter { it.first > 0f }.orEmpty()
+    }
+    val totalWeight = remember(activeSegments) {
+        activeSegments.sumOf { it.first.toDouble() }.toFloat()
+    }
+
+    Canvas(
+        modifier = modifier
+            .fillMaxWidth()
+            .height(barHeight)
+    ) {
+        val p = progress().coerceIn(0f, 1f)
+        val w = size.width
+        val h = size.height
+        if (w <= 0f || h <= 0f) return@Canvas
+
+        val gapPx = gap.toPx()
+        val trackGapPx = trackGap.toPx()
+        val activeWidth = (w * p).coerceIn(0f, w)
+
+        // 1. Draw Active Segment(s)
+        if (p > 0.005f && activeWidth > 0f) {
+            if (activeSegments.isNotEmpty() && totalWeight > 0f) {
+                val n = activeSegments.size
+                val totalGaps = if (n > 1) (n - 1) * gapPx else 0f
+                val effectiveGap = if (activeWidth > totalGaps + n * 2f) {
+                    gapPx
+                } else {
+                    (activeWidth / (n * 3f)).coerceAtLeast(0f)
+                }
+                val effectiveTotalGaps = if (n > 1) (n - 1) * effectiveGap else 0f
+                val availableSpan = (activeWidth - effectiveTotalGaps).coerceAtLeast(0f)
+
+                var curX = 0f
+                activeSegments.forEach { (weight, color) ->
+                    val segFraction = weight / totalWeight
+                    val segWidth = (availableSpan * segFraction).coerceAtLeast(0f)
+
+                    if (segWidth > 0f) {
+                        val rx = (h / 2f).coerceAtMost(segWidth / 2f)
+                        val ry = h / 2f
+                        drawRoundRect(
+                            color = color,
+                            topLeft = Offset(curX, 0f),
+                            size = Size(segWidth, h),
+                            cornerRadius = CornerRadius(rx, ry)
+                        )
+                    }
+                    curX += segWidth + effectiveGap
+                }
+            } else {
+                // Fallback: single active pill
+                val rx = (h / 2f).coerceAtMost(activeWidth / 2f)
+                val ry = h / 2f
+                drawRoundRect(
+                    color = singleColor,
+                    topLeft = Offset(0f, 0f),
+                    size = Size(activeWidth, h),
+                    cornerRadius = CornerRadius(rx, ry)
+                )
+            }
+        }
+
+        // 2. Draw Inactive Track
+        val trackStartX = if (p > 0.005f) {
+            (activeWidth + trackGapPx)
+        } else {
+            0f
+        }
+        val trackEndX = w
+        val trackWidth = trackEndX - trackStartX
+        if (trackWidth > 1f) {
+            val rx = (h / 2f).coerceAtMost(trackWidth / 2f)
+            val ry = h / 2f
+            drawRoundRect(
+                color = trackColor,
+                topLeft = Offset(trackStartX, 0f),
+                size = Size(trackWidth, h),
+                cornerRadius = CornerRadius(rx, ry)
+            )
+            if (drawStopIndicator && trackWidth >= h) {
+                drawCircle(
+                    color = singleColor,
+                    radius = h / 2f,
+                    center = Offset(w - h / 2f, h / 2f)
+                )
+            }
         }
     }
 }
