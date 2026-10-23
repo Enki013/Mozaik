@@ -478,31 +478,66 @@ private fun MusicMetricsHeader(
     uniqueArtists: Int,
     uniqueAlbums: Int
 ) {
-    Row(
+    Column(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 12.dp)
-            .padding(bottom = 8.dp),
-        horizontalArrangement = Arrangement.spacedBy(6.dp)
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-        MetricCard(
-            title = stringResource(R.string.music_stats_total),
-            value = "$totalScrobbles",
-            badgeText = stringResource(R.string.music_filter_lastfm),
-            note = stringResource(R.string.music_stats_artists_count, uniqueArtists),
-            modifier = Modifier.weight(1f),
-            badgeBg = domainMusicContainer(),
-            badgeColor = domainMusicOnContainer()
-        )
-        MetricCard(
-            title = stringResource(R.string.music_stats_today),
-            value = "$todayScrobbles",
-            badgeText = stringResource(R.string.music_stats_today),
-            note = stringResource(R.string.music_stats_albums_count, uniqueAlbums),
-            modifier = Modifier.weight(1f),
-            badgeBg = domainRatingContainer(),
-            badgeColor = domainRatingOnContainer()
-        )
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            MetricCard(
+                title = stringResource(R.string.music_stats_total),
+                value = totalScrobbles.toString(),
+                badgeText = "All Time",
+                note = "Scrobbles",
+                valueIcon = Icons.Default.MusicNote,
+                valueIconTint = domainMusicColor(),
+                badgeBg = domainMusicContainer(),
+                badgeColor = domainMusicOnContainer(),
+                modifier = Modifier.weight(1f)
+            )
+            MetricCard(
+                title = stringResource(R.string.music_stats_today),
+                value = todayScrobbles.toString(),
+                badgeText = "Today",
+                note = "Tracks",
+                valueIcon = Icons.Default.Today,
+                valueIconTint = MaterialTheme.colorScheme.secondary,
+                badgeBg = MaterialTheme.colorScheme.secondaryContainer,
+                badgeColor = MaterialTheme.colorScheme.onSecondaryContainer,
+                modifier = Modifier.weight(1f)
+            )
+        }
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            MetricCard(
+                title = stringResource(R.string.music_stats_artists),
+                value = uniqueArtists.toString(),
+                badgeText = "Artists",
+                note = "Unique",
+                valueIcon = Icons.Default.Person,
+                valueIconTint = MaterialTheme.colorScheme.tertiary,
+                badgeBg = MaterialTheme.colorScheme.tertiaryContainer,
+                badgeColor = MaterialTheme.colorScheme.onTertiaryContainer,
+                modifier = Modifier.weight(1f)
+            )
+            MetricCard(
+                title = stringResource(R.string.music_stats_albums),
+                value = uniqueAlbums.toString(),
+                badgeText = "Albums",
+                note = "Unique",
+                valueIcon = Icons.Default.Album,
+                valueIconTint = domainCinemaColor(),
+                badgeBg = domainCinemaContainer(),
+                badgeColor = domainCinemaOnContainer(),
+                modifier = Modifier.weight(1f)
+            )
+        }
     }
 }
 
