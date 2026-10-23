@@ -130,14 +130,34 @@ class MusicViewModel(
     fun refresh() {
         viewModelScope.launch {
             _uiState.update { it.copy(isRefreshing = true) }
-            fetchData(isRefresh = true)
+            try {
+                fetchData(isRefresh = true)
+            } catch (e: Exception) {
+                _uiState.update {
+                    it.copy(
+                        error = e.message ?: "Müzik verileri güncellenemedi"
+                    )
+                }
+            } finally {
+                _uiState.update { it.copy(isRefreshing = false, isLoading = false) }
+            }
         }
     }
 
     fun loadData() {
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = it.scrobbles.isEmpty()) }
-            fetchData(isRefresh = false)
+            try {
+                fetchData(isRefresh = false)
+            } catch (e: Exception) {
+                _uiState.update {
+                    it.copy(
+                        error = e.message ?: "Müzik verileri yüklenemedi"
+                    )
+                }
+            } finally {
+                _uiState.update { it.copy(isLoading = false, isRefreshing = false) }
+            }
         }
     }
 
@@ -185,7 +205,14 @@ class MusicViewModel(
                     )
                 }
             }
-            else -> {}
+            else -> {
+                _uiState.update {
+                    it.copy(
+                        isLoading = false,
+                        isRefreshing = false
+                    )
+                }
+            }
         }
     }
 

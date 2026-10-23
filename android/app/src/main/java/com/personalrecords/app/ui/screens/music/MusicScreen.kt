@@ -151,15 +151,9 @@ fun MusicScreen(
             )
         }
     ) { innerPadding ->
-        var isRefreshing by remember { mutableStateOf(false) }
-        LaunchedEffect(state.isLoading) {
-            if (!state.isLoading) isRefreshing = false
-        }
-
         ExpressivePullToRefreshBox(
-            isRefreshing = isRefreshing,
+            isRefreshing = state.isRefreshing,
             onRefresh = {
-                isRefreshing = true
                 viewModel.refresh()
             },
             modifier = Modifier
