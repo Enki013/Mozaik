@@ -184,6 +184,40 @@ class OverviewViewModel(
         }
     }
 
+    fun syncAll() {
+        viewModelScope.launch {
+            _uiState.update { it.copy(isSyncing = "all", syncMessage = null) }
+            val activePlugins = PluginRegistry.defaultPlugins.filter { _uiState.value.enabledPluginIds.contains(it.id) }
+            val syncKeys = activePlugins.mapNotNull { it.syncServiceKey ?: it.id }.distinct()
+
+            var syncedCount = 0
+            for (key in syncKeys) {
+                try {
+                    when (key) {
+                        "fatsecret" -> repository.syncFatSecret(30)
+                        "goodreads" -> repository.syncGoodreads()
+                        "letterboxd" -> repository.syncLetterboxd()
+                        "lastfm", "music" -> repository.syncLastFm()
+                        "listenbrainz" -> repository.syncListenBrainz()
+                        "statsfm" -> repository.syncStatsFm()
+                        else -> null
+                    }
+                    syncedCount++
+                } catch (_: Exception) {
+                    // continue with others
+                }
+            }
+
+            _uiState.update {
+                it.copy(
+                    isSyncing = null,
+                    syncMessage = if (syncedCount > 0) "Tüm aktif entegrasyonlar eşitlendi ($syncedCount servis)" else "Senkronizasyon tamamlandı"
+                )
+            }
+            loadData()
+        }
+    }
+
     fun clearSyncMessage() {
         _uiState.update { it.copy(syncMessage = null) }
     }

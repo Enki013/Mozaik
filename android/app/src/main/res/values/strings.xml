@@ -28,7 +28,9 @@
     <string name="action_save">Save</string>
     <string name="action_saving">Saving…</string>
     <string name="action_sync">Sync</string>
+    <string name="action_sync_all">Sync All</string>
     <string name="action_syncing">Syncing…</string>
+    <string name="overview_sync_all_done">All active integrations synced successfully!</string>
     <string name="action_test_connection">Test Connection</string>
     <string name="action_testing">Testing…</string>
     <string name="action_cancel">Cancel</string>

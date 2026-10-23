@@ -28,7 +28,9 @@
     <string name="action_save">Kaydet</string>
     <string name="action_saving">Kaydediliyor…</string>
     <string name="action_sync">Sync Et</string>
+    <string name="action_sync_all">Tümünü Eşitle</string>
     <string name="action_syncing">Eşitleniyor…</string>
+    <string name="overview_sync_all_done">Tüm aktif entegrasyonlar eşitlendi!</string>
     <string name="action_test_connection">Bağlantıyı Sına</string>
     <string name="action_testing">Sınanıyor…</string>
     <string name="action_cancel">İptal</string>
