@@ -44,6 +44,7 @@ data class SettingsUiState(
     val lastfmApiKey: String = "",
     val lastfmApiKeySet: Boolean = false,
     val musicWebhookUrl: String = "",
+    val webScrobblerEnabled: Boolean = false,
     val isLoadingMusicSettings: Boolean = false,
     val isSavingMusicSettings: Boolean = false,
     val musicSaveMessage: String? = null,
@@ -434,12 +435,22 @@ class SettingsViewModel(
                             listenbrainzUsername = result.data.listenbrainzUsername,
                             listenbrainzTokenSet = result.data.listenbrainzTokenSet,
                             statsfmUsername = result.data.statsfmUsername,
-                            musicWebhookUrl = result.data.webhookUrl
+                            musicWebhookUrl = result.data.webhookUrl,
+                            webScrobblerEnabled = result.data.webScrobblerEnabled
                         )
                     }
                 }
                 else -> _uiState.update { it.copy(isLoadingMusicSettings = false) }
             }
+        }
+    }
+
+    fun toggleWebScrobbler(enabled: Boolean) {
+        viewModelScope.launch {
+            _uiState.update { it.copy(webScrobblerEnabled = enabled) }
+            preferences.toggleIntegrationPlugin("web_scrobbler", enabled)
+            repository.togglePluginOnServer("web_scrobbler", enabled)
+            repository.saveMusicSettings(webScrobblerEnabled = enabled)
         }
     }
 

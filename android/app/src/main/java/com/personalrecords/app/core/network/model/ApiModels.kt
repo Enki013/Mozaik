@@ -489,6 +489,8 @@ data class MusicSettingsDto(
     @SerialName("interval_minutes")
     val intervalMinutes: Int = 360,
     val enabled: Boolean = true,
+    @SerialName("web_scrobbler_enabled")
+    val webScrobblerEnabled: Boolean = false,
     @SerialName("webhook_url")
     val webhookUrl: String = ""
 )
@@ -509,7 +511,30 @@ data class SaveMusicSettingsRequest(
     val statsfmUsername: String? = null,
     @SerialName("interval_minutes")
     val intervalMinutes: Int? = null,
-    val enabled: Boolean? = null
+    val enabled: Boolean? = null,
+    @SerialName("web_scrobbler_enabled")
+    val webScrobblerEnabled: Boolean? = null
+)
+
+@Serializable
+data class PluginToggleRequest(
+    @SerialName("plugin_id")
+    val pluginId: String,
+    val enabled: Boolean
+)
+
+@Serializable
+data class PluginsSyncRequest(
+    @SerialName("enabled_plugins")
+    val enabledPlugins: List<String>
+)
+
+@Immutable
+@Serializable
+data class PluginSettingsResponse(
+    val ok: Boolean = true,
+    val plugins: Map<String, Boolean> = emptyMap(),
+    val message: String? = null
 )
 
 @Serializable

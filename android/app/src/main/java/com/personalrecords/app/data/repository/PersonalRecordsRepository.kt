@@ -579,7 +579,8 @@ class PersonalRecordsRepository(
         listenbrainzUsername: String? = null,
         listenbrainzToken: String? = null,
         clearListenbrainzToken: Boolean? = null,
-        statsfmUsername: String? = null
+        statsfmUsername: String? = null,
+        webScrobblerEnabled: Boolean? = null
     ): Resource<SaveMusicSettingsResponse> = withContext(Dispatchers.IO) {
         try {
             val response = api.saveMusicSettings(
@@ -591,7 +592,8 @@ class PersonalRecordsRepository(
                     clearListenbrainzToken = clearListenbrainzToken,
                     statsfmUsername = statsfmUsername,
                     intervalMinutes = intervalMinutes,
-                    enabled = enabled
+                    enabled = enabled,
+                    webScrobblerEnabled = webScrobblerEnabled
                 )
             )
             Resource.Success(response)
@@ -650,6 +652,33 @@ class PersonalRecordsRepository(
         getCachedFilms()
         getCachedFoodEntries()
         getCachedHealthRecords()
+    }
+
+    suspend fun togglePluginOnServer(pluginId: String, enabled: Boolean): Resource<PluginSettingsResponse> = withContext(Dispatchers.IO) {
+        try {
+            val response = api.togglePlugin(PluginToggleRequest(pluginId = pluginId, enabled = enabled))
+            Resource.Success(response)
+        } catch (e: Exception) {
+            Resource.Error(extractErrorMessage(e, "Eklenti ayarı sunucuya iletilemedi"), e)
+        }
+    }
+
+    suspend fun syncEnabledPluginsToServer(enabledPluginIds: Set<String>): Resource<PluginSettingsResponse> = withContext(Dispatchers.IO) {
+        try {
+            val response = api.syncEnabledPlugins(PluginsSyncRequest(enabledPlugins = enabledPluginIds.toList()))
+            Resource.Success(response)
+        } catch (e: Exception) {
+            Resource.Error(extractErrorMessage(e, "Eklenti listesi sunucuya iletilemedi"), e)
+        }
+    }
+
+    suspend fun getPluginSettings(): Resource<PluginSettingsResponse> = withContext(Dispatchers.IO) {
+        try {
+            val response = api.getPluginSettings()
+            Resource.Success(response)
+        } catch (e: Exception) {
+            Resource.Error(extractErrorMessage(e, "Eklenti ayarları sunucudan alınamadı"), e)
+        }
     }
 
     private fun extractErrorMessage(e: Exception, defaultMessage: String): String {

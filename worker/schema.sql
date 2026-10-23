@@ -193,6 +193,7 @@ CREATE TABLE IF NOT EXISTS music_sync_settings (
   statsfm_username TEXT,
   interval_minutes INTEGER NOT NULL DEFAULT 360,
   enabled INTEGER NOT NULL DEFAULT 1,
+  web_scrobbler_enabled INTEGER NOT NULL DEFAULT 0,
   updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 

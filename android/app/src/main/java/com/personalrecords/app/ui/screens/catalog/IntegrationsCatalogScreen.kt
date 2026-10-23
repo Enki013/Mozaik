@@ -401,6 +401,32 @@ private fun CatalogPluginCard(
                                     modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
                                 )
                             }
+                            val statusLabel = if (plugin.isEnabled) "Aktif" else "Duraklatıldı"
+                            Surface(
+                                shape = M3Shapes.CornerFull,
+                                color = if (plugin.isEnabled) MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
+                                else MaterialTheme.colorScheme.error.copy(alpha = 0.12f)
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                                    modifier = Modifier.padding(horizontal = 7.dp, vertical = 2.dp)
+                                ) {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(5.dp)
+                                            .background(
+                                                if (plugin.isEnabled) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error,
+                                                CircleShape
+                                            )
+                                    )
+                                    Text(
+                                        text = statusLabel,
+                                        style = MaterialTheme.typography.labelSmallEmphasized,
+                                        color = if (plugin.isEnabled) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error
+                                    )
+                                }
+                            }
                         }
                     }
                 }

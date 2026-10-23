@@ -2961,6 +2961,52 @@ fun SettingsScreen(
 
                         Spacer(modifier = Modifier.height(10.dp))
 
+                        // Web Scrobbler Status & Pause/Resume Switch Row
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .background(
+                                    color = if (state.webScrobblerEnabled) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.35f) else MaterialTheme.colorScheme.surfaceContainerHighest,
+                                    shape = M3Shapes.CornerMedium
+                                )
+                                .padding(horizontal = 12.dp, vertical = 8.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Row(
+                                modifier = Modifier.weight(1f),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(8.dp)
+                                        .background(
+                                            if (state.webScrobblerEnabled) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error,
+                                            CircleShape
+                                        )
+                                )
+                                Column {
+                                    Text(
+                                        text = if (state.webScrobblerEnabled) "Veri Kaydı Aktif" else "Veri Kaydı Duraklatıldı",
+                                        style = MaterialTheme.typography.labelMediumEmphasized,
+                                        color = if (state.webScrobblerEnabled) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error
+                                    )
+                                    Text(
+                                        text = if (state.webScrobblerEnabled) "Gelen dinlemeler veritabanına işlenir" else "Eklenti pasifken gelen veriler kaydedilmez",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                            }
+                            Switch(
+                                checked = state.webScrobblerEnabled,
+                                onCheckedChange = { viewModel.toggleWebScrobbler(it) }
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.height(10.dp))
+
                         Surface(
                             shape = M3Shapes.CornerMedium,
                             color = MaterialTheme.colorScheme.surfaceContainerHighest,

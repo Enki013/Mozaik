@@ -139,5 +139,19 @@ interface ApiService {
     suspend fun syncStatsFm(
         @Body request: SyncStatsFmRequest = SyncStatsFmRequest()
     ): SyncStatsFmResponse
+
+    // Integration Plugins
+    @GET("api/settings/plugins")
+    suspend fun getPluginSettings(): PluginSettingsResponse
+
+    @POST("api/settings/plugins")
+    suspend fun togglePlugin(
+        @Body request: PluginToggleRequest
+    ): PluginSettingsResponse
+
+    @POST("api/settings/plugins")
+    suspend fun syncEnabledPlugins(
+        @Body request: PluginsSyncRequest
+    ): PluginSettingsResponse
 }
 

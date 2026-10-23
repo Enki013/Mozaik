@@ -103,7 +103,12 @@ class IntegrationsCatalogViewModel(
             _toastMessage.value = if (isEnabled) {
                 "Eklenti etkinleştirildi"
             } else {
-                "Eklenti devre dışı bırakıldı"
+                "Eklenti devre dışı bırakıldı (Kayıt duraklatıldı)"
+            }
+            // Immediately inform server so webhooks and sync pause/resume
+            repository.togglePluginOnServer(pluginId, isEnabled)
+            if (pluginId == "web_scrobbler") {
+                repository.saveMusicSettings(webScrobblerEnabled = isEnabled)
             }
         }
     }

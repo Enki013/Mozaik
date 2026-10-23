@@ -111,6 +111,7 @@ async function ensureMusicTables(db: D1Database) {
       statsfm_username TEXT,
       interval_minutes INTEGER NOT NULL DEFAULT 360,
       enabled INTEGER NOT NULL DEFAULT 1,
+      web_scrobbler_enabled INTEGER NOT NULL DEFAULT 0,
       updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
     )
   `).run();
@@ -123,6 +124,9 @@ async function ensureMusicTables(db: D1Database) {
   } catch (e) {}
   try {
     await db.prepare("ALTER TABLE music_sync_settings ADD COLUMN statsfm_username TEXT").run();
+  } catch (e) {}
+  try {
+    await db.prepare("ALTER TABLE music_sync_settings ADD COLUMN web_scrobbler_enabled INTEGER NOT NULL DEFAULT 0").run();
   } catch (e) {}
 
   await db.prepare(`
@@ -2031,6 +2035,32 @@ const handleMusicWebhook = async (c: any) => {
   const db = c.env.DB;
   await ensureMusicTables(db);
 
+  // Check if Web Scrobbler integration is active/enabled
+  const musicSettings = (await db.prepare("SELECT enabled, web_scrobbler_enabled FROM music_sync_settings WHERE id = 1").first()) as any;
+  const pluginSetting = (await db.prepare("SELECT value FROM user_settings WHERE key = 'plugin:web_scrobbler:enabled'").first()) as any;
+
+  let isWebScrobblerEnabled = false;
+  if (pluginSetting && pluginSetting.value !== undefined) {
+    isWebScrobblerEnabled = pluginSetting.value === "true" || pluginSetting.value === "1";
+  } else if (musicSettings && musicSettings.web_scrobbler_enabled !== undefined) {
+    isWebScrobblerEnabled = musicSettings.web_scrobbler_enabled === 1 && musicSettings.enabled !== 0;
+  }
+
+  if (!isWebScrobblerEnabled) {
+    try {
+      await db.prepare(`
+        INSERT INTO music_sync_runs (source, status, inserted, updated, message)
+        VALUES ('web_scrobbler', 'paused', 0, 0, 'Web Scrobbler entegrasyonu devre dışı bırakıldığı için scrobble kaydı duraklatıldı.')
+      `).run();
+    } catch (e) {}
+
+    return c.json({
+      ok: true,
+      status: "paused",
+      message: "Web Scrobbler entegrasyonu devre dışı bırakıldığı için scrobble kaydı duraklatıldı."
+    }, 200);
+  }
+
   let body: any = null;
   try {
     body = await c.req.json();
@@ -2113,10 +2143,21 @@ const handleMusicWebhookStatus = async (c: any) => {
   const db = c.env.DB;
   await ensureMusicTables(db);
   const row = (await db.prepare("SELECT count(*) as c FROM music_scrobbles").first()) as any;
+  const musicSettings = (await db.prepare("SELECT enabled, web_scrobbler_enabled FROM music_sync_settings WHERE id = 1").first()) as any;
+  const pluginSetting = (await db.prepare("SELECT value FROM user_settings WHERE key = 'plugin:web_scrobbler:enabled'").first()) as any;
+
+  let isEnabled = false;
+  if (pluginSetting && pluginSetting.value !== undefined) {
+    isEnabled = pluginSetting.value === "true" || pluginSetting.value === "1";
+  } else if (musicSettings && musicSettings.web_scrobbler_enabled !== undefined) {
+    isEnabled = musicSettings.web_scrobbler_enabled === 1 && musicSettings.enabled !== 0;
+  }
+
   return c.json({
     ok: true,
     service: "music-webhook",
-    status: "ready",
+    status: isEnabled ? "ready" : "paused",
+    enabled: isEnabled,
     accepted_methods: ["POST"],
     total_records: row?.c || 0,
     instructions: "Web Scrobbler extension -> Options -> Accounts -> Webhook -> URL: [host]/api/webhooks/music",
@@ -2268,6 +2309,15 @@ app.get("/api/settings/music", async (c) => {
   const db = c.env.DB;
   await ensureMusicTables(db);
   const row = (await db.prepare("SELECT * FROM music_sync_settings WHERE id = 1").first()) as any;
+  const pluginSetting = (await db.prepare("SELECT value FROM user_settings WHERE key = 'plugin:web_scrobbler:enabled'").first()) as any;
+
+  let webScrobblerEnabled = false;
+  if (pluginSetting && pluginSetting.value !== undefined) {
+    webScrobblerEnabled = pluginSetting.value === "true" || pluginSetting.value === "1";
+  } else if (row && row.web_scrobbler_enabled !== undefined) {
+    webScrobblerEnabled = row.web_scrobbler_enabled === 1;
+  }
+
   const username = row?.lastfm_username || c.env.LASTFM_USERNAME || "";
   const hasApiKey = !!(row?.lastfm_api_key || c.env.LASTFM_API_KEY);
   const lbUsername = row?.listenbrainz_username || "";
@@ -2286,6 +2336,7 @@ app.get("/api/settings/music", async (c) => {
     statsfm_username: statsfmUsername,
     interval_minutes: row?.interval_minutes || 360,
     enabled: row?.enabled !== 0,
+    web_scrobbler_enabled: webScrobblerEnabled,
     webhook_url: webhookUrl,
   });
 });
@@ -2324,6 +2375,9 @@ app.post("/api/settings/music", async (c) => {
   }
 
   const existing = (await db.prepare("SELECT * FROM music_sync_settings WHERE id = 1").first()) as any;
+  const webScrobblerEnabled = body.web_scrobbler_enabled === undefined
+    ? (existing?.web_scrobbler_enabled !== undefined ? existing.web_scrobbler_enabled : 0)
+    : (body.web_scrobbler_enabled === true || body.web_scrobbler_enabled === 1 || body.web_scrobbler_enabled === "true" ? 1 : 0);
 
   if (existing) {
     const finalApiKey = clearApiKey ? "" : (apiKey !== "" ? apiKey : existing.lastfm_api_key);
@@ -2334,17 +2388,73 @@ app.post("/api/settings/music", async (c) => {
 
     await db.prepare(`
       UPDATE music_sync_settings
-      SET lastfm_username = ?, lastfm_api_key = ?, listenbrainz_username = ?, listenbrainz_token = ?, statsfm_username = ?, interval_minutes = ?, enabled = ?, updated_at = CURRENT_TIMESTAMP
+      SET lastfm_username = ?, lastfm_api_key = ?, listenbrainz_username = ?, listenbrainz_token = ?, statsfm_username = ?, interval_minutes = ?, enabled = ?, web_scrobbler_enabled = ?, updated_at = CURRENT_TIMESTAMP
       WHERE id = 1
-    `).bind(finalUsername, finalApiKey, finalLbUsername, finalLbToken, finalSfmUsername, interval, enabled).run();
+    `).bind(finalUsername, finalApiKey, finalLbUsername, finalLbToken, finalSfmUsername, interval, enabled, webScrobblerEnabled).run();
   } else {
     await db.prepare(`
-      INSERT INTO music_sync_settings (id, lastfm_username, lastfm_api_key, listenbrainz_username, listenbrainz_token, statsfm_username, interval_minutes, enabled)
-      VALUES (1, ?, ?, ?, ?, ?, ?, ?)
-    `).bind(username, clearApiKey ? "" : apiKey, lbUsername || "", clearLbToken ? "" : (lbToken || ""), sfmUsername || "", interval, enabled).run();
+      INSERT INTO music_sync_settings (id, lastfm_username, lastfm_api_key, listenbrainz_username, listenbrainz_token, statsfm_username, interval_minutes, enabled, web_scrobbler_enabled)
+      VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?)
+    `).bind(username, clearApiKey ? "" : apiKey, lbUsername || "", clearLbToken ? "" : (lbToken || ""), sfmUsername || "", interval, enabled, webScrobblerEnabled).run();
   }
 
+  await db.prepare(
+    "INSERT OR REPLACE INTO user_settings (key, value, updated_at) VALUES ('plugin:web_scrobbler:enabled', ?, CURRENT_TIMESTAMP)"
+  ).bind(webScrobblerEnabled ? "1" : "0").run();
+
   return c.json({ ok: true, message: "Müzik ayarları kaydedildi" });
+});
+
+// 20.1 Integration Plugins Settings API
+app.get("/api/settings/plugins", async (c) => {
+  const db = c.env.DB;
+  await ensureMusicTables(db);
+  const rows = await db.prepare("SELECT key, value FROM user_settings WHERE key LIKE 'plugin:%:enabled'").all<any>();
+  const plugins: Record<string, boolean> = {};
+  for (const row of rows.results || []) {
+    const pluginId = row.key.replace("plugin:", "").replace(":enabled", "");
+    plugins[pluginId] = row.value === "true" || row.value === "1";
+  }
+  return c.json({ ok: true, plugins });
+});
+
+app.post("/api/settings/plugins", async (c) => {
+  const db = c.env.DB;
+  await ensureMusicTables(db);
+  const body = await c.req.json().catch(() => ({}));
+  const pluginId = body.plugin_id || body.id;
+
+  if (pluginId) {
+    const enabled = body.enabled === true || body.enabled === "true" || body.enabled === 1;
+    await db.prepare(
+      "INSERT OR REPLACE INTO user_settings (key, value, updated_at) VALUES (?, ?, CURRENT_TIMESTAMP)"
+    ).bind(`plugin:${pluginId}:enabled`, enabled ? "1" : "0").run();
+
+    if (pluginId === "web_scrobbler") {
+      await db.prepare(
+        "UPDATE music_sync_settings SET web_scrobbler_enabled = ?, updated_at = CURRENT_TIMESTAMP WHERE id = 1"
+      ).bind(enabled ? 1 : 0).run();
+    }
+  }
+
+  if (Array.isArray(body.enabled_plugins)) {
+    const enabledSet = new Set(body.enabled_plugins);
+    const allKnownPlugins = [
+      "web_scrobbler", "lastfm", "fatsecret", "goodreads", "letterboxd",
+      "listenbrainz", "statsfm", "notification_relay", "health_connect"
+    ];
+    for (const pid of allKnownPlugins) {
+      const isEn = enabledSet.has(pid);
+      await db.prepare(
+        "INSERT OR REPLACE INTO user_settings (key, value, updated_at) VALUES (?, ?, CURRENT_TIMESTAMP)"
+      ).bind(`plugin:${pid}:enabled`, isEn ? "1" : "0").run();
+    }
+    await db.prepare(
+      "UPDATE music_sync_settings SET web_scrobbler_enabled = ?, updated_at = CURRENT_TIMESTAMP WHERE id = 1"
+    ).bind(enabledSet.has("web_scrobbler") ? 1 : 0).run();
+  }
+
+  return c.json({ ok: true, message: "Eklenti ayarları başarıyla kaydedildi." });
 });
 
 // 21. Last.fm Sync API
