@@ -69,6 +69,43 @@
     <string name="overview_metric_food_log">Yemek Günlüğü</string>
     <string name="overview_metric_foods_count">%1$s kayıt</string>
     <string name="overview_metric_foods_note">Tüm öğünler</string>
+    <string name="overview_hero_unit_kcal">kcal</string>
+    <string name="overview_hero_unit_tracks">parça</string>
+    <string name="overview_hero_unit_films">film</string>
+    <string name="overview_hero_unit_books">kitap</string>
+    <string name="overview_hero_target_label">Hedef: %1$d kcal</string>
+    <string name="overview_hero_target_context">/ %1$d kcal hedef</string>
+    <string name="overview_hero_remaining">%1$d kcal kaldı</string>
+    <string name="overview_hero_exceeded">%1$d kcal aşıldı</string>
+    <string name="overview_hero_goal_pct">%%%1$d hedef</string>
+    <string name="overview_hero_nutrition_subtitle_remaining">Hedef %1$d kcal • %2$d kcal kaldı</string>
+    <string name="overview_hero_nutrition_subtitle_exceeded">Hedef %1$d kcal • %2$d kcal aşıldı</string>
+    <string name="overview_hero_books_subtitle">Goodreads kütüphane arşivi</string>
+    <string name="overview_hero_movies_subtitle">Letterboxd izleme günlüğü</string>
+    <string name="overview_hero_music_today_subtitle">Bugün %1$d yeni parça</string>
+    <string name="overview_hero_music_total_subtitle">Dinleme ve scrobble arşivi</string>
+    <string name="overview_hero_today_music">Bugün: %1$d parça</string>
+    <string name="overview_hero_total_tracks">%1$d toplam parça</string>
+    <string name="overview_hero_total_films">%1$d kayıtlı film</string>
+    <string name="overview_hero_total_books">%1$d kayıtlı kitap</string>
+    <string name="overview_hero_latest_track">SON DİNLENEN</string>
+    <string name="overview_hero_latest_film">SON İZLENEN</string>
+    <string name="overview_hero_latest_book">SON EKLENEN</string>
+    <string name="overview_hero_latest_meal">SON ÖĞÜN</string>
+    <string name="overview_hero_no_recent_music">Henüz dinleme kaydı yok</string>
+    <string name="overview_hero_no_recent_film">Henüz film kaydı yok</string>
+    <string name="overview_hero_no_recent_book">Henüz kitap kaydı yok</string>
+    <string name="overview_hero_no_recent_meal">Henüz öğün kaydı yok</string>
+    <string name="overview_hero_action_nutrition">Beslenmeyi Aç</string>
+    <string name="overview_hero_action_music">Müziği Aç</string>
+    <string name="overview_hero_action_movies">Filmleri Aç</string>
+    <string name="overview_hero_action_books">Kitaplığı Aç</string>
+    <string name="overview_hero_status_nutrition">Günlük kalori ve öğün takibi</string>
+    <string name="overview_hero_status_music">Dinleme geçmişi ve scrobble arşivi</string>
+    <string name="overview_hero_status_movies">Letterboxd izleme günlüğü</string>
+    <string name="overview_hero_status_books">Goodreads kütüphane arşivi</string>
+    <string name="overview_hero_tag_diary">İzleme Günlüğü</string>
+    <string name="overview_hero_tag_shelf">Goodreads Rafı</string>
     <string name="overview_integrations_title">Entegrasyonlar &amp; Senkronizasyon</string>
     <string name="overview_integrations_subtitle">Tek tıkla anlık veri eşitlemesi</string>
     <string name="overview_integration_fatsecret">FatSecret</string>
@@ -506,5 +543,15 @@
     <string name="settings_open_catalog">Entegrasyon Kataloğu\'nu Aç</string>
     <string name="settings_manage_in_catalog">Katalogda Yönet</string>
     <string name="settings_open_website">Web Sitesi</string>
+
+    <!-- Stats Customization Strings -->
+    <string name="action_done">Bitti</string>
+    <string name="action_move_up">Yukarı Taşı</string>
+    <string name="action_move_down">Aşağı Taşı</string>
+    <string name="stats_customization_title">İstatistik Kartlarını Düzenle</string>
+    <string name="stats_customization_subtitle">Görünmesini istediğiniz metrikleri seçin veya gizleyin.</string>
+    <string name="stats_hide_card_action">\"%1$s\" Kartını Gizle</string>
+    <string name="stats_hide_this_card">Kartı Gizle</string>
+    <string name="stats_reset_default">Varsayılana Sıfırla</string>
 </resources>
 

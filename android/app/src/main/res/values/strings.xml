@@ -69,6 +69,43 @@
     <string name="overview_metric_food_log">Food Diary</string>
     <string name="overview_metric_foods_count">%1$s entries</string>
     <string name="overview_metric_foods_note">All meals</string>
+    <string name="overview_hero_unit_kcal">kcal</string>
+    <string name="overview_hero_unit_tracks">tracks</string>
+    <string name="overview_hero_unit_films">films</string>
+    <string name="overview_hero_unit_books">books</string>
+    <string name="overview_hero_target_label">Goal: %1$d kcal</string>
+    <string name="overview_hero_target_context">/ %1$d kcal goal</string>
+    <string name="overview_hero_remaining">%1$d kcal left</string>
+    <string name="overview_hero_exceeded">%1$d kcal over</string>
+    <string name="overview_hero_goal_pct">%1$d%% of goal</string>
+    <string name="overview_hero_nutrition_subtitle_remaining">Goal %1$d kcal • %2$d kcal left</string>
+    <string name="overview_hero_nutrition_subtitle_exceeded">Goal %1$d kcal • %2$d kcal over</string>
+    <string name="overview_hero_books_subtitle">Goodreads library archive</string>
+    <string name="overview_hero_movies_subtitle">Letterboxd watch diary</string>
+    <string name="overview_hero_music_today_subtitle">Today: %1$d new tracks</string>
+    <string name="overview_hero_music_total_subtitle">Listening and scrobble archive</string>
+    <string name="overview_hero_today_music">Today: %1$d tracks</string>
+    <string name="overview_hero_total_tracks">%1$d total tracks</string>
+    <string name="overview_hero_total_films">%1$d logged films</string>
+    <string name="overview_hero_total_books">%1$d books in shelf</string>
+    <string name="overview_hero_latest_track">LAST PLAYED</string>
+    <string name="overview_hero_latest_film">LAST WATCHED</string>
+    <string name="overview_hero_latest_book">LAST ADDED</string>
+    <string name="overview_hero_latest_meal">LAST MEAL</string>
+    <string name="overview_hero_no_recent_music">No scrobbles yet</string>
+    <string name="overview_hero_no_recent_film">No films logged yet</string>
+    <string name="overview_hero_no_recent_book">No books recorded yet</string>
+    <string name="overview_hero_no_recent_meal">No meals recorded yet</string>
+    <string name="overview_hero_action_nutrition">Open Nutrition</string>
+    <string name="overview_hero_action_music">Open Music</string>
+    <string name="overview_hero_action_movies">Open Movies</string>
+    <string name="overview_hero_action_books">Open Library</string>
+    <string name="overview_hero_status_nutrition">Daily calories &amp; meals tracker</string>
+    <string name="overview_hero_status_music">Scrobbles &amp; listening history</string>
+    <string name="overview_hero_status_movies">Letterboxd diary &amp; reviews</string>
+    <string name="overview_hero_status_books">Goodreads shelves &amp; reading list</string>
+    <string name="overview_hero_tag_diary">Watch Diary</string>
+    <string name="overview_hero_tag_shelf">Goodreads Shelf</string>
     <string name="overview_integrations_title">Integrations &amp; Synchronization</string>
     <string name="overview_integrations_subtitle">Instant one-tap data sync</string>
     <string name="overview_integration_fatsecret">FatSecret</string>
@@ -510,5 +547,15 @@
     <string name="settings_open_catalog">Open Integrations Catalog</string>
     <string name="settings_manage_in_catalog">Manage in Catalog</string>
     <string name="settings_open_website">Website</string>
+
+    <!-- Stats Customization Strings -->
+    <string name="action_done">Done</string>
+    <string name="action_move_up">Move Up</string>
+    <string name="action_move_down">Move Down</string>
+    <string name="stats_customization_title">Customize Stat Cards</string>
+    <string name="stats_customization_subtitle">Choose the metrics you want to show or hide.</string>
+    <string name="stats_hide_card_action">Hide \"%1$s\" Card</string>
+    <string name="stats_hide_this_card">Hide Card</string>
+    <string name="stats_reset_default">Reset to Default</string>
 </resources>
 

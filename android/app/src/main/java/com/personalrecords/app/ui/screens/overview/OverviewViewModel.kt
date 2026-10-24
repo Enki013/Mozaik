@@ -21,6 +21,10 @@ data class OverviewUiState(
     val isLoading: Boolean = true,
     val dashboard: DashboardDto? = null,
     val recentActivities: List<ActivityItemDto> = emptyList(),
+    val latestFilm: FilmDto? = null,
+    val latestBook: BookDto? = null,
+    val latestMeal: FoodEntryDto? = null,
+    val latestMusic: MusicScrobbleDto? = null,
     val isSyncing: String? = null, // "fatsecret", "goodreads", "letterboxd", "lastfm"
     val syncMessage: String? = null,
     val error: String? = null,
@@ -53,20 +57,39 @@ class OverviewViewModel(
     fun loadData() {
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true, error = null) }
-            val (dashRes, actRes) = coroutineScope {
+            val (dashRes, actRes, filmRes, bookRes, mealRes, musicRes) = coroutineScope {
                 val dDeferred = async { repository.getDashboard() }
-                val aDeferred = async { repository.getActivity(days = 14, limit = 6) }
-                dDeferred.await() to aDeferred.await()
+                val aDeferred = async { repository.getActivity(days = 14, limit = 20) }
+                val fDeferred = async { repository.getFilms(limit = 1) }
+                val bDeferred = async { repository.getBooks(limit = 1) }
+                val mDeferred = async { repository.getFoodEntries(limit = 1) }
+                val sDeferred = async { repository.getMusicScrobbles(page = 1, limit = 1) }
+                Sextuple(
+                    dDeferred.await(),
+                    aDeferred.await(),
+                    fDeferred.await(),
+                    bDeferred.await(),
+                    mDeferred.await(),
+                    sDeferred.await()
+                )
             }
 
             val dash = if (dashRes is Resource.Success) dashRes.data else _uiState.value.dashboard
             val acts = if (actRes is Resource.Success) actRes.data.items else _uiState.value.recentActivities
+            val film = if (filmRes is Resource.Success) filmRes.data.firstOrNull() else _uiState.value.latestFilm
+            val book = if (bookRes is Resource.Success) bookRes.data.firstOrNull() else _uiState.value.latestBook
+            val meal = if (mealRes is Resource.Success) mealRes.data.firstOrNull() else _uiState.value.latestMeal
+            val music = if (musicRes is Resource.Success) musicRes.data.items.firstOrNull() else _uiState.value.latestMusic
 
             _uiState.update {
                 it.copy(
                     isLoading = false,
                     dashboard = dash,
                     recentActivities = acts,
+                    latestFilm = film,
+                    latestBook = book,
+                    latestMeal = meal,
+                    latestMusic = music,
                     error = if (dashRes is Resource.Error) dashRes.message else null
                 )
             }
@@ -222,3 +245,12 @@ class OverviewViewModel(
         _uiState.update { it.copy(syncMessage = null) }
     }
 }
+
+private data class Sextuple<A, B, C, D, E, F>(
+    val first: A,
+    val second: B,
+    val third: C,
+    val fourth: D,
+    val fifth: E,
+    val sixth: F
+)

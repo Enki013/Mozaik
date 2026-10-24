@@ -3,6 +3,7 @@ package com.personalrecords.app.ui.screens.overview
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -24,11 +25,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
 import com.personalrecords.app.R
@@ -227,33 +230,88 @@ fun OverviewScreen(
                     item(key = "overview_metrics", contentType = "metrics") {
                         val counts = state.dashboard?.counts ?: emptyMap()
                         val today = state.dashboard?.today ?: emptyMap()
-                        val todayCal = today["fatsecret_calories"]?.toString()?.replace("\"", "")
-                            ?: today["calories"]?.toString()?.replace("\"", "") ?: "0"
-                        val todayEntries = today["fatsecret_entry_count"]?.toString()?.replace("\"", "")
-                            ?: today["entries_count"]?.toString()?.replace("\"", "") ?: "0"
+                        val todayCalInt = (today["fatsecret_calories"]?.toString()?.replace("\"", "")?.toDoubleOrNull() ?: 0.0).toInt()
+                        val todayEntriesInt = today["fatsecret_entry_count"]?.toString()?.replace("\"", "")?.toIntOrNull()
+                            ?: today["entries_count"]?.toString()?.replace("\"", "")?.toIntOrNull() ?: 0
+                        val targetCal = state.dashboard?.calorieTarget ?: 2000
+                        val calProgress = (todayCalInt.toFloat() / targetCal).coerceIn(0f, 1f)
+                        val remainingCal = targetCal - todayCalInt
 
                         val booksCount = counts["goodreads_books"] ?: counts["books"] ?: 0
                         val filmsCount = counts["letterboxd_films"] ?: counts["films"] ?: 0
                         val musicCount = counts["music_scrobbles"] ?: counts["music"] ?: 0
+                        val todayMusicCount = today["music_scrobbles"]?.toString()?.replace("\"", "")?.toIntOrNull()
+                            ?: today["music"]?.toString()?.replace("\"", "")?.toIntOrNull() ?: 0
 
-                        val latestBook = remember(state.recentActivities) {
+                        val latestBookActivity = remember(state.recentActivities) {
                             state.recentActivities.firstOrNull { it.source == "goodreads" || it.type == "book" }
                         }
-                        val latestFilm = remember(state.recentActivities) {
+                        val latestFilmActivity = remember(state.recentActivities) {
                             state.recentActivities.firstOrNull { it.source == "letterboxd" || it.type == "film" }
                         }
                         val latestMusic = remember(state.recentActivities) {
                             state.recentActivities.firstOrNull { it.source == "music" || it.source == "lastfm" || it.type == "music" || it.type == "scrobble" }
                         }
+                        val latestMeal = remember(state.recentActivities) {
+                            state.recentActivities.firstOrNull { it.source == "fatsecret" || it.type == "meal" }
+                        }
+
+                        val filmActivityRating = latestFilmActivity?.let {
+                            (it.details["rating"]?.toString()?.replace("\"", "")?.toDoubleOrNull()
+                                ?: it.details["my_rating"]?.toString()?.replace("\"", "")?.toDoubleOrNull())
+                                ?.takeIf { r -> r > 0.0 }
+                        }
+                        val bookActivityRating = latestBookActivity?.let {
+                            (it.details["my_rating"]?.toString()?.replace("\"", "")?.toDoubleOrNull()
+                                ?: it.details["rating"]?.toString()?.replace("\"", "")?.toDoubleOrNull())
+                                ?.takeIf { r -> r > 0.0 }
+                        }
+
+                        val resolvedFilmTitle = state.latestFilm?.displayTitle?.ifBlank { null }
+                            ?: latestFilmActivity?.title
+                            ?: stringResource(R.string.overview_hero_no_recent_film)
+                        val resolvedFilmSubtitle = state.latestFilm?.let { f ->
+                            if (f.safeYear > 0) f.safeYear.toString() else null
+                        } ?: latestFilmActivity?.subtitle?.takeIf { it.isNotBlank() }
+                        val resolvedFilmPoster = state.latestFilm?.image_url ?: latestFilmActivity?.image_url
+                        val resolvedFilmRating = state.latestFilm?.safeRating?.takeIf { it > 0.0 } ?: filmActivityRating
+                        val resolvedFilmRewatch = state.latestFilm?.rewatch == true || latestFilmActivity?.rewatch == true
+
+                        val resolvedBookTitle = state.latestBook?.title?.ifBlank { null }
+                            ?: latestBookActivity?.title
+                            ?: stringResource(R.string.overview_hero_no_recent_book)
+                        val resolvedBookAuthor = state.latestBook?.author?.ifBlank { null }
+                            ?: latestBookActivity?.subtitle
+                        val resolvedBookCover = state.latestBook?.image_url ?: latestBookActivity?.image_url
+                        val resolvedBookRating = state.latestBook?.let { b ->
+                            b.my_rating.takeIf { it > 0.0 } ?: b.average_rating.takeIf { it > 0.0 }
+                        } ?: bookActivityRating
+
+                        val resolvedMealTitle = state.latestMeal?.displayName?.ifBlank { null }
+                            ?: latestMeal?.title
+                            ?: stringResource(R.string.overview_hero_no_recent_meal)
+                        val resolvedMealSubtitle = state.latestMeal?.let { m ->
+                            val parts = listOfNotNull(m.meal.ifBlank { null }, "${m.calories.toInt()} kcal")
+                            if (parts.isNotEmpty()) parts.joinToString(" · ") else null
+                        } ?: latestMeal?.subtitle?.takeIf { it.isNotBlank() }
 
                         val nutritionSlide = HeroCarouselSlide(
                             id = "nutrition",
-                            title = stringResource(R.string.overview_metric_today_calories),
-                            badgeText = "FatSecret",
-                            count = todayCal,
-                            unitText = "kcal",
-                            subtitle = stringResource(R.string.overview_metric_meals_count, todayEntries),
-                            actionText = stringResource(R.string.title_nutrition),
+                            title = "Beslenme • FatSecret",
+                            count = todayCalInt.toString(),
+                            unitText = stringResource(R.string.overview_hero_unit_kcal),
+                            subtitleText = if (remainingCal >= 0) {
+                                stringResource(R.string.overview_hero_nutrition_subtitle_remaining, targetCal, remainingCal)
+                            } else {
+                                stringResource(R.string.overview_hero_nutrition_subtitle_exceeded, targetCal, -remainingCal)
+                            },
+                            progress = calProgress,
+                            spotlight = HeroSpotlightData(
+                                caption = stringResource(R.string.overview_hero_latest_meal),
+                                title = resolvedMealTitle,
+                                subtitle = resolvedMealSubtitle,
+                                fallbackIcon = Icons.Default.Restaurant
+                            ),
                             icon = Icons.Default.Restaurant,
                             containerColor = domainNutritionContainer(),
                             contentColor = domainNutritionOnContainer(),
@@ -263,13 +321,18 @@ fun OverviewScreen(
 
                         val booksSlide = HeroCarouselSlide(
                             id = "books",
-                            title = stringResource(R.string.overview_metric_library),
-                            badgeText = "Goodreads",
+                            title = "${stringResource(R.string.title_books)} • Goodreads",
                             count = booksCount.toString(),
-                            unitText = stringResource(R.string.books_badge_book).lowercase(),
-                            subtitle = latestBook?.let { "${it.title} · ${it.subtitle}" }
-                                ?: stringResource(R.string.overview_metric_books_note),
-                            actionText = stringResource(R.string.overview_metric_library),
+                            unitText = stringResource(R.string.overview_hero_unit_books),
+                            subtitleText = stringResource(R.string.overview_hero_books_subtitle),
+                            spotlight = HeroSpotlightData(
+                                caption = stringResource(R.string.overview_hero_latest_book),
+                                title = resolvedBookTitle,
+                                subtitle = resolvedBookAuthor,
+                                imageUrl = resolvedBookCover,
+                                rating = resolvedBookRating,
+                                fallbackIcon = Icons.AutoMirrored.Filled.MenuBook
+                            ),
                             icon = Icons.AutoMirrored.Filled.MenuBook,
                             containerColor = domainBooksContainer(),
                             contentColor = domainBooksOnContainer(),
@@ -279,14 +342,19 @@ fun OverviewScreen(
 
                         val moviesSlide = HeroCarouselSlide(
                             id = "movies",
-                            title = stringResource(R.string.overview_metric_watched),
-                            badgeText = "Letterboxd",
+                            title = "${stringResource(R.string.title_movies)} • Letterboxd",
                             count = filmsCount.toString(),
-                            unitText = "films",
-                            subtitle = latestFilm?.let {
-                                if (it.subtitle.isNotBlank()) "${it.title} (${it.subtitle})" else it.title
-                            } ?: stringResource(R.string.overview_metric_films_note),
-                            actionText = stringResource(R.string.overview_metric_watched),
+                            unitText = stringResource(R.string.overview_hero_unit_films),
+                            subtitleText = stringResource(R.string.overview_hero_movies_subtitle),
+                            spotlight = HeroSpotlightData(
+                                caption = stringResource(R.string.overview_hero_latest_film),
+                                title = resolvedFilmTitle,
+                                subtitle = resolvedFilmSubtitle,
+                                imageUrl = resolvedFilmPoster,
+                                rating = resolvedFilmRating,
+                                rewatch = resolvedFilmRewatch,
+                                fallbackIcon = Icons.Default.Movie
+                            ),
                             icon = Icons.Default.Movie,
                             containerColor = domainCinemaContainer(),
                             contentColor = domainCinemaOnContainer(),
@@ -294,15 +362,33 @@ fun OverviewScreen(
                             onClick = onNavigateToMovies
                         )
 
+                        val resolvedMusicTitle = state.latestMusic?.track?.ifBlank { null }
+                            ?: latestMusic?.title
+                            ?: stringResource(R.string.overview_hero_no_recent_music)
+                        val resolvedMusicSubtitle = state.latestMusic?.let { s ->
+                            val parts = listOfNotNull(s.artist.ifBlank { null }, s.album.ifBlank { null })
+                            if (parts.isNotEmpty()) parts.joinToString(" • ") else null
+                        } ?: latestMusic?.subtitle?.takeIf { it.isNotBlank() }
+                        val resolvedMusicImage = state.latestMusic?.imageUrl?.ifBlank { null }
+                            ?: latestMusic?.image_url
+
                         val musicSlide = HeroCarouselSlide(
                             id = "music",
-                            title = stringResource(R.string.title_music),
-                            badgeText = "Last.fm",
+                            title = "${stringResource(R.string.title_music)} • Last.fm",
                             count = musicCount.toString(),
-                            unitText = "tracks",
-                            subtitle = latestMusic?.let { "${it.title} · ${it.subtitle}" }
-                                ?: stringResource(R.string.overview_metric_music_note),
-                            actionText = stringResource(R.string.title_music),
+                            unitText = stringResource(R.string.overview_hero_unit_tracks),
+                            subtitleText = if (todayMusicCount > 0) {
+                                stringResource(R.string.overview_hero_music_today_subtitle, todayMusicCount)
+                            } else {
+                                stringResource(R.string.overview_hero_music_total_subtitle)
+                            },
+                            spotlight = HeroSpotlightData(
+                                caption = stringResource(R.string.overview_hero_latest_track),
+                                title = resolvedMusicTitle,
+                                subtitle = resolvedMusicSubtitle,
+                                imageUrl = resolvedMusicImage,
+                                fallbackIcon = Icons.Default.MusicNote
+                            ),
                             icon = Icons.Default.MusicNote,
                             containerColor = domainMusicContainer(),
                             contentColor = domainMusicOnContainer(),
@@ -319,11 +405,23 @@ fun OverviewScreen(
                         ) {
                             HorizontalPager(
                                 state = statsPagerState,
-                                modifier = Modifier.fillMaxWidth(),
-                                pageSpacing = 12.dp
+                                contentPadding = PaddingValues(horizontal = 16.dp),
+                                pageSpacing = 10.dp,
+                                modifier = Modifier.fillMaxWidth()
                             ) { pageIndex ->
                                 val slide = slides[pageIndex]
-                                OverviewHeroCard(slide = slide)
+                                val pageOffset = (statsPagerState.currentPage - pageIndex) + statsPagerState.currentPageOffsetFraction
+                                val scale = 1f - (kotlin.math.abs(pageOffset) * 0.04f).coerceIn(0f, 0.04f)
+                                val alpha = 1f - (kotlin.math.abs(pageOffset) * 0.12f).coerceIn(0f, 0.12f)
+
+                                OverviewHeroCard(
+                                    slide = slide,
+                                    modifier = Modifier.graphicsLayer {
+                                        scaleX = scale
+                                        scaleY = scale
+                                        this.alpha = alpha
+                                    }
+                                )
                             }
 
                             // M3 Expressive Morphing Pager Indicator
@@ -493,7 +591,8 @@ fun OverviewScreen(
                                             Row(
                                                 modifier = Modifier
                                                     .fillMaxWidth()
-                                                    .padding(horizontal = 14.dp, vertical = 11.dp),
+                                                    .expressiveBounceClick { viewModel.syncService(syncKey) }
+                                                    .padding(horizontal = 14.dp, vertical = 12.dp),
                                                 horizontalArrangement = Arrangement.SpaceBetween,
                                                 verticalAlignment = Alignment.CenterVertically
                                             ) {
@@ -532,29 +631,19 @@ fun OverviewScreen(
 
                                                 Spacer(modifier = Modifier.width(8.dp))
 
-                                                FilledTonalIconButton(
-                                                    onClick = { viewModel.syncService(syncKey) },
-                                                    enabled = state.isSyncing == null,
-                                                    modifier = Modifier.size(34.dp),
-                                                    shape = RoundedCornerShape(10.dp),
-                                                    colors = IconButtonDefaults.filledTonalIconButtonColors(
-                                                        containerColor = MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.6f),
-                                                        contentColor = MaterialTheme.colorScheme.primary
+                                                if (isItemSyncing) {
+                                                    ExpressiveLoadingIndicator(
+                                                        size = 18.dp,
+                                                        strokeWidth = 2.dp,
+                                                        color = MaterialTheme.colorScheme.primary
                                                     )
-                                                ) {
-                                                    if (isItemSyncing) {
-                                                        ExpressiveLoadingIndicator(
-                                                            size = 14.dp,
-                                                            strokeWidth = 2.dp,
-                                                            color = MaterialTheme.colorScheme.primary
-                                                        )
-                                                    } else {
-                                                        Icon(
-                                                            imageVector = Icons.Default.Sync,
-                                                            contentDescription = "Sync ${plugin.name}",
-                                                            modifier = Modifier.size(16.dp)
-                                                        )
-                                                    }
+                                                } else {
+                                                    Icon(
+                                                        imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                                                        contentDescription = null,
+                                                        tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.38f),
+                                                        modifier = Modifier.size(18.dp)
+                                                    )
                                                 }
                                             }
                                         }
@@ -643,9 +732,10 @@ fun OverviewScreen(
                                 }
                             } else {
                                 Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
-                                    state.recentActivities.forEachIndexed { index, item ->
+                                    val activitiesToShow = state.recentActivities.take(6)
+                                    activitiesToShow.forEachIndexed { index, item ->
                                         key("${item.source}_${item.id.ifBlank { "${item.date}_${item.title}" }}") {
-                                            val shape = groupedContainerShape(index, state.recentActivities.size)
+                                            val shape = groupedContainerShape(index, activitiesToShow.size)
                                             Surface(
                                                 shape = shape,
                                                 color = MaterialTheme.colorScheme.surfaceContainerLow,
@@ -679,14 +769,24 @@ fun OverviewScreen(
     }
 }
 
+private data class HeroSpotlightData(
+    val caption: String,
+    val title: String,
+    val subtitle: String? = null,
+    val imageUrl: String? = null,
+    val rating: Double? = null,
+    val rewatch: Boolean = false,
+    val fallbackIcon: ImageVector
+)
+
 private data class HeroCarouselSlide(
     val id: String,
     val title: String,
-    val badgeText: String,
     val count: String,
     val unitText: String,
-    val subtitle: String,
-    val actionText: String,
+    val subtitleText: String,
+    val progress: Float? = null,
+    val spotlight: HeroSpotlightData? = null,
     val icon: ImageVector,
     val containerColor: Color,
     val contentColor: Color,
@@ -702,8 +802,9 @@ private fun OverviewHeroCard(
     Card(
         modifier = modifier
             .fillMaxWidth()
+            .height(252.dp)
             .expressiveBounceClick(onClick = slide.onClick),
-        shape = RoundedCornerShape(24.dp),
+        shape = RoundedCornerShape(28.dp),
         colors = CardDefaults.cardColors(
             containerColor = slide.containerColor,
             contentColor = slide.contentColor
@@ -712,22 +813,24 @@ private fun OverviewHeroCard(
     ) {
         Column(
             modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 18.dp, vertical = 16.dp)
+                .fillMaxSize()
+                .padding(horizontal = 20.dp, vertical = 18.dp),
+            verticalArrangement = Arrangement.SpaceBetween
         ) {
-            // Top Row: Icon + Title & Badge
+            // Top Row: Leading Icon + Domain Title & Trailing CTA Button
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Row(
+                    modifier = Modifier.weight(1f),
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
                     Box(
                         modifier = Modifier
-                            .size(32.dp)
+                            .size(34.dp)
                             .clip(CircleShape)
                             .background(slide.contentColor.copy(alpha = 0.12f)),
                         contentAlignment = Alignment.Center
@@ -742,74 +845,262 @@ private fun OverviewHeroCard(
                     Text(
                         text = slide.title,
                         style = MaterialTheme.typography.titleMediumEmphasized,
-                        color = slide.contentColor
+                        color = slide.contentColor,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
                     )
                 }
+
+                Spacer(modifier = Modifier.width(8.dp))
 
                 Surface(
-                    shape = M3Shapes.CornerFull,
-                    color = slide.contentColor.copy(alpha = 0.15f)
+                    shape = CircleShape,
+                    color = MaterialTheme.colorScheme.surfaceContainerLowest,
+                    shadowElevation = 1.dp,
+                    border = androidx.compose.foundation.BorderStroke(
+                        1.dp,
+                        MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.2f)
+                    ),
+                    modifier = Modifier.size(32.dp)
                 ) {
-                    Text(
-                        text = slide.badgeText,
-                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 3.dp),
-                        style = MaterialTheme.typography.labelSmallEmphasized,
-                        color = slide.contentColor
-                    )
+                    Box(
+                        contentAlignment = Alignment.Center,
+                        modifier = Modifier.fillMaxSize()
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.NorthEast,
+                            contentDescription = null,
+                            tint = slide.contentColor,
+                            modifier = Modifier.size(16.dp)
+                        )
+                    }
                 }
             }
 
-            Spacer(modifier = Modifier.height(12.dp))
-
-            // Display Numeral + Unit
-            Row(
-                verticalAlignment = Alignment.Bottom,
-                horizontalArrangement = Arrangement.spacedBy(6.dp)
-            ) {
-                Text(
-                    text = slide.count,
-                    style = MaterialTheme.typography.displaySmallEmphasized,
-                    color = slide.contentColor
-                )
-                Text(
-                    text = slide.unitText,
-                    style = MaterialTheme.typography.titleMediumEmphasized,
-                    color = slide.contentColor.copy(alpha = 0.8f)
-                )
-            }
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            // Footer Row: Subtitle + Action Link
-            Row(
+            // Big Hero Numeral + Unit + Direct Subtitle (No pill spam!)
+            Column(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
+                verticalArrangement = Arrangement.spacedBy(2.dp)
             ) {
-                Text(
-                    text = slide.subtitle,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = slide.contentColor.copy(alpha = 0.85f),
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.weight(1f, fill = false)
-                )
-                Spacer(modifier = Modifier.width(8.dp))
                 Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(2.dp)
+                    verticalAlignment = Alignment.Bottom,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
                     Text(
-                        text = slide.actionText,
-                        style = MaterialTheme.typography.labelSmallEmphasized,
+                        text = slide.count,
+                        style = MaterialTheme.typography.displayMedium.copy(
+                            fontWeight = androidx.compose.ui.text.font.FontWeight.Bold
+                        ),
                         color = slide.contentColor
                     )
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Filled.ArrowForward,
-                        contentDescription = null,
-                        tint = slide.contentColor,
-                        modifier = Modifier.size(14.dp)
+                    Text(
+                        text = slide.unitText,
+                        style = MaterialTheme.typography.titleMedium,
+                        color = slide.contentColor.copy(alpha = 0.8f),
+                        modifier = Modifier.padding(bottom = 6.dp)
                     )
+                }
+
+                Text(
+                    text = slide.subtitleText,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = slide.contentColor.copy(alpha = 0.78f),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+
+                if (slide.progress != null) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    val animatedProgress by animateFloatAsState(
+                        targetValue = slide.progress,
+                        animationSpec = M3ExpressiveMotion.defaultSpatial(),
+                        label = "hero_progress"
+                    )
+                    // M3 Expressive Linear Progress Bar: 8dp, rounded pill ends, contrasting track
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(8.dp)
+                            .clip(M3Shapes.CornerFull)
+                            .background(slide.contentColor.copy(alpha = 0.16f))
+                    ) {
+                        if (animatedProgress > 0f) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxHeight()
+                                    .fillMaxWidth(animatedProgress)
+                                    .clip(M3Shapes.CornerFull)
+                                    .background(slide.accentColor)
+                            )
+                        }
+                    }
+                }
+            }
+
+            // High-Contrast Spotlight Slot (Always present, fixed height, eliminating layout shift)
+            HeroSpotlightContainer(
+                spotlight = slide.spotlight,
+                contentColor = slide.contentColor,
+                accentColor = slide.accentColor
+            )
+        }
+    }
+}
+
+@Composable
+private fun HeroSpotlightContainer(
+    spotlight: HeroSpotlightData?,
+    contentColor: Color,
+    accentColor: Color,
+    modifier: Modifier = Modifier
+) {
+    Surface(
+        shape = RoundedCornerShape(16.dp),
+        color = MaterialTheme.colorScheme.surfaceContainerLowest,
+        border = androidx.compose.foundation.BorderStroke(
+            1.dp,
+            MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.22f)
+        ),
+        shadowElevation = 0.5.dp,
+        modifier = modifier
+            .fillMaxWidth()
+            .height(70.dp)
+    ) {
+        if (spotlight == null) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(horizontal = 14.dp),
+                contentAlignment = Alignment.CenterStart
+            ) {
+                Text(
+                    text = stringResource(R.string.overview_no_activities),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        } else {
+            Row(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(horizontal = 12.dp, vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                // Media thumbnail or domain icon (no duplicate icon!)
+                if (spotlight.imageUrl?.isNotBlank() == true) {
+                    val isMusic = spotlight.fallbackIcon == Icons.Default.MusicNote
+                    val imgWidth = if (isMusic) 42.dp else 32.dp
+                    val imgHeight = if (isMusic) 42.dp else 46.dp
+                    val imgShape = if (isMusic) RoundedCornerShape(8.dp) else RoundedCornerShape(6.dp)
+
+                    Box(
+                        modifier = Modifier
+                            .size(width = imgWidth, height = imgHeight)
+                            .clip(imgShape)
+                            .background(MaterialTheme.colorScheme.surfaceContainerHigh)
+                    ) {
+                        AsyncImage(
+                            model = spotlight.imageUrl,
+                            contentDescription = null,
+                            modifier = Modifier.fillMaxSize(),
+                            contentScale = androidx.compose.ui.layout.ContentScale.Crop
+                        )
+                    }
+                    Spacer(modifier = Modifier.width(12.dp))
+                } else {
+                    Box(
+                        modifier = Modifier
+                            .size(38.dp)
+                            .clip(RoundedCornerShape(10.dp))
+                            .background(MaterialTheme.colorScheme.surfaceContainerHigh),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = spotlight.fallbackIcon,
+                            contentDescription = null,
+                            tint = contentColor,
+                            modifier = Modifier.size(19.dp)
+                        )
+                    }
+                    Spacer(modifier = Modifier.width(12.dp))
+                }
+
+                // Title + Subtitle Column
+                Column(
+                    modifier = Modifier.weight(1f),
+                    verticalArrangement = Arrangement.Center
+                ) {
+                    Text(
+                        text = spotlight.caption,
+                        style = MaterialTheme.typography.labelSmall.copy(
+                            letterSpacing = 0.5.sp,
+                            fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold,
+                            fontSize = 10.sp
+                        ),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    Text(
+                        text = spotlight.title,
+                        style = MaterialTheme.typography.bodyMediumEmphasized,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    if (spotlight.subtitle?.isNotBlank() == true) {
+                        Text(
+                            text = spotlight.subtitle,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+                }
+
+                // Trailing badges (rating / rewatch)
+                if (spotlight.rating != null && spotlight.rating > 0.0) {
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Surface(
+                        shape = M3Shapes.CornerFull,
+                        color = domainRatingContainer()
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(3.dp),
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Star,
+                                contentDescription = null,
+                                tint = domainRatingOnContainer(),
+                                modifier = Modifier.size(12.dp)
+                            )
+                            Text(
+                                text = String.format(java.util.Locale.US, "%.1f", spotlight.rating),
+                                style = MaterialTheme.typography.labelSmallEmphasized,
+                                color = domainRatingOnContainer()
+                            )
+                        }
+                    }
+                }
+
+                if (spotlight.rewatch) {
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Surface(
+                        shape = M3Shapes.CornerFull,
+                        color = MaterialTheme.colorScheme.surfaceContainerHigh
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Refresh,
+                            contentDescription = null,
+                            tint = contentColor,
+                            modifier = Modifier
+                                .padding(5.dp)
+                                .size(12.dp)
+                        )
+                    }
                 }
             }
         }

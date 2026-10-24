@@ -153,6 +153,7 @@ private fun Any?.toScreen(): Screen? {
             this == "HealthConnect" || this.contains("HealthConnect") -> Screen.HealthConnect
             this == "Music" || this.contains("Music") -> Screen.Music
             this == "Language" || this.contains("Language") -> Screen.Language
+            this == "IntegrationsCatalog" || this.contains("IntegrationsCatalog") -> Screen.IntegrationsCatalog
             else -> null
         }
         else -> null
@@ -320,7 +321,7 @@ fun MainAppHost() {
         navigator.goBack()
     }
 
-    val showFloatingNav = currentRoute !in setOf(Screen.IntegrationsCatalog, Screen.Language)
+    val showFloatingNav = !isDetailRoute
 
     var isBottomBarVisible by rememberSaveable { mutableStateOf(true) }
     val density = LocalDensity.current
@@ -551,6 +552,28 @@ fun MainAppHost() {
         }
 
         AnimatedVisibility(
+            visible = showFloatingNav && !isWideScreen && isBottomBarVisible,
+            enter = fadeIn(animationSpec = M3ExpressiveMotion.fastEffects()),
+            exit = fadeOut(animationSpec = M3ExpressiveMotion.fastEffects()),
+            modifier = Modifier.align(Alignment.BottomCenter)
+        ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(116.dp)
+                    .background(
+                        androidx.compose.ui.graphics.Brush.verticalGradient(
+                            colors = listOf(
+                                androidx.compose.ui.graphics.Color.Transparent,
+                                MaterialTheme.colorScheme.surface.copy(alpha = 0.75f),
+                                MaterialTheme.colorScheme.surface
+                            )
+                        )
+                    )
+            )
+        }
+
+        AnimatedVisibility(
             visible = showFloatingNav && (isWideScreen || isBottomBarVisible),
             enter = fadeIn(animationSpec = M3ExpressiveMotion.fastSpatial()) + slideInVertically(
                 initialOffsetY = { (it * 1.3f).roundToInt() },
@@ -748,9 +771,13 @@ private fun ExpressiveAdaptiveNavigation(
         ) {
             Surface(
                 shape = M3Shapes.CornerFull,
-                color = MaterialTheme.colorScheme.surfaceContainer,
+                color = MaterialTheme.colorScheme.surfaceContainerHigh,
                 tonalElevation = 3.dp,
-                shadowElevation = 6.dp,
+                shadowElevation = 2.dp,
+                border = androidx.compose.foundation.BorderStroke(
+                    1.dp,
+                    MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f)
+                ),
                 modifier = Modifier.height(64.dp)
             ) {
                 Row(
