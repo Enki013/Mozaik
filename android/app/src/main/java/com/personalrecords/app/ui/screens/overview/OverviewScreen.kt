@@ -33,6 +33,7 @@ import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -292,123 +293,62 @@ fun OverviewScreen(
                         val resolvedMealTitle = state.latestMeal?.displayName?.ifBlank { null }
                             ?: latestMeal?.title
                             ?: stringResource(R.string.overview_hero_no_recent_meal)
-                        val resolvedMealSubtitle = state.latestMeal?.let { m ->
-                            val parts = listOfNotNull(m.meal.ifBlank { null }, "${m.calories.toInt()} kcal")
-                            if (parts.isNotEmpty()) parts.joinToString(" · ") else null
-                        } ?: latestMeal?.subtitle?.takeIf { it.isNotBlank() }
+                        val resolvedMealSubtitle = state.latestMeal?.meal?.ifBlank { null }
+                            ?: latestMeal?.subtitle?.takeIf { it.isNotBlank() }
+                            ?: "Öğün"
+                        val resolvedMealBadge = state.latestMeal?.let { "${it.calories.toInt()} kcal" }
+                            ?: latestMeal?.details?.get("calories")?.let { "$it kcal" }
 
-                        val todayDateStr = remember(state.dashboard) {
-                            state.dashboard?.today?.get("date")?.toString()?.replace("\"", "")
-                                ?: LocalDate.now().toString()
-                        }
-                        val mealDate = state.latestMeal?.displayDate?.takeIf { it.isNotBlank() } ?: latestMeal?.date
-                        val mealDateNote = remember(mealDate, todayDateStr) {
-                            if (mealDate != null && !mealDate.startsWith(todayDateStr)) {
-                                try {
-                                    val parsed = LocalDate.parse(mealDate.take(10))
-                                    val today = LocalDate.now()
-                                    if (parsed.isEqual(today.minusDays(1))) " • DÜN" else " • ${parsed.dayOfMonth}.${parsed.monthValue}"
-                                } catch (_: Exception) {
-                                    null
-                                }
-                            } else null
-                        }
+                        val nutritionMainValue = if (todayCalInt > 0) todayCalInt.toString() else (state.latestMeal?.calories?.toInt()?.takeIf { it > 0 }?.toString() ?: "0")
+                        val nutritionProgress = if (todayCalInt > 0) calProgress else ((state.latestMeal?.calories?.toFloat() ?: 0f) / targetCal).coerceIn(0f, 1f)
 
-                        val currentYear = remember { java.time.Year.now().value.toString() }
-                        val thisYearBooksCount = remember(state.recentActivities) {
-                            state.recentActivities.count { (it.source == "goodreads" || it.type == "book") && it.date.startsWith(currentYear) }
-                        }
-                        val thisYearFilmsCount = remember(state.recentActivities) {
-                            state.recentActivities.count { (it.source == "letterboxd" || it.type == "film") && it.date.startsWith(currentYear) }
-                        }
-
-                        val nutritionSlide = HeroCarouselSlide(
+                        val nutritionSlide = CompactHeroSlide(
                             id = "nutrition",
-                            title = "Beslenme • FatSecret",
-                            count = todayCalInt.toString(),
-                            unitText = stringResource(R.string.overview_hero_unit_kcal),
-                            secondaryContent = HeroSecondaryContent.NutritionGauge(
-                                progress = calProgress,
-                                targetCal = targetCal,
-                                remainingCal = remainingCal
-                            ),
-                            spotlight = HeroSpotlightData(
-                                caption = stringResource(R.string.overview_hero_latest_meal) + (mealDateNote ?: ""),
-                                title = resolvedMealTitle,
-                                subtitle = resolvedMealSubtitle,
-                                fallbackIcon = Icons.Default.Restaurant
-                            ),
+                            categoryTitle = "Beslenme • FatSecret",
+                            mainValue = nutritionMainValue,
+                            unit = stringResource(R.string.overview_hero_unit_kcal),
+                            goalProgress = nutritionProgress,
+                            goalLabel = "/ $targetCal",
+                            recentTitle = resolvedMealTitle,
+                            recentSubtitle = resolvedMealSubtitle,
+                            recentBadge = resolvedMealBadge,
+                            hasRatingStar = false,
+                            imageUrl = null,
+                            cardColor = domainNutritionContainer(),
+                            onCardColor = domainNutritionOnContainer(),
                             icon = Icons.Default.Restaurant,
-                            containerColor = domainNutritionContainer(),
-                            contentColor = domainNutritionOnContainer(),
-                            accentColor = domainNutritionColor(),
                             onClick = onNavigateToNutrition
                         )
 
-                        val booksSecondaryBadge = if (thisYearBooksCount > 0) {
-                            HeroSecondaryContent.StatBadge(
-                                label = stringResource(R.string.overview_hero_this_year_count, thisYearBooksCount),
-                                icon = Icons.Default.CalendarToday
-                            )
-                        } else {
-                            HeroSecondaryContent.StatBadge(
-                                label = stringResource(R.string.overview_hero_tag_shelf),
-                                icon = Icons.AutoMirrored.Filled.MenuBook
-                            )
-                        }
-
-                        val booksSlide = HeroCarouselSlide(
+                        val booksSlide = CompactHeroSlide(
                             id = "books",
-                            title = "${stringResource(R.string.title_books)} • Goodreads",
-                            count = booksCount.toString(),
-                            unitText = stringResource(R.string.overview_hero_unit_books),
-                            secondaryContent = booksSecondaryBadge,
-                            spotlight = HeroSpotlightData(
-                                caption = stringResource(R.string.overview_hero_latest_book),
-                                title = resolvedBookTitle,
-                                subtitle = resolvedBookAuthor,
-                                imageUrl = resolvedBookCover,
-                                rating = resolvedBookRating,
-                                fallbackIcon = Icons.AutoMirrored.Filled.MenuBook
-                            ),
+                            categoryTitle = "${stringResource(R.string.title_books)} • Goodreads",
+                            mainValue = booksCount.toString(),
+                            unit = stringResource(R.string.overview_hero_unit_books),
+                            recentTitle = resolvedBookTitle,
+                            recentSubtitle = resolvedBookAuthor ?: "",
+                            recentBadge = resolvedBookRating?.let { String.format(Locale.US, "%.1f", it) },
+                            hasRatingStar = resolvedBookRating != null && resolvedBookRating > 0.0,
+                            imageUrl = resolvedBookCover,
+                            cardColor = domainBooksContainer(),
+                            onCardColor = domainBooksOnContainer(),
                             icon = Icons.AutoMirrored.Filled.MenuBook,
-                            containerColor = domainBooksContainer(),
-                            contentColor = domainBooksOnContainer(),
-                            accentColor = domainBooksColor(),
                             onClick = onNavigateToBooks
                         )
 
-                        val moviesSecondaryBadge = if (thisYearFilmsCount > 0) {
-                            HeroSecondaryContent.StatBadge(
-                                label = stringResource(R.string.overview_hero_this_year_count, thisYearFilmsCount),
-                                icon = Icons.Default.CalendarToday
-                            )
-                        } else {
-                            HeroSecondaryContent.StatBadge(
-                                label = stringResource(R.string.overview_hero_tag_diary),
-                                icon = Icons.Default.Movie
-                            )
-                        }
-
-                        val moviesSlide = HeroCarouselSlide(
+                        val moviesSlide = CompactHeroSlide(
                             id = "movies",
-                            title = "${stringResource(R.string.title_movies)} • Letterboxd",
-                            count = filmsCount.toString(),
-                            unitText = stringResource(R.string.overview_hero_unit_films),
-                            secondaryContent = moviesSecondaryBadge,
-                            spotlight = HeroSpotlightData(
-                                caption = stringResource(R.string.overview_hero_latest_film),
-                                title = resolvedFilmTitle,
-                                subtitle = resolvedFilmSubtitle,
-                                imageUrl = resolvedFilmPoster,
-                                rating = resolvedFilmRating,
-                                rewatch = resolvedFilmRewatch,
-                                fallbackIcon = Icons.Default.Movie
-                            ),
+                            categoryTitle = "${stringResource(R.string.title_movies)} • Letterboxd",
+                            mainValue = filmsCount.toString(),
+                            unit = stringResource(R.string.overview_hero_unit_films),
+                            recentTitle = resolvedFilmTitle,
+                            recentSubtitle = resolvedFilmSubtitle ?: "",
+                            recentBadge = resolvedFilmRating?.let { String.format(Locale.US, "%.1f", it) },
+                            hasRatingStar = resolvedFilmRating != null && resolvedFilmRating > 0.0,
+                            imageUrl = resolvedFilmPoster,
+                            cardColor = domainCinemaContainer(),
+                            onCardColor = domainCinemaOnContainer(),
                             icon = Icons.Default.Movie,
-                            containerColor = domainCinemaContainer(),
-                            contentColor = domainCinemaOnContainer(),
-                            accentColor = domainCinemaColor(),
                             onClick = onNavigateToMovies
                         )
 
@@ -418,39 +358,23 @@ fun OverviewScreen(
                         val resolvedMusicSubtitle = state.latestMusic?.let { s ->
                             val parts = listOfNotNull(s.artist.ifBlank { null }, s.album.ifBlank { null })
                             if (parts.isNotEmpty()) parts.joinToString(" • ") else null
-                        } ?: latestMusic?.subtitle?.takeIf { it.isNotBlank() }
+                        } ?: latestMusic?.subtitle?.takeIf { it.isNotBlank() } ?: ""
                         val resolvedMusicImage = state.latestMusic?.imageUrl?.ifBlank { null }
                             ?: latestMusic?.image_url
 
-                        val musicSecondaryBadge = if (todayMusicCount > 0) {
-                            HeroSecondaryContent.StatBadge(
-                                label = stringResource(R.string.overview_hero_today_music, todayMusicCount),
-                                icon = Icons.Default.MusicNote
-                            )
-                        } else {
-                            HeroSecondaryContent.StatBadge(
-                                label = stringResource(R.string.overview_hero_tag_shelf_music),
-                                icon = Icons.Default.MusicNote
-                            )
-                        }
-
-                        val musicSlide = HeroCarouselSlide(
+                        val musicSlide = CompactHeroSlide(
                             id = "music",
-                            title = "${stringResource(R.string.title_music)} • Last.fm",
-                            count = musicCount.toString(),
-                            unitText = stringResource(R.string.overview_hero_unit_tracks),
-                            secondaryContent = musicSecondaryBadge,
-                            spotlight = HeroSpotlightData(
-                                caption = stringResource(R.string.overview_hero_latest_track),
-                                title = resolvedMusicTitle,
-                                subtitle = resolvedMusicSubtitle,
-                                imageUrl = resolvedMusicImage,
-                                fallbackIcon = Icons.Default.MusicNote
-                            ),
+                            categoryTitle = "${stringResource(R.string.title_music)} • Last.fm",
+                            mainValue = musicCount.toString(),
+                            unit = stringResource(R.string.overview_hero_unit_tracks),
+                            recentTitle = resolvedMusicTitle,
+                            recentSubtitle = resolvedMusicSubtitle,
+                            recentBadge = if (todayMusicCount > 0) "+$todayMusicCount" else null,
+                            hasRatingStar = false,
+                            imageUrl = resolvedMusicImage,
+                            cardColor = domainMusicContainer(),
+                            onCardColor = domainMusicOnContainer(),
                             icon = Icons.Default.MusicNote,
-                            containerColor = domainMusicContainer(),
-                            contentColor = domainMusicOnContainer(),
-                            accentColor = domainMusicColor(),
                             onClick = onNavigateToMusic
                         )
 
@@ -472,8 +396,21 @@ fun OverviewScreen(
                                 val scale = 1f - (kotlin.math.abs(pageOffset) * 0.04f).coerceIn(0f, 0.04f)
                                 val alpha = 1f - (kotlin.math.abs(pageOffset) * 0.12f).coerceIn(0f, 0.12f)
 
-                                OverviewHeroCard(
-                                    slide = slide,
+                                CompactExpressiveStatsCard(
+                                    categoryTitle = slide.categoryTitle,
+                                    mainValue = slide.mainValue,
+                                    unit = slide.unit,
+                                    recentTitle = slide.recentTitle,
+                                    recentSubtitle = slide.recentSubtitle,
+                                    recentBadge = slide.recentBadge,
+                                    hasRatingStar = slide.hasRatingStar,
+                                    imageUrl = slide.imageUrl,
+                                    goalProgress = slide.goalProgress,
+                                    goalLabel = slide.goalLabel,
+                                    cardColor = slide.cardColor,
+                                    onCardColor = slide.onCardColor,
+                                    icon = slide.icon,
+                                    onClick = slide.onClick,
                                     modifier = Modifier.graphicsLayer {
                                         scaleX = scale
                                         scaleY = scale
@@ -498,7 +435,7 @@ fun OverviewScreen(
                                         label = "pager_ind_w"
                                     )
                                     val indicatorColor by animateColorAsState(
-                                        targetValue = if (isSelected) slide.accentColor else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f),
+                                        targetValue = if (isSelected) slide.cardColor else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f),
                                         animationSpec = M3ExpressiveMotion.fastEffects(),
                                         label = "pager_ind_c"
                                     )
@@ -827,421 +764,327 @@ fun OverviewScreen(
     }
 }
 
-private sealed interface HeroSecondaryContent {
-    data class NutritionGauge(
-        val progress: Float,
-        val targetCal: Int,
-        val remainingCal: Int
-    ) : HeroSecondaryContent
-
-    data class StatBadge(
-        val label: String,
-        val icon: ImageVector? = null
-    ) : HeroSecondaryContent
-}
-
-private data class HeroSpotlightData(
-    val caption: String,
-    val title: String,
-    val subtitle: String? = null,
-    val imageUrl: String? = null,
-    val rating: Double? = null,
-    val rewatch: Boolean = false,
-    val fallbackIcon: ImageVector
-)
-
-private data class HeroCarouselSlide(
+private data class CompactHeroSlide(
     val id: String,
-    val title: String,
-    val count: String,
-    val unitText: String,
-    val secondaryContent: HeroSecondaryContent? = null,
-    val spotlight: HeroSpotlightData? = null,
+    val categoryTitle: String,
+    val mainValue: String,
+    val unit: String,
+    val recentTitle: String,
+    val recentSubtitle: String,
+    val recentBadge: String? = null,
+    val hasRatingStar: Boolean = false,
+    val imageUrl: String? = null,
+    val goalProgress: Float? = null,
+    val goalLabel: String? = null,
+    val cardColor: Color,
+    val onCardColor: Color = Color.White,
     val icon: ImageVector,
-    val containerColor: Color,
-    val contentColor: Color,
-    val accentColor: Color,
     val onClick: () -> Unit
 )
 
 @Composable
-private fun OverviewHeroCard(
-    slide: HeroCarouselSlide,
+fun CompactExpressiveStatsCard(
+    categoryTitle: String,
+    mainValue: String,
+    unit: String,
+    recentTitle: String,
+    recentSubtitle: String,
+    recentBadge: String? = null,
+    hasRatingStar: Boolean = false,
+    imageUrl: String? = null,
+    goalProgress: Float? = null,
+    goalLabel: String? = null,
+    cardColor: Color,
+    onCardColor: Color = Color.White,
+    icon: ImageVector,
+    onClick: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
-    Card(
+    // Saf siyah (#000000) yerine M3 Expressive tonal katman renkleri
+    val tonalSurface = Color.Black.copy(alpha = 0.22f)
+    val tonalHighlight = Color.White.copy(alpha = 0.14f)
+
+    Surface(
         modifier = modifier
             .fillMaxWidth()
-            .height(238.dp)
-            .expressiveBounceClick(onClick = slide.onClick),
-        shape = RoundedCornerShape(28.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = slide.containerColor,
-            contentColor = slide.contentColor
-        ),
-        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+            .height(156.dp)
+            .expressiveBounceClick(onClick = onClick),
+        shape = RoundedCornerShape(26.dp),
+        color = cardColor,
+        contentColor = onCardColor
     ) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(horizontal = 18.dp, vertical = 16.dp),
+                .padding(14.dp),
             verticalArrangement = Arrangement.SpaceBetween
         ) {
-            // 1. Top Row: Leading Icon + Domain Title & Trailing CTA Button
+            // 1. ÜST BLOK: Sol tarafta Kategori + Hero Rakam, Sağda Aksiyon & Progress
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
+                verticalAlignment = Alignment.Top
             ) {
-                Row(
-                    modifier = Modifier.weight(1f),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                // Sol Sütun: Başlık ve Büyük İstatistik Sıkı Hiyerarşi
+                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        Icon(
+                            imageVector = icon,
+                            contentDescription = null,
+                            modifier = Modifier.size(16.dp),
+                            tint = onCardColor.copy(alpha = 0.85f)
+                        )
+                        Text(
+                            text = categoryTitle,
+                            style = MaterialTheme.typography.labelLarge.copy(
+                                fontWeight = FontWeight.SemiBold,
+                                color = onCardColor.copy(alpha = 0.85f)
+                            )
+                        )
+                    }
+
+                    Row(
+                        verticalAlignment = Alignment.Bottom,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        Text(
+                            text = mainValue,
+                            fontSize = 42.sp,
+                            fontWeight = FontWeight.ExtraBold,
+                            letterSpacing = (-1.5).sp,
+                            lineHeight = 42.sp
+                        )
+                        Text(
+                            text = unit,
+                            style = MaterialTheme.typography.titleMedium.copy(
+                                fontWeight = FontWeight.Medium,
+                                color = onCardColor.copy(alpha = 0.8f)
+                            ),
+                            modifier = Modifier.padding(bottom = 4.dp)
+                        )
+                    }
+                }
+
+                // Sağ Sütun: Ok Butonu ve (Varsa) Kompakt Kalori Hedef Barı
+                Column(
+                    horizontalAlignment = Alignment.End,
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     Box(
                         modifier = Modifier
                             .size(32.dp)
                             .clip(CircleShape)
-                            .background(slide.contentColor.copy(alpha = 0.14f)),
+                            .background(tonalSurface),
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
-                            imageVector = slide.icon,
-                            contentDescription = null,
-                            tint = slide.contentColor,
-                            modifier = Modifier.size(17.dp)
+                            imageVector = Icons.Default.ArrowOutward,
+                            contentDescription = "Aç",
+                            modifier = Modifier.size(16.dp),
+                            tint = onCardColor
                         )
                     }
-                    Text(
-                        text = slide.title,
-                        style = MaterialTheme.typography.titleMediumEmphasized,
-                        color = slide.contentColor,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                }
 
-                Spacer(modifier = Modifier.width(8.dp))
-
-                Surface(
-                    shape = CircleShape,
-                    color = slide.contentColor.copy(alpha = 0.14f),
-                    border = BorderStroke(
-                        1.dp,
-                        slide.contentColor.copy(alpha = 0.20f)
-                    ),
-                    modifier = Modifier.size(32.dp)
-                ) {
-                    Box(
-                        contentAlignment = Alignment.Center,
-                        modifier = Modifier.fillMaxSize()
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.NorthEast,
-                            contentDescription = null,
-                            tint = slide.contentColor,
-                            modifier = Modifier.size(16.dp)
-                        )
-                    }
-                }
-            }
-
-            // 2. Split Hero Metric Row (Left = Bold Numeral + Unit, Right = Dynamic Secondary Stat)
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 2.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                // Left: Bold Display Numeral + Baseline Unit
-                Row(
-                    verticalAlignment = Alignment.Bottom,
-                    horizontalArrangement = Arrangement.spacedBy(6.dp)
-                ) {
-                    Text(
-                        text = slide.count,
-                        style = MaterialTheme.typography.displayMedium.copy(
-                            fontSize = 46.sp,
-                            fontWeight = FontWeight.ExtraBold,
-                            lineHeight = 46.sp
-                        ),
-                        color = slide.contentColor
-                    )
-                    Text(
-                        text = slide.unitText,
-                        style = MaterialTheme.typography.titleMedium.copy(
-                            fontWeight = FontWeight.SemiBold
-                        ),
-                        color = slide.contentColor.copy(alpha = 0.82f),
-                        modifier = Modifier.padding(bottom = 5.dp)
-                    )
-                }
-
-                // Right: Secondary dynamic content (Nutrition circular gauge or live badge)
-                when (val sec = slide.secondaryContent) {
-                    is HeroSecondaryContent.NutritionGauge -> {
+                    if (goalProgress != null && goalLabel != null) {
                         val animatedProgress by animateFloatAsState(
-                            targetValue = sec.progress,
+                            targetValue = goalProgress,
                             animationSpec = M3ExpressiveMotion.defaultSpatial(),
-                            label = "hero_cal_ring"
+                            label = "compact_goal_progress"
                         )
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                            horizontalArrangement = Arrangement.spacedBy(6.dp),
+                            modifier = Modifier
+                                .clip(CircleShape)
+                                .background(tonalSurface)
+                                .padding(horizontal = 8.dp, vertical = 4.dp)
                         ) {
-                            Column(
-                                horizontalAlignment = Alignment.End,
-                                verticalArrangement = Arrangement.spacedBy(1.dp)
-                            ) {
-                                Text(
-                                    text = if (sec.remainingCal >= 0) {
-                                        stringResource(R.string.overview_hero_remaining_compact, sec.remainingCal)
-                                    } else {
-                                        stringResource(R.string.overview_hero_exceeded_compact, -sec.remainingCal)
-                                    },
-                                    style = MaterialTheme.typography.labelMedium.copy(
-                                        fontWeight = FontWeight.Bold
-                                    ),
-                                    color = slide.contentColor
-                                )
-                                Text(
-                                    text = stringResource(R.string.overview_hero_goal_label_compact, sec.targetCal),
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = slide.contentColor.copy(alpha = 0.72f)
-                                )
-                            }
-                            Box(
-                                modifier = Modifier.size(44.dp),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                CircularProgressIndicator(
-                                    progress = { animatedProgress },
-                                    modifier = Modifier.size(44.dp),
-                                    color = slide.accentColor,
-                                    trackColor = slide.contentColor.copy(alpha = 0.16f),
-                                    strokeWidth = 4.5.dp,
-                                    strokeCap = StrokeCap.Round
-                                )
-                                Text(
-                                    text = "${(sec.progress * 100).toInt()}%",
-                                    style = MaterialTheme.typography.labelSmall.copy(
-                                        fontWeight = FontWeight.ExtraBold,
-                                        fontSize = 11.sp
-                                    ),
-                                    color = slide.contentColor
-                                )
-                            }
+                            LinearProgressIndicator(
+                                progress = { animatedProgress },
+                                modifier = Modifier
+                                    .width(44.dp)
+                                    .height(6.dp),
+                                color = Color(0xFF81C784),
+                                trackColor = tonalHighlight,
+                                strokeCap = StrokeCap.Round
+                            )
+                            Text(
+                                text = goalLabel,
+                                style = MaterialTheme.typography.labelSmall.copy(
+                                    fontWeight = FontWeight.Bold
+                                ),
+                                color = onCardColor.copy(alpha = 0.9f)
+                            )
                         }
                     }
-                    is HeroSecondaryContent.StatBadge -> {
-                        Surface(
-                            shape = CircleShape,
-                            color = slide.contentColor.copy(alpha = 0.12f),
-                            border = BorderStroke(1.dp, slide.contentColor.copy(alpha = 0.18f))
-                        ) {
-                            Row(
-                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(6.dp)
-                            ) {
-                                if (sec.icon != null) {
-                                    Icon(
-                                        imageVector = sec.icon,
-                                        contentDescription = null,
-                                        tint = slide.accentColor,
-                                        modifier = Modifier.size(13.dp)
-                                    )
-                                } else {
-                                    Box(
-                                        modifier = Modifier
-                                            .size(6.dp)
-                                            .clip(CircleShape)
-                                            .background(slide.accentColor)
-                                    )
-                                }
-                                Text(
-                                    text = sec.label,
-                                    style = MaterialTheme.typography.labelMedium.copy(
-                                        fontWeight = FontWeight.SemiBold
-                                    ),
-                                    color = slide.contentColor
-                                )
-                            }
-                        }
-                    }
-                    null -> Unit
                 }
             }
 
-            // 3. Tonal Concentric Spotlight Container (Harmonious surface tint, no pitch-black hole)
-            HeroSpotlightContainer(
-                spotlight = slide.spotlight,
-                contentColor = slide.contentColor,
-                accentColor = slide.accentColor
-            )
+            // 2. ALT BLOK: "SON EKLENEN" yazısı olmayan, 52.dp yüksekliğinde kompakt medya kapsülü
+            Surface(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(52.dp),
+                shape = RoundedCornerShape(14.dp), // 26.dp dış köşe - 12.dp = 14.dp eşmerkezli iç köşe
+                color = tonalSurface
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(horizontal = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        // Kompakt Kapak / İkon (36x36.dp)
+                        Box(
+                            modifier = Modifier
+                                .size(36.dp)
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(tonalHighlight),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            if (imageUrl?.isNotBlank() == true) {
+                                AsyncImage(
+                                    model = imageUrl,
+                                    contentDescription = null,
+                                    modifier = Modifier.fillMaxSize(),
+                                    contentScale = androidx.compose.ui.layout.ContentScale.Crop
+                                )
+                            } else {
+                                Icon(
+                                    imageVector = icon,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(18.dp),
+                                    tint = onCardColor
+                                )
+                            }
+                        }
+
+                        // Sadece Başlık ve Alt Başlık (2 satır, maksimum sadelik)
+                        Column(verticalArrangement = Arrangement.Center) {
+                            Text(
+                                text = recentTitle,
+                                style = MaterialTheme.typography.bodyMedium.copy(
+                                    fontWeight = FontWeight.Bold,
+                                    lineHeight = 16.sp
+                                ),
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                            if (recentSubtitle.isNotBlank()) {
+                                Text(
+                                    text = recentSubtitle,
+                                    style = MaterialTheme.typography.labelSmall.copy(
+                                        color = onCardColor.copy(alpha = 0.72f)
+                                    ),
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                            }
+                        }
+                    }
+
+                    // Sağ Rozet (★ 5.0 veya 444 kcal)
+                    if (recentBadge != null) {
+                        Surface(
+                            shape = CircleShape,
+                            color = tonalHighlight
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(3.dp)
+                            ) {
+                                if (hasRatingStar || recentBadge.contains("5.0")) {
+                                    Icon(
+                                        imageVector = Icons.Default.Star,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(11.dp),
+                                        tint = Color(0xFFFFD54F)
+                                    )
+                                }
+                                Text(
+                                    text = recentBadge,
+                                    style = MaterialTheme.typography.labelSmall.copy(
+                                        fontWeight = FontWeight.Bold
+                                    ),
+                                    color = onCardColor
+                                )
+                            }
+                        }
+                    }
+                }
+            }
         }
     }
 }
 
+@Preview(showBackground = true, backgroundColor = 0xFF121316, widthDp = 412)
 @Composable
-private fun HeroSpotlightContainer(
-    spotlight: HeroSpotlightData?,
-    contentColor: Color,
-    accentColor: Color,
-    modifier: Modifier = Modifier
-) {
-    Surface(
-        shape = RoundedCornerShape(16.dp),
-        color = contentColor.copy(alpha = 0.12f),
-        border = BorderStroke(
-            1.dp,
-            contentColor.copy(alpha = 0.18f)
-        ),
-        modifier = modifier
+fun CompactExpressivePreview() {
+    Column(
+        modifier = Modifier
             .fillMaxWidth()
-            .height(68.dp)
+            .background(Color(0xFF121316))
+            .padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        if (spotlight == null) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(horizontal = 14.dp),
-                contentAlignment = Alignment.CenterStart
-            ) {
-                Text(
-                    text = stringResource(R.string.overview_no_activities),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = contentColor.copy(alpha = 0.72f)
-                )
-            }
-        } else {
-            Row(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(horizontal = 12.dp, vertical = 10.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                // Media thumbnail or fallback icon with mathematically concentric radius
-                if (spotlight.imageUrl?.isNotBlank() == true) {
-                    val isMusic = spotlight.fallbackIcon == Icons.Default.MusicNote
-                    val imgWidth = if (isMusic) 46.dp else 34.dp
-                    val imgHeight = 46.dp
-                    val imgShape = if (isMusic) RoundedCornerShape(8.dp) else RoundedCornerShape(6.dp)
+        // 1. Kitaplar (Goodreads kütüphane arşivi yazısı kaldırıldı)
+        CompactExpressiveStatsCard(
+            categoryTitle = "Kitaplar • Goodreads",
+            mainValue = "36",
+            unit = "kitap",
+            recentTitle = "Dune (Dune, #1)",
+            recentSubtitle = "Frank Herbert",
+            recentBadge = "5.0",
+            cardColor = Color(0xFF00569E),
+            icon = Icons.AutoMirrored.Filled.MenuBook
+        )
 
-                    Box(
-                        modifier = Modifier
-                            .size(width = imgWidth, height = imgHeight)
-                            .clip(imgShape)
-                            .background(contentColor.copy(alpha = 0.14f))
-                    ) {
-                        AsyncImage(
-                            model = spotlight.imageUrl,
-                            contentDescription = null,
-                            modifier = Modifier.fillMaxSize(),
-                            contentScale = androidx.compose.ui.layout.ContentScale.Crop
-                        )
-                    }
-                    Spacer(modifier = Modifier.width(12.dp))
-                } else {
-                    Box(
-                        modifier = Modifier
-                            .size(44.dp)
-                            .clip(RoundedCornerShape(8.dp))
-                            .background(contentColor.copy(alpha = 0.14f)),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            imageVector = spotlight.fallbackIcon,
-                            contentDescription = null,
-                            tint = contentColor,
-                            modifier = Modifier.size(20.dp)
-                        )
-                    }
-                    Spacer(modifier = Modifier.width(12.dp))
-                }
+        // 2. Filmler (Letterboxd izleme günlüğü yazısı kaldırıldı)
+        CompactExpressiveStatsCard(
+            categoryTitle = "Filmler • Letterboxd",
+            mainValue = "16",
+            unit = "film",
+            recentTitle = "Obsession",
+            recentSubtitle = "2025",
+            recentBadge = "5.0",
+            cardColor = Color(0xFF4527A0),
+            icon = Icons.Default.Movie
+        )
 
-                // Title + Subtitle Column
-                Column(
-                    modifier = Modifier.weight(1f),
-                    verticalArrangement = Arrangement.Center
-                ) {
-                    Text(
-                        text = spotlight.caption,
-                        style = MaterialTheme.typography.labelSmall.copy(
-                            letterSpacing = 0.6.sp,
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 10.sp
-                        ),
-                        color = contentColor.copy(alpha = 0.68f),
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                    Spacer(modifier = Modifier.height(1.dp))
-                    Text(
-                        text = spotlight.title,
-                        style = MaterialTheme.typography.bodyMediumEmphasized,
-                        color = contentColor,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                    if (spotlight.subtitle?.isNotBlank() == true) {
-                        Text(
-                            text = spotlight.subtitle,
-                            style = MaterialTheme.typography.bodySmall,
-                            color = contentColor.copy(alpha = 0.78f),
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
-                    }
-                }
+        // 3. Müzik (Dinleme ve scrobble arşivi yazısı kaldırıldı)
+        CompactExpressiveStatsCard(
+            categoryTitle = "Müzik & Ses • Last.fm",
+            mainValue = "60",
+            unit = "parça",
+            recentTitle = "yastıgımda saclar",
+            recentSubtitle = "Mavi & Nazli Mcfian • VERITAS II",
+            cardColor = Color(0xFFB71C1C),
+            icon = Icons.Default.MusicNote
+        )
 
-                // Trailing badges (rating / rewatch) in matching tonal style
-                if (spotlight.rating != null && spotlight.rating > 0.0) {
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Surface(
-                        shape = CircleShape,
-                        color = contentColor.copy(alpha = 0.16f),
-                        border = BorderStroke(1.dp, contentColor.copy(alpha = 0.18f))
-                    ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(3.dp),
-                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Star,
-                                contentDescription = null,
-                                tint = contentColor,
-                                modifier = Modifier.size(11.dp)
-                            )
-                            Text(
-                                text = String.format(java.util.Locale.US, "%.1f", spotlight.rating),
-                                style = MaterialTheme.typography.labelSmallEmphasized,
-                                color = contentColor
-                            )
-                        }
-                    }
-                }
-
-                if (spotlight.rewatch) {
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Surface(
-                        shape = CircleShape,
-                        color = contentColor.copy(alpha = 0.16f)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Refresh,
-                            contentDescription = null,
-                            tint = contentColor,
-                            modifier = Modifier
-                                .padding(5.dp)
-                                .size(12.dp)
-                        )
-                    }
-                }
-            }
-        }
+        // 4. Beslenme (Tam genişlikli bar yerine sağda kompakt hedef kapsülü)
+        CompactExpressiveStatsCard(
+            categoryTitle = "Beslenme • FatSecret",
+            mainValue = "444",
+            unit = "kcal",
+            goalProgress = 0.44f,
+            goalLabel = "/ 1000",
+            recentTitle = "Biber Dolması",
+            recentSubtitle = "Lunch",
+            recentBadge = "444 kcal",
+            cardColor = Color(0xFF1E6829),
+            icon = Icons.Default.Restaurant
+        )
     }
 }
 
