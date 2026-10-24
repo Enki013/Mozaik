@@ -106,6 +106,11 @@
     <string name="overview_hero_status_books">Goodreads kütüphane arşivi</string>
     <string name="overview_hero_tag_diary">İzleme Günlüğü</string>
     <string name="overview_hero_tag_shelf">Goodreads Rafı</string>
+    <string name="overview_hero_tag_shelf_music">Scrobble Arşivi</string>
+    <string name="overview_hero_this_year_count">Bu yıl: %1$d</string>
+    <string name="overview_hero_goal_label_compact">Hedef: %1$d</string>
+    <string name="overview_hero_remaining_compact">%1$d kaldı</string>
+    <string name="overview_hero_exceeded_compact">%1$d aşıldı</string>
     <string name="overview_integrations_title">Entegrasyonlar &amp; Senkronizasyon</string>
     <string name="overview_integrations_subtitle">Tek tıkla anlık veri eşitlemesi</string>
     <string name="overview_integration_fatsecret">FatSecret</string>

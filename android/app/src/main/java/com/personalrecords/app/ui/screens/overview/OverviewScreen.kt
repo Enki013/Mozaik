@@ -5,6 +5,7 @@ import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -25,10 +26,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -173,14 +176,12 @@ fun OverviewScreen(
             } else {
                 LazyColumn(
                     state = listState,
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(horizontal = 14.dp),
+                    modifier = Modifier.fillMaxSize(),
                     contentPadding = PaddingValues(
                         top = 8.dp,
                         bottom = 144.dp + WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
                     ),
-                    verticalArrangement = Arrangement.spacedBy(14.dp)
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
                     // Server Connection Error Banner
                     if (state.error != null && state.dashboard == null) {
@@ -191,6 +192,7 @@ fun OverviewScreen(
                                 contentColor = MaterialTheme.colorScheme.onErrorContainer,
                                 modifier = expressiveItemModifier()
                                     .fillMaxWidth()
+                                    .padding(horizontal = 16.dp)
                                     .expressiveShake(trigger = state.error)
                                     .then(
                                         if (onNavigateToSettings != null) {
@@ -295,19 +297,43 @@ fun OverviewScreen(
                             if (parts.isNotEmpty()) parts.joinToString(" · ") else null
                         } ?: latestMeal?.subtitle?.takeIf { it.isNotBlank() }
 
+                        val todayDateStr = remember(state.dashboard) {
+                            state.dashboard?.today?.get("date")?.toString()?.replace("\"", "")
+                                ?: LocalDate.now().toString()
+                        }
+                        val mealDate = state.latestMeal?.displayDate?.takeIf { it.isNotBlank() } ?: latestMeal?.date
+                        val mealDateNote = remember(mealDate, todayDateStr) {
+                            if (mealDate != null && !mealDate.startsWith(todayDateStr)) {
+                                try {
+                                    val parsed = LocalDate.parse(mealDate.take(10))
+                                    val today = LocalDate.now()
+                                    if (parsed.isEqual(today.minusDays(1))) " • DÜN" else " • ${parsed.dayOfMonth}.${parsed.monthValue}"
+                                } catch (_: Exception) {
+                                    null
+                                }
+                            } else null
+                        }
+
+                        val currentYear = remember { java.time.Year.now().value.toString() }
+                        val thisYearBooksCount = remember(state.recentActivities) {
+                            state.recentActivities.count { (it.source == "goodreads" || it.type == "book") && it.date.startsWith(currentYear) }
+                        }
+                        val thisYearFilmsCount = remember(state.recentActivities) {
+                            state.recentActivities.count { (it.source == "letterboxd" || it.type == "film") && it.date.startsWith(currentYear) }
+                        }
+
                         val nutritionSlide = HeroCarouselSlide(
                             id = "nutrition",
                             title = "Beslenme • FatSecret",
                             count = todayCalInt.toString(),
                             unitText = stringResource(R.string.overview_hero_unit_kcal),
-                            subtitleText = if (remainingCal >= 0) {
-                                stringResource(R.string.overview_hero_nutrition_subtitle_remaining, targetCal, remainingCal)
-                            } else {
-                                stringResource(R.string.overview_hero_nutrition_subtitle_exceeded, targetCal, -remainingCal)
-                            },
-                            progress = calProgress,
+                            secondaryContent = HeroSecondaryContent.NutritionGauge(
+                                progress = calProgress,
+                                targetCal = targetCal,
+                                remainingCal = remainingCal
+                            ),
                             spotlight = HeroSpotlightData(
-                                caption = stringResource(R.string.overview_hero_latest_meal),
+                                caption = stringResource(R.string.overview_hero_latest_meal) + (mealDateNote ?: ""),
                                 title = resolvedMealTitle,
                                 subtitle = resolvedMealSubtitle,
                                 fallbackIcon = Icons.Default.Restaurant
@@ -319,12 +345,24 @@ fun OverviewScreen(
                             onClick = onNavigateToNutrition
                         )
 
+                        val booksSecondaryBadge = if (thisYearBooksCount > 0) {
+                            HeroSecondaryContent.StatBadge(
+                                label = stringResource(R.string.overview_hero_this_year_count, thisYearBooksCount),
+                                icon = Icons.Default.CalendarToday
+                            )
+                        } else {
+                            HeroSecondaryContent.StatBadge(
+                                label = stringResource(R.string.overview_hero_tag_shelf),
+                                icon = Icons.AutoMirrored.Filled.MenuBook
+                            )
+                        }
+
                         val booksSlide = HeroCarouselSlide(
                             id = "books",
                             title = "${stringResource(R.string.title_books)} • Goodreads",
                             count = booksCount.toString(),
                             unitText = stringResource(R.string.overview_hero_unit_books),
-                            subtitleText = stringResource(R.string.overview_hero_books_subtitle),
+                            secondaryContent = booksSecondaryBadge,
                             spotlight = HeroSpotlightData(
                                 caption = stringResource(R.string.overview_hero_latest_book),
                                 title = resolvedBookTitle,
@@ -340,12 +378,24 @@ fun OverviewScreen(
                             onClick = onNavigateToBooks
                         )
 
+                        val moviesSecondaryBadge = if (thisYearFilmsCount > 0) {
+                            HeroSecondaryContent.StatBadge(
+                                label = stringResource(R.string.overview_hero_this_year_count, thisYearFilmsCount),
+                                icon = Icons.Default.CalendarToday
+                            )
+                        } else {
+                            HeroSecondaryContent.StatBadge(
+                                label = stringResource(R.string.overview_hero_tag_diary),
+                                icon = Icons.Default.Movie
+                            )
+                        }
+
                         val moviesSlide = HeroCarouselSlide(
                             id = "movies",
                             title = "${stringResource(R.string.title_movies)} • Letterboxd",
                             count = filmsCount.toString(),
                             unitText = stringResource(R.string.overview_hero_unit_films),
-                            subtitleText = stringResource(R.string.overview_hero_movies_subtitle),
+                            secondaryContent = moviesSecondaryBadge,
                             spotlight = HeroSpotlightData(
                                 caption = stringResource(R.string.overview_hero_latest_film),
                                 title = resolvedFilmTitle,
@@ -372,16 +422,24 @@ fun OverviewScreen(
                         val resolvedMusicImage = state.latestMusic?.imageUrl?.ifBlank { null }
                             ?: latestMusic?.image_url
 
+                        val musicSecondaryBadge = if (todayMusicCount > 0) {
+                            HeroSecondaryContent.StatBadge(
+                                label = stringResource(R.string.overview_hero_today_music, todayMusicCount),
+                                icon = Icons.Default.MusicNote
+                            )
+                        } else {
+                            HeroSecondaryContent.StatBadge(
+                                label = stringResource(R.string.overview_hero_tag_shelf_music),
+                                icon = Icons.Default.MusicNote
+                            )
+                        }
+
                         val musicSlide = HeroCarouselSlide(
                             id = "music",
                             title = "${stringResource(R.string.title_music)} • Last.fm",
                             count = musicCount.toString(),
                             unitText = stringResource(R.string.overview_hero_unit_tracks),
-                            subtitleText = if (todayMusicCount > 0) {
-                                stringResource(R.string.overview_hero_music_today_subtitle, todayMusicCount)
-                            } else {
-                                stringResource(R.string.overview_hero_music_total_subtitle)
-                            },
+                            secondaryContent = musicSecondaryBadge,
                             spotlight = HeroSpotlightData(
                                 caption = stringResource(R.string.overview_hero_latest_track),
                                 title = resolvedMusicTitle,
@@ -400,13 +458,13 @@ fun OverviewScreen(
                         val coroutineScope = rememberCoroutineScope()
 
                         Column(
-                            modifier = expressiveItemModifier(),
+                            modifier = expressiveItemModifier().fillMaxWidth(),
                             verticalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
                             HorizontalPager(
                                 state = statsPagerState,
                                 contentPadding = PaddingValues(horizontal = 16.dp),
-                                pageSpacing = 10.dp,
+                                pageSpacing = 12.dp,
                                 modifier = Modifier.fillMaxWidth()
                             ) { pageIndex ->
                                 val slide = slides[pageIndex]
@@ -469,7 +527,7 @@ fun OverviewScreen(
                             PluginRegistry.defaultPlugins.filter { state.enabledPluginIds.contains(it.id) }
                         }
 
-                        Column(modifier = expressiveItemModifier().fillMaxWidth()) {
+                        Column(modifier = expressiveItemModifier().fillMaxWidth().padding(horizontal = 16.dp)) {
                             // Section Header with Title + "Sync All" Hero Action + Add Catalog Button
                             Row(
                                 modifier = Modifier
@@ -655,7 +713,7 @@ fun OverviewScreen(
 
                     // Son Aktiviteler Grouped Section (Grouped Containers + See All Action)
                     item(key = "overview_recent_activities", contentType = "recent_activities") {
-                        Column(modifier = expressiveItemModifier().fillMaxWidth()) {
+                        Column(modifier = expressiveItemModifier().fillMaxWidth().padding(horizontal = 16.dp)) {
                             // Header Row
                             Row(
                                 modifier = Modifier
@@ -754,7 +812,7 @@ fun OverviewScreen(
                     }
 
                     item(key = "overview_bottom_spacer", contentType = "spacer") {
-                        Spacer(modifier = Modifier.height(16.dp))
+                        Spacer(modifier = Modifier.height(32.dp))
                     }
                 }
             }
@@ -767,6 +825,19 @@ fun OverviewScreen(
             onDismiss = { selectedActivity = null }
         )
     }
+}
+
+private sealed interface HeroSecondaryContent {
+    data class NutritionGauge(
+        val progress: Float,
+        val targetCal: Int,
+        val remainingCal: Int
+    ) : HeroSecondaryContent
+
+    data class StatBadge(
+        val label: String,
+        val icon: ImageVector? = null
+    ) : HeroSecondaryContent
 }
 
 private data class HeroSpotlightData(
@@ -784,8 +855,7 @@ private data class HeroCarouselSlide(
     val title: String,
     val count: String,
     val unitText: String,
-    val subtitleText: String,
-    val progress: Float? = null,
+    val secondaryContent: HeroSecondaryContent? = null,
     val spotlight: HeroSpotlightData? = null,
     val icon: ImageVector,
     val containerColor: Color,
@@ -802,7 +872,7 @@ private fun OverviewHeroCard(
     Card(
         modifier = modifier
             .fillMaxWidth()
-            .height(252.dp)
+            .height(238.dp)
             .expressiveBounceClick(onClick = slide.onClick),
         shape = RoundedCornerShape(28.dp),
         colors = CardDefaults.cardColors(
@@ -814,10 +884,10 @@ private fun OverviewHeroCard(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(horizontal = 20.dp, vertical = 18.dp),
+                .padding(horizontal = 18.dp, vertical = 16.dp),
             verticalArrangement = Arrangement.SpaceBetween
         ) {
-            // Top Row: Leading Icon + Domain Title & Trailing CTA Button
+            // 1. Top Row: Leading Icon + Domain Title & Trailing CTA Button
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -830,16 +900,16 @@ private fun OverviewHeroCard(
                 ) {
                     Box(
                         modifier = Modifier
-                            .size(34.dp)
+                            .size(32.dp)
                             .clip(CircleShape)
-                            .background(slide.contentColor.copy(alpha = 0.12f)),
+                            .background(slide.contentColor.copy(alpha = 0.14f)),
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
                             imageVector = slide.icon,
                             contentDescription = null,
                             tint = slide.contentColor,
-                            modifier = Modifier.size(18.dp)
+                            modifier = Modifier.size(17.dp)
                         )
                     }
                     Text(
@@ -855,11 +925,10 @@ private fun OverviewHeroCard(
 
                 Surface(
                     shape = CircleShape,
-                    color = MaterialTheme.colorScheme.surfaceContainerLowest,
-                    shadowElevation = 1.dp,
-                    border = androidx.compose.foundation.BorderStroke(
+                    color = slide.contentColor.copy(alpha = 0.14f),
+                    border = BorderStroke(
                         1.dp,
-                        MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.2f)
+                        slide.contentColor.copy(alpha = 0.20f)
                     ),
                     modifier = Modifier.size(32.dp)
                 ) {
@@ -877,11 +946,15 @@ private fun OverviewHeroCard(
                 }
             }
 
-            // Big Hero Numeral + Unit + Direct Subtitle (No pill spam!)
-            Column(
-                modifier = Modifier.fillMaxWidth(),
-                verticalArrangement = Arrangement.spacedBy(2.dp)
+            // 2. Split Hero Metric Row (Left = Bold Numeral + Unit, Right = Dynamic Secondary Stat)
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 2.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
             ) {
+                // Left: Bold Display Numeral + Baseline Unit
                 Row(
                     verticalAlignment = Alignment.Bottom,
                     horizontalArrangement = Arrangement.spacedBy(6.dp)
@@ -889,55 +962,119 @@ private fun OverviewHeroCard(
                     Text(
                         text = slide.count,
                         style = MaterialTheme.typography.displayMedium.copy(
-                            fontWeight = androidx.compose.ui.text.font.FontWeight.Bold
+                            fontSize = 46.sp,
+                            fontWeight = FontWeight.ExtraBold,
+                            lineHeight = 46.sp
                         ),
                         color = slide.contentColor
                     )
                     Text(
                         text = slide.unitText,
-                        style = MaterialTheme.typography.titleMedium,
-                        color = slide.contentColor.copy(alpha = 0.8f),
-                        modifier = Modifier.padding(bottom = 6.dp)
+                        style = MaterialTheme.typography.titleMedium.copy(
+                            fontWeight = FontWeight.SemiBold
+                        ),
+                        color = slide.contentColor.copy(alpha = 0.82f),
+                        modifier = Modifier.padding(bottom = 5.dp)
                     )
                 }
 
-                Text(
-                    text = slide.subtitleText,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = slide.contentColor.copy(alpha = 0.78f),
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-
-                if (slide.progress != null) {
-                    Spacer(modifier = Modifier.height(8.dp))
-                    val animatedProgress by animateFloatAsState(
-                        targetValue = slide.progress,
-                        animationSpec = M3ExpressiveMotion.defaultSpatial(),
-                        label = "hero_progress"
-                    )
-                    // M3 Expressive Linear Progress Bar: 8dp, rounded pill ends, contrasting track
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(8.dp)
-                            .clip(M3Shapes.CornerFull)
-                            .background(slide.contentColor.copy(alpha = 0.16f))
-                    ) {
-                        if (animatedProgress > 0f) {
+                // Right: Secondary dynamic content (Nutrition circular gauge or live badge)
+                when (val sec = slide.secondaryContent) {
+                    is HeroSecondaryContent.NutritionGauge -> {
+                        val animatedProgress by animateFloatAsState(
+                            targetValue = sec.progress,
+                            animationSpec = M3ExpressiveMotion.defaultSpatial(),
+                            label = "hero_cal_ring"
+                        )
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            Column(
+                                horizontalAlignment = Alignment.End,
+                                verticalArrangement = Arrangement.spacedBy(1.dp)
+                            ) {
+                                Text(
+                                    text = if (sec.remainingCal >= 0) {
+                                        stringResource(R.string.overview_hero_remaining_compact, sec.remainingCal)
+                                    } else {
+                                        stringResource(R.string.overview_hero_exceeded_compact, -sec.remainingCal)
+                                    },
+                                    style = MaterialTheme.typography.labelMedium.copy(
+                                        fontWeight = FontWeight.Bold
+                                    ),
+                                    color = slide.contentColor
+                                )
+                                Text(
+                                    text = stringResource(R.string.overview_hero_goal_label_compact, sec.targetCal),
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = slide.contentColor.copy(alpha = 0.72f)
+                                )
+                            }
                             Box(
-                                modifier = Modifier
-                                    .fillMaxHeight()
-                                    .fillMaxWidth(animatedProgress)
-                                    .clip(M3Shapes.CornerFull)
-                                    .background(slide.accentColor)
-                            )
+                                modifier = Modifier.size(44.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                CircularProgressIndicator(
+                                    progress = { animatedProgress },
+                                    modifier = Modifier.size(44.dp),
+                                    color = slide.accentColor,
+                                    trackColor = slide.contentColor.copy(alpha = 0.16f),
+                                    strokeWidth = 4.5.dp,
+                                    strokeCap = StrokeCap.Round
+                                )
+                                Text(
+                                    text = "${(sec.progress * 100).toInt()}%",
+                                    style = MaterialTheme.typography.labelSmall.copy(
+                                        fontWeight = FontWeight.ExtraBold,
+                                        fontSize = 11.sp
+                                    ),
+                                    color = slide.contentColor
+                                )
+                            }
                         }
                     }
+                    is HeroSecondaryContent.StatBadge -> {
+                        Surface(
+                            shape = CircleShape,
+                            color = slide.contentColor.copy(alpha = 0.12f),
+                            border = BorderStroke(1.dp, slide.contentColor.copy(alpha = 0.18f))
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                            ) {
+                                if (sec.icon != null) {
+                                    Icon(
+                                        imageVector = sec.icon,
+                                        contentDescription = null,
+                                        tint = slide.accentColor,
+                                        modifier = Modifier.size(13.dp)
+                                    )
+                                } else {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(6.dp)
+                                            .clip(CircleShape)
+                                            .background(slide.accentColor)
+                                    )
+                                }
+                                Text(
+                                    text = sec.label,
+                                    style = MaterialTheme.typography.labelMedium.copy(
+                                        fontWeight = FontWeight.SemiBold
+                                    ),
+                                    color = slide.contentColor
+                                )
+                            }
+                        }
+                    }
+                    null -> Unit
                 }
             }
 
-            // High-Contrast Spotlight Slot (Always present, fixed height, eliminating layout shift)
+            // 3. Tonal Concentric Spotlight Container (Harmonious surface tint, no pitch-black hole)
             HeroSpotlightContainer(
                 spotlight = slide.spotlight,
                 contentColor = slide.contentColor,
@@ -956,15 +1093,14 @@ private fun HeroSpotlightContainer(
 ) {
     Surface(
         shape = RoundedCornerShape(16.dp),
-        color = MaterialTheme.colorScheme.surfaceContainerLowest,
-        border = androidx.compose.foundation.BorderStroke(
+        color = contentColor.copy(alpha = 0.12f),
+        border = BorderStroke(
             1.dp,
-            MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.22f)
+            contentColor.copy(alpha = 0.18f)
         ),
-        shadowElevation = 0.5.dp,
         modifier = modifier
             .fillMaxWidth()
-            .height(70.dp)
+            .height(68.dp)
     ) {
         if (spotlight == null) {
             Box(
@@ -976,28 +1112,28 @@ private fun HeroSpotlightContainer(
                 Text(
                     text = stringResource(R.string.overview_no_activities),
                     style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    color = contentColor.copy(alpha = 0.72f)
                 )
             }
         } else {
             Row(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(horizontal = 12.dp, vertical = 8.dp),
+                    .padding(horizontal = 12.dp, vertical = 10.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // Media thumbnail or domain icon (no duplicate icon!)
+                // Media thumbnail or fallback icon with mathematically concentric radius
                 if (spotlight.imageUrl?.isNotBlank() == true) {
                     val isMusic = spotlight.fallbackIcon == Icons.Default.MusicNote
-                    val imgWidth = if (isMusic) 42.dp else 32.dp
-                    val imgHeight = if (isMusic) 42.dp else 46.dp
+                    val imgWidth = if (isMusic) 46.dp else 34.dp
+                    val imgHeight = 46.dp
                     val imgShape = if (isMusic) RoundedCornerShape(8.dp) else RoundedCornerShape(6.dp)
 
                     Box(
                         modifier = Modifier
                             .size(width = imgWidth, height = imgHeight)
                             .clip(imgShape)
-                            .background(MaterialTheme.colorScheme.surfaceContainerHigh)
+                            .background(contentColor.copy(alpha = 0.14f))
                     ) {
                         AsyncImage(
                             model = spotlight.imageUrl,
@@ -1010,16 +1146,16 @@ private fun HeroSpotlightContainer(
                 } else {
                     Box(
                         modifier = Modifier
-                            .size(38.dp)
-                            .clip(RoundedCornerShape(10.dp))
-                            .background(MaterialTheme.colorScheme.surfaceContainerHigh),
+                            .size(44.dp)
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(contentColor.copy(alpha = 0.14f)),
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
                             imageVector = spotlight.fallbackIcon,
                             contentDescription = null,
                             tint = contentColor,
-                            modifier = Modifier.size(19.dp)
+                            modifier = Modifier.size(20.dp)
                         )
                     }
                     Spacer(modifier = Modifier.width(12.dp))
@@ -1033,18 +1169,19 @@ private fun HeroSpotlightContainer(
                     Text(
                         text = spotlight.caption,
                         style = MaterialTheme.typography.labelSmall.copy(
-                            letterSpacing = 0.5.sp,
-                            fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold,
+                            letterSpacing = 0.6.sp,
+                            fontWeight = FontWeight.Bold,
                             fontSize = 10.sp
                         ),
-                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f),
+                        color = contentColor.copy(alpha = 0.68f),
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
+                    Spacer(modifier = Modifier.height(1.dp))
                     Text(
                         text = spotlight.title,
                         style = MaterialTheme.typography.bodyMediumEmphasized,
-                        color = MaterialTheme.colorScheme.onSurface,
+                        color = contentColor,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
@@ -1052,35 +1189,36 @@ private fun HeroSpotlightContainer(
                         Text(
                             text = spotlight.subtitle,
                             style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            color = contentColor.copy(alpha = 0.78f),
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis
                         )
                     }
                 }
 
-                // Trailing badges (rating / rewatch)
+                // Trailing badges (rating / rewatch) in matching tonal style
                 if (spotlight.rating != null && spotlight.rating > 0.0) {
                     Spacer(modifier = Modifier.width(8.dp))
                     Surface(
-                        shape = M3Shapes.CornerFull,
-                        color = domainRatingContainer()
+                        shape = CircleShape,
+                        color = contentColor.copy(alpha = 0.16f),
+                        border = BorderStroke(1.dp, contentColor.copy(alpha = 0.18f))
                     ) {
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(3.dp),
-                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
                         ) {
                             Icon(
                                 imageVector = Icons.Default.Star,
                                 contentDescription = null,
-                                tint = domainRatingOnContainer(),
-                                modifier = Modifier.size(12.dp)
+                                tint = contentColor,
+                                modifier = Modifier.size(11.dp)
                             )
                             Text(
                                 text = String.format(java.util.Locale.US, "%.1f", spotlight.rating),
                                 style = MaterialTheme.typography.labelSmallEmphasized,
-                                color = domainRatingOnContainer()
+                                color = contentColor
                             )
                         }
                     }
@@ -1089,8 +1227,8 @@ private fun HeroSpotlightContainer(
                 if (spotlight.rewatch) {
                     Spacer(modifier = Modifier.width(4.dp))
                     Surface(
-                        shape = M3Shapes.CornerFull,
-                        color = MaterialTheme.colorScheme.surfaceContainerHigh
+                        shape = CircleShape,
+                        color = contentColor.copy(alpha = 0.16f)
                     ) {
                         Icon(
                             imageVector = Icons.Default.Refresh,
