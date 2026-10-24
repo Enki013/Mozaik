@@ -19,8 +19,43 @@ class AppPreferences(private val context: Context) {
         val CALORIE_TARGET = intPreferencesKey("calorie_target")
         val APP_LANGUAGE = stringPreferencesKey("app_language")
         val ENABLED_INTEGRATION_PLUGINS = stringSetPreferencesKey("enabled_integration_plugins")
+        val HIDDEN_STATS_CARDS = stringSetPreferencesKey("hidden_stats_cards")
         val DEFAULT_ENABLED_PLUGINS = setOf("fatsecret", "goodreads", "letterboxd", "lastfm")
         const val DEFAULT_BASE_URL = ""
+    }
+
+    val hiddenStatsCards: Flow<Set<String>> = context.dataStore.data.map { prefs ->
+        prefs[HIDDEN_STATS_CARDS] ?: emptySet()
+    }
+
+    suspend fun toggleStatCardVisibility(cardId: String, visible: Boolean) {
+        context.dataStore.edit { prefs ->
+            val current = prefs[HIDDEN_STATS_CARDS] ?: emptySet()
+            val updated = if (visible) current - cardId else current + cardId
+            prefs[HIDDEN_STATS_CARDS] = updated
+        }
+    }
+
+    suspend fun hideStatCard(cardId: String) {
+        context.dataStore.edit { prefs ->
+            val current = prefs[HIDDEN_STATS_CARDS] ?: emptySet()
+            prefs[HIDDEN_STATS_CARDS] = current + cardId
+        }
+    }
+
+    suspend fun setStatsCardsHidden(cardIds: Collection<String>, hidden: Boolean) {
+        context.dataStore.edit { prefs ->
+            val current = prefs[HIDDEN_STATS_CARDS] ?: emptySet()
+            val updated = if (hidden) current + cardIds else current - cardIds.toSet()
+            prefs[HIDDEN_STATS_CARDS] = updated
+        }
+    }
+
+    suspend fun resetHiddenStatsCards(cardIds: Collection<String>) {
+        context.dataStore.edit { prefs ->
+            val current = prefs[HIDDEN_STATS_CARDS] ?: emptySet()
+            prefs[HIDDEN_STATS_CARDS] = current - cardIds.toSet()
+        }
     }
 
     val enabledIntegrationPlugins: Flow<Set<String>> = context.dataStore.data.map { prefs ->
@@ -69,6 +104,29 @@ class AppPreferences(private val context: Context) {
     suspend fun setCalorieTarget(target: Int) {
         context.dataStore.edit { prefs ->
             prefs[CALORIE_TARGET] = target
+        }
+    }
+
+    fun getStatsCardsOrder(screenKey: String, defaultOrder: List<String>): Flow<List<String>> =
+        context.dataStore.data.map { prefs ->
+            val raw = prefs[stringPreferencesKey("stats_order_$screenKey")]
+            if (raw.isNullOrBlank()) {
+                defaultOrder
+            } else {
+                val savedList = raw.split(",").map { it.trim() }.filter { it.isNotBlank() }
+                savedList.filter { it in defaultOrder } + defaultOrder.filter { it !in savedList }
+            }
+        }
+
+    suspend fun setStatsCardsOrder(screenKey: String, order: List<String>) {
+        context.dataStore.edit { prefs ->
+            prefs[stringPreferencesKey("stats_order_$screenKey")] = order.joinToString(",")
+        }
+    }
+
+    suspend fun resetStatsCardsOrder(screenKey: String) {
+        context.dataStore.edit { prefs ->
+            prefs.remove(stringPreferencesKey("stats_order_$screenKey"))
         }
     }
 }

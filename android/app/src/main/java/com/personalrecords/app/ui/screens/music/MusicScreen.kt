@@ -40,6 +40,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
+import com.personalrecords.app.PersonalRecordsApp
 import com.personalrecords.app.R
 import com.personalrecords.app.core.network.model.MusicScrobbleDto
 import com.personalrecords.app.core.theme.*
@@ -54,13 +55,55 @@ fun MusicScreen(
     onNavigateBack: (() -> Unit)? = null
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
+    val preferences = remember { PersonalRecordsApp.instance.preferences }
+    val hiddenCardIds by preferences.hiddenStatsCards.collectAsStateWithLifecycle(initialValue = emptySet())
+    val coroutineScope = rememberCoroutineScope()
+    var isEditMode by remember { mutableStateOf(false) }
+    var showCustomizationSheet by remember { mutableStateOf(false) }
+    var targetCardId by remember { mutableStateOf<String?>(null) }
     var selectedScrobble by remember { mutableStateOf<MusicScrobbleDto?>(null) }
     var showDatePicker by remember { mutableStateOf(false) }
-    val coroutineScope = rememberCoroutineScope()
     val context = LocalContext.current
 
     val scrollBehavior = TopAppBarDefaults.enterAlwaysScrollBehavior(rememberTopAppBarState())
     val snackbarHostState = remember { SnackbarHostState() }
+
+    val musicColor = domainMusicColor()
+    val cinemaColor = domainCinemaColor()
+    val secondaryColor = MaterialTheme.colorScheme.secondary
+    val tertiaryColor = MaterialTheme.colorScheme.tertiary
+    val musicStatCards = remember(musicColor, cinemaColor, secondaryColor, tertiaryColor) {
+        listOf(
+            StatCardItem(
+                id = "music_total",
+                title = "Toplam Dinleme",
+                description = "Tüm zamanların toplam scrobble sayısı",
+                icon = Icons.Default.MusicNote,
+                iconTint = musicColor
+            ),
+            StatCardItem(
+                id = "music_today",
+                title = "Bugün Dinlenen",
+                description = "Bugün çalınan parçalar",
+                icon = Icons.Default.Today,
+                iconTint = secondaryColor
+            ),
+            StatCardItem(
+                id = "music_artists",
+                title = "Farklı Sanatçılar",
+                description = "Dinlenen benzersiz sanatçı sayısı",
+                icon = Icons.Default.Person,
+                iconTint = tertiaryColor
+            ),
+            StatCardItem(
+                id = "music_albums",
+                title = "Farklı Albümler",
+                description = "Dinlenen benzersiz albüm sayısı",
+                icon = Icons.Default.Album,
+                iconTint = cinemaColor
+            )
+        )
+    }
 
     val availableSources = remember(state.scrobbles) {
         val presentSources = state.scrobbles
@@ -144,7 +187,17 @@ fun MusicScreen(
                         }
                     }
                 },
-                actions = {},
+                actions = {
+                    TopAppBarStatsAction(
+                        isEditMode = isEditMode,
+                        hasHiddenCards = musicStatCards.any { it.id in hiddenCardIds },
+                        onToggleEditMode = { isEditMode = !isEditMode },
+                        onOpenCustomization = {
+                            targetCardId = null
+                            showCustomizationSheet = true
+                        }
+                    )
+                },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.surface
                 )
@@ -178,7 +231,20 @@ fun MusicScreen(
                             totalScrobbles = state.stats.totalScrobbles,
                             todayScrobbles = state.stats.todayScrobbles,
                             uniqueArtists = state.stats.uniqueArtists,
-                            uniqueAlbums = state.stats.uniqueAlbums
+                            uniqueAlbums = state.stats.uniqueAlbums,
+                            hiddenCardIds = hiddenCardIds,
+                            isEditMode = isEditMode,
+                            onHideCard = { cardId ->
+                                coroutineScope.launch {
+                                    preferences.toggleStatCardVisibility(cardId, false)
+                                }
+                            },
+                            onStartEditMode = { isEditMode = true },
+                            onExitEditMode = { isEditMode = false },
+                            onOpenCustomization = {
+                                targetCardId = null
+                                showCustomizationSheet = true
+                            }
                         )
                     }
 
@@ -485,6 +551,82 @@ fun MusicScreen(
             }
         )
     }
+
+    if (showCustomizationSheet) {
+        StatsCustomizationBottomSheet(
+            sheetTitle = stringResource(R.string.stats_customization_title),
+            cards = musicStatCards,
+            hiddenCardIds = hiddenCardIds,
+            targetCardId = targetCardId,
+            onToggleCard = { cardId, visible ->
+                coroutineScope.launch {
+                    preferences.toggleStatCardVisibility(cardId, visible)
+                }
+            },
+            onResetDefault = {
+                coroutineScope.launch {
+                    preferences.resetHiddenStatsCards(musicStatCards.map { it.id })
+                }
+            },
+            onDismissRequest = {
+                showCustomizationSheet = false
+                targetCardId = null
+            }
+        )
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    }
 }
 
 @Composable
@@ -492,67 +634,133 @@ private fun MusicMetricsHeader(
     totalScrobbles: Int,
     todayScrobbles: Int,
     uniqueArtists: Int,
-    uniqueAlbums: Int
+    uniqueAlbums: Int,
+    hiddenCardIds: Set<String>,
+    isEditMode: Boolean,
+    onHideCard: (String) -> Unit,
+    onStartEditMode: () -> Unit,
+    onExitEditMode: () -> Unit,
+    onOpenCustomization: () -> Unit
 ) {
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 8.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp)
-    ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            MetricCard(
-                title = stringResource(R.string.music_stats_total),
-                value = totalScrobbles.toString(),
-                badgeText = "All Time",
-                note = "Scrobbles",
-                valueIcon = Icons.Default.MusicNote,
-                valueIconTint = domainMusicColor(),
-                badgeBg = domainMusicContainer(),
-                badgeColor = domainMusicOnContainer(),
-                modifier = Modifier.weight(1f)
-            )
-            MetricCard(
-                title = stringResource(R.string.music_stats_today),
-                value = todayScrobbles.toString(),
-                badgeText = "Today",
-                note = "Tracks",
-                valueIcon = Icons.Default.Today,
-                valueIconTint = MaterialTheme.colorScheme.secondary,
-                badgeBg = MaterialTheme.colorScheme.secondaryContainer,
-                badgeColor = MaterialTheme.colorScheme.onSecondaryContainer,
-                modifier = Modifier.weight(1f)
-            )
+    val isTotalVisible = "music_total" !in hiddenCardIds
+    val isTodayVisible = "music_today" !in hiddenCardIds
+    val isArtistsVisible = "music_artists" !in hiddenCardIds
+    val isAlbumsVisible = "music_albums" !in hiddenCardIds
+
+    val hasRow1 = isTotalVisible || isTodayVisible
+    val hasRow2 = isArtistsVisible || isAlbumsVisible
+
+    LaunchedEffect(isTotalVisible, isTodayVisible, isArtistsVisible, isAlbumsVisible) {
+        if (!isTotalVisible && !isTodayVisible && !isArtistsVisible && !isAlbumsVisible) {
+            onExitEditMode()
         }
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
+    }
+
+    if (hasRow1 || hasRow2) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 8.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            MetricCard(
-                title = stringResource(R.string.music_stats_artists),
-                value = uniqueArtists.toString(),
-                badgeText = "Artists",
-                note = "Unique",
-                valueIcon = Icons.Default.Person,
-                valueIconTint = MaterialTheme.colorScheme.tertiary,
-                badgeBg = MaterialTheme.colorScheme.tertiaryContainer,
-                badgeColor = MaterialTheme.colorScheme.onTertiaryContainer,
-                modifier = Modifier.weight(1f)
-            )
-            MetricCard(
-                title = stringResource(R.string.music_stats_albums),
-                value = uniqueAlbums.toString(),
-                badgeText = "Albums",
-                note = "Unique",
-                valueIcon = Icons.Default.Album,
-                valueIconTint = domainCinemaColor(),
-                badgeBg = domainCinemaContainer(),
-                badgeColor = domainCinemaOnContainer(),
-                modifier = Modifier.weight(1f)
-            )
+            if (hasRow1) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    if (isTotalVisible) {
+                        StatCardContainer(
+                            cardId = "music_total",
+                            isEditMode = isEditMode,
+                            onHideCard = { onHideCard("music_total") },
+                            index = 0,
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            MetricCard(
+                                title = stringResource(R.string.music_stats_total),
+                                value = totalScrobbles.toString(),
+                                badgeText = "All Time",
+                                note = "Scrobbles",
+                                valueIcon = Icons.Default.MusicNote,
+                                valueIconTint = domainMusicColor(),
+                                badgeBg = domainMusicContainer(),
+                                badgeColor = domainMusicOnContainer(),
+                                onLongClick = onStartEditMode
+                            )
+                        }
+                    }
+                    if (isTodayVisible) {
+                        StatCardContainer(
+                            cardId = "music_today",
+                            isEditMode = isEditMode,
+                            onHideCard = { onHideCard("music_today") },
+                            index = 1,
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            MetricCard(
+                                title = stringResource(R.string.music_stats_today),
+                                value = todayScrobbles.toString(),
+                                badgeText = "Today",
+                                note = "Tracks",
+                                valueIcon = Icons.Default.Today,
+                                valueIconTint = MaterialTheme.colorScheme.secondary,
+                                badgeBg = MaterialTheme.colorScheme.secondaryContainer,
+                                badgeColor = MaterialTheme.colorScheme.onSecondaryContainer,
+                                onLongClick = onStartEditMode
+                            )
+                        }
+                    }
+                }
+            }
+            if (hasRow2) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    if (isArtistsVisible) {
+                        StatCardContainer(
+                            cardId = "music_artists",
+                            isEditMode = isEditMode,
+                            onHideCard = { onHideCard("music_artists") },
+                            index = 2,
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            MetricCard(
+                                title = stringResource(R.string.music_stats_artists),
+                                value = uniqueArtists.toString(),
+                                badgeText = "Artists",
+                                note = "Unique",
+                                valueIcon = Icons.Default.Person,
+                                valueIconTint = MaterialTheme.colorScheme.tertiary,
+                                badgeBg = MaterialTheme.colorScheme.tertiaryContainer,
+                                badgeColor = MaterialTheme.colorScheme.onTertiaryContainer,
+                                onLongClick = onStartEditMode
+                            )
+                        }
+                    }
+                    if (isAlbumsVisible) {
+                        StatCardContainer(
+                            cardId = "music_albums",
+                            isEditMode = isEditMode,
+                            onHideCard = { onHideCard("music_albums") },
+                            index = 3,
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            MetricCard(
+                                title = stringResource(R.string.music_stats_albums),
+                                value = uniqueAlbums.toString(),
+                                badgeText = "Albums",
+                                note = "Unique",
+                                valueIcon = Icons.Default.Album,
+                                valueIconTint = domainCinemaColor(),
+                                badgeBg = domainCinemaContainer(),
+                                badgeColor = domainCinemaOnContainer(),
+                                onLongClick = onStartEditMode
+                            )
+                        }
+                    }
+                }
+            }
         }
     }
 }

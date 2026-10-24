@@ -33,12 +33,14 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.personalrecords.app.PersonalRecordsApp
 import com.personalrecords.app.R
 import com.personalrecords.app.core.network.model.NotificationDto
 import com.personalrecords.app.core.theme.*
 import com.personalrecords.app.ui.components.*
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.time.LocalDate
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -50,12 +52,35 @@ fun NotificationsScreen(
     onNavigateBack: (() -> Unit)? = null
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
+    val preferences = remember { PersonalRecordsApp.instance.preferences }
+    val hiddenCardIds by preferences.hiddenStatsCards.collectAsStateWithLifecycle(initialValue = emptySet())
+    val coroutineScope = rememberCoroutineScope()
+    var isEditMode by remember { mutableStateOf(false) }
+    var showCustomizationSheet by remember { mutableStateOf(false) }
+    var targetCardId by remember { mutableStateOf<String?>(null) }
     var selectedNotification by remember { mutableStateOf<NotificationDto?>(null) }
     var showDatePicker by remember { mutableStateOf(false) }
     val configuration = LocalConfiguration.current
     val isWideScreen = configuration.screenWidthDp >= 600
     val isTwoPane = configuration.screenWidthDp >= 840
     val scrollBehavior = TopAppBarDefaults.enterAlwaysScrollBehavior(rememberTopAppBarState())
+
+    val notificationsStatCards = remember {
+        listOf(
+            StatCardItem(
+                id = "notifications_total",
+                title = "Toplam Bildirim",
+                description = "Yakalanan tüm bildirimler ve uygulama sayısı",
+                icon = Icons.Default.Notifications
+            ),
+            StatCardItem(
+                id = "notifications_today",
+                title = "Bugünkü Akış",
+                description = "Bugün gelen bildirimlerin akışı",
+                icon = Icons.Default.Today
+            )
+        )
+    }
 
     if (showDatePicker) {
         ExpressiveDateFilterDialog(
@@ -97,7 +122,17 @@ fun NotificationsScreen(
                         }
                     }
                 },
-                actions = {},
+                actions = {
+                    TopAppBarStatsAction(
+                        isEditMode = isEditMode,
+                        hasHiddenCards = notificationsStatCards.any { it.id in hiddenCardIds },
+                        onToggleEditMode = { isEditMode = !isEditMode },
+                        onOpenCustomization = {
+                            targetCardId = null
+                            showCustomizationSheet = true
+                        }
+                    )
+                },
                 scrollBehavior = scrollBehavior,
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.surface,
@@ -137,26 +172,73 @@ fun NotificationsScreen(
                     val todayCount = state.todayCount
                     val appCount = appList.size
 
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(bottom = 6.dp),
-                        horizontalArrangement = Arrangement.spacedBy(6.dp)
-                    ) {
-                        MetricCard(
-                            title = stringResource(R.string.notifications_stats_total),
-                            value = "$total",
-                            badgeText = stringResource(R.string.notifications_badge_notification),
-                            note = stringResource(R.string.notifications_stats_apps_count, appCount),
-                            modifier = Modifier.weight(1f)
-                        )
-                        MetricCard(
-                            title = stringResource(R.string.notifications_stats_today),
-                            value = "$todayCount",
-                            badgeText = stringResource(R.string.badge_daily),
-                            note = stringResource(R.string.notifications_stats_active_stream),
-                            modifier = Modifier.weight(1f)
-                        )
+                    val isTotalVisible = "notifications_total" !in hiddenCardIds
+                    val isTodayVisible = "notifications_today" !in hiddenCardIds
+
+                    LaunchedEffect(isTotalVisible, isTodayVisible) {
+                        if (!isTotalVisible && !isTodayVisible) {
+                            isEditMode = false
+                        }
+                    }
+
+                    if (isTotalVisible || isTodayVisible) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(bottom = 6.dp),
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            if (isTotalVisible) {
+                                StatCardContainer(
+                                    cardId = "notifications_total",
+                                    isEditMode = isEditMode,
+                                    onHideCard = {
+                                        coroutineScope.launch {
+                                            preferences.toggleStatCardVisibility("notifications_total", false)
+                                        }
+                                    },
+                                    index = 0,
+                                    modifier = Modifier.weight(1f)
+                                ) {
+                                    MetricCard(
+                                        title = stringResource(R.string.notifications_stats_total),
+                                        value = "$total",
+                                        badgeText = stringResource(R.string.notifications_badge_notification),
+                                        note = stringResource(R.string.notifications_stats_apps_count, appCount),
+                                        valueIcon = Icons.Default.Notifications,
+                                        valueIconTint = MaterialTheme.colorScheme.primary,
+                                        badgeBg = MaterialTheme.colorScheme.primaryContainer,
+                                        badgeColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                                        onLongClick = { isEditMode = true }
+                                    )
+                                }
+                            }
+                            if (isTodayVisible) {
+                                StatCardContainer(
+                                    cardId = "notifications_today",
+                                    isEditMode = isEditMode,
+                                    onHideCard = {
+                                        coroutineScope.launch {
+                                            preferences.toggleStatCardVisibility("notifications_today", false)
+                                        }
+                                    },
+                                    index = 1,
+                                    modifier = Modifier.weight(1f)
+                                ) {
+                                    MetricCard(
+                                        title = stringResource(R.string.notifications_stats_today),
+                                        value = "$todayCount",
+                                        badgeText = stringResource(R.string.badge_daily),
+                                        note = stringResource(R.string.notifications_stats_active_stream),
+                                        valueIcon = Icons.Default.Today,
+                                        valueIconTint = MaterialTheme.colorScheme.secondary,
+                                        badgeBg = MaterialTheme.colorScheme.secondaryContainer,
+                                        badgeColor = MaterialTheme.colorScheme.onSecondaryContainer,
+                                        onLongClick = { isEditMode = true }
+                                    )
+                                }
+                            }
+                        }
                     }
                 }
 
@@ -453,13 +535,36 @@ fun NotificationsScreen(
     }
 }
 
-if (!isTwoPane) {
+    if (!isTwoPane) {
         selectedNotification?.let { notif ->
             NotificationDetailBottomSheet(
                 notif = notif,
                 onDismiss = { selectedNotification = null }
             )
         }
+    }
+
+    if (showCustomizationSheet) {
+        StatsCustomizationBottomSheet(
+            sheetTitle = stringResource(R.string.stats_customization_title),
+            cards = notificationsStatCards,
+            hiddenCardIds = hiddenCardIds,
+            targetCardId = targetCardId,
+            onToggleCard = { cardId, visible ->
+                coroutineScope.launch {
+                    preferences.toggleStatCardVisibility(cardId, visible)
+                }
+            },
+            onResetDefault = {
+                coroutineScope.launch {
+                    preferences.resetHiddenStatsCards(notificationsStatCards.map { it.id })
+                }
+            },
+            onDismissRequest = {
+                showCustomizationSheet = false
+                targetCardId = null
+            }
+        )
     }
 }
 

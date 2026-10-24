@@ -22,11 +22,13 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.personalrecords.app.PersonalRecordsApp
 import com.personalrecords.app.R
 import com.personalrecords.app.core.network.model.FilmDto
 import com.personalrecords.app.core.theme.*
 import com.personalrecords.app.ui.components.*
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class, androidx.compose.foundation.ExperimentalFoundationApi::class)
 @Composable
@@ -35,8 +37,35 @@ fun MoviesScreen(
     onNavigateBack: (() -> Unit)? = null
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
+    val preferences = remember { PersonalRecordsApp.instance.preferences }
+    val hiddenCardIds by preferences.hiddenStatsCards.collectAsStateWithLifecycle(initialValue = emptySet())
+    val coroutineScope = rememberCoroutineScope()
+    var isEditMode by remember { mutableStateOf(false) }
+    var showCustomizationSheet by remember { mutableStateOf(false) }
+    var targetCardId by remember { mutableStateOf<String?>(null) }
     var showDatePicker by remember { mutableStateOf(false) }
     var selectedFilm by remember { mutableStateOf<FilmDto?>(null) }
+
+    val cinemaColor = domainCinemaColor()
+    val ratingColor = domainRatingColor()
+    val moviesStatCards = remember(cinemaColor, ratingColor) {
+        listOf(
+            StatCardItem(
+                id = "movies_total",
+                title = "Toplam Film",
+                description = "Letterboxd günlüğündeki tüm filmler",
+                icon = Icons.Default.Movie,
+                iconTint = cinemaColor
+            ),
+            StatCardItem(
+                id = "movies_avg_rating",
+                title = "Ortalama Puan",
+                description = "Puanlanan filmler ve yeniden izlemeler",
+                icon = Icons.Filled.Star,
+                iconTint = ratingColor
+            )
+        )
+    }
 
     if (showDatePicker) {
         ExpressiveDateFilterDialog(
@@ -85,7 +114,17 @@ fun MoviesScreen(
                         }
                     }
                 },
-                actions = {},
+                actions = {
+                    TopAppBarStatsAction(
+                        isEditMode = isEditMode,
+                        hasHiddenCards = moviesStatCards.any { it.id in hiddenCardIds },
+                        onToggleEditMode = { isEditMode = !isEditMode },
+                        onOpenCustomization = {
+                            targetCardId = null
+                            showCustomizationSheet = true
+                        }
+                    )
+                },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.surface
                 )
@@ -122,32 +161,73 @@ fun MoviesScreen(
                     val rewatchFilms = state.rewatchFilmsCount
                     val avgRating = state.avgRatingText
 
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(bottom = 8.dp),
-                        horizontalArrangement = Arrangement.spacedBy(6.dp)
-                    ) {
-                        MetricCard(
-                            title = stringResource(R.string.movies_stats_total),
-                            value = "$totalFilms",
-                            badgeText = stringResource(R.string.movies_badge_letterboxd),
-                            note = stringResource(R.string.movies_stats_rated, ratedFilms),
-                            modifier = Modifier.weight(1f),
-                            badgeBg = domainCinemaContainer(),
-                            badgeColor = domainCinemaOnContainer()
-                        )
-                        MetricCard(
-                            title = stringResource(R.string.movies_stats_avg_rating),
-                            value = avgRating,
-                            valueIcon = Icons.Filled.Star,
-                            valueIconTint = domainRatingOnContainer(),
-                            badgeText = stringResource(R.string.badge_avg),
-                            note = stringResource(R.string.movies_stats_rewatch, rewatchFilms),
-                            modifier = Modifier.weight(1f),
-                            badgeBg = domainRatingContainer(),
-                            badgeColor = domainRatingOnContainer()
-                        )
+                    val isTotalVisible = "movies_total" !in hiddenCardIds
+                    val isAvgVisible = "movies_avg_rating" !in hiddenCardIds
+
+                    LaunchedEffect(isTotalVisible, isAvgVisible) {
+                        if (!isTotalVisible && !isAvgVisible) {
+                            isEditMode = false
+                        }
+                    }
+
+                    if (isTotalVisible || isAvgVisible) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(bottom = 8.dp),
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            if (isTotalVisible) {
+                                StatCardContainer(
+                                    cardId = "movies_total",
+                                    isEditMode = isEditMode,
+                                    onHideCard = {
+                                        coroutineScope.launch {
+                                            preferences.toggleStatCardVisibility("movies_total", false)
+                                        }
+                                    },
+                                    index = 0,
+                                    modifier = Modifier.weight(1f)
+                                ) {
+                                    MetricCard(
+                                        title = stringResource(R.string.movies_stats_total),
+                                        value = "$totalFilms",
+                                        badgeText = stringResource(R.string.movies_badge_letterboxd),
+                                        note = stringResource(R.string.movies_stats_rated, ratedFilms),
+                                        valueIcon = Icons.Default.Movie,
+                                        valueIconTint = domainCinemaColor(),
+                                        badgeBg = domainCinemaContainer(),
+                                        badgeColor = domainCinemaOnContainer(),
+                                        onLongClick = { isEditMode = true }
+                                    )
+                                }
+                            }
+                            if (isAvgVisible) {
+                                StatCardContainer(
+                                    cardId = "movies_avg_rating",
+                                    isEditMode = isEditMode,
+                                    onHideCard = {
+                                        coroutineScope.launch {
+                                            preferences.toggleStatCardVisibility("movies_avg_rating", false)
+                                        }
+                                    },
+                                    index = 1,
+                                    modifier = Modifier.weight(1f)
+                                ) {
+                                    MetricCard(
+                                        title = stringResource(R.string.movies_stats_avg_rating),
+                                        value = avgRating,
+                                        valueIcon = Icons.Filled.Star,
+                                        valueIconTint = domainRatingOnContainer(),
+                                        badgeText = stringResource(R.string.badge_avg),
+                                        note = stringResource(R.string.movies_stats_rewatch, rewatchFilms),
+                                        badgeBg = domainRatingContainer(),
+                                        badgeColor = domainRatingOnContainer(),
+                                        onLongClick = { isEditMode = true }
+                                    )
+                                }
+                            }
+                        }
                     }
                 }
 
@@ -451,13 +531,36 @@ fun MoviesScreen(
     }
 }
 
-if (!isTwoPane) {
+    if (!isTwoPane) {
         selectedFilm?.let { film ->
             FilmDetailBottomSheet(
                 film = film,
                 onDismiss = { selectedFilm = null }
             )
         }
+    }
+
+    if (showCustomizationSheet) {
+        StatsCustomizationBottomSheet(
+            sheetTitle = stringResource(R.string.stats_customization_title),
+            cards = moviesStatCards,
+            hiddenCardIds = hiddenCardIds,
+            targetCardId = targetCardId,
+            onToggleCard = { cardId, visible ->
+                coroutineScope.launch {
+                    preferences.toggleStatCardVisibility(cardId, visible)
+                }
+            },
+            onResetDefault = {
+                coroutineScope.launch {
+                    preferences.resetHiddenStatsCards(moviesStatCards.map { it.id })
+                }
+            },
+            onDismissRequest = {
+                showCustomizationSheet = false
+                targetCardId = null
+            }
+        )
     }
 }
 

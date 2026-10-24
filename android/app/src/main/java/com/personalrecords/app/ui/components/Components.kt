@@ -3,8 +3,10 @@ package com.personalrecords.app.ui.components
 import android.annotation.SuppressLint
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.interaction.InteractionSource
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
@@ -119,10 +121,20 @@ fun MetricCard(
     valueIconTint: Color = MaterialTheme.colorScheme.primary,
     noteIcon: ImageVector? = null,
     noteIconTint: Color? = null,
-    onClick: (() -> Unit)? = null
+    onClick: (() -> Unit)? = null,
+    onLongClick: (() -> Unit)? = null
 ) {
-    val cardModifier = if (onClick != null) {
-        modifier.fillMaxWidth().expressiveBounceClick(onClick = onClick)
+    val haptic = LocalHapticFeedback.current
+    val cardModifier = if (onClick != null || onLongClick != null) {
+        modifier.fillMaxWidth().expressiveBounceCombinedClick(
+            onClick = onClick,
+            onLongClick = onLongClick?.let { action ->
+                {
+                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                    action()
+                }
+            }
+        )
     } else {
         modifier.fillMaxWidth()
     }
@@ -1282,6 +1294,27 @@ fun Modifier.expressiveBounceClick(
     .clickable(
         enabled = enabled,
         onClick = onClick
+    )
+
+/**
+ * MD3 Expressive spring bounce combined click modifier supporting both onClick and onLongClick.
+ */
+@OptIn(ExperimentalFoundationApi::class)
+fun Modifier.expressiveBounceCombinedClick(
+    scaleDown: Float = 0.96f,
+    enabled: Boolean = true,
+    onLongClick: (() -> Unit)? = null,
+    onClick: (() -> Unit)? = null
+): Modifier = this
+    .expressivePressScale(
+        interactionSource = null,
+        scaleDown = scaleDown,
+        enabled = enabled
+    )
+    .combinedClickable(
+        enabled = enabled,
+        onClick = { onClick?.invoke() },
+        onLongClick = onLongClick
     )
 
 /**

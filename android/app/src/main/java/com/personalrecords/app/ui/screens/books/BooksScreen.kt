@@ -24,11 +24,13 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.personalrecords.app.PersonalRecordsApp
 import com.personalrecords.app.R
 import com.personalrecords.app.core.network.model.BookDto
 import com.personalrecords.app.core.theme.*
 import com.personalrecords.app.ui.components.*
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import kotlinx.coroutines.launch
 
 private val BookShelfKeys = listOf("all", "read", "to-read", "currently-reading")
 
@@ -39,8 +41,35 @@ fun BooksScreen(
     onNavigateBack: (() -> Unit)? = null
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
+    val preferences = remember { PersonalRecordsApp.instance.preferences }
+    val hiddenCardIds by preferences.hiddenStatsCards.collectAsStateWithLifecycle(initialValue = emptySet())
+    val coroutineScope = rememberCoroutineScope()
+    var isEditMode by remember { mutableStateOf(false) }
+    var showCustomizationSheet by remember { mutableStateOf(false) }
+    var targetCardId by remember { mutableStateOf<String?>(null) }
     var showDatePicker by remember { mutableStateOf(false) }
     var selectedBook by remember { mutableStateOf<BookDto?>(null) }
+
+    val booksColor = domainBooksColor()
+    val ratingColor = domainRatingColor()
+    val booksStatCards = remember(booksColor, ratingColor) {
+        listOf(
+            StatCardItem(
+                id = "books_total",
+                title = "Toplam Kitap",
+                description = "Okuma günlüğündeki tüm kitaplar",
+                icon = Icons.AutoMirrored.Filled.MenuBook,
+                iconTint = booksColor
+            ),
+            StatCardItem(
+                id = "books_to_read",
+                title = "Okunacaklar",
+                description = "Daha sonra okunacaklar listesi ve puan",
+                icon = Icons.Default.Bookmark,
+                iconTint = ratingColor
+            )
+        )
+    }
 
     if (showDatePicker) {
         ExpressiveDateFilterDialog(
@@ -89,7 +118,17 @@ fun BooksScreen(
                         }
                     }
                 },
-                actions = {},
+                actions = {
+                    TopAppBarStatsAction(
+                        isEditMode = isEditMode,
+                        hasHiddenCards = booksStatCards.any { it.id in hiddenCardIds },
+                        onToggleEditMode = { isEditMode = !isEditMode },
+                        onOpenCustomization = {
+                            targetCardId = null
+                            showCustomizationSheet = true
+                        }
+                    )
+                },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.surface
                 )
@@ -126,32 +165,75 @@ fun BooksScreen(
                     val toReadBooks = state.toReadBooksCount
                     val avgRating = state.avgRatingText
 
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(bottom = 8.dp),
-                        horizontalArrangement = Arrangement.spacedBy(6.dp)
-                    ) {
-                        MetricCard(
-                            title = stringResource(R.string.books_stats_total),
-                            value = "$totalBooks",
-                            badgeText = stringResource(R.string.books_badge_book),
-                            note = stringResource(R.string.books_stats_read, readBooks),
-                            modifier = Modifier.weight(1f),
-                            badgeBg = domainBooksContainer(),
-                            badgeColor = domainBooksOnContainer()
-                        )
-                        MetricCard(
-                            title = stringResource(R.string.books_stats_to_read),
-                            value = "$toReadBooks",
-                            badgeText = stringResource(R.string.badge_list),
-                            note = stringResource(R.string.books_stats_avg_rating, avgRating),
-                            noteIcon = Icons.Filled.Star,
-                            noteIconTint = domainRatingOnContainer(),
-                            modifier = Modifier.weight(1f),
-                            badgeBg = domainRatingContainer(),
-                            badgeColor = domainRatingOnContainer()
-                        )
+                    val isTotalVisible = "books_total" !in hiddenCardIds
+                    val isToReadVisible = "books_to_read" !in hiddenCardIds
+
+                    LaunchedEffect(isTotalVisible, isToReadVisible) {
+                        if (!isTotalVisible && !isToReadVisible) {
+                            isEditMode = false
+                        }
+                    }
+
+                    if (isTotalVisible || isToReadVisible) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(bottom = 8.dp),
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            if (isTotalVisible) {
+                                StatCardContainer(
+                                    cardId = "books_total",
+                                    isEditMode = isEditMode,
+                                    onHideCard = {
+                                        coroutineScope.launch {
+                                            preferences.toggleStatCardVisibility("books_total", false)
+                                        }
+                                    },
+                                    index = 0,
+                                    modifier = Modifier.weight(1f)
+                                ) {
+                                    MetricCard(
+                                        title = stringResource(R.string.books_stats_total),
+                                        value = "$totalBooks",
+                                        badgeText = stringResource(R.string.books_badge_book),
+                                        note = stringResource(R.string.books_stats_read, readBooks),
+                                        valueIcon = Icons.AutoMirrored.Filled.MenuBook,
+                                        valueIconTint = domainBooksColor(),
+                                        badgeBg = domainBooksContainer(),
+                                        badgeColor = domainBooksOnContainer(),
+                                        onLongClick = { isEditMode = true }
+                                    )
+                                }
+                            }
+                            if (isToReadVisible) {
+                                StatCardContainer(
+                                    cardId = "books_to_read",
+                                    isEditMode = isEditMode,
+                                    onHideCard = {
+                                        coroutineScope.launch {
+                                            preferences.toggleStatCardVisibility("books_to_read", false)
+                                        }
+                                    },
+                                    index = 1,
+                                    modifier = Modifier.weight(1f)
+                                ) {
+                                    MetricCard(
+                                        title = stringResource(R.string.books_stats_to_read),
+                                        value = "$toReadBooks",
+                                        badgeText = stringResource(R.string.badge_list),
+                                        note = stringResource(R.string.books_stats_avg_rating, avgRating),
+                                        valueIcon = Icons.Default.Bookmark,
+                                        valueIconTint = domainRatingColor(),
+                                        noteIcon = Icons.Filled.Star,
+                                        noteIconTint = domainRatingOnContainer(),
+                                        badgeBg = domainRatingContainer(),
+                                        badgeColor = domainRatingOnContainer(),
+                                        onLongClick = { isEditMode = true }
+                                    )
+                                }
+                            }
+                        }
                     }
                 }
 
@@ -426,13 +508,36 @@ fun BooksScreen(
     }
 }
 
-if (!isTwoPane) {
+    if (!isTwoPane) {
         selectedBook?.let { book ->
             BookDetailBottomSheet(
                 book = book,
                 onDismiss = { selectedBook = null }
             )
         }
+    }
+
+    if (showCustomizationSheet) {
+        StatsCustomizationBottomSheet(
+            sheetTitle = stringResource(R.string.stats_customization_title),
+            cards = booksStatCards,
+            hiddenCardIds = hiddenCardIds,
+            targetCardId = targetCardId,
+            onToggleCard = { cardId, visible ->
+                coroutineScope.launch {
+                    preferences.toggleStatCardVisibility(cardId, visible)
+                }
+            },
+            onResetDefault = {
+                coroutineScope.launch {
+                    preferences.resetHiddenStatsCards(booksStatCards.map { it.id })
+                }
+            },
+            onDismissRequest = {
+                showCustomizationSheet = false
+                targetCardId = null
+            }
+        )
     }
 }
 

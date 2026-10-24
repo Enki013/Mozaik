@@ -24,13 +24,16 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.personalrecords.app.PersonalRecordsApp
 import com.personalrecords.app.R
+import com.personalrecords.app.core.network.model.HealthConnectSummaryDto
 import com.personalrecords.app.core.network.model.HealthRecordDto
 import com.personalrecords.app.core.theme.*
 import com.personalrecords.app.ui.components.*
 import java.text.NumberFormat
 import java.util.Locale
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import kotlinx.coroutines.launch
 
 private val HealthCategoryKeys = listOf("all", "activity", "sleep", "vitals", "exercise", "body")
 
@@ -41,8 +44,62 @@ fun HealthConnectScreen(
     onNavigateBack: (() -> Unit)? = null
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
+    val preferences = remember { PersonalRecordsApp.instance.preferences }
+    val hiddenCardIds by preferences.hiddenStatsCards.collectAsStateWithLifecycle(initialValue = emptySet())
+    val defaultHealthCardsOrder = remember {
+        listOf("health_steps", "health_hr", "health_sleep", "health_active")
+    }
+    val orderedCardIds by preferences.getStatsCardsOrder("health_connect", defaultHealthCardsOrder)
+        .collectAsStateWithLifecycle(initialValue = defaultHealthCardsOrder)
+    val coroutineScope = rememberCoroutineScope()
+    var isEditMode by remember { mutableStateOf(false) }
+    var showCustomizationSheet by remember { mutableStateOf(false) }
+    var targetCardId by remember { mutableStateOf<String?>(null) }
     var selectedRecord by remember { mutableStateOf<HealthRecordDto?>(null) }
     var showDatePicker by remember { mutableStateOf(false) }
+
+    val healthColor = domainHealthColor()
+    val nutritionColor = domainNutritionColor()
+    val tertiaryColor = MaterialTheme.colorScheme.tertiary
+    val errorColor = MaterialTheme.colorScheme.error
+
+    val healthStatCards = remember(healthColor, nutritionColor, tertiaryColor, errorColor) {
+        listOf(
+            StatCardItem(
+                id = "health_steps",
+                title = "Adım Sayısı",
+                description = "Günlük adım sayısı ve tarihi",
+                icon = Icons.AutoMirrored.Filled.DirectionsWalk,
+                iconTint = healthColor
+            ),
+            StatCardItem(
+                id = "health_hr",
+                title = "Ortalama Nabız",
+                description = "Kalp atış hızı ve bpm değeri",
+                icon = Icons.Default.Favorite,
+                iconTint = errorColor
+            ),
+            StatCardItem(
+                id = "health_sleep",
+                title = "Uyku Süresi",
+                description = "Günlük toplam uyku süresi",
+                icon = Icons.Default.Bedtime,
+                iconTint = tertiaryColor
+            ),
+            StatCardItem(
+                id = "health_active",
+                title = "Aktif Kalori",
+                description = "Aktif yakılan kalori ve son ağırlık",
+                icon = Icons.Default.LocalFireDepartment,
+                iconTint = nutritionColor
+            )
+        )
+    }
+
+    val orderedStatCards = remember(orderedCardIds, healthStatCards) {
+        val map = healthStatCards.associateBy { it.id }
+        orderedCardIds.mapNotNull { map[it] } + healthStatCards.filter { it.id !in orderedCardIds }
+    }
 
     if (showDatePicker) {
         ExpressiveDateFilterDialog(
@@ -81,6 +138,17 @@ fun HealthConnectScreen(
                             )
                         }
                     }
+                },
+                actions = {
+                    TopAppBarStatsAction(
+                        isEditMode = isEditMode,
+                        hasHiddenCards = healthStatCards.any { it.id in hiddenCardIds },
+                        onToggleEditMode = { isEditMode = !isEditMode },
+                        onOpenCustomization = {
+                            targetCardId = null
+                            showCustomizationSheet = true
+                        }
+                    )
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.surface
@@ -128,56 +196,51 @@ fun HealthConnectScreen(
                 contentPadding = PaddingValues(top = 10.dp, bottom = 144.dp),
                 verticalArrangement = Arrangement.Top
             ) {
-                // Summary Metric Cards (2x2 Grid)
+                // Summary Metric Cards (Dynamic Chunked Grid)
                 item(key = "health_stats_grid", contentType = "stats_grid") {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(bottom = 8.dp),
-                        verticalArrangement = Arrangement.spacedBy(6.dp)
-                    ) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(6.dp)
-                        ) {
-                            MetricCard(
-                                title = stringResource(R.string.health_metric_steps_title),
-                                value = stepsFormatted,
-                                badgeText = stringResource(R.string.health_metric_steps_badge),
-                                note = summary.steps_date.ifBlank { stringResource(R.string.badge_daily) },
-                                modifier = Modifier.weight(1f)
-                            )
-                            MetricCard(
-                                title = stringResource(R.string.health_metric_sleep_title),
-                                value = sleepFormatted,
-                                badgeText = stringResource(R.string.health_metric_sleep_badge),
-                                note = summary.sleep_date.ifBlank { stringResource(R.string.badge_daily) },
-                                modifier = Modifier.weight(1f)
-                            )
+                    val visibleCardIds = orderedCardIds.filter { it !in hiddenCardIds }
+
+                    LaunchedEffect(visibleCardIds.isEmpty()) {
+                        if (visibleCardIds.isEmpty()) {
+                            isEditMode = false
                         }
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    }
+
+                    if (visibleCardIds.isNotEmpty()) {
+                        val rows = visibleCardIds.chunked(2)
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(bottom = 8.dp),
+                            verticalArrangement = Arrangement.spacedBy(6.dp)
                         ) {
-                            MetricCard(
-                                title = stringResource(R.string.health_metric_hr_title),
-                                value = hrFormatted,
-                                badgeText = stringResource(R.string.health_metric_hr_badge),
-                                note = stringResource(R.string.health_metric_hr_note),
-                                modifier = Modifier.weight(1f)
-                            )
-                            val fourthNote = if (summary.latest_weight_kg > 0) {
-                                "${String.format(Locale.US, "%.1f", summary.latest_weight_kg)} kg · ${stringResource(R.string.health_metric_records_note, summary.total_records)}"
-                            } else {
-                                stringResource(R.string.health_metric_records_note, summary.total_records)
+                            rows.forEachIndexed { rowIndex, rowCardIds ->
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                ) {
+                                    rowCardIds.forEachIndexed { colIndex, cardId ->
+                                        val overallIndex = rowIndex * 2 + colIndex
+                                        HealthStatCardItemView(
+                                            cardId = cardId,
+                                            summary = summary,
+                                            stepsFormatted = stepsFormatted,
+                                            sleepFormatted = sleepFormatted,
+                                            hrFormatted = hrFormatted,
+                                            activeKcalFormatted = activeKcalFormatted,
+                                            isEditMode = isEditMode,
+                                            index = overallIndex,
+                                            onHideCard = {
+                                                coroutineScope.launch {
+                                                    preferences.toggleStatCardVisibility(cardId, false)
+                                                }
+                                            },
+                                            onLongClick = { isEditMode = true },
+                                            modifier = Modifier.weight(1f)
+                                        )
+                                    }
+                                }
                             }
-                            MetricCard(
-                                title = stringResource(R.string.health_metric_active_title),
-                                value = activeKcalFormatted,
-                                badgeText = stringResource(R.string.health_metric_active_badge),
-                                note = fourthNote,
-                                modifier = Modifier.weight(1f)
-                            )
                         }
                     }
                 }
@@ -438,6 +501,42 @@ fun HealthConnectScreen(
             onDismiss = { selectedRecord = null }
         )
     }
+
+    if (showCustomizationSheet) {
+        StatsCustomizationBottomSheet(
+            sheetTitle = stringResource(R.string.stats_customization_title),
+            cards = orderedStatCards,
+            hiddenCardIds = hiddenCardIds,
+            targetCardId = targetCardId,
+            onToggleCard = { cardId, visible ->
+                coroutineScope.launch {
+                    preferences.toggleStatCardVisibility(cardId, visible)
+                }
+            },
+            onMoveCard = { cardId, direction ->
+                val currentOrder = orderedCardIds.toMutableList()
+                val index = currentOrder.indexOf(cardId)
+                val targetIndex = index + direction
+                if (index != -1 && targetIndex in 0..currentOrder.lastIndex) {
+                    val item = currentOrder.removeAt(index)
+                    currentOrder.add(targetIndex, item)
+                    coroutineScope.launch {
+                        preferences.setStatsCardsOrder("health_connect", currentOrder)
+                    }
+                }
+            },
+            onResetDefault = {
+                coroutineScope.launch {
+                    preferences.resetHiddenStatsCards(healthStatCards.map { it.id })
+                    preferences.resetStatsCardsOrder("health_connect")
+                }
+            },
+            onDismissRequest = {
+                showCustomizationSheet = false
+                targetCardId = null
+            }
+        )
+    }
 }
 
 @Composable
@@ -553,6 +652,89 @@ fun HealthRecordRowItem(
                         softWrap = false
                     )
                 }
+            }
+        }
+    }
+}
+
+@Composable
+private fun HealthStatCardItemView(
+    cardId: String,
+    summary: HealthConnectSummaryDto,
+    stepsFormatted: String,
+    sleepFormatted: String,
+    hrFormatted: String,
+    activeKcalFormatted: String,
+    isEditMode: Boolean,
+    index: Int,
+    onHideCard: () -> Unit,
+    onLongClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    StatCardContainer(
+        cardId = cardId,
+        isEditMode = isEditMode,
+        onHideCard = onHideCard,
+        index = index,
+        modifier = modifier
+    ) {
+        when (cardId) {
+            "health_steps" -> {
+                MetricCard(
+                    title = stringResource(R.string.health_metric_steps_title),
+                    value = stepsFormatted,
+                    badgeText = stringResource(R.string.health_metric_steps_badge),
+                    note = summary.steps_date.ifBlank { stringResource(R.string.badge_daily) },
+                    valueIcon = Icons.AutoMirrored.Filled.DirectionsWalk,
+                    valueIconTint = domainHealthColor(),
+                    badgeBg = domainHealthContainer(),
+                    badgeColor = domainHealthOnContainer(),
+                    onLongClick = onLongClick
+                )
+            }
+            "health_hr" -> {
+                MetricCard(
+                    title = stringResource(R.string.health_metric_hr_title),
+                    value = hrFormatted,
+                    badgeText = stringResource(R.string.health_metric_hr_badge),
+                    note = stringResource(R.string.health_metric_hr_note),
+                    valueIcon = Icons.Default.Favorite,
+                    valueIconTint = MaterialTheme.colorScheme.error,
+                    badgeBg = MaterialTheme.colorScheme.errorContainer,
+                    badgeColor = MaterialTheme.colorScheme.onErrorContainer,
+                    onLongClick = onLongClick
+                )
+            }
+            "health_sleep" -> {
+                MetricCard(
+                    title = stringResource(R.string.health_metric_sleep_title),
+                    value = sleepFormatted,
+                    badgeText = stringResource(R.string.health_metric_sleep_badge),
+                    note = summary.sleep_date.ifBlank { stringResource(R.string.badge_daily) },
+                    valueIcon = Icons.Default.Bedtime,
+                    valueIconTint = MaterialTheme.colorScheme.tertiary,
+                    badgeBg = MaterialTheme.colorScheme.tertiaryContainer,
+                    badgeColor = MaterialTheme.colorScheme.onTertiaryContainer,
+                    onLongClick = onLongClick
+                )
+            }
+            "health_active" -> {
+                val fourthNote = if (summary.latest_weight_kg > 0) {
+                    "${String.format(Locale.US, "%.1f", summary.latest_weight_kg)} kg · ${stringResource(R.string.health_metric_records_note, summary.total_records)}"
+                } else {
+                    stringResource(R.string.health_metric_records_note, summary.total_records)
+                }
+                MetricCard(
+                    title = stringResource(R.string.health_metric_active_title),
+                    value = activeKcalFormatted,
+                    badgeText = stringResource(R.string.health_metric_active_badge),
+                    note = fourthNote,
+                    valueIcon = Icons.Default.LocalFireDepartment,
+                    valueIconTint = domainNutritionColor(),
+                    badgeBg = domainNutritionContainer(),
+                    badgeColor = domainNutritionOnContainer(),
+                    onLongClick = onLongClick
+                )
             }
         }
     }

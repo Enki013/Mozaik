@@ -21,16 +21,19 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.personalrecords.app.PersonalRecordsApp
 import com.personalrecords.app.R
 import com.personalrecords.app.core.network.model.FoodEntryDto
 import com.personalrecords.app.core.theme.*
 import com.personalrecords.app.ui.components.*
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import kotlinx.coroutines.launch
 
 private val NutritionMealKeys = listOf("all", "Breakfast", "Lunch", "Dinner", "Other")
 
@@ -41,10 +44,52 @@ fun NutritionScreen(
     onNavigateBack: (() -> Unit)? = null
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
+    val preferences = remember { PersonalRecordsApp.instance.preferences }
+    val hiddenCardIds by preferences.hiddenStatsCards.collectAsStateWithLifecycle(initialValue = emptySet())
+    val coroutineScope = rememberCoroutineScope()
+    var isEditMode by remember { mutableStateOf(false) }
+    var showCustomizationSheet by remember { mutableStateOf(false) }
+    var targetCardId by remember { mutableStateOf<String?>(null) }
     var showTargetDialog by remember { mutableStateOf(false) }
     var showDatePicker by remember { mutableStateOf(false) }
     var selectedFood by remember { mutableStateOf<FoodEntryDto?>(null) }
     var animationStarted by remember { mutableStateOf(false) }
+
+    val nutritionColor = domainNutritionColor()
+    val booksColor = domainBooksColor()
+    val secondaryColor = MaterialTheme.colorScheme.secondary
+    val nutritionStatCards = remember(nutritionColor, booksColor, secondaryColor) {
+        listOf(
+            StatCardItem(
+                id = "nutrition_calories",
+                title = "Bugünkü Kalori",
+                description = "Tüketilen kalori ve kalan hedef",
+                icon = Icons.Default.LocalFireDepartment,
+                iconTint = nutritionColor
+            ),
+            StatCardItem(
+                id = "nutrition_meals",
+                title = "Öğün Kayıtları",
+                description = "Bugünkü öğün sayısı ve toplam kayıt",
+                icon = Icons.Default.Restaurant,
+                iconTint = secondaryColor
+            ),
+            StatCardItem(
+                id = "nutrition_protein",
+                title = "Protein",
+                description = "Günlük protein gramı ve yüzdesi",
+                icon = Icons.Default.FitnessCenter,
+                iconTint = nutritionColor
+            ),
+            StatCardItem(
+                id = "nutrition_carbfat",
+                title = "Karbonhidrat & Yağ",
+                description = "Karb ve yağ dengesi ve yüzdeleri",
+                icon = Icons.Default.PieChart,
+                iconTint = booksColor
+            )
+        )
+    }
 
     LaunchedEffect(Unit) {
         kotlinx.coroutines.delay(360L) // Wait for NavHost slide-in transition to finish before animating gauge
@@ -136,7 +181,17 @@ fun NutritionScreen(
                         }
                     }
                 },
-                actions = {},
+                actions = {
+                    TopAppBarStatsAction(
+                        isEditMode = isEditMode,
+                        hasHiddenCards = nutritionStatCards.any { it.id in hiddenCardIds },
+                        onToggleEditMode = { isEditMode = !isEditMode },
+                        onOpenCustomization = {
+                            targetCardId = null
+                            showCustomizationSheet = true
+                        }
+                    )
+                },
                 scrollBehavior = scrollBehavior,
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.surface,
@@ -169,6 +224,160 @@ fun NutritionScreen(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalArrangement = Arrangement.spacedBy(if (isWideScreen) 8.dp else 0.dp)
                 ) {
+            // Stats Summary: M3 Elevated Metric Cards with Value Icons (Music & Health pattern)
+            item(key = "nutrition_stats", span = { GridItemSpan(maxLineSpan) }, contentType = "stats") {
+                val target = state.calorieTarget
+                val rem = if (target != null) (target - state.todayCalories).toInt() else 0
+                val targetBadge = target?.let { "/ $it kcal" } ?: stringResource(R.string.badge_daily)
+                val remNote = target?.let {
+                    if (rem >= 0) stringResource(R.string.nutrition_target_remaining, rem)
+                    else stringResource(R.string.nutrition_target_exceeded, -rem)
+                } ?: stringResource(R.string.overview_metric_today_calories)
+
+                val todayTotalMacroGrams = state.todayCarb + state.todayProtein + state.todayFat
+                val protPct = if (todayTotalMacroGrams > 0) ((state.todayProtein / todayTotalMacroGrams) * 100).toInt() else 0
+                val carbPct = if (todayTotalMacroGrams > 0) ((state.todayCarb / todayTotalMacroGrams) * 100).toInt() else 0
+                val fatPct = if (todayTotalMacroGrams > 0) ((state.todayFat / todayTotalMacroGrams) * 100).toInt() else 0
+
+                val isCaloriesVisible = "nutrition_calories" !in hiddenCardIds
+                val isMealsVisible = "nutrition_meals" !in hiddenCardIds
+                val isProteinVisible = "nutrition_protein" !in hiddenCardIds
+                val isCarbFatVisible = "nutrition_carbfat" !in hiddenCardIds
+
+                val hasRow1 = isCaloriesVisible || isMealsVisible
+                val hasRow2 = isProteinVisible || isCarbFatVisible
+
+                LaunchedEffect(isCaloriesVisible, isMealsVisible, isProteinVisible, isCarbFatVisible) {
+                    if (!isCaloriesVisible && !isMealsVisible && !isProteinVisible && !isCarbFatVisible) {
+                        isEditMode = false
+                    }
+                }
+
+                if (hasRow1 || hasRow2) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(bottom = 8.dp),
+                        verticalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        if (hasRow1) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                            ) {
+                                if (isCaloriesVisible) {
+                                    StatCardContainer(
+                                        cardId = "nutrition_calories",
+                                        isEditMode = isEditMode,
+                                        onHideCard = {
+                                            coroutineScope.launch {
+                                                preferences.toggleStatCardVisibility("nutrition_calories", false)
+                                            }
+                                        },
+                                        index = 0,
+                                        modifier = Modifier.weight(1f)
+                                    ) {
+                                        MetricCard(
+                                            title = stringResource(R.string.overview_metric_today_calories),
+                                            value = "${state.todayCalories.toInt()} kcal",
+                                            badgeText = targetBadge,
+                                            note = remNote,
+                                            valueIcon = Icons.Default.LocalFireDepartment,
+                                            valueIconTint = domainNutritionColor(),
+                                            badgeBg = domainNutritionContainer(),
+                                            badgeColor = domainNutritionOnContainer(),
+                                            onLongClick = { isEditMode = true }
+                                        )
+                                    }
+                                }
+                                if (isMealsVisible) {
+                                    StatCardContainer(
+                                        cardId = "nutrition_meals",
+                                        isEditMode = isEditMode,
+                                        onHideCard = {
+                                            coroutineScope.launch {
+                                                preferences.toggleStatCardVisibility("nutrition_meals", false)
+                                            }
+                                        },
+                                        index = 1,
+                                        modifier = Modifier.weight(1f)
+                                    ) {
+                                        MetricCard(
+                                            title = stringResource(R.string.records_item_nutrition_title),
+                                            value = "${state.todayEntriesCount}",
+                                            badgeText = stringResource(R.string.nutrition_filter_all_meals),
+                                            note = stringResource(R.string.overview_metric_meals_count, state.foodEntries.size),
+                                            valueIcon = Icons.Default.Restaurant,
+                                            valueIconTint = MaterialTheme.colorScheme.secondary,
+                                            badgeBg = MaterialTheme.colorScheme.secondaryContainer,
+                                            badgeColor = MaterialTheme.colorScheme.onSecondaryContainer,
+                                            onLongClick = { isEditMode = true }
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                        if (hasRow2) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                            ) {
+                                if (isProteinVisible) {
+                                    StatCardContainer(
+                                        cardId = "nutrition_protein",
+                                        isEditMode = isEditMode,
+                                        onHideCard = {
+                                            coroutineScope.launch {
+                                                preferences.toggleStatCardVisibility("nutrition_protein", false)
+                                            }
+                                        },
+                                        index = 2,
+                                        modifier = Modifier.weight(1f)
+                                    ) {
+                                        MetricCard(
+                                            title = stringResource(R.string.nutrition_label_protein),
+                                            value = "${state.todayProtein.toInt()}g",
+                                            badgeText = "$protPct%",
+                                            note = stringResource(R.string.badge_daily) + " protein",
+                                            valueIcon = Icons.Default.FitnessCenter,
+                                            valueIconTint = domainNutritionColor(),
+                                            badgeBg = domainNutritionContainer(),
+                                            badgeColor = domainNutritionOnContainer(),
+                                            onLongClick = { isEditMode = true }
+                                        )
+                                    }
+                                }
+                                if (isCarbFatVisible) {
+                                    StatCardContainer(
+                                        cardId = "nutrition_carbfat",
+                                        isEditMode = isEditMode,
+                                        onHideCard = {
+                                            coroutineScope.launch {
+                                                preferences.toggleStatCardVisibility("nutrition_carbfat", false)
+                                            }
+                                        },
+                                        index = 3,
+                                        modifier = Modifier.weight(1f)
+                                    ) {
+                                        MetricCard(
+                                            title = "${stringResource(R.string.nutrition_label_carb)} / ${stringResource(R.string.nutrition_label_fat)}",
+                                            value = "${state.todayCarb.toInt()}g · ${state.todayFat.toInt()}g",
+                                            badgeText = "$carbPct% / $fatPct%",
+                                            note = "Karb / Yağ dengesi",
+                                            valueIcon = Icons.Default.PieChart,
+                                            valueIconTint = domainBooksColor(),
+                                            badgeBg = domainBooksContainer(),
+                                            badgeColor = domainBooksOnContainer(),
+                                            onLongClick = { isEditMode = true }
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
             // Calorie Budget Card (Card MD3)
             item(key = "nutrition_budget_card", span = { GridItemSpan(if (isWideScreen) 1 else maxLineSpan) }, contentType = "budget_card") {
                 Card(
@@ -193,9 +402,9 @@ fun NutritionScreen(
                                 horizontalArrangement = Arrangement.spacedBy(8.dp)
                             ) {
                                 Icon(
-                                    imageVector = Icons.Default.Adjust,
+                                    imageVector = Icons.Default.LocalFireDepartment,
                                     contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.primary,
+                                    tint = domainNutritionColor(),
                                     modifier = Modifier.size(18.dp)
                                 )
                                 Text(
@@ -320,19 +529,22 @@ fun NutritionScreen(
                                 color = carbColor,
                                 label = stringResource(R.string.nutrition_label_carb_short),
                                 grams = state.todayCarb.toInt(),
-                                pct = todayCarbPct
+                                pct = todayCarbPct,
+                                icon = Icons.Default.Grain
                             )
                             MacroLegendItem(
                                 color = protColor,
                                 label = stringResource(R.string.nutrition_label_protein_short),
                                 grams = state.todayProtein.toInt(),
-                                pct = todayProtPct
+                                pct = todayProtPct,
+                                icon = Icons.Default.FitnessCenter
                             )
                             MacroLegendItem(
                                 color = fatColor,
                                 label = stringResource(R.string.nutrition_label_fat_short),
                                 grams = state.todayFat.toInt(),
-                                pct = todayFatPct
+                                pct = todayFatPct,
+                                icon = Icons.Default.Opacity
                             )
                         }
                     }
@@ -353,11 +565,22 @@ fun NutritionScreen(
                     border = null
                 ) {
                     Column(modifier = Modifier.padding(12.dp)) {
-                        Text(
-                            text = stringResource(R.string.nutrition_macro_title),
-                            style = MaterialTheme.typography.titleMediumEmphasized,
-                            color = MaterialTheme.colorScheme.onSurface
-                        )
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.PieChart,
+                                contentDescription = null,
+                                tint = domainNutritionColor(),
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Text(
+                                text = stringResource(R.string.nutrition_macro_title),
+                                style = MaterialTheme.typography.titleMediumEmphasized,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                        }
                         Text(
                             text = stringResource(R.string.nutrition_macro_subtitle),
                             style = MaterialTheme.typography.bodySmall,
@@ -408,9 +631,9 @@ fun NutritionScreen(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
-                            MacroLegendItem(color = carbColor, label = stringResource(R.string.nutrition_label_carb_short), grams = state.totalCarb.toInt(), pct = (carbPct * 100).toInt())
-                            MacroLegendItem(color = protColor, label = stringResource(R.string.nutrition_label_protein_short), grams = state.totalProtein.toInt(), pct = (protPct * 100).toInt())
-                            MacroLegendItem(color = fatColor, label = stringResource(R.string.nutrition_label_fat_short), grams = state.totalFat.toInt(), pct = (fatPct * 100).toInt())
+                            MacroLegendItem(color = carbColor, label = stringResource(R.string.nutrition_label_carb_short), grams = state.totalCarb.toInt(), pct = (carbPct * 100).toInt(), icon = Icons.Default.Grain)
+                            MacroLegendItem(color = protColor, label = stringResource(R.string.nutrition_label_protein_short), grams = state.totalProtein.toInt(), pct = (protPct * 100).toInt(), icon = Icons.Default.FitnessCenter)
+                            MacroLegendItem(color = fatColor, label = stringResource(R.string.nutrition_label_fat_short), grams = state.totalFat.toInt(), pct = (fatPct * 100).toInt(), icon = Icons.Default.Opacity)
                         }
                     }
                 }
@@ -692,13 +915,36 @@ fun NutritionScreen(
     }
 }
 
-if (!isTwoPane) {
+    if (!isTwoPane) {
         selectedFood?.let { food ->
             FoodEntryDetailBottomSheet(
                 item = food,
                 onDismiss = { selectedFood = null }
             )
         }
+    }
+
+    if (showCustomizationSheet) {
+        StatsCustomizationBottomSheet(
+            sheetTitle = stringResource(R.string.stats_customization_title),
+            cards = nutritionStatCards,
+            hiddenCardIds = hiddenCardIds,
+            targetCardId = targetCardId,
+            onToggleCard = { cardId, visible ->
+                coroutineScope.launch {
+                    preferences.toggleStatCardVisibility(cardId, visible)
+                }
+            },
+            onResetDefault = {
+                coroutineScope.launch {
+                    preferences.resetHiddenStatsCards(nutritionStatCards.map { it.id })
+                }
+            },
+            onDismissRequest = {
+                showCustomizationSheet = false
+                targetCardId = null
+            }
+        )
     }
 }
 
@@ -723,15 +969,32 @@ private fun getMealIcon(meal: String): androidx.compose.ui.graphics.vector.Image
 }
 
 @Composable
-fun MacroLegendItem(color: Color, label: String, grams: Int, pct: Int) {
-    Row(verticalAlignment = Alignment.CenterVertically) {
-        Box(
-            modifier = Modifier
-                .size(8.dp)
-                .clip(M3Shapes.CornerFull)
-                .background(color)
-        )
-        Spacer(modifier = Modifier.width(4.dp))
+fun MacroLegendItem(
+    color: Color,
+    label: String,
+    grams: Int,
+    pct: Int,
+    icon: ImageVector? = null
+) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(4.dp)
+    ) {
+        if (icon != null) {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                tint = color,
+                modifier = Modifier.size(13.dp)
+            )
+        } else {
+            Box(
+                modifier = Modifier
+                    .size(8.dp)
+                    .clip(M3Shapes.CornerFull)
+                    .background(color)
+            )
+        }
         Text(
             text = stringResource(R.string.nutrition_macro_chip_format, label, grams, pct),
             style = MaterialTheme.typography.labelSmall,
