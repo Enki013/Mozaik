@@ -686,33 +686,20 @@ fun NutritionScreen(
                         )
                     }
                     val hasActiveDate = state.selectedDateFilter != null || state.fromDateFilter != null
-                    val hasActiveFilters = state.searchQuery.isNotEmpty() || hasActiveDate || state.selectedMeal != "all" || state.onlyHighProtein
+                    val hasActiveFilters = state.searchQuery.isNotEmpty() || hasActiveDate || state.selectedMeal != "all"
                     ExpressiveFilterRow {
                         if (hasActiveFilters) {
                             ExpressiveClearFiltersChip(onClick = { viewModel.resetFilters() })
                         }
-                        ExpressiveDateFilterChip(
-                            label = formatDateRangeChipLabel(
-                                singleDate = state.selectedDateFilter,
-                                fromDate = state.fromDateFilter,
-                                toDate = state.toDateFilter,
-                                defaultText = stringResource(R.string.filter_pick_date)
-                            ),
-                            isActive = hasActiveDate,
-                            onClick = { showDatePicker = true },
-                            onClear = { viewModel.clearDateFilter() }
-                        )
-                        ExpressiveFilterChip(
-                            selected = state.onlyHighProtein,
-                            onClick = { viewModel.toggleHighProtein() },
-                            leadingIcon = {
-                                Icon(
-                                    imageVector = Icons.Default.FitnessCenter,
-                                    contentDescription = null,
-                                    modifier = Modifier.size(FilterChipDefaults.IconSize)
-                                )
-                            },
-                            label = { Text(text = stringResource(R.string.nutrition_filter_high_protein), style = MaterialTheme.typography.labelLarge) }
+                        ExpressiveQuickDateFilters(
+                            selectedDate = state.selectedDateFilter,
+                            fromDate = state.fromDateFilter,
+                            toDate = state.toDateFilter,
+                            onPickDate = { showDatePicker = true },
+                            onClearDate = { viewModel.clearDateFilter() },
+                            onQuickRange = { range ->
+                                applyQuickRange(range, viewModel::setDateFilter, viewModel::setDateRangeFilter)
+                            }
                         )
                         ExpressiveDropdownFilterChip(
                             options = listOf("date_desc", "date_asc", "calories_desc", "protein_desc"),

@@ -266,4 +266,78 @@ fun ExpressiveFilterResultCount(
     )
 }
 
+/** Quick ranges next to the date chip: 0 means today, any other value means "last N days". */
+val QuickDateRanges: List<Int> = listOf(0, 7, 14, 30, 90)
+
+/**
+ * The quick range the current date filter equals, or null when there is no date filter
+ * or a custom one. Lets list screens keep their existing single-day / range filter state.
+ */
+fun quickRangeOf(
+    selectedDate: String?,
+    fromDate: String?,
+    toDate: String?,
+    today: java.time.LocalDate = java.time.LocalDate.now()
+): Int? {
+    val todayIso = today.toString()
+    if (selectedDate != null) return if (selectedDate == todayIso && fromDate == null) 0 else null
+    if (fromDate == null || toDate != todayIso) return null
+    return QuickDateRanges.firstOrNull { it > 0 && today.minusDays((it - 1).toLong()).toString() == fromDate }
+}
+
+/** Applies a quick range through a screen's existing single-day and range setters. */
+fun applyQuickRange(
+    range: Int,
+    setDate: (String?) -> Unit,
+    setRange: (String?, String?) -> Unit,
+    today: java.time.LocalDate = java.time.LocalDate.now()
+) {
+    if (range == 0) {
+        setDate(today.toString())
+    } else {
+        setRange(today.minusDays((range - 1).toLong()).toString(), today.toString())
+    }
+}
+
+/**
+ * Date controls shared by every list screen: the custom date chip followed by the quick range
+ * group (Today, 7d, 14d, 30d, 90d). The date chip only looks active for a custom date, so the
+ * same filter is never highlighted twice.
+ */
+@Composable
+fun ExpressiveQuickDateFilters(
+    selectedDate: String?,
+    fromDate: String?,
+    toDate: String?,
+    onPickDate: () -> Unit,
+    onClearDate: () -> Unit,
+    onQuickRange: (Int) -> Unit,
+    selectedQuickRange: Int? = quickRangeOf(selectedDate, fromDate, toDate)
+) {
+    val hasCustomDate = (selectedDate != null || fromDate != null) && selectedQuickRange == null
+    ExpressiveDateFilterChip(
+        label = if (hasCustomDate) {
+            formatDateRangeChipLabel(
+                singleDate = selectedDate,
+                fromDate = fromDate,
+                toDate = toDate,
+                defaultText = stringResource(R.string.filter_pick_date)
+            )
+        } else {
+            stringResource(R.string.filter_pick_date)
+        },
+        isActive = hasCustomDate,
+        onClick = onPickDate,
+        onClear = onClearDate
+    )
+    ExpressiveConnectedButtonGroup(
+        items = QuickDateRanges,
+        selectedItem = selectedQuickRange ?: -1,
+        onItemSelected = onQuickRange,
+        labelProvider = { range ->
+            if (range == 0) stringResource(R.string.filter_today) else stringResource(R.string.filter_days_short, range)
+        }
+    )
+}
+
 private val M3FilterControlHeight = com.personalrecords.app.core.theme.M3ComponentSize.FilterControlHeight

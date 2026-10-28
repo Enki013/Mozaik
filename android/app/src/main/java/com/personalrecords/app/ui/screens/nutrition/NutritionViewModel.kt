@@ -42,7 +42,6 @@ data class NutritionUiState(
     val fromDateFilter: String? = null,
     val toDateFilter: String? = null,
     val selectedMeal: String = "all", // "all", "Breakfast", "Lunch", "Dinner", "Other"
-    val onlyHighProtein: Boolean = false,
     val sortBy: String = "date_desc",
     val error: String? = null
 )
@@ -54,7 +53,6 @@ private fun filterFoodEntries(
     fromDate: String?,
     toDate: String?,
     meal: String,
-    highProt: Boolean,
     sortBy: String = "date_desc"
 ): List<FoodEntryDto> {
     if (entries.isEmpty()) return emptyList()
@@ -70,8 +68,7 @@ private fun filterFoodEntries(
             else -> true
         }
         val matchesMeal = meal == "all" || item.meal.equals(meal, ignoreCase = true)
-        val matchesProtein = !highProt || item.protein >= 20.0
-        matchesSearch && matchesDate && matchesMeal && matchesProtein
+        matchesSearch && matchesDate && matchesMeal
     }
 
     return when (sortBy) {
@@ -127,7 +124,6 @@ class NutritionViewModel(
                 fromDate = snap.fromDateFilter,
                 toDate = snap.toDateFilter,
                 meal = snap.selectedMeal,
-                highProt = snap.onlyHighProtein,
                 sortBy = snap.sortBy
             )
 
@@ -274,16 +270,6 @@ class NutritionViewModel(
         recomputeFilter(debounceMs = 0L)
     }
 
-    fun toggleHighProtein() {
-        _uiState.update {
-            it.copy(
-                onlyHighProtein = !it.onlyHighProtein,
-                isFiltering = true
-            )
-        }
-        recomputeFilter(debounceMs = 0L)
-    }
-
     fun setSortBy(sort: String) {
         if (_uiState.value.sortBy == sort) return
         _uiState.update { it.copy(sortBy = sort, isFiltering = true) }
@@ -298,7 +284,6 @@ class NutritionViewModel(
                 fromDateFilter = null,
                 toDateFilter = null,
                 selectedMeal = "all",
-                onlyHighProtein = false,
                 isFiltering = true
             )
         }
@@ -318,7 +303,6 @@ class NutritionViewModel(
                     fromDate = snap.fromDateFilter,
                     toDate = snap.toDateFilter,
                     meal = snap.selectedMeal,
-                    highProt = snap.onlyHighProtein,
                     sortBy = snap.sortBy
                 )
             }

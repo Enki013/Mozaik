@@ -313,7 +313,6 @@
     <string name="nutrition_filter_lunch">Lunch</string>
     <string name="nutrition_filter_dinner">Dinner</string>
     <string name="nutrition_filter_snack">Snack</string>
-    <string name="nutrition_filter_high_protein">High Protein</string>
     <string name="nutrition_pick_date">Pick Date</string>
     <string name="date_picker_single_day">Single Day</string>
     <string name="date_picker_date_range">Date Range</string>
@@ -677,7 +676,6 @@
     <string name="stats_card_nutrition_protein_desc">Daily protein grams and share</string>
     <string name="stats_card_nutrition_carbfat_title">Carbs &amp; Fat</string>
     <string name="stats_card_nutrition_carbfat_desc">Carb and fat balance and shares</string>
-    <string name="timeline_days_short">%1$dd</string>
     <string name="filter_clear_date">Clear date filter</string>
     <string name="filter_app">App</string>
     <string name="filter_artist">Artist</string>
@@ -694,5 +692,7 @@
     <string name="action_show_key">Show key</string>
     <string name="action_hide_key">Hide key</string>
     <string name="catalog_official_site">Official site</string>
+    <string name="filter_today">Today</string>
+    <string name="filter_days_short">%1$dd</string>
 </resources>
 

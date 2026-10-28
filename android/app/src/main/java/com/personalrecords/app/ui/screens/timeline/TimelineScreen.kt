@@ -32,7 +32,6 @@ import com.personalrecords.app.ui.components.*
 private val DayCardTopShape = M3Shapes.groupedListItem(index = 0, count = 2)
 private val DayCardMiddleShape = M3Shapes.groupedListItem(index = 1, count = 3)
 private val DayCardBottomShape = M3Shapes.groupedListItem(index = 1, count = 2)
-private val TimelineDayOptions = listOf(7, 14, 30, 90)
 private val TimelineSourceKeys = listOf("all", "fatsecret", "health_connect", "music", "goodreads", "letterboxd", "notification")
 
 @OptIn(ExperimentalMaterial3Api::class, androidx.compose.foundation.ExperimentalFoundationApi::class)
@@ -139,7 +138,13 @@ fun TimelineScreen(
                 }
 
                 // Layer 1: Search stays pinned until the date controls reach it.
-                stickyHeader(key = "timeline_search_header", contentType = "search_header") {
+                // Same header layout as every list screen: search, single-choice source group, chip row.
+                stickyHeader(key = "timeline_filters", contentType = "sticky_header") {
+                    val todayIso = java.time.LocalDate.now().toString()
+                    val isToday = state.selectedDate == todayIso && state.fromDate == null
+                    val hasCustomDate = !isToday && (state.selectedDate != null || state.fromDate != null)
+                    val hasActiveFilters = isToday || hasCustomDate || state.selectedDays != 14 ||
+                        state.selectedSource != "all" || state.searchQuery.isNotEmpty()
                     ExpressiveFilterHeader {
                         ExpressiveSearchField(
                             value = state.searchQuery,
@@ -150,63 +155,6 @@ fun TimelineScreen(
                                 .fillMaxWidth()
                                 .filterHeaderItem()
                         )
-                    }
-                }
-
-                // Layer 2: Day range and date filters replace the search field as scrolling continues.
-                stickyHeader(key = "timeline_date_header", contentType = "date_header") {
-                    val hasCustomDate = state.selectedDate != null || state.fromDate != null
-                    val hasActiveFilters = hasCustomDate || state.selectedDays != 14 ||
-                        state.selectedSource != "all" || state.searchQuery.isNotEmpty()
-                    ExpressiveFilterHeader {
-                        ExpressiveFilterRow {
-                            ExpressiveConnectedButtonGroup(
-                                items = TimelineDayOptions,
-                                selectedItem = if (hasCustomDate) -1 else state.selectedDays,
-                                onItemSelected = { days -> viewModel.setDays(days) },
-                                labelProvider = { days -> stringResource(R.string.timeline_days_short, days) }
-                            )
-                        }
-                        ExpressiveFilterRow {
-                            if (hasActiveFilters) {
-                                ExpressiveClearFiltersChip(onClick = { viewModel.resetFilters() })
-                            }
-                            ExpressiveDateFilterChip(
-                                label = formatDateRangeChipLabel(
-                                    singleDate = state.selectedDate,
-                                    fromDate = state.fromDate,
-                                    toDate = state.toDate,
-                                    defaultText = stringResource(R.string.filter_pick_date)
-                                ),
-                                isActive = hasCustomDate,
-                                onClick = { showDatePicker = true },
-                                // Clearing the date returns to the selected day range, not a full reset.
-                                onClear = { viewModel.setDays(state.selectedDays) }
-                            )
-                            ExpressiveFilterChip(
-                                selected = state.selectedDate == java.time.LocalDate.now().toString(),
-                                onClick = { viewModel.setToday() },
-                                leadingIcon = {
-                                    Icon(
-                                        imageVector = Icons.Default.Today,
-                                        contentDescription = null,
-                                        modifier = Modifier.size(FilterChipDefaults.IconSize)
-                                    )
-                                },
-                                label = {
-                                    Text(
-                                        text = stringResource(R.string.timeline_today),
-                                        style = MaterialTheme.typography.labelLarge
-                                    )
-                                }
-                            )
-                        }
-                    }
-                }
-
-                // Layer 3: Source filters remain after the search and date layers have scrolled away.
-                stickyHeader(key = "timeline_source_header", contentType = "source_header") {
-                    ExpressiveFilterHeader {
                         ExpressiveFilterRow {
                             ExpressiveConnectedButtonGroup(
                                 items = TimelineSourceKeys,
@@ -233,6 +181,27 @@ fun TimelineScreen(
                                         "notification" -> Icons.Default.Notifications
                                         else -> null
                                     }
+                                }
+                            )
+                        }
+                        ExpressiveFilterRow {
+                            if (hasActiveFilters) {
+                                ExpressiveClearFiltersChip(onClick = { viewModel.resetFilters() })
+                            }
+                            ExpressiveQuickDateFilters(
+                                selectedDate = state.selectedDate,
+                                fromDate = state.fromDate,
+                                toDate = state.toDate,
+                                selectedQuickRange = when {
+                                    isToday -> 0
+                                    hasCustomDate -> null
+                                    else -> state.selectedDays
+                                },
+                                onPickDate = { showDatePicker = true },
+                                // Clearing the date returns to the selected day range, not a full reset.
+                                onClearDate = { viewModel.setDays(state.selectedDays) },
+                                onQuickRange = { range ->
+                                    if (range == 0) viewModel.setToday() else viewModel.setDays(range)
                                 }
                             )
                         }

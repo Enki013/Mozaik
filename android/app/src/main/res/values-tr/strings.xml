@@ -313,7 +313,6 @@
     <string name="nutrition_filter_lunch">Öğle</string>
     <string name="nutrition_filter_dinner">Akşam</string>
     <string name="nutrition_filter_snack">Ara Öğün</string>
-    <string name="nutrition_filter_high_protein">Yüksek Protein</string>
     <string name="nutrition_pick_date">Gün Seç</string>
     <string name="date_picker_single_day">Tek Gün</string>
     <string name="date_picker_date_range">Tarih Aralığı</string>
@@ -673,7 +672,6 @@
     <string name="stats_card_nutrition_protein_desc">Günlük protein gramı ve yüzdesi</string>
     <string name="stats_card_nutrition_carbfat_title">Karbonhidrat &amp; Yağ</string>
     <string name="stats_card_nutrition_carbfat_desc">Karb ve yağ dengesi ve yüzdeleri</string>
-    <string name="timeline_days_short">%1$dG</string>
     <string name="filter_clear_date">Tarih filtresini temizle</string>
     <string name="filter_app">Uygulama</string>
     <string name="filter_artist">Sanatçı</string>
@@ -690,5 +688,7 @@
     <string name="action_show_key">Anahtarı göster</string>
     <string name="action_hide_key">Anahtarı gizle</string>
     <string name="catalog_official_site">Resmi site</string>
+    <string name="filter_today">Bugün</string>
+    <string name="filter_days_short">%1$dG</string>
 </resources>
 

@@ -325,16 +325,15 @@ fun MusicScreen(
                                     if (hasActiveFilters) {
                                         ExpressiveClearFiltersChip(onClick = { viewModel.resetFilters() })
                                     }
-                                    ExpressiveDateFilterChip(
-                                        label = formatDateRangeChipLabel(
-                                            singleDate = state.selectedDateFilter,
-                                            fromDate = state.fromDateFilter,
-                                            toDate = state.toDateFilter,
-                                            defaultText = stringResource(R.string.filter_pick_date)
-                                        ),
-                                        isActive = hasActiveDate,
-                                        onClick = { showDatePicker = true },
-                                        onClear = { viewModel.clearDateFilter() }
+                                    ExpressiveQuickDateFilters(
+                                        selectedDate = state.selectedDateFilter,
+                                        fromDate = state.fromDateFilter,
+                                        toDate = state.toDateFilter,
+                                        onPickDate = { showDatePicker = true },
+                                        onClearDate = { viewModel.clearDateFilter() },
+                                        onQuickRange = { range ->
+                                            applyQuickRange(range, viewModel::setDateFilter, viewModel::setDateRangeFilter)
+                                        }
                                     )
                                     val artistCounts = remember(state.stats.topArtists) {
                                         state.stats.topArtists.take(20).associate { it.artist to it.count }
