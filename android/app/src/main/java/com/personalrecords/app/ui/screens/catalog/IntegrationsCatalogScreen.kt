@@ -22,6 +22,11 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.OpenInNew
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.Role
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.material.icons.automirrored.filled.HelpOutline
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -99,17 +104,20 @@ fun IntegrationsCatalogScreen(
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(innerPadding)
-                .navigationBarsPadding(),
+                .padding(innerPadding),
             contentPadding = PaddingValues(
+                start = FilterGutter,
+                end = FilterGutter,
                 top = 12.dp,
-                bottom = 24.dp
+                bottom = 24.dp + WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
             ),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             // Search & Category Filters
             stickyHeader(key = "catalog_search_filters", contentType = "sticky_header") {
-                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                val hasActiveFilters = state.searchQuery.isNotEmpty() ||
+                    state.selectedCategory != IntegrationCategory.ALL
+                ExpressiveFilterHeader {
                     ExpressiveSearchField(
                         value = state.searchQuery,
                         onValueChange = { viewModel.setSearchQuery(it) },
@@ -117,16 +125,9 @@ fun IntegrationsCatalogScreen(
                         clearContentDescription = stringResource(R.string.action_clear),
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(horizontal = 16.dp)
+                            .filterHeaderItem()
                     )
-
-                    // Single-choice category filter: same connected button group as every other screen.
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .horizontalScroll(rememberScrollState())
-                            .padding(horizontal = 16.dp)
-                    ) {
+                    ExpressiveFilterRow {
                         ExpressiveConnectedButtonGroup(
                             items = IntegrationCategory.entries,
                             selectedItem = state.selectedCategory,
@@ -134,24 +135,27 @@ fun IntegrationsCatalogScreen(
                             labelProvider = { stringResource(it.labelRes) }
                         )
                     }
+                    if (hasActiveFilters) {
+                        ExpressiveFilterRow {
+                            ExpressiveClearFiltersChip(
+                                onClick = {
+                                    viewModel.setSearchQuery("")
+                                    viewModel.setSelectedCategory(IntegrationCategory.ALL)
+                                }
+                            )
+                        }
+                        ExpressiveFilterResultCount(count = state.plugins.size)
+                    }
                 }
             }
 
             // 3. Plugin List
             if (state.plugins.isEmpty()) {
                 item(key = "catalog_empty") {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 16.dp, vertical = 48.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            text = stringResource(R.string.catalog_empty_search),
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
+                    ExpressiveEmptyState(
+                        title = stringResource(R.string.catalog_empty_search),
+                        icon = Icons.Default.SearchOff
+                    )
                 }
             } else {
                 items(
@@ -175,6 +179,7 @@ fun IntegrationsCatalogScreen(
         PluginWebhookBottomSheet(
             plugin = plugin,
             serverBaseUrl = state.serverBaseUrl,
+            serverApiKey = state.serverApiKey,
             onDismiss = { selectedWebhookPlugin = null },
             onShowSnackbar = { msg ->
                 coroutineScope.launch {
@@ -185,6 +190,7 @@ fun IntegrationsCatalogScreen(
     }
 }
 
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 private fun CatalogPluginCard(
     plugin: IntegrationPlugin,
@@ -197,36 +203,19 @@ private fun CatalogPluginCard(
     val context = LocalContext.current
     val colorScheme = MaterialTheme.colorScheme
     val categoryColors = recordCategoryColors(plugin.recordCategory())
-    val accentContainer = categoryColors.container
-    val onAccentContainer = categoryColors.onContainer
     val iconContainerColor by animateColorAsState(
-        targetValue = if (plugin.isEnabled) accentContainer else colorScheme.surfaceContainerHigh,
+        targetValue = if (plugin.isEnabled) categoryColors.container else colorScheme.surfaceContainerHigh,
         animationSpec = M3ExpressiveMotion.defaultEffects(),
         label = "plugin_icon_container"
     )
-    val syncRotation = remember { Animatable(0f) }
-    LaunchedEffect(isSyncing) {
-        if (isSyncing) {
-            syncRotation.animateTo(
-                targetValue = syncRotation.value + 360f,
-                animationSpec = infiniteRepeatable(
-                    animation = tween(1000, easing = LinearEasing),
-                    repeatMode = RepeatMode.Restart
-                )
-            )
-        } else {
-            syncRotation.snapTo(0f)
-        }
-    }
+    // In-development plugins can be turned off but not on.
+    val canToggle = !plugin.isInDevelopment || plugin.isEnabled
 
+    // Same container and corner as the Settings integration cards.
     Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp),
+        modifier = Modifier.fillMaxWidth(),
         shape = M3Shapes.CornerLargeIncreased,
-        colors = CardDefaults.cardColors(
-            containerColor = colorScheme.surfaceContainerLow
-        ),
+        colors = CardDefaults.cardColors(containerColor = colorScheme.surfaceContainerLow),
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
     ) {
         Column(
@@ -235,233 +224,207 @@ private fun CatalogPluginCard(
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
-            // Header: Icon + Info + Switch
+            // The whole header row is the switch target, so screen readers read
+            // "<plugin name>, switch, on" instead of an unnamed switch.
             Row(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(M3Shapes.CornerMedium)
+                    .toggleable(
+                        value = plugin.isEnabled,
+                        enabled = canToggle,
+                        role = Role.Switch,
+                        onValueChange = onToggle
+                    ),
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                Row(
-                    modifier = Modifier.weight(1f),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                Box(
+                    modifier = Modifier
+                        .size(48.dp)
+                        .clip(M3Shapes.CornerLarge)
+                        .background(iconContainerColor),
+                    contentAlignment = Alignment.Center
                 ) {
-                    Box(
-                        modifier = Modifier
-                            .size(48.dp)
-                            .clip(M3Shapes.CornerLarge)
-                            .background(iconContainerColor),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            imageVector = plugin.icon,
-                            contentDescription = null,
-                            tint = if (plugin.isEnabled) onAccentContainer else colorScheme.onSurfaceVariant,
-                            modifier = Modifier.size(24.dp)
-                        )
-                    }
+                    Icon(
+                        imageVector = plugin.icon,
+                        contentDescription = null,
+                        tint = if (plugin.isEnabled) categoryColors.onContainer else colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(24.dp)
+                    )
+                }
 
-                    Column(
-                        modifier = Modifier
-                            .weight(1f)
-                            .padding(end = 4.dp),
-                        verticalArrangement = Arrangement.Center
+                Column(
+                    modifier = Modifier.weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    Text(
+                        text = plugin.name,
+                        style = MaterialTheme.typography.titleMediumEmphasized,
+                        color = colorScheme.onSurface,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    // One badge: the integration type, or "in development". The switch already shows on/off.
+                    Surface(
+                        shape = M3Shapes.CornerFull,
+                        color = colorScheme.surfaceContainerHigh
                     ) {
                         Text(
-                            text = plugin.name,
-                            style = MaterialTheme.typography.titleMediumEmphasized,
-                            color = MaterialTheme.colorScheme.onSurface,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
-
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(6.dp)
-                        ) {
-                            val badgeLabel = if (plugin.badgeRes != 0) stringResource(plugin.badgeRes) else plugin.badge
-                            Surface(
-                                shape = M3Shapes.CornerFull,
-                                color = colorScheme.surfaceContainerHigh
-                            ) {
-                                Text(
-                                    text = badgeLabel,
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = colorScheme.onSurfaceVariant,
-                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
-                                )
-                            }
-
-                            val statusLabel = if (plugin.isEnabled) {
-                                stringResource(R.string.plugin_status_active)
+                            text = if (plugin.isInDevelopment) {
+                                stringResource(R.string.plugin_badge_in_development)
                             } else {
-                                stringResource(R.string.plugin_status_paused)
-                            }
-                            ExpressiveStatusBadge(
-                                text = statusLabel,
-                                tone = if (plugin.isEnabled) StatusTone.Active else StatusTone.Paused
-                            )
-                        }
+                                stringResource(plugin.type.displayNameRes)
+                            },
+                            style = MaterialTheme.typography.labelSmall,
+                            color = colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
+                        )
                     }
                 }
 
                 Switch(
                     checked = plugin.isEnabled,
-                    onCheckedChange = { enabled ->
-                        if (!plugin.isInDevelopment || !enabled) onToggle(enabled)
-                    },
-                    enabled = !plugin.isInDevelopment || plugin.isEnabled
+                    onCheckedChange = null,
+                    enabled = canToggle
                 )
             }
 
             val desc = if (plugin.shortDescRes != 0) stringResource(plugin.shortDescRes) else plugin.shortDescription
-            Text(
-                text = desc,
-                style = MaterialTheme.typography.bodySmall,
-                color = colorScheme.onSurfaceVariant,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis
-            )
+            // Description with the website link at its end, so the link does not add its own row.
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Text(
+                    text = desc,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = colorScheme.onSurfaceVariant,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f)
+                )
+                plugin.officialUrl?.let { url ->
+                    OfficialSiteLink(pluginName = plugin.name, url = url, context = context)
+                }
+            }
 
-            // Keep actions separate so their shapes and touch targets stay clear on narrow screens.
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 if (plugin.type == IntegrationType.WEBHOOK) {
-                    val hasOfficialUrl = plugin.officialUrl != null
-                    val setupInteraction = remember { MutableInteractionSource() }
-
                     FilledTonalButton(
                         onClick = onConfigureWebhook,
                         enabled = !plugin.isInDevelopment,
-                        interactionSource = setupInteraction,
                         shapes = expressiveButtonShapes(),
-                        contentPadding = PaddingValues(horizontal = 14.dp, vertical = 4.dp),
-                        modifier = Modifier
-                            .weight(1f)
-                            .heightIn(min = 48.dp)
-                            .expressivePressScale(setupInteraction)
+                        modifier = Modifier.weight(1f)
                     ) {
                         Icon(
                             imageVector = Icons.Default.Tune,
                             contentDescription = null,
-                            modifier = Modifier.size(18.dp)
+                            modifier = Modifier.size(ButtonDefaults.IconSize)
                         )
-                        Spacer(modifier = Modifier.width(8.dp))
+                        Spacer(modifier = Modifier.width(ButtonDefaults.IconSpacing))
                         Text(
                             text = stringResource(R.string.catalog_setup_webhook),
-                            style = MaterialTheme.typography.labelLargeEmphasized,
+                            style = MaterialTheme.typography.labelLarge,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis
                         )
                     }
-
-                    if (hasOfficialUrl) {
-                        OfficialSiteButton(plugin = plugin, context = context)
-                    }
                 } else if (plugin.syncServiceKey != null) {
-                    val hasSettings = onOpenSettings != null
-                    val hasOfficialUrl = plugin.officialUrl != null
-                    val syncInteraction = remember { MutableInteractionSource() }
-
                     FilledTonalButton(
                         onClick = onSync,
                         enabled = plugin.isEnabled && !isSyncing && !plugin.isInDevelopment,
-                        interactionSource = syncInteraction,
                         shapes = expressiveButtonShapes(),
-                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
-                        modifier = Modifier
-                            .weight(1f)
-                            .heightIn(min = 48.dp)
-                            .expressivePressScale(syncInteraction)
+                        modifier = Modifier.weight(1f)
                     ) {
-                        Icon(
-                            imageVector = Icons.Default.Sync,
-                            contentDescription = null,
-                            modifier = Modifier
-                                .size(18.dp)
-                                .rotate(syncRotation.value)
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
+                        if (isSyncing) {
+                            ExpressiveLoadingIndicator(size = ButtonDefaults.IconSize)
+                        } else {
+                            Icon(
+                                imageVector = Icons.Default.Sync,
+                                contentDescription = null,
+                                modifier = Modifier.size(ButtonDefaults.IconSize)
+                            )
+                        }
+                        Spacer(modifier = Modifier.width(ButtonDefaults.IconSpacing))
                         Text(
                             text = stringResource(R.string.action_sync),
-                            style = MaterialTheme.typography.labelLargeEmphasized,
+                            style = MaterialTheme.typography.labelLarge,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis
                         )
                     }
 
-                    if (hasSettings) {
-                        val settingsInteraction = remember { MutableInteractionSource() }
+                    if (onOpenSettings != null) {
                         OutlinedButton(
-                            onClick = {
-                                if (!plugin.isInDevelopment) onOpenSettings?.invoke()
-                            },
+                            onClick = onOpenSettings,
                             enabled = !plugin.isInDevelopment,
-                            interactionSource = settingsInteraction,
                             shapes = expressiveButtonShapes(),
-                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
-                            modifier = Modifier
-                                .weight(1f)
-                                .heightIn(min = 48.dp)
-                                .expressivePressScale(settingsInteraction)
+                            modifier = Modifier.weight(1f)
                         ) {
                             Icon(
                                 imageVector = Icons.Default.Settings,
                                 contentDescription = null,
-                                modifier = Modifier.size(18.dp)
+                                modifier = Modifier.size(ButtonDefaults.IconSize)
                             )
-                            Spacer(modifier = Modifier.width(8.dp))
+                            Spacer(modifier = Modifier.width(ButtonDefaults.IconSpacing))
                             Text(
                                 text = stringResource(R.string.catalog_configure),
-                                style = MaterialTheme.typography.labelLargeEmphasized,
+                                style = MaterialTheme.typography.labelLarge,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis
                             )
                         }
                     }
-
-                    if (hasOfficialUrl) {
-                        OfficialSiteButton(plugin = plugin, context = context)
-                    }
                 }
             }
+
         }
     }
 }
 
+/** Labeled link to the service's website, instead of an unlabeled icon button. */
 @Composable
-private fun OfficialSiteButton(
-    plugin: IntegrationPlugin,
+private fun OfficialSiteLink(
+    pluginName: String,
+    url: String,
     context: Context
 ) {
-    val officialUrl = plugin.officialUrl ?: return
-    FilledTonalIconButton(
+    val description = stringResource(R.string.catalog_open_official_site, pluginName)
+    TextButton(
         onClick = {
             try {
-                context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(officialUrl)))
+                context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
             } catch (_: Exception) {
                 // The system may not have a browser available for this URL.
             }
         },
-        modifier = Modifier.size(48.dp)
+        contentPadding = ButtonDefaults.TextButtonWithIconContentPadding,
+        modifier = Modifier.semantics { contentDescription = description }
     ) {
         Icon(
-            imageVector = Icons.Default.OpenInBrowser,
-            contentDescription = stringResource(R.string.catalog_open_official_site, plugin.name),
-            modifier = Modifier.size(20.dp)
+            imageVector = Icons.AutoMirrored.Filled.OpenInNew,
+            contentDescription = null,
+            modifier = Modifier.size(ButtonDefaults.IconSize)
+        )
+        Spacer(modifier = Modifier.width(ButtonDefaults.IconSpacing))
+        Text(
+            text = stringResource(R.string.catalog_official_site),
+            style = MaterialTheme.typography.labelLarge
         )
     }
 }
 
-private fun IntegrationPlugin.recordCategory(): RecordCategory = when {
-    id == "fatsecret" -> RecordCategory.Nutrition
-    id == "goodreads" -> RecordCategory.Books
-    id == "letterboxd" -> RecordCategory.Movies
-    id == "health_connect" -> RecordCategory.Health
-    category == IntegrationCategory.MUSIC -> RecordCategory.Music
+/** Maps a plugin to the record category whose color it should use. */
+private fun IntegrationPlugin.recordCategory(): RecordCategory = when (category) {
+    IntegrationCategory.MUSIC -> RecordCategory.Music
+    IntegrationCategory.MEDIA -> if (id == "goodreads") RecordCategory.Books else RecordCategory.Movies
+    IntegrationCategory.HEALTH -> if (id == "fatsecret") RecordCategory.Nutrition else RecordCategory.Health
     else -> RecordCategory.Notifications
 }
 
@@ -470,6 +433,7 @@ private fun IntegrationPlugin.recordCategory(): RecordCategory = when {
 private fun PluginWebhookBottomSheet(
     plugin: IntegrationPlugin,
     serverBaseUrl: String,
+    serverApiKey: String,
     onDismiss: () -> Unit,
     onShowSnackbar: (String) -> Unit
 ) {
@@ -514,17 +478,19 @@ private fun PluginWebhookBottomSheet(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
+                    // Same category color and shape as the plugin's card in the list.
+                    val categoryColors = recordCategoryColors(plugin.recordCategory())
                     Box(
                         modifier = Modifier
                             .size(48.dp)
-                            .clip(M3Shapes.CornerMedium)
-                            .background(MaterialTheme.colorScheme.tertiaryContainer),
+                            .clip(M3Shapes.CornerLarge)
+                            .background(categoryColors.container),
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
                             imageVector = plugin.icon,
                             contentDescription = null,
-                            tint = MaterialTheme.colorScheme.onTertiaryContainer,
+                            tint = categoryColors.onContainer,
                             modifier = Modifier.size(24.dp)
                         )
                     }
@@ -537,16 +503,15 @@ private fun PluginWebhookBottomSheet(
                     }
                 }
 
-                val badgeText = if (plugin.badgeRes != 0) stringResource(plugin.badgeRes) else plugin.badge
                 Surface(
                     shape = M3Shapes.CornerFull,
-                    color = MaterialTheme.colorScheme.tertiaryContainer
+                    color = MaterialTheme.colorScheme.surfaceContainerHigh
                 ) {
                     Text(
-                        text = badgeText,
-                        color = MaterialTheme.colorScheme.onTertiaryContainer,
-                        style = MaterialTheme.typography.labelSmallEmphasized,
-                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
+                        text = stringResource(plugin.type.displayNameRes),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        style = MaterialTheme.typography.labelSmall,
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
                     )
                 }
             }
@@ -639,6 +604,17 @@ private fun PluginWebhookBottomSheet(
                         )
                     }
                 }
+            }
+
+            // Same guidance as Settings: a key-protected server needs the key in the URL or a header.
+            if (serverApiKey.isNotBlank() && plugin.webhookPath != null && cleanBaseUrl.isNotBlank()) {
+                WebhookAuthCard(
+                    onCopy = {
+                        val clip = ClipData.newPlainText("Webhook URL", "$effectiveWebhookUrl?api_key=$serverApiKey")
+                        clipboardManager.setPrimaryClip(clip)
+                        onShowSnackbar(context.getString(R.string.toast_webhook_auth_copied))
+                    }
+                )
             }
 
             // Setup Steps guide

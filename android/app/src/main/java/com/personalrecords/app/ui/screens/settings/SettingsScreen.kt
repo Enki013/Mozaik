@@ -485,6 +485,7 @@ fun SettingsScreen(
                             modifier = Modifier.fillMaxWidth(),
                             label = { Text(stringResource(R.string.settings_server_api_key_label)) },
                             placeholder = { Text(stringResource(R.string.settings_server_api_key_hint)) },
+                            supportingText = { Text(stringResource(R.string.settings_server_api_key_support)) },
                             singleLine = true,
                             visualTransformation = if (apiKeyVisible) VisualTransformation.None else PasswordVisualTransformation(),
                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
@@ -499,7 +500,7 @@ fun SettingsScreen(
                                 IconButton(onClick = { apiKeyVisible = !apiKeyVisible }) {
                                     Icon(
                                         imageVector = if (apiKeyVisible) Icons.Default.VisibilityOff else Icons.Default.Visibility,
-                                        contentDescription = if (apiKeyVisible) "Gizle" else "Göster"
+                                        contentDescription = stringResource(if (apiKeyVisible) R.string.action_hide_key else R.string.action_show_key)
                                     )
                                 }
                             },
@@ -820,68 +821,17 @@ fun SettingsScreen(
                             }
                         }
 
-                        if (state.apiKey.isNotBlank()) {
-                            val authWebhookUrl = "$healthWebhookUrl?api_key=${state.apiKey}"
+                        if (state.serverApiKey.isNotBlank()) {
+                            val authWebhookUrl = "$webhookUrl?api_key=${state.serverApiKey}"
                             Spacer(modifier = Modifier.height(8.dp))
-                            Surface(
-                                shape = M3Shapes.CornerMedium,
-                                color = MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.35f),
-                                modifier = Modifier.fillMaxWidth()
-                            ) {
-                                Column(modifier = Modifier.padding(10.dp)) {
-                                    Row(
-                                        verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.spacedBy(6.dp)
-                                    ) {
-                                        Icon(
-                                            imageVector = Icons.Default.Lock,
-                                            contentDescription = null,
-                                            modifier = Modifier.size(16.dp),
-                                            tint = MaterialTheme.colorScheme.tertiary
-                                        )
-                                        Text(
-                                            text = "API Anahtarı Koruması Aktif (401 Önleme)",
-                                            style = MaterialTheme.typography.labelSmallEmphasized,
-                                            color = MaterialTheme.colorScheme.onTertiaryContainer
-                                        )
-                                    }
-                                    Spacer(modifier = Modifier.height(4.dp))
-                                    Text(
-                                        text = stringResource(R.string.settings_webhook_auth_header_tip),
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                    Spacer(modifier = Modifier.height(6.dp))
-                                    OutlinedButton(
-                                        shapes = expressiveButtonShapes(),
-                                        onClick = {
-                                            clipboardManager.setText(AnnotatedString(authWebhookUrl))
-                                            coroutineScope.launch {
-                                                snackbarHostState.showSnackbar(context.getString(R.string.toast_webhook_auth_copied))
-                                            }
-                                        },
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .height(38.dp),
-                                        contentPadding = PaddingValues(horizontal = 10.dp, vertical = 0.dp)
-                                    ) {
-                                        Row(
-                                            verticalAlignment = Alignment.CenterVertically,
-                                            horizontalArrangement = Arrangement.spacedBy(6.dp)
-                                        ) {
-                                            Icon(
-                                                imageVector = Icons.Default.Key,
-                                                contentDescription = null,
-                                                modifier = Modifier.size(14.dp)
-                                            )
-                                            Text(
-                                                text = stringResource(R.string.action_copy_auth_url),
-                                                style = MaterialTheme.typography.labelMediumEmphasized
-                                            )
-                                        }
+                            WebhookAuthCard(
+                                onCopy = {
+                                    clipboardManager.setText(AnnotatedString(authWebhookUrl))
+                                    coroutineScope.launch {
+                                        snackbarHostState.showSnackbar(context.getString(R.string.toast_webhook_auth_copied))
                                     }
                                 }
-                            }
+                            )
                         }
 
                         Spacer(modifier = Modifier.height(10.dp))
@@ -1061,68 +1011,17 @@ fun SettingsScreen(
                             }
                         }
 
-                        if (state.apiKey.isNotBlank()) {
-                            val authWebhookUrl = "$healthWebhookUrl?api_key=${state.apiKey}"
+                        if (state.serverApiKey.isNotBlank()) {
+                            val authWebhookUrl = "$healthWebhookUrl?api_key=${state.serverApiKey}"
                             Spacer(modifier = Modifier.height(8.dp))
-                            Surface(
-                                shape = M3Shapes.CornerMedium,
-                                color = MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.35f),
-                                modifier = Modifier.fillMaxWidth()
-                            ) {
-                                Column(modifier = Modifier.padding(10.dp)) {
-                                    Row(
-                                        verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.spacedBy(6.dp)
-                                    ) {
-                                        Icon(
-                                            imageVector = Icons.Default.Lock,
-                                            contentDescription = null,
-                                            modifier = Modifier.size(16.dp),
-                                            tint = MaterialTheme.colorScheme.tertiary
-                                        )
-                                        Text(
-                                            text = "API Anahtarı Koruması Aktif (401 Önleme)",
-                                            style = MaterialTheme.typography.labelSmallEmphasized,
-                                            color = MaterialTheme.colorScheme.onTertiaryContainer
-                                        )
-                                    }
-                                    Spacer(modifier = Modifier.height(4.dp))
-                                    Text(
-                                        text = stringResource(R.string.settings_webhook_auth_header_tip),
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                    Spacer(modifier = Modifier.height(6.dp))
-                                    OutlinedButton(
-                                        shapes = expressiveButtonShapes(),
-                                        onClick = {
-                                            clipboardManager.setText(AnnotatedString(authWebhookUrl))
-                                            coroutineScope.launch {
-                                                snackbarHostState.showSnackbar(context.getString(R.string.toast_webhook_auth_copied))
-                                            }
-                                        },
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .height(38.dp),
-                                        contentPadding = PaddingValues(horizontal = 10.dp, vertical = 0.dp)
-                                    ) {
-                                        Row(
-                                            verticalAlignment = Alignment.CenterVertically,
-                                            horizontalArrangement = Arrangement.spacedBy(6.dp)
-                                        ) {
-                                            Icon(
-                                                imageVector = Icons.Default.Key,
-                                                contentDescription = null,
-                                                modifier = Modifier.size(14.dp)
-                                            )
-                                            Text(
-                                                text = stringResource(R.string.action_copy_auth_url),
-                                                style = MaterialTheme.typography.labelMediumEmphasized
-                                            )
-                                        }
+                            WebhookAuthCard(
+                                onCopy = {
+                                    clipboardManager.setText(AnnotatedString(authWebhookUrl))
+                                    coroutineScope.launch {
+                                        snackbarHostState.showSnackbar(context.getString(R.string.toast_webhook_auth_copied))
                                     }
                                 }
-                            }
+                            )
                         }
 
                         Spacer(modifier = Modifier.height(10.dp))
@@ -4108,70 +4007,6 @@ fun SettingsScreen(
                             }
                         }
 
-                        if (state.apiKey.isNotBlank()) {
-                            val authWebhookUrl = "$healthWebhookUrl?api_key=${state.apiKey}"
-                            Spacer(modifier = Modifier.height(8.dp))
-                            Surface(
-                                shape = M3Shapes.CornerMedium,
-                                color = MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.35f),
-                                modifier = Modifier.fillMaxWidth()
-                            ) {
-                                Column(modifier = Modifier.padding(10.dp)) {
-                                    Row(
-                                        verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.spacedBy(6.dp)
-                                    ) {
-                                        Icon(
-                                            imageVector = Icons.Default.Lock,
-                                            contentDescription = null,
-                                            modifier = Modifier.size(16.dp),
-                                            tint = MaterialTheme.colorScheme.tertiary
-                                        )
-                                        Text(
-                                            text = "API Anahtarı Koruması Aktif (401 Önleme)",
-                                            style = MaterialTheme.typography.labelSmallEmphasized,
-                                            color = MaterialTheme.colorScheme.onTertiaryContainer
-                                        )
-                                    }
-                                    Spacer(modifier = Modifier.height(4.dp))
-                                    Text(
-                                        text = stringResource(R.string.settings_webhook_auth_header_tip),
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                    Spacer(modifier = Modifier.height(6.dp))
-                                    OutlinedButton(
-                                        shapes = expressiveButtonShapes(),
-                                        onClick = {
-                                            clipboardManager.setText(AnnotatedString(authWebhookUrl))
-                                            coroutineScope.launch {
-                                                snackbarHostState.showSnackbar(context.getString(R.string.toast_webhook_auth_copied))
-                                            }
-                                        },
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .height(38.dp),
-                                        contentPadding = PaddingValues(horizontal = 10.dp, vertical = 0.dp)
-                                    ) {
-                                        Row(
-                                            verticalAlignment = Alignment.CenterVertically,
-                                            horizontalArrangement = Arrangement.spacedBy(6.dp)
-                                        ) {
-                                            Icon(
-                                                imageVector = Icons.Default.Key,
-                                                contentDescription = null,
-                                                modifier = Modifier.size(14.dp)
-                                            )
-                                            Text(
-                                                text = stringResource(R.string.action_copy_auth_url),
-                                                style = MaterialTheme.typography.labelMediumEmphasized
-                                            )
-                                        }
-                                    }
-                                }
-                            }
-                        }
-
                         Spacer(modifier = Modifier.height(10.dp))
 
                         Surface(
@@ -4795,4 +4630,3 @@ private fun GenericPluginSettingsCard(
         }
     }
 }
-

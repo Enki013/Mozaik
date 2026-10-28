@@ -27,7 +27,7 @@
     <!-- Common Actions & Badges -->
     <string name="action_save">Kaydet</string>
     <string name="action_saving">Kaydediliyor…</string>
-    <string name="action_sync">Sync Et</string>
+    <string name="action_sync">Eşitle</string>
     <string name="action_sync_all">Tümünü Eşitle</string>
     <string name="overview_sync_all_short">Eşitle</string>
     <string name="action_syncing">Eşitleniyor…</string>
@@ -203,8 +203,8 @@
     <string name="settings_server_url_label">Sunucu URL</string>
     <string name="settings_server_url_hint">https://your-api.domain.com</string>
     <string name="settings_server_url_support">Sonunda eğik çizgi (/) olmadan giriniz</string>
-    <string name="settings_server_api_key_label">API Anahtarı / Şifre (İsteğe Bağlı)</string>
-    <string name="settings_server_api_key_hint">Sunucunuzda API_KEY tanımlıysa girin</string>
+    <string name="settings_server_api_key_label">API anahtarı (isteğe bağlı)</string>
+    <string name="settings_server_api_key_hint">Sadece sunucunda tanımlıysa</string>
 
     <string name="settings_section_webhook">Bildirim Webhook Entegrasyonu</string>
     <string name="settings_webhook_title">Notification Relay Webhook</string>
@@ -215,8 +215,8 @@
     <string name="settings_setup_step_1">1. Notification Relay APK\'sını kurun ve Bildirim Erişimi iznini açın.</string>
     <string name="settings_setup_step_2">2. Webhooks sekmesinde \'+\' butonuna basıp yukarıdaki URL\'yi yapıştırın.</string>
     <string name="settings_setup_step_3">3. Test butonuna basıp kaydedin. Bildirimleriniz otomatik olarak veritabanına işlenecektir.</string>
-    <string name="settings_webhook_auth_header_tip">Sunucunuzda API Anahtarı koruması aktif. 401 hatası almamak için Notification Relay Headers bölümüne X-Webhook-Secret ekleyin veya anahtarlı URL\'yi kopyalayın.</string>
-    <string name="action_copy_auth_url">Anahtarlı URL\'yi Kopyala</string>
+    <string name="settings_webhook_auth_header_tip">Bu adresi kopyalayıp uygulamaya yapıştır. Anahtarın adresin içinde olduğu için veriler hatasız gönderilir. Bu adresi kimseyle paylaşma.</string>
+    <string name="action_copy_auth_url">Anahtarlı adresi kopyala</string>
     <string name="toast_webhook_auth_copied">Anahtarlı Webhook URL\'si kopyalandı</string>
 
     <string name="settings_section_fatsecret">Beslenme Entegrasyonu (FatSecret)</string>
@@ -684,5 +684,11 @@
         <item quantity="one">%d sonuç</item>
         <item quantity="other">%d sonuç</item>
     </plurals>
+    <string name="settings_server_api_key_support">Sunucuna kurulumda verdiğin API_KEY değeri. Belirlemediysen boş bırak.</string>
+    <string name="settings_webhook_auth_title">Sunucun API anahtarı istiyor</string>
+    <string name="settings_webhook_auth_alt">Düz adresi kullanmak istersen: uygulamada X-Webhook-Secret adında bir başlık ekle, değerine API anahtarını yaz.</string>
+    <string name="action_show_key">Anahtarı göster</string>
+    <string name="action_hide_key">Anahtarı gizle</string>
+    <string name="catalog_official_site">Resmi site</string>
 </resources>
 

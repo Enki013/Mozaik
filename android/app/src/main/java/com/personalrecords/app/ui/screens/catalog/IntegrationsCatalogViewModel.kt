@@ -23,6 +23,7 @@ data class IntegrationsCatalogUiState(
     val searchQuery: String = "",
     val selectedCategory: IntegrationCategory = IntegrationCategory.ALL,
     val serverBaseUrl: String = "",
+    val serverApiKey: String = "",
     val syncingPluginId: String? = null,
     val toastMessage: String? = null
 )
@@ -43,9 +44,10 @@ class IntegrationsCatalogViewModel(
     init {
         val basePrefsFlow = combine(
             preferences.enabledIntegrationPlugins,
-            preferences.serverBaseUrl
-        ) { enabledIds, serverUrl ->
-            enabledIds to serverUrl
+            preferences.serverBaseUrl,
+            preferences.serverApiKey
+        ) { enabledIds, serverUrl, apiKey ->
+            Triple(enabledIds, serverUrl, apiKey)
         }
 
         viewModelScope.launch {
@@ -55,7 +57,7 @@ class IntegrationsCatalogViewModel(
                 _selectedCategory,
                 _syncingPluginId,
                 _toastMessage
-            ) { (enabledIds, serverUrl), query, category, syncingId, toastMsg ->
+            ) { (enabledIds, serverUrl, apiKey), query, category, syncingId, toastMsg ->
                 val filtered = PluginRegistry.defaultPlugins.filter { plugin ->
                     val matchesCategory = category == IntegrationCategory.ALL || plugin.category == category
                     val matchesSearch = if (query.isBlank()) {
@@ -83,6 +85,7 @@ class IntegrationsCatalogViewModel(
                     searchQuery = query,
                     selectedCategory = category,
                     serverBaseUrl = serverUrl,
+                    serverApiKey = apiKey,
                     syncingPluginId = syncingId,
                     toastMessage = toastMsg
                 )

@@ -203,8 +203,8 @@
     <string name="settings_server_url_label">Server URL</string>
     <string name="settings_server_url_hint">https://your-api.domain.com</string>
     <string name="settings_server_url_support">Do not include trailing slash (/)</string>
-    <string name="settings_server_api_key_label">API Key / Token (Optional)</string>
-    <string name="settings_server_api_key_hint">Enter if your server has API_KEY configured</string>
+    <string name="settings_server_api_key_label">API key (optional)</string>
+    <string name="settings_server_api_key_hint">Only if your server has one</string>
 
     <string name="settings_section_webhook">Notification Webhook Integration</string>
     <string name="settings_webhook_title">Notification Relay Webhook</string>
@@ -215,8 +215,8 @@
     <string name="settings_setup_step_1">1. Install Notification Relay APK and grant Notification Access permission.</string>
     <string name="settings_setup_step_2">2. In Webhooks tab tap \'+\' and paste the target webhook URL above.</string>
     <string name="settings_setup_step_3">3. Tap Test and save. All notifications will be saved to your database automatically.</string>
-    <string name="settings_webhook_auth_header_tip">API Key protection is active on your server. To prevent 401 errors, add X-Webhook-Secret to Headers in Notification Relay or copy the authenticated URL.</string>
-    <string name="action_copy_auth_url">Copy Authenticated URL</string>
+    <string name="settings_webhook_auth_header_tip">Copy this address and paste it into the app. Your key is already inside it, so data goes through without errors. Don\'t share this address.</string>
+    <string name="action_copy_auth_url">Copy address with key</string>
     <string name="toast_webhook_auth_copied">Authenticated Webhook URL copied</string>
 
     <string name="settings_section_fatsecret">Nutrition Integration (FatSecret)</string>
@@ -688,5 +688,11 @@
         <item quantity="one">%d result</item>
         <item quantity="other">%d results</item>
     </plurals>
+    <string name="settings_server_api_key_support">The API_KEY you set on your server. Leave empty if you didn\'t set one.</string>
+    <string name="settings_webhook_auth_title">Your server needs an API key</string>
+    <string name="settings_webhook_auth_alt">Prefer the plain address? Add a header named X-Webhook-Secret in the app and use your API key as its value.</string>
+    <string name="action_show_key">Show key</string>
+    <string name="action_hide_key">Hide key</string>
+    <string name="catalog_official_site">Official site</string>
 </resources>
 
