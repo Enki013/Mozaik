@@ -29,6 +29,7 @@
     <string name="action_saving">Kaydediliyor…</string>
     <string name="action_sync">Sync Et</string>
     <string name="action_sync_all">Tümünü Eşitle</string>
+    <string name="overview_sync_all_short">Eşitle</string>
     <string name="action_syncing">Eşitleniyor…</string>
     <string name="overview_sync_all_done">Tüm aktif entegrasyonlar eşitlendi!</string>
     <string name="action_test_connection">Bağlantıyı Sına</string>
@@ -36,6 +37,7 @@
     <string name="action_cancel">İptal</string>
     <string name="action_close">Kapat</string>
     <string name="action_ok">Tamam</string>
+    <string name="common_error_title">Bir şeyler ters gitti</string>
     <string name="action_retry">Yeniden Dene</string>
     <string name="action_copy_url">URL\'yi Kopyala</string>
     <string name="action_download_apk">APK İndir</string>
@@ -78,20 +80,11 @@
     <string name="overview_hero_remaining">%1$d kcal kaldı</string>
     <string name="overview_hero_exceeded">%1$d kcal aşıldı</string>
     <string name="overview_hero_goal_pct">%%%1$d hedef</string>
-    <string name="overview_hero_nutrition_subtitle_remaining">Hedef %1$d kcal • %2$d kcal kaldı</string>
-    <string name="overview_hero_nutrition_subtitle_exceeded">Hedef %1$d kcal • %2$d kcal aşıldı</string>
-    <string name="overview_hero_books_subtitle">Goodreads kütüphane arşivi</string>
-    <string name="overview_hero_movies_subtitle">Letterboxd izleme günlüğü</string>
-    <string name="overview_hero_music_today_subtitle">Bugün %1$d yeni parça</string>
-    <string name="overview_hero_music_total_subtitle">Dinleme ve scrobble arşivi</string>
     <string name="overview_hero_today_music">Bugün: %1$d parça</string>
     <string name="overview_hero_total_tracks">%1$d toplam parça</string>
     <string name="overview_hero_total_films">%1$d kayıtlı film</string>
     <string name="overview_hero_total_books">%1$d kayıtlı kitap</string>
-    <string name="overview_hero_latest_track">SON DİNLENEN</string>
-    <string name="overview_hero_latest_film">SON İZLENEN</string>
-    <string name="overview_hero_latest_book">SON EKLENEN</string>
-    <string name="overview_hero_latest_meal">SON ÖĞÜN</string>
+    <string name="overview_hero_latest_added">Son eklenen</string>
     <string name="overview_hero_no_recent_music">Henüz dinleme kaydı yok</string>
     <string name="overview_hero_no_recent_film">Henüz film kaydı yok</string>
     <string name="overview_hero_no_recent_book">Henüz kitap kaydı yok</string>
@@ -101,18 +94,42 @@
     <string name="overview_hero_action_movies">Filmleri Aç</string>
     <string name="overview_hero_action_books">Kitaplığı Aç</string>
     <string name="overview_hero_status_nutrition">Günlük kalori ve öğün takibi</string>
-    <string name="overview_hero_status_music">Dinleme geçmişi ve scrobble arşivi</string>
-    <string name="overview_hero_status_movies">Letterboxd izleme günlüğü</string>
-    <string name="overview_hero_status_books">Goodreads kütüphane arşivi</string>
+    <string name="overview_hero_status_music">Dinleme geçmişi ve parça arşivi</string>
+    <string name="overview_hero_status_movies">İzleme günlüğü ve film arşivi</string>
+    <string name="overview_hero_status_books">Kütüphane ve okuma arşivi</string>
+    <string name="overview_hero_book_read_summary">Okunan %1$d kitap</string>
+    <string name="overview_hero_status_health">Günlük hareket, uyku ve sağlık verileri</string>
+    <string name="overview_hero_status_notifications">Kaydedilen bildirimler ve uygulama hareketleri</string>
+    <string name="overview_hero_unit_steps">adım</string>
+    <string name="overview_hero_unit_notifications">bildirim</string>
+    <string name="overview_hero_pill_heart_rate">Nabız</string>
+    <string name="overview_hero_pill_sleep">Uyku</string>
+    <string name="overview_hero_pill_active_kcal">Aktif kcal</string>
+    <string name="overview_hero_pill_today">Bugün</string>
+    <string name="overview_hero_pill_apps">Uygulama</string>
+    <string name="overview_health_records_summary">%1$d sağlık kaydı</string>
+    <string name="overview_health_no_recent_record">Henüz sağlık kaydı yok</string>
+    <string name="overview_notifications_provider">Android</string>
+    <string name="overview_notifications_today_summary">Bugün %1$d bildirim kaydedildi</string>
+    <string name="overview_notifications_no_recent">Henüz bildirim kaydedilmedi</string>
     <string name="overview_hero_tag_diary">İzleme Günlüğü</string>
     <string name="overview_hero_tag_shelf">Goodreads Rafı</string>
-    <string name="overview_hero_tag_shelf_music">Scrobble Arşivi</string>
-    <string name="overview_hero_this_year_count">Bu yıl: %1$d</string>
-    <string name="overview_hero_goal_label_compact">Hedef: %1$d</string>
-    <string name="overview_hero_remaining_compact">%1$d kaldı</string>
-    <string name="overview_hero_exceeded_compact">%1$d aşıldı</string>
-    <string name="overview_integrations_title">Entegrasyonlar &amp; Senkronizasyon</string>
-    <string name="overview_integrations_subtitle">Tek tıkla anlık veri eşitlemesi</string>
+    <string name="overview_hero_pill_reading">Okunuyor</string>
+    <string name="overview_hero_pill_read">Okundu</string>
+    <string name="overview_hero_pill_pages">Sayfa</string>
+    <string name="overview_hero_pill_rating">Ort. Puan</string>
+    <string name="overview_hero_pill_this_month">Bu Ay</string>
+    <string name="overview_hero_pill_rewatch">Tekrar</string>
+    <string name="overview_hero_pill_artists">Sanatçı</string>
+    <string name="overview_hero_pill_albums">Albüm</string>
+    <string name="overview_hero_pill_this_week">Bu Hafta</string>
+    <string name="overview_hero_pill_remaining">Kaldı</string>
+    <string name="overview_hero_pill_goal">Hedef</string>
+    <string name="overview_integrations_title">Entegrasyonlar</string>
+    <string name="overview_integrations_subtitle">Bağlı servisleri yönet</string>
+    <string name="overview_stats_all_hidden">Özet istatistik kartlarının tümü gizli.</string>
+    <string name="overview_stats_show_cards">Kartları göster</string>
+    <string name="overview_stats_page_indicator">İstatistik kartı %1$d / %2$d</string>
     <string name="overview_integration_fatsecret">FatSecret</string>
     <string name="overview_integration_fatsecret_desc">Beslenme günlüğü</string>
     <string name="overview_integration_goodreads">Goodreads RSS</string>
@@ -146,19 +163,23 @@
     <!-- Records Screen -->
     <string name="records_section_health">Sağlık &amp; Yaşam</string>
     <string name="records_item_nutrition_title">Beslenme Günlüğü</string>
-    <string name="records_item_nutrition_sub">FatSecret · %1$d kayıtlı öğün</string>
+    <string name="records_item_nutrition_sub">%1$d kayıtlı öğün</string>
+    <string name="records_item_nutrition_empty">Henüz kayıtlı öğün yok</string>
     <string name="records_item_healthconnect_title">Health Connect</string>
-    <string name="records_item_healthconnect_sub">Adım, uyku, nabız ve antrenman</string>
+    <string name="records_item_healthconnect_sub">Adım, uyku, nabız ve aktivite</string>
     <string name="records_section_media">Kültür &amp; Medya</string>
     <string name="records_item_movies_title">Filmler &amp; Sinema</string>
-    <string name="records_item_movies_sub">Letterboxd · %1$d film izlendi</string>
+    <string name="records_item_movies_sub">%1$d izlenen film ve dizi</string>
+    <string name="records_item_movies_empty">Film ve dizi izleme arşivi</string>
     <string name="records_item_books_title">Kütüphane &amp; Kitaplar</string>
-    <string name="records_item_books_sub">Goodreads · %1$d kitap kayıtlı</string>
+    <string name="records_item_books_sub">%1$d kayıtlı kitap</string>
+    <string name="records_item_books_empty">Okunan ve okunacak kitaplar</string>
     <string name="records_item_music_title">Müzik &amp; Ses</string>
-    <string name="records_item_music_sub">Spotify ve podcast dinleme geçmişi</string>
+    <string name="records_item_music_sub">Şarkı ve dinleme geçmişi</string>
     <string name="records_section_system">Sistem &amp; Cihaz</string>
     <string name="records_item_notifications_title">Bildirim Günlüğü</string>
-    <string name="records_item_notifications_sub">Webhook Relay · %1$d bildirim</string>
+    <string name="records_item_notifications_sub">%1$d kayıtlı bildirim</string>
+    <string name="records_item_notifications_empty">Cihaz bildirim geçmişi</string>
     <string name="records_item_automation_title">İletişim &amp; Otomasyon</string>
     <string name="records_item_automation_sub">Tasker, n8n ve webhook tetikleyicileri</string>
     <string name="records_toast_healthconnect">Health Connect webhook entegrasyonu yakında aktif olacaktır.</string>
@@ -182,6 +203,8 @@
     <string name="settings_server_url_label">Sunucu URL</string>
     <string name="settings_server_url_hint">https://your-api.domain.com</string>
     <string name="settings_server_url_support">Sonunda eğik çizgi (/) olmadan giriniz</string>
+    <string name="settings_server_api_key_label">API Anahtarı / Şifre (İsteğe Bağlı)</string>
+    <string name="settings_server_api_key_hint">Sunucunuzda API_KEY tanımlıysa girin</string>
 
     <string name="settings_section_webhook">Bildirim Webhook Entegrasyonu</string>
     <string name="settings_webhook_title">Notification Relay Webhook</string>
@@ -192,6 +215,9 @@
     <string name="settings_setup_step_1">1. Notification Relay APK\'sını kurun ve Bildirim Erişimi iznini açın.</string>
     <string name="settings_setup_step_2">2. Webhooks sekmesinde \'+\' butonuna basıp yukarıdaki URL\'yi yapıştırın.</string>
     <string name="settings_setup_step_3">3. Test butonuna basıp kaydedin. Bildirimleriniz otomatik olarak veritabanına işlenecektir.</string>
+    <string name="settings_webhook_auth_header_tip">Sunucunuzda API Anahtarı koruması aktif. 401 hatası almamak için Notification Relay Headers bölümüne X-Webhook-Secret ekleyin veya anahtarlı URL\'yi kopyalayın.</string>
+    <string name="action_copy_auth_url">Anahtarlı URL\'yi Kopyala</string>
+    <string name="toast_webhook_auth_copied">Anahtarlı Webhook URL\'si kopyalandı</string>
 
     <string name="settings_section_fatsecret">Beslenme Entegrasyonu (FatSecret)</string>
     <string name="settings_fatsecret_title">FatSecret API (BYOK)</string>
@@ -313,16 +339,20 @@
     <string name="books_pages">%1$d sayfa</string>
 
     <!-- Movies Screen -->
-    <string name="movies_stats_total">Toplam Film</string>
+    <string name="movies_stats_total">Toplam İzlenen</string>
+    <string name="movies_stats_total_desc">İzlenen tüm film ve dizi arşivi</string>
+    <string name="movies_badge_watched">Film &amp; Dizi</string>
     <string name="movies_badge_letterboxd">Letterboxd</string>
+    <string name="movies_type_show">Dizi</string>
     <string name="movies_stats_rated">%1$d puanlanan</string>
     <string name="movies_stats_avg_rating">Ortalama Puan</string>
+    <string name="movies_stats_avg_rating_desc">Puanlanan içerikler ve yeniden izlemeler</string>
     <string name="movies_stats_rewatch">%1$d tekrar izleme</string>
-    <string name="movies_search_placeholder">Film adı veya yıl ara…</string>
+    <string name="movies_search_placeholder">Film, dizi veya yıl ara…</string>
     <string name="movies_filter_all">Tümü</string>
     <string name="movies_filter_rewatches">Tekrar İzlenenler</string>
     <string name="movies_filter_highest_rated">En Yüksek Puan</string>
-    <string name="movies_empty">Film kaydı bulunamadı.</string>
+    <string name="movies_empty">Film veya dizi kaydı bulunamadı.</string>
     <string name="movies_rewatch_badge">Tekrar</string>
 
     <!-- Notifications Screen -->
@@ -362,7 +392,7 @@
     <!-- Health Connect Screen & Integration -->
     <string name="nav_health_connect">Health Connect</string>
     <string name="title_health_connect">Health Connect</string>
-    <string name="records_item_healthconnect_count">Health Connect · %1$d sağlık kaydı</string>
+    <string name="records_item_healthconnect_count">%1$d sağlık kaydı</string>
     <string name="health_metric_steps_title">Günlük Adım</string>
     <string name="health_metric_steps_badge">Adım</string>
     <string name="health_metric_sleep_title">Son Uyku</string>
@@ -407,7 +437,7 @@
     <string name="music_stats_albums">Albüm</string>
     <string name="music_top_artists">En Çok Dinlenen Sanatçılar</string>
     <string name="sort_newest">En Yeni</string>
-    <string name="sort_oldest">Eskiden Yeniye</string>
+    <string name="sort_oldest">En Eski</string>
     <string name="sort_track">Şarkı Adı</string>
     <string name="sort_artist">Sanatçı Adı</string>
     <string name="music_copied">Kopyalandı: %1$s</string>
@@ -433,7 +463,7 @@
     <string name="music_detail_duration">Süre</string>
     <string name="music_detail_source">Kaynak</string>
     <string name="music_detail_time">Dinleme Zamanı</string>
-    <string name="records_item_music_count">Müzik &amp; Ses · %1$d dinleme</string>
+    <string name="records_item_music_count">%1$d parça dinlendi</string>
     <string name="timeline_count_music">%1$d şarkı</string>
     <string name="timeline_filter_music">Müzik</string>
     <string name="settings_section_music_webhook">Web Scrobbler Webhook Entegrasyonu</string>
@@ -474,6 +504,7 @@
     <string name="catalog_filter_system">Sistem &amp; Cihaz</string>
     <string name="catalog_configure">Yapılandır</string>
     <string name="catalog_setup_webhook">Webhook Kurulumu</string>
+    <string name="catalog_open_official_site">%1$s resmi sitesini aç</string>
     <string name="catalog_empty_search">Aramanıza uygun entegrasyon eklentisi bulunamadı.</string>
     <string name="catalog_empty_active">Henüz aktif entegrasyon bulunmuyor. Katalogdan (+) dilediğiniz eklentiyi etkinleştirebilirsiniz.</string>
     <string name="catalog_banner_title">Modüler Servis Ekosistemi</string>
@@ -523,6 +554,56 @@
     <string name="plugin_desc_statsfm">Spotify dinlemeleri ve istatistik senkronizasyonu.</string>
     <string name="plugin_long_desc_statsfm">Herkese açık Stats.fm (Spotistats) profilinizden Spotify akışlarını ve dinleme analitiklerini aktarır.</string>
 
+    <!-- Trakt & MDBList Eklentileri -->
+    <string name="plugin_badge_trakt">Trakt.tv</string>
+    <string name="plugin_desc_trakt">Film &amp; dizi izleme geçmişi, scrobble ve puanlama senkronizasyonu.</string>
+    <string name="plugin_long_desc_trakt">Trakt.tv API üzerinden izlenen filmler, dizi bölümleri, izleme listesi (watchlist) ve puanlama senkronizasyonu.</string>
+    <string name="plugin_badge_mdblist">MDBList</string>
+    <string name="plugin_desc_mdblist">Gelişmiş film/dizi listeleri ve çoklu platform puan agregatörü.</string>
+    <string name="plugin_long_desc_mdblist">MDBList API ile özel listeler, IMDb/Trakt/TMDB/Rotten Tomatoes/Metacritic puanlama ve filtreleme senkronizasyonu.</string>
+
+    <string name="settings_trakt_title">Trakt.tv</string>
+    <string name="settings_trakt_desc">Film ve dizi izleme geçmişi, scrobble ve puanlama</string>
+    <string name="settings_trakt_user_label">Trakt Kullanıcı Adı</string>
+    <string name="settings_trakt_user_hint">Örn: username</string>
+    <string name="settings_trakt_client_id_label">Client ID (İsteğe Bağlı)</string>
+    <string name="settings_trakt_client_id_hint">Varsayılan açık istemci için boş bırakın</string>
+    <string name="settings_trakt_sync_movies">Filmleri Eşitle</string>
+    <string name="settings_trakt_sync_episodes">Dizi Bölümlerini Eşitle</string>
+    <string name="settings_trakt_sync_ratings">Puanları Eşitle</string>
+    <string name="settings_trakt_save">Trakt Kaydet</string>
+    <string name="settings_trakt_sync">Trakt\'ı Eşitle</string>
+    <string name="settings_trakt_hint">Herkese açık Trakt profilinizden izlediğiniz film ve dizi bölümlerini çeker.</string>
+
+    <string name="settings_mdblist_title">MDBList</string>
+    <string name="settings_mdblist_desc">Çoklu platform puanları (IMDb, RT, Metacritic, Letterboxd)</string>
+    <string name="settings_mdblist_apikey_label">MDBList API Anahtarı</string>
+    <string name="settings_mdblist_apikey_hint">mdblist.com/preferences sayfasından edinin</string>
+    <string name="settings_mdblist_sync_ratings">Medya Puanlarını Önbelleğe Al</string>
+    <string name="settings_mdblist_sync_lists">Özel Listeleri Eşitle (Yakında)</string>
+    <string name="settings_mdblist_save">MDBList Kaydet</string>
+    <string name="settings_mdblist_sync">MDBList\'i Eşitle</string>
+    <string name="settings_mdblist_hint">Film ve dizileriniz için IMDb, Rotten Tomatoes, Metacritic ve Letterboxd puanlarını derler.</string>
+
+    <!-- Simkl Eklentisi -->
+    <string name="plugin_badge_simkl">Simkl</string>
+    <string name="plugin_desc_simkl">Film, dizi ve anime izleme geçmişi ve bölüm takibi.</string>
+    <string name="plugin_long_desc_simkl">Simkl API üzerinden izlenen filmleri, dizileri ve animeleri (son izlenen bölüm, durum ve puanlar) senkronize edin.</string>
+
+    <string name="settings_simkl_title">Simkl</string>
+    <string name="settings_simkl_desc">Film, Dizi ve Anime İzleme Geçmişi ve Puanlama</string>
+    <string name="settings_simkl_token_label">Simkl Kullanıcı Erişim Belirteci (Access Token)</string>
+    <string name="settings_simkl_token_hint">Senkronizasyon için gereklidir (simkl.com/settings/developer)</string>
+    <string name="settings_simkl_client_id_label">Client ID (İsteğe Bağlı)</string>
+    <string name="settings_simkl_client_id_hint">Varsayılan genel istemci için boş bırakın</string>
+    <string name="settings_simkl_sync_movies">Filmleri Senkronize Et</string>
+    <string name="settings_simkl_sync_shows">Dizileri Senkronize Et</string>
+    <string name="settings_simkl_sync_anime">Animeleri Senkronize Et</string>
+    <string name="settings_simkl_sync_ratings">Puanları Senkronize Et</string>
+    <string name="settings_simkl_save">Simkl Kaydet</string>
+    <string name="settings_simkl_sync">Simkl Şimdi Eşitle</string>
+    <string name="settings_simkl_hint">İzlediğiniz film, dizi ve anime kayıtlarını Simkl hesabınızdan doğrudan sunucunuza aktarır.</string>
+
     <string name="settings_listenbrainz_title">ListenBrainz</string>
     <string name="settings_listenbrainz_desc">MetaBrainz destekli açık kaynaklı müzik scrobble geçmişi</string>
     <string name="settings_listenbrainz_username">ListenBrainz Kullanıcı Adı</string>
@@ -558,5 +639,50 @@
     <string name="stats_hide_card_action">\"%1$s\" Kartını Gizle</string>
     <string name="stats_hide_this_card">Kartı Gizle</string>
     <string name="stats_reset_default">Varsayılana Sıfırla</string>
+
+    <!-- Stats customization sheet labels -->
+    <string name="stats_card_books_total_title">Toplam Kitap</string>
+    <string name="stats_card_books_total_desc">Okuma günlüğündeki tüm kitaplar</string>
+    <string name="stats_card_books_to_read_title">Okunacaklar</string>
+    <string name="stats_card_books_to_read_desc">Daha sonra okunacaklar listesi ve puan</string>
+    <string name="stats_card_health_steps_title">Adım Sayısı</string>
+    <string name="stats_card_health_steps_desc">Günlük adım sayısı ve tarihi</string>
+    <string name="stats_card_health_hr_title">Ortalama Nabız</string>
+    <string name="stats_card_health_hr_desc">Kalp atış hızı ve bpm değeri</string>
+    <string name="stats_card_health_sleep_title">Uyku Süresi</string>
+    <string name="stats_card_health_sleep_desc">Günlük toplam uyku süresi</string>
+    <string name="stats_card_health_active_title">Aktif Kalori</string>
+    <string name="stats_card_health_active_desc">Aktif yakılan kalori ve son ağırlık</string>
+    <string name="stats_card_notifications_total_title">Toplam Bildirim</string>
+    <string name="stats_card_notifications_total_desc">Yakalanan tüm bildirimler ve uygulama sayısı</string>
+    <string name="stats_card_notifications_today_title">Bugünkü Akış</string>
+    <string name="stats_card_notifications_today_desc">Bugün gelen bildirimlerin akışı</string>
+    <string name="stats_card_music_total_title">Toplam Dinleme</string>
+    <string name="stats_card_music_total_desc">Tüm zamanların toplam scrobble sayısı</string>
+    <string name="stats_card_music_today_title">Bugün Dinlenen</string>
+    <string name="stats_card_music_today_desc">Bugün çalınan parçalar</string>
+    <string name="stats_card_music_artists_title">Farklı Sanatçılar</string>
+    <string name="stats_card_music_artists_desc">Dinlenen benzersiz sanatçı sayısı</string>
+    <string name="stats_card_music_albums_title">Farklı Albümler</string>
+    <string name="stats_card_music_albums_desc">Dinlenen benzersiz albüm sayısı</string>
+    <string name="stats_card_nutrition_calories_title">Bugünkü Kalori</string>
+    <string name="stats_card_nutrition_calories_desc">Tüketilen kalori ve kalan hedef</string>
+    <string name="stats_card_nutrition_meals_title">Öğün Kayıtları</string>
+    <string name="stats_card_nutrition_meals_desc">Bugünkü öğün sayısı ve toplam kayıt</string>
+    <string name="stats_card_nutrition_protein_title">Protein</string>
+    <string name="stats_card_nutrition_protein_desc">Günlük protein gramı ve yüzdesi</string>
+    <string name="stats_card_nutrition_carbfat_title">Karbonhidrat &amp; Yağ</string>
+    <string name="stats_card_nutrition_carbfat_desc">Karb ve yağ dengesi ve yüzdeleri</string>
+    <string name="timeline_days_short">%1$dG</string>
+    <string name="filter_clear_date">Tarih filtresini temizle</string>
+    <string name="filter_app">Uygulama</string>
+    <string name="filter_artist">Sanatçı</string>
+    <string name="movies_filter_mdblist">MDBList</string>
+    <string name="sort_calories">Kalori (Yüksek-Düşük)</string>
+    <string name="sort_protein">Protein (Yüksek-Düşük)</string>
+    <plurals name="filter_result_count">
+        <item quantity="one">%d sonuç</item>
+        <item quantity="other">%d sonuç</item>
+    </plurals>
 </resources>
 

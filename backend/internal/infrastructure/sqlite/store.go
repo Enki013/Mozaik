@@ -249,7 +249,123 @@ create table if not exists health_records (
 );
 create index if not exists idx_health_records_date on health_records(date_iso desc, start_time desc);
 create index if not exists idx_health_records_type on health_records(record_type);
-create index if not exists idx_health_records_category on health_records(category);`)
+create index if not exists idx_health_records_category on health_records(category);
+create table if not exists trakt_sync_settings (
+  id integer primary key check (id = 1),
+  username text,
+  client_id text,
+  sync_movies integer not null default 1,
+  sync_episodes integer not null default 1,
+  sync_ratings integer not null default 1,
+  interval_minutes integer not null default 360,
+  enabled integer not null default 1,
+  updated_at text not null default current_timestamp
+);
+create table if not exists trakt_history (
+  history_id text primary key,
+  media_type text not null,
+  title text not null,
+  year integer,
+  season integer,
+  episode_number integer,
+  episode_title text,
+  watched_at text not null,
+  trakt_id integer,
+  imdb_id text,
+  tmdb_id integer,
+  user_rating integer,
+  image_url text,
+  raw_json text not null,
+  imported_at text not null default current_timestamp
+);
+create index if not exists idx_trakt_history_watched on trakt_history(watched_at desc);
+create index if not exists idx_trakt_history_type on trakt_history(media_type);
+create table if not exists trakt_sync_runs (
+  id integer primary key autoincrement,
+  source text not null,
+  status text not null,
+  inserted integer not null default 0,
+  updated integer not null default 0,
+  message text,
+  ran_at text not null default current_timestamp
+);
+create table if not exists mdblist_settings (
+  id integer primary key check (id = 1),
+  api_key text,
+  sync_ratings_enabled integer not null default 1,
+  sync_lists_enabled integer not null default 0,
+  updated_at text not null default current_timestamp
+);
+create table if not exists mdblist_ratings_cache (
+  id text primary key,
+  imdb_id text,
+  tmdb_id integer,
+  media_type text not null,
+  title text not null,
+  year integer,
+  score_imdb real,
+  score_tmdb integer,
+  score_trakt integer,
+  score_letterboxd real,
+  score_tomatoes integer,
+  score_audience integer,
+  score_metacritic integer,
+  certification text,
+  ratings_json text,
+  updated_at text not null default current_timestamp
+);
+create index if not exists idx_mdblist_ratings_imdb on mdblist_ratings_cache(imdb_id);
+create index if not exists idx_mdblist_ratings_tmdb on mdblist_ratings_cache(tmdb_id);
+create table if not exists mdblist_sync_runs (
+  id integer primary key autoincrement,
+  source text not null,
+  status text not null,
+  inserted integer not null default 0,
+  updated integer not null default 0,
+  message text,
+  ran_at text not null default current_timestamp
+);
+create table if not exists simkl_sync_settings (
+  id integer primary key check (id = 1),
+  client_id text,
+  access_token text,
+  user_id text,
+  sync_movies integer not null default 1,
+  sync_shows integer not null default 1,
+  sync_anime integer not null default 1,
+  sync_ratings integer not null default 1,
+  interval_minutes integer not null default 360,
+  enabled integer not null default 1,
+  updated_at text not null default current_timestamp
+);
+create table if not exists simkl_history (
+  id text primary key,
+  simkl_id integer not null,
+  item_type text not null,
+  title text not null,
+  year integer,
+  last_ep_watched text,
+  status text not null default 'completed',
+  user_rating integer,
+  poster_url text,
+  imdb_id text,
+  tmdb_id integer,
+  mal_id text,
+  raw_json text not null,
+  watched_at text not null,
+  imported_at text not null default current_timestamp
+);
+create index if not exists idx_simkl_history_watched on simkl_history(watched_at desc);
+create index if not exists idx_simkl_history_type on simkl_history(item_type);
+create table if not exists simkl_sync_runs (
+  id integer primary key autoincrement,
+  source text not null,
+  status text not null,
+  inserted integer not null default 0,
+  updated integer not null default 0,
+  message text,
+  ran_at text not null default current_timestamp
+);`)
 	return nil
 }
 
@@ -268,6 +384,8 @@ func (s *Store) Counts(ctx context.Context) (map[string]int, error) {
 		"to_read_count":          "select count(*) from goodreads_books where exclusive_shelf = 'to-read'",
 		"rated_count":            "select count(*) from goodreads_books where coalesce(my_rating, 0) > 0",
 		"letterboxd_rated_count": "select count(*) from letterboxd_films where coalesce(rating, 0) > 0",
+		"trakt_history":          "select count(*) from trakt_history",
+		"simkl_history":          "select count(*) from simkl_history",
 	}
 	result := map[string]int{}
 	for key, query := range queries {
@@ -1170,7 +1288,7 @@ func (s *Store) RecordSyncRun(ctx context.Context, table, source, status string,
 
 func (s *Store) LastSyncRun(ctx context.Context, table string) (*SyncRun, error) {
 	switch table {
-	case "goodreads_sync_runs", "letterboxd_sync_runs", "fatsecret_sync_runs":
+	case "goodreads_sync_runs", "letterboxd_sync_runs", "fatsecret_sync_runs", "trakt_sync_runs", "mdblist_sync_runs", "simkl_sync_runs":
 	default:
 		return nil, fmt.Errorf("invalid sync table")
 	}
@@ -1392,4 +1510,79 @@ create table if not exists user_settings (
   key text primary key,
   value text not null,
   updated_at text not null default current_timestamp
+);
+create table if not exists trakt_sync_settings (
+  id integer primary key check (id = 1),
+  username text,
+  client_id text,
+  sync_movies integer not null default 1,
+  sync_episodes integer not null default 1,
+  sync_ratings integer not null default 1,
+  interval_minutes integer not null default 360,
+  enabled integer not null default 1,
+  updated_at text not null default current_timestamp
+);
+create table if not exists trakt_history (
+  history_id text primary key,
+  media_type text not null,
+  title text not null,
+  year integer,
+  season integer,
+  episode_number integer,
+  episode_title text,
+  watched_at text not null,
+  trakt_id integer,
+  imdb_id text,
+  tmdb_id integer,
+  user_rating integer,
+  image_url text,
+  raw_json text not null,
+  imported_at text not null default current_timestamp
+);
+create index if not exists idx_trakt_history_watched on trakt_history(watched_at desc);
+create index if not exists idx_trakt_history_type on trakt_history(media_type);
+create table if not exists trakt_sync_runs (
+  id integer primary key autoincrement,
+  source text not null,
+  status text not null,
+  inserted integer not null default 0,
+  updated integer not null default 0,
+  message text,
+  ran_at text not null default current_timestamp
+);
+create table if not exists mdblist_settings (
+  id integer primary key check (id = 1),
+  api_key text,
+  sync_ratings_enabled integer not null default 1,
+  sync_lists_enabled integer not null default 0,
+  updated_at text not null default current_timestamp
+);
+create table if not exists mdblist_ratings_cache (
+  id text primary key,
+  imdb_id text,
+  tmdb_id integer,
+  media_type text not null,
+  title text not null,
+  year integer,
+  score_imdb real,
+  score_tmdb integer,
+  score_trakt integer,
+  score_letterboxd real,
+  score_tomatoes integer,
+  score_audience integer,
+  score_metacritic integer,
+  certification text,
+  ratings_json text,
+  updated_at text not null default current_timestamp
+);
+create index if not exists idx_mdblist_ratings_imdb on mdblist_ratings_cache(imdb_id);
+create index if not exists idx_mdblist_ratings_tmdb on mdblist_ratings_cache(tmdb_id);
+create table if not exists mdblist_sync_runs (
+  id integer primary key autoincrement,
+  source text not null,
+  status text not null,
+  inserted integer not null default 0,
+  updated integer not null default 0,
+  message text,
+  ran_at text not null default current_timestamp
 );`

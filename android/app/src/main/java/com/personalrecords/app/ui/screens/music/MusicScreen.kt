@@ -8,12 +8,15 @@ import android.net.Uri
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.selection.SelectionContainer
@@ -48,7 +51,7 @@ import com.personalrecords.app.ui.components.*
 import kotlinx.coroutines.launch
 import java.util.Locale
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
 fun MusicScreen(
     viewModel: MusicViewModel,
@@ -62,43 +65,52 @@ fun MusicScreen(
     var showCustomizationSheet by remember { mutableStateOf(false) }
     var targetCardId by remember { mutableStateOf<String?>(null) }
     var selectedScrobble by remember { mutableStateOf<MusicScrobbleDto?>(null) }
+    val isTwoPane = currentAdaptiveLayout().showsDetailPane
     var showDatePicker by remember { mutableStateOf(false) }
     val context = LocalContext.current
 
     val scrollBehavior = TopAppBarDefaults.enterAlwaysScrollBehavior(rememberTopAppBarState())
     val snackbarHostState = remember { SnackbarHostState() }
 
-    val musicColor = domainMusicColor()
-    val cinemaColor = domainCinemaColor()
+    val musicColor = recordCategoryColors(RecordCategory.Music).accent
+    val cinemaColor = recordCategoryColors(RecordCategory.Movies).accent
     val secondaryColor = MaterialTheme.colorScheme.secondary
     val tertiaryColor = MaterialTheme.colorScheme.tertiary
-    val musicStatCards = remember(musicColor, cinemaColor, secondaryColor, tertiaryColor) {
+    val musicTotalTitle = stringResource(R.string.stats_card_music_total_title)
+    val musicTotalDesc = stringResource(R.string.stats_card_music_total_desc)
+    val musicTodayTitle = stringResource(R.string.stats_card_music_today_title)
+    val musicTodayDesc = stringResource(R.string.stats_card_music_today_desc)
+    val musicArtistsTitle = stringResource(R.string.stats_card_music_artists_title)
+    val musicArtistsDesc = stringResource(R.string.stats_card_music_artists_desc)
+    val musicAlbumsTitle = stringResource(R.string.stats_card_music_albums_title)
+    val musicAlbumsDesc = stringResource(R.string.stats_card_music_albums_desc)
+    val musicStatCards = remember(musicColor, cinemaColor, secondaryColor, tertiaryColor, musicTotalTitle, musicTotalDesc, musicTodayTitle, musicTodayDesc, musicArtistsTitle, musicArtistsDesc, musicAlbumsTitle, musicAlbumsDesc) {
         listOf(
             StatCardItem(
                 id = "music_total",
-                title = "Toplam Dinleme",
-                description = "Tüm zamanların toplam scrobble sayısı",
+                title = musicTotalTitle,
+                description = musicTotalDesc,
                 icon = Icons.Default.MusicNote,
                 iconTint = musicColor
             ),
             StatCardItem(
                 id = "music_today",
-                title = "Bugün Dinlenen",
-                description = "Bugün çalınan parçalar",
+                title = musicTodayTitle,
+                description = musicTodayDesc,
                 icon = Icons.Default.Today,
                 iconTint = secondaryColor
             ),
             StatCardItem(
                 id = "music_artists",
-                title = "Farklı Sanatçılar",
-                description = "Dinlenen benzersiz sanatçı sayısı",
+                title = musicArtistsTitle,
+                description = musicArtistsDesc,
                 icon = Icons.Default.Person,
                 iconTint = tertiaryColor
             ),
             StatCardItem(
                 id = "music_albums",
-                title = "Farklı Albümler",
-                description = "Dinlenen benzersiz albüm sayısı",
+                title = musicAlbumsTitle,
+                description = musicAlbumsDesc,
                 icon = Icons.Default.Album,
                 iconTint = cinemaColor
             )
@@ -131,13 +143,6 @@ fun MusicScreen(
         }
     }
 
-    LaunchedEffect(state.error) {
-        state.error?.let {
-            snackbarHostState.showSnackbar(it)
-            viewModel.clearError()
-        }
-    }
-
     if (showDatePicker) {
         ExpressiveDateFilterDialog(
             initialStartDate = state.selectedDateFilter ?: state.fromDateFilter,
@@ -165,17 +170,12 @@ fun MusicScreen(
                 hostState = snackbarHostState,
                 modifier = Modifier
                     .navigationBarsPadding()
-                    .padding(bottom = 96.dp)
+                    .padding(bottom = 16.dp)
             )
         },
         topBar = {
-            TopAppBar(
-                title = {
-                    Text(
-                        text = stringResource(R.string.title_music),
-                        style = MaterialTheme.typography.titleLargeEmphasized
-                    )
-                },
+            ExpressivePageTopAppBar(
+                title = stringResource(R.string.title_music),
                 scrollBehavior = scrollBehavior,
                 navigationIcon = {
                     if (onNavigateBack != null) {
@@ -198,9 +198,6 @@ fun MusicScreen(
                         }
                     )
                 },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.surface
-                )
             )
         }
     ) { innerPadding ->
@@ -213,326 +210,215 @@ fun MusicScreen(
                 .fillMaxSize()
                 .padding(innerPadding)
         ) {
-            if (state.isLoading && state.scrobbles.isEmpty()) {
-                Box(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center
-                ) {
-                    ContainedLoadingIndicator()
-                }
-            } else {
-                LazyColumn(
-                    modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(top = 8.dp, bottom = 144.dp)
-                ) {
-                    // 1. Metrics Grid
-                    item(key = "music_metrics") {
-                        MusicMetricsHeader(
-                            totalScrobbles = state.stats.totalScrobbles,
-                            todayScrobbles = state.stats.todayScrobbles,
-                            uniqueArtists = state.stats.uniqueArtists,
-                            uniqueAlbums = state.stats.uniqueAlbums,
-                            hiddenCardIds = hiddenCardIds,
-                            isEditMode = isEditMode,
-                            onHideCard = { cardId ->
-                                coroutineScope.launch {
-                                    preferences.toggleStatCardVisibility(cardId, false)
-                                }
-                            },
-                            onStartEditMode = { isEditMode = true },
-                            onExitEditMode = { isEditMode = false },
-                            onOpenCustomization = {
-                                targetCardId = null
-                                showCustomizationSheet = true
-                            }
+            val showSnackbar: (String) -> Unit = { msg ->
+                coroutineScope.launch { snackbarHostState.showSnackbar(msg) }
+            }
+            ExpressiveListDetailLayout(
+                showDetailPane = isTwoPane,
+                detailPane = {
+                    val scrobble = selectedScrobble
+                    if (scrobble != null) {
+                        MusicDetailPaneCard(
+                            scrobble = scrobble,
+                            onClose = { selectedScrobble = null },
+                            onShowSnackbar = showSnackbar
+                        )
+                    } else {
+                        DetailPlaceholderPane(
+                            icon = Icons.Default.MusicNote,
+                            title = stringResource(R.string.adaptive_select_item_title),
+                            subtitle = stringResource(R.string.adaptive_select_item_subtitle)
                         )
                     }
-
-                    // 2. Top Artists mini scroll if available
-                    if (state.stats.topArtists.isNotEmpty()) {
-                        item(key = "top_artists") {
-                            Column(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(top = 8.dp, bottom = 4.dp)
-                            ) {
-                                Text(
-                                    text = stringResource(R.string.music_top_artists),
-                                    style = MaterialTheme.typography.labelLarge,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
-                                )
-                                Row(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .horizontalScroll(rememberScrollState())
-                                        .padding(horizontal = 16.dp, vertical = 4.dp),
-                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                                ) {
-                                    state.stats.topArtists.take(8).forEach { artist ->
-                                        val isSelected = state.selectedArtist == artist.artist
-                                        ExpressiveFilterChip(
-                                            selected = isSelected,
-                                            onClick = {
-                                                viewModel.setArtistFilter(if (isSelected) null else artist.artist)
-                                            },
-                                            label = {
-                                                Text(
-                                                    text = "${artist.artist} (${artist.count})",
-                                                    style = MaterialTheme.typography.labelMedium
-                                                )
-                                            },
-                                            leadingIcon = {
-                                                if (artist.imageUrl.isNotBlank()) {
-                                                    AsyncImage(
-                                                        model = artist.imageUrl,
-                                                        contentDescription = null,
-                                                        modifier = Modifier
-                                                            .size(18.dp)
-                                                            .clip(CircleShape),
-                                                        contentScale = ContentScale.Crop
-                                                    )
-                                                } else {
-                                                    Icon(
-                                                        imageVector = Icons.Default.Person,
-                                                        contentDescription = null,
-                                                        modifier = Modifier.size(16.dp)
-                                                    )
-                                                }
-                                            }
-                                        )
+                }
+            ) {
+                if (state.isLoading && state.scrobbles.isEmpty()) {
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        AppContainedLoadingIndicator()
+                    }
+                } else {
+                    LazyColumn(
+                        modifier = Modifier
+                            .fillMaxSize(),
+                        contentPadding = PaddingValues(
+                            start = FilterGutter,
+                            end = FilterGutter,
+                            top = 8.dp,
+                            bottom = 24.dp + WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
+                        )
+                    ) {
+                        // 1. Metrics Grid
+                        item(key = "music_metrics") {
+                            MusicMetricsHeader(
+                                totalScrobbles = state.stats.totalScrobbles,
+                                todayScrobbles = state.stats.todayScrobbles,
+                                uniqueArtists = state.stats.uniqueArtists,
+                                uniqueAlbums = state.stats.uniqueAlbums,
+                                hiddenCardIds = hiddenCardIds,
+                                isEditMode = isEditMode,
+                                onHideCard = { cardId ->
+                                    coroutineScope.launch {
+                                        preferences.toggleStatCardVisibility(cardId, false)
                                     }
+                                },
+                                onStartEditMode = { isEditMode = true },
+                                onExitEditMode = { isEditMode = false },
+                                onOpenCustomization = {
+                                    targetCardId = null
+                                    showCustomizationSheet = true
                                 }
+                            )
+                        }
+
+
+                        state.error?.let { err ->
+                            item(key = "music_error_banner", contentType = "error_banner") {
+                                ExpressiveErrorBanner(
+                                    message = err,
+                                    onRetry = { viewModel.loadData() },
+                                    modifier = expressiveItemModifier().padding(bottom = 8.dp)
+                                )
                             }
                         }
-                    }
 
-                    // 3. Search and Filters
-                    item(key = "search_and_filters") {
-                        Surface(
-                            color = MaterialTheme.colorScheme.surface,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(bottom = 8.dp)
-                        ) {
-                            Column(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(horizontal = 16.dp, vertical = 4.dp),
-                                verticalArrangement = Arrangement.spacedBy(8.dp)
-                            ) {
-                                OutlinedTextField(
+                        // 3. Search and Filters
+                        stickyHeader(key = "search_and_filters", contentType = "sticky_header") {
+                            ExpressiveFilterHeader {
+                                ExpressiveSearchField(
                                     value = state.searchQuery,
                                     onValueChange = { viewModel.setSearchQuery(it) },
-                                    placeholder = {
-                                        Text(
-                                            text = stringResource(R.string.music_search_hint),
-                                            style = MaterialTheme.typography.bodyMedium,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                                        )
-                                    },
-                                    leadingIcon = {
-                                        Icon(
-                                            imageVector = Icons.Default.Search,
-                                            contentDescription = null,
-                                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                            modifier = Modifier.size(20.dp)
-                                        )
-                                    },
-                                    trailingIcon = {
-                                        if (state.searchQuery.isNotBlank()) {
-                                            IconButton(onClick = { viewModel.setSearchQuery("") }) {
-                                                Icon(
-                                                    imageVector = Icons.Default.Clear,
-                                                    contentDescription = stringResource(R.string.action_clear),
-                                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                                    modifier = Modifier.size(18.dp)
-                                                )
-                                            }
-                                        }
-                                    },
-                                    singleLine = true,
-                                    shape = M3Shapes.CornerFull,
-                                    colors = OutlinedTextFieldDefaults.colors(
-                                        focusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-                                        unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainerLow,
-                                        focusedBorderColor = MaterialTheme.colorScheme.primary,
-                                        unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant
-                                    ),
-                                    modifier = Modifier.fillMaxWidth()
-                                )
-
-                                // Filter Chips Row
-                                Row(
+                                    placeholder = stringResource(R.string.music_search_hint),
+                                    clearContentDescription = stringResource(R.string.action_clear),
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .horizontalScroll(rememberScrollState()),
-                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    val hasActiveDate = state.selectedDateFilter != null || state.fromDateFilter != null
-                                    val dateLabel = formatDateRangeChipLabel(
-                                        singleDate = state.selectedDateFilter,
-                                        fromDate = state.fromDateFilter,
-                                        toDate = state.toDateFilter,
-                                        defaultText = stringResource(R.string.filter_pick_date)
-                                    )
-
-                                    ExpressiveFilterChip(
-                                        selected = hasActiveDate,
-                                        onClick = { showDatePicker = true },
-                                        leadingIcon = {
-                                            Icon(
-                                                imageVector = if (hasActiveDate) Icons.Default.DateRange else Icons.Default.CalendarMonth,
-                                                contentDescription = null,
-                                                modifier = Modifier.size(FilterChipDefaults.IconSize)
-                                            )
-                                        },
-                                        trailingIcon = if (hasActiveDate) {
-                                            {
-                                                Icon(
-                                                    imageVector = Icons.Default.Close,
-                                                    contentDescription = null,
-                                                    modifier = Modifier
-                                                        .size(14.dp)
-                                                        .clickable {
-                                                            viewModel.clearDateFilter()
-                                                        }
-                                                )
-                                            }
-                                        } else null,
-                                        label = {
-                                            Text(
-                                                text = dateLabel,
-                                                style = MaterialTheme.typography.labelMedium
-                                            )
-                                        }
-                                    )
-
-                                    if (availableSources.size > 1) {
+                                        .filterHeaderItem()
+                                )
+                                if (availableSources.size > 1) {
+                                    ExpressiveFilterRow {
                                         ExpressiveConnectedButtonGroup(
                                             items = availableSources,
                                             selectedItem = if (state.selectedFilter in availableSources) state.selectedFilter else "all",
-                                            onItemSelected = { source ->
-                                                if (state.selectedFilter != source) {
-                                                    viewModel.setFilter(source)
-                                                }
-                                            },
-                                            labelProvider = { source ->
-                                                when (source) {
+                                            onItemSelected = { key -> viewModel.setFilter(key) },
+                                            labelProvider = { key ->
+                                                when (key) {
                                                     "lastfm" -> stringResource(R.string.music_filter_lastfm)
                                                     "listenbrainz" -> stringResource(R.string.music_filter_listenbrainz)
                                                     "statsfm" -> stringResource(R.string.music_filter_statsfm)
-                                                    "all" -> stringResource(R.string.music_filter_all)
-                                                    else -> source.replaceFirstChar { if (it.isLowerCase()) it.titlecase(Locale.ROOT) else it.toString() }
+                                                    else -> stringResource(R.string.filter_all)
                                                 }
                                             },
-                                            iconProvider = { source, _ ->
-                                                when (source) {
-                                                    "lastfm" -> Icons.Default.CloudSync
-                                                    "listenbrainz" -> Icons.Default.GraphicEq
-                                                    "statsfm" -> Icons.Default.Equalizer
-                                                    "all" -> Icons.Default.LibraryMusic
-                                                    else -> Icons.Default.Source
+                                            iconProvider = { key, _ ->
+                                                when (key) {
+
+                                                    else -> null
                                                 }
                                             }
                                         )
                                     }
-
-                                    if (state.selectedArtist != null) {
-                                        ExpressiveFilterChip(
-                                            selected = true,
-                                            onClick = { viewModel.setArtistFilter(null) },
-                                            leadingIcon = {
-                                                Icon(
-                                                    imageVector = Icons.Default.Person,
-                                                    contentDescription = null,
-                                                    modifier = Modifier.size(FilterChipDefaults.IconSize)
-                                                )
-                                            },
-                                            trailingIcon = {
-                                                Icon(
-                                                    imageVector = Icons.Default.Close,
-                                                    contentDescription = null,
-                                                    modifier = Modifier.size(14.dp)
-                                                )
-                                            },
-                                            label = {
-                                                Text(
-                                                    text = state.selectedArtist ?: "",
-                                                    style = MaterialTheme.typography.labelMedium
-                                                )
-                                            }
-                                        )
+                                }
+                                val hasActiveDate = state.selectedDateFilter != null || state.fromDateFilter != null
+                                val hasActiveFilters = state.searchQuery.isNotEmpty() || hasActiveDate || state.selectedFilter != "all" || state.selectedArtist != null
+                                ExpressiveFilterRow {
+                                    if (hasActiveFilters) {
+                                        ExpressiveClearFiltersChip(onClick = { viewModel.resetFilters() })
                                     }
-
-                                    val (sortLabel, sortIcon) = when (state.sortBy) {
-                                        "date_asc" -> stringResource(R.string.sort_oldest) to Icons.Default.ArrowUpward
-                                        "track" -> stringResource(R.string.sort_track) to Icons.Default.SortByAlpha
-                                        "artist" -> stringResource(R.string.sort_artist) to Icons.Default.Person
-                                        else -> stringResource(R.string.sort_newest) to Icons.Default.ArrowDownward
-                                    }
-                                    ExpressiveAssistChip(
-                                        onClick = {
-                                            val nextSort = when (state.sortBy) {
-                                                "date_desc" -> "date_asc"
-                                                "date_asc" -> "track"
-                                                "track" -> "artist"
-                                                else -> "date_desc"
-                                            }
-                                            viewModel.setSortBy(nextSort)
-                                        },
-                                        leadingIcon = {
-                                            Icon(
-                                                imageVector = sortIcon,
-                                                contentDescription = null,
-                                                tint = MaterialTheme.colorScheme.primary,
-                                                modifier = Modifier.size(16.dp)
-                                            )
-                                        },
-                                        label = {
-                                            Text(
-                                                text = sortLabel,
-                                                style = MaterialTheme.typography.labelMediumEmphasized,
-                                                color = MaterialTheme.colorScheme.primary
-                                            )
-                                        },
-                                        colors = borderlessAssistChipColors()
+                                    ExpressiveDateFilterChip(
+                                        label = formatDateRangeChipLabel(
+                                            singleDate = state.selectedDateFilter,
+                                            fromDate = state.fromDateFilter,
+                                            toDate = state.toDateFilter,
+                                            defaultText = stringResource(R.string.filter_pick_date)
+                                        ),
+                                        isActive = hasActiveDate,
+                                        onClick = { showDatePicker = true },
+                                        onClear = { viewModel.clearDateFilter() }
                                     )
+                                    val artistCounts = remember(state.stats.topArtists) {
+                                        state.stats.topArtists.take(20).associate { it.artist to it.count }
+                                    }
+                                    val artistOptions = remember(artistCounts, state.selectedArtist) {
+                                        (listOf<String?>(null) + artistCounts.keys + listOfNotNull(state.selectedArtist)).distinct()
+                                    }
+                                    if (artistOptions.size > 1) {
+                                        ExpressiveDropdownFilterChip(
+                                            options = artistOptions,
+                                            selected = state.selectedArtist,
+                                            onSelect = { viewModel.setArtistFilter(it) },
+                                            optionLabel = { artist ->
+                                                when {
+                                                    artist == null -> stringResource(R.string.filter_all)
+                                                    artistCounts[artist] != null -> "$artist (${artistCounts[artist]})"
+                                                    else -> artist
+                                                }
+                                            },
+                                            label = state.selectedArtist ?: stringResource(R.string.filter_artist),
+                                            leadingIcon = Icons.Default.Person,
+                                            isActive = state.selectedArtist != null
+                                        )
+                                    }
+                                    ExpressiveDropdownFilterChip(
+                                        options = listOf("date_desc", "date_asc", "track", "artist"),
+                                        selected = state.sortBy,
+                                        onSelect = { viewModel.setSortBy(it) },
+                                        optionLabel = { key ->
+                                            when (key) {
+                                                "date_desc" -> stringResource(R.string.sort_newest)
+                                                "date_asc" -> stringResource(R.string.sort_oldest)
+                                                "track" -> stringResource(R.string.sort_track)
+                                                "artist" -> stringResource(R.string.sort_artist)
+                                                else -> stringResource(R.string.action_sort)
+                                            }
+                                        },
+                                        leadingIcon = Icons.AutoMirrored.Filled.Sort,
+                                        isActive = false
+                                    )
+                                }
+                                if (hasActiveFilters) {
+                                    ExpressiveFilterResultCount(count = state.filteredScrobbles.size)
                                 }
                             }
                         }
-                    }
 
-                    // 4. Loading or Empty State
-                    if ((state.isLoading || state.isFiltering) && state.filteredScrobbles.isEmpty()) {
-                        item(key = "music_loading") {
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .height(200.dp),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                ContainedLoadingIndicator(size = 44.dp)
+                        // 4. Loading or Empty State
+                        if ((state.isLoading || state.isFiltering) && state.filteredScrobbles.isEmpty()) {
+                            item(key = "music_loading") {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(200.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    AppContainedLoadingIndicator(size = 44.dp)
+                                }
                             }
-                        }
-                    } else if (state.filteredScrobbles.isEmpty()) {
-                        item(key = "empty_state") {
-                            EmptyMusicView(
-                                onSyncClick = { viewModel.syncLastFm() },
-                                isSyncing = state.isSyncingLastFm
-                            )
-                        }
-                    } else {
-                        // 5. Scrobble Items List
-                        items(
-                            items = state.filteredScrobbles,
-                            key = { it.id }
-                        ) { scrobble ->
-                            ScrobbleListItem(
-                                scrobble = scrobble,
-                                onClick = { selectedScrobble = scrobble }
-                            )
+                        } else if (state.filteredScrobbles.isEmpty() && state.error == null) {
+                            item(key = "empty_state") {
+                                EmptyMusicView(
+                                    onSyncClick = { viewModel.syncLastFm() },
+                                    isSyncing = state.isSyncingLastFm
+                                )
+                            }
+                        } else {
+                            // 5. Scrobble Items List
+                            itemsIndexed(
+                                items = state.filteredScrobbles,
+                                key = { _, scrobble -> scrobble.id },
+                                contentType = { _, _ -> "scrobble_row" }
+                            ) { index, scrobble ->
+                                LazyCardRowContainer(
+                                    index = index,
+                                    totalCount = state.filteredScrobbles.size,
+                                    modifier = expressiveItemModifier()
+                                ) {
+                                    ScrobbleListItem(
+                                        scrobble = scrobble,
+                                        onClick = { selectedScrobble = scrobble }
+                                    )
+                                }
+                            }
                         }
                     }
                 }
@@ -540,16 +426,18 @@ fun MusicScreen(
         }
     }
 
-    selectedScrobble?.let { scrobble ->
-        MusicDetailBottomSheet(
-            scrobble = scrobble,
-            onDismiss = { selectedScrobble = null },
-            onShowSnackbar = { msg ->
-                coroutineScope.launch {
-                    snackbarHostState.showSnackbar(msg)
+    if (!isTwoPane) {
+        selectedScrobble?.let { scrobble ->
+            MusicDetailBottomSheet(
+                scrobble = scrobble,
+                onDismiss = { selectedScrobble = null },
+                onShowSnackbar = { msg ->
+                    coroutineScope.launch {
+                        snackbarHostState.showSnackbar(msg)
+                    }
                 }
-            }
-        )
+            )
+        }
     }
 
     if (showCustomizationSheet) {
@@ -660,7 +548,7 @@ private fun MusicMetricsHeader(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 8.dp),
+                .padding(vertical = 8.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             if (hasRow1) {
@@ -682,9 +570,9 @@ private fun MusicMetricsHeader(
                                 badgeText = "All Time",
                                 note = "Scrobbles",
                                 valueIcon = Icons.Default.MusicNote,
-                                valueIconTint = domainMusicColor(),
-                                badgeBg = domainMusicContainer(),
-                                badgeColor = domainMusicOnContainer(),
+                                valueIconTint = recordCategoryColors(RecordCategory.Music).accent,
+                                badgeBg = recordCategoryColors(RecordCategory.Music).container,
+                                badgeColor = recordCategoryColors(RecordCategory.Music).onContainer,
                                 onLongClick = onStartEditMode
                             )
                         }
@@ -752,9 +640,9 @@ private fun MusicMetricsHeader(
                                 badgeText = "Albums",
                                 note = "Unique",
                                 valueIcon = Icons.Default.Album,
-                                valueIconTint = domainCinemaColor(),
-                                badgeBg = domainCinemaContainer(),
-                                badgeColor = domainCinemaOnContainer(),
+                                valueIconTint = recordCategoryColors(RecordCategory.Movies).accent,
+                                badgeBg = recordCategoryColors(RecordCategory.Movies).container,
+                                badgeColor = recordCategoryColors(RecordCategory.Movies).onContainer,
                                 onLongClick = onStartEditMode
                             )
                         }
@@ -770,29 +658,158 @@ private fun ScrobbleListItem(
     scrobble: MusicScrobbleDto,
     onClick: () -> Unit
 ) {
-    Card(
+    // Same row anatomy as Books / Movies / Health: 12x10 padding, 40dp leading, titleSmall + bodySmall.
+    val musicColors = recordCategoryColors(RecordCategory.Music)
+    Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 4.dp)
-            .expressiveBounceClick(onClick = onClick),
-        shape = M3Shapes.CornerLarge,
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceContainerLow
-        ),
-        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+            .expressiveBounceClick(onClick = onClick)
+            .padding(horizontal = 12.dp, vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        Row(
+        Box(
             modifier = Modifier
-                .fillMaxWidth()
-                .padding(12.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                .size(40.dp)
+                .clip(M3Shapes.CornerSmall)
+                .background(musicColors.container),
+            contentAlignment = Alignment.Center
         ) {
-            // Album Art Thumbnail
+            if (scrobble.imageUrl.isNotBlank()) {
+                AsyncImage(
+                    model = scrobble.imageUrl,
+                    contentDescription = scrobble.track,
+                    modifier = Modifier.fillMaxSize(),
+                    contentScale = ContentScale.Crop
+                )
+            } else {
+                Icon(
+                    imageVector = Icons.Default.MusicNote,
+                    contentDescription = null,
+                    tint = musicColors.onContainer,
+                    modifier = Modifier.size(20.dp)
+                )
+            }
+        }
+
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = scrobble.track,
+                style = MaterialTheme.typography.titleSmallEmphasized,
+                color = MaterialTheme.colorScheme.onSurface,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+            Spacer(modifier = Modifier.height(2.dp))
+            Text(
+                text = scrobble.artist + if (scrobble.album.isNotBlank()) " • ${scrobble.album}" else "",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+        }
+
+        Column(
+            horizontalAlignment = Alignment.End,
+            verticalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            val sourceLabel = when {
+                scrobble.source.contains("lastfm", ignoreCase = true) -> "Last.fm"
+                scrobble.source.contains("listenbrainz", ignoreCase = true) -> "ListenBrainz"
+                scrobble.source.contains("statsfm", ignoreCase = true) -> "Stats.fm"
+                else -> scrobble.source.replaceFirstChar { it.uppercase() }
+            }
+
+            // Source is metadata, not a status: neutral tonal pill instead of brand/error colors.
+            Surface(
+                shape = M3Shapes.CornerFull,
+                color = MaterialTheme.colorScheme.surfaceContainerHighest
+            ) {
+                Text(
+                    text = sourceLabel,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 1.5.dp)
+                )
+            }
+
+            if (scrobble.formattedTime.isNotBlank()) {
+                Text(
+                    text = scrobble.formattedTime,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun EmptyMusicView(
+    onSyncClick: () -> Unit,
+    isSyncing: Boolean
+) {
+    val musicColors = recordCategoryColors(RecordCategory.Music)
+    ExpressiveEmptyState(
+        title = stringResource(R.string.music_empty_title),
+        message = stringResource(R.string.music_empty_desc),
+        icon = Icons.Default.MusicNote,
+        iconContainerColor = musicColors.container,
+        iconContentColor = musicColors.onContainer,
+        action = {
+            Button(
+                onClick = onSyncClick,
+                enabled = !isSyncing,
+                shapes = expressiveButtonShapes()
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Sync,
+                    contentDescription = null,
+                    modifier = Modifier.size(18.dp)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = if (isSyncing) stringResource(R.string.music_syncing) else stringResource(R.string.music_sync_lastfm),
+                    style = MaterialTheme.typography.labelLargeEmphasized
+                )
+            }
+        }
+    )
+}
+
+@Composable
+fun MusicDetailContent(
+    scrobble: MusicScrobbleDto,
+    onDismiss: () -> Unit,
+    modifier: Modifier = Modifier,
+    onShowSnackbar: ((String) -> Unit)? = null
+) {
+    val context = LocalContext.current
+    val notify = { message: String ->
+        if (onShowSnackbar != null) {
+            onShowSnackbar(message)
+        } else {
+            android.widget.Toast.makeText(context, message, android.widget.Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    Column(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(horizontal = 20.dp, vertical = 8.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
+        // Header Row: Album Art + Track Title
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
             Box(
                 modifier = Modifier
-                    .size(52.dp)
-                    .clip(RoundedCornerShape(10.dp))
+                    .size(72.dp)
+                    .clip(RoundedCornerShape(12.dp))
                     .background(MaterialTheme.colorScheme.surfaceContainerHigh),
                 contentAlignment = Alignment.Center
             ) {
@@ -808,138 +825,113 @@ private fun ScrobbleListItem(
                         imageVector = Icons.Default.MusicNote,
                         contentDescription = null,
                         tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(24.dp)
+                        modifier = Modifier.size(36.dp)
                     )
                 }
             }
 
-            // Track, Artist, Album Info
             Column(
                 modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(2.dp)
+                verticalArrangement = Arrangement.spacedBy(4.dp)
             ) {
                 Text(
                     text = scrobble.track,
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.SemiBold,
-                    color = MaterialTheme.colorScheme.onSurface,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface
                 )
                 Text(
-                    text = scrobble.artist + if (scrobble.album.isNotBlank()) " • ${scrobble.album}" else "",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
+                    text = scrobble.artist,
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.primary
                 )
-            }
-
-            // Source & Time Badge
-            Column(
-                horizontalAlignment = Alignment.End,
-                verticalArrangement = Arrangement.spacedBy(4.dp)
-            ) {
-                val (sourceLabel, sourceColor) = when {
-                    scrobble.source.contains("lastfm", ignoreCase = true) -> "Last.fm" to MaterialTheme.colorScheme.error
-                    scrobble.source.contains("listenbrainz", ignoreCase = true) -> "ListenBrainz" to domainBooksColor()
-                    scrobble.source.contains("statsfm", ignoreCase = true) -> "Stats.fm" to domainNutritionColor()
-                    else -> scrobble.source.replaceFirstChar { it.uppercase() } to MaterialTheme.colorScheme.primary
-                }
-
-                Surface(
-                    shape = M3Shapes.CornerFull,
-                    color = sourceColor.copy(alpha = 0.12f)
-                ) {
-                    Text(
-                        text = sourceLabel,
-                        style = MaterialTheme.typography.labelSmall,
-                        color = sourceColor,
-                        fontWeight = FontWeight.Medium,
-                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
-                    )
-                }
-
-                if (scrobble.formattedTime.isNotBlank()) {
-                    Text(
-                        text = scrobble.formattedTime,
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.outline
-                    )
-                }
             }
         }
-    }
-}
 
-@Composable
-private fun EmptyMusicView(
-    onSyncClick: () -> Unit,
-    isSyncing: Boolean
-) {
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(24.dp),
-        shape = M3Shapes.CornerExtraLarge,
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceContainerLow
-        )
-    ) {
+        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+
+        // Details List
         Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(24.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+            modifier = Modifier.fillMaxWidth(),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
-            Box(
-                modifier = Modifier
-                    .size(64.dp)
-                    .clip(CircleShape)
-                    .background(MaterialTheme.colorScheme.primaryContainer),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    imageVector = Icons.Default.MusicNote,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onPrimaryContainer,
-                    modifier = Modifier.size(32.dp)
+            if (scrobble.album.isNotBlank()) {
+                DetailInfoRow(
+                    label = stringResource(R.string.music_detail_album),
+                    value = scrobble.album,
+                    icon = Icons.Default.Album
                 )
             }
 
-            Text(
-                text = stringResource(R.string.music_empty_title),
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onSurface
-            )
-
-            Text(
-                text = stringResource(R.string.music_empty_desc),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(horizontal = 8.dp)
-            )
-
-            Button(
-                onClick = onSyncClick,
-                enabled = !isSyncing,
-                shape = M3Shapes.CornerFull,
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = MaterialTheme.colorScheme.primary
+            if (scrobble.formattedDuration.isNotBlank()) {
+                DetailInfoRow(
+                    label = stringResource(R.string.music_detail_duration),
+                    value = scrobble.formattedDuration,
+                    icon = Icons.Default.Timer
                 )
+            }
+
+            val displaySource = when {
+                scrobble.source.contains("lastfm", ignoreCase = true) -> "Last.fm"
+                scrobble.source.contains("listenbrainz", ignoreCase = true) -> "ListenBrainz"
+                scrobble.source.contains("statsfm", ignoreCase = true) -> "Stats.fm"
+                else -> scrobble.source.replaceFirstChar { it.uppercase() }
+            }
+            DetailInfoRow(
+                label = stringResource(R.string.music_detail_source),
+                value = displaySource,
+                icon = Icons.Default.Source
+            )
+
+            if (scrobble.formattedDate.isNotBlank()) {
+                DetailInfoRow(
+                    label = stringResource(R.string.music_detail_time),
+                    value = "${scrobble.formattedDate}  ${scrobble.formattedTime}",
+                    icon = Icons.Default.Schedule
+                )
+            }
+        }
+
+        // Action Buttons
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(top = 8.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            OutlinedButton(
+                onClick = {
+                    val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                    val clip = ClipData.newPlainText("Track", "${scrobble.artist} - ${scrobble.track}")
+                    clipboard.setPrimaryClip(clip)
+                    notify(context.getString(R.string.music_copied, "${scrobble.artist} - ${scrobble.track}"))
+                },
+                shapes = expressiveButtonShapes(),
+                modifier = Modifier.weight(1f)
             ) {
-                Icon(
-                    imageVector = Icons.Default.Sync,
-                    contentDescription = null,
-                    modifier = Modifier.size(18.dp)
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(
-                    text = if (isSyncing) stringResource(R.string.music_syncing) else stringResource(R.string.music_sync_lastfm),
-                    style = MaterialTheme.typography.labelLargeEmphasized
-                )
+                Icon(imageVector = Icons.Default.ContentCopy, contentDescription = null, modifier = Modifier.size(16.dp))
+                Spacer(modifier = Modifier.width(6.dp))
+                Text(stringResource(R.string.action_copy))
+            }
+
+            if (scrobble.originUrl.isNotBlank()) {
+                Button(
+                    onClick = {
+                        try {
+                            val intent = Intent(Intent.ACTION_VIEW, Uri.parse(scrobble.originUrl))
+                            context.startActivity(intent)
+                        } catch (e: Exception) {
+                            notify(context.getString(R.string.music_open_failed))
+                        }
+                    },
+                    shapes = expressiveButtonShapes(),
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Icon(imageVector = Icons.Default.OpenInNew, contentDescription = null, modifier = Modifier.size(16.dp))
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(stringResource(R.string.action_open))
+                }
             }
         }
     }
@@ -952,163 +944,48 @@ fun MusicDetailBottomSheet(
     onDismiss: () -> Unit,
     onShowSnackbar: ((String) -> Unit)? = null
 ) {
-    val context = LocalContext.current
-    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-    val notify = { message: String ->
-        if (onShowSnackbar != null) {
-            onShowSnackbar(message)
-        } else {
-            android.widget.Toast.makeText(context, message, android.widget.Toast.LENGTH_SHORT).show()
-        }
-    }
-
+    val sheetState = rememberBottomSheetState(
+        initialValue = SheetValue.Hidden,
+        enabledValues = setOf(SheetValue.Hidden, SheetValue.Expanded)
+    )
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
         shape = M3Shapes.CornerExtraLarge,
         containerColor = MaterialTheme.colorScheme.surfaceContainerLow
     ) {
+        MusicDetailContent(
+            scrobble = scrobble,
+            onDismiss = onDismiss,
+            onShowSnackbar = onShowSnackbar,
+            modifier = Modifier.navigationBarsPadding()
+        )
+    }
+}
+
+@Composable
+fun MusicDetailPaneCard(
+    scrobble: MusicScrobbleDto,
+    onClose: () -> Unit,
+    modifier: Modifier = Modifier,
+    onShowSnackbar: ((String) -> Unit)? = null
+) {
+    Surface(
+        modifier = modifier.fillMaxSize(),
+        shape = M3Shapes.CornerLarge,
+        color = MaterialTheme.colorScheme.surfaceContainerLow
+    ) {
         Column(
             modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 20.dp, vertical = 8.dp)
-                .navigationBarsPadding(),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+                .fillMaxSize()
+                .verticalScroll(rememberScrollState())
+                .padding(top = 12.dp)
         ) {
-            // Header Row: Album Art + Track Title
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(16.dp)
-            ) {
-                Box(
-                    modifier = Modifier
-                        .size(72.dp)
-                        .clip(RoundedCornerShape(12.dp))
-                        .background(MaterialTheme.colorScheme.surfaceContainerHigh),
-                    contentAlignment = Alignment.Center
-                ) {
-                    if (scrobble.imageUrl.isNotBlank()) {
-                        AsyncImage(
-                            model = scrobble.imageUrl,
-                            contentDescription = scrobble.track,
-                            modifier = Modifier.fillMaxSize(),
-                            contentScale = ContentScale.Crop
-                        )
-                    } else {
-                        Icon(
-                            imageVector = Icons.Default.MusicNote,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(36.dp)
-                        )
-                    }
-                }
-
-                Column(
-                    modifier = Modifier.weight(1f),
-                    verticalArrangement = Arrangement.spacedBy(4.dp)
-                ) {
-                    Text(
-                        text = scrobble.track,
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
-                    Text(
-                        text = scrobble.artist,
-                        style = MaterialTheme.typography.titleMedium,
-                        color = MaterialTheme.colorScheme.primary
-                    )
-                }
-            }
-
-            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
-
-            // Details List
-            Column(
-                modifier = Modifier.fillMaxWidth(),
-                verticalArrangement = Arrangement.spacedBy(10.dp)
-            ) {
-                if (scrobble.album.isNotBlank()) {
-                    DetailInfoRow(
-                        label = stringResource(R.string.music_detail_album),
-                        value = scrobble.album,
-                        icon = Icons.Default.Album
-                    )
-                }
-
-                if (scrobble.formattedDuration.isNotBlank()) {
-                    DetailInfoRow(
-                        label = stringResource(R.string.music_detail_duration),
-                        value = scrobble.formattedDuration,
-                        icon = Icons.Default.Timer
-                    )
-                }
-
-                val displaySource = when {
-                    scrobble.source.contains("lastfm", ignoreCase = true) -> "Last.fm"
-                    scrobble.source.contains("listenbrainz", ignoreCase = true) -> "ListenBrainz"
-                    scrobble.source.contains("statsfm", ignoreCase = true) -> "Stats.fm"
-                    else -> scrobble.source.replaceFirstChar { it.uppercase() }
-                }
-                DetailInfoRow(
-                    label = stringResource(R.string.music_detail_source),
-                    value = displaySource,
-                    icon = Icons.Default.Source
-                )
-
-                if (scrobble.formattedDate.isNotBlank()) {
-                    DetailInfoRow(
-                        label = stringResource(R.string.music_detail_time),
-                        value = "${scrobble.formattedDate}  ${scrobble.formattedTime}",
-                        icon = Icons.Default.Schedule
-                    )
-                }
-            }
-
-            // Action Buttons
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = 8.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                OutlinedButton(
-                    onClick = {
-                        val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-                        val clip = ClipData.newPlainText("Track", "${scrobble.artist} - ${scrobble.track}")
-                        clipboard.setPrimaryClip(clip)
-                        notify(context.getString(R.string.music_copied, "${scrobble.artist} - ${scrobble.track}"))
-                    },
-                    shape = M3Shapes.CornerFull,
-                    modifier = Modifier.weight(1f)
-                ) {
-                    Icon(imageVector = Icons.Default.ContentCopy, contentDescription = null, modifier = Modifier.size(16.dp))
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text(stringResource(R.string.action_copy))
-                }
-
-                if (scrobble.originUrl.isNotBlank()) {
-                    Button(
-                        onClick = {
-                            try {
-                                val intent = Intent(Intent.ACTION_VIEW, Uri.parse(scrobble.originUrl))
-                                context.startActivity(intent)
-                            } catch (e: Exception) {
-                                notify(context.getString(R.string.music_open_failed))
-                            }
-                        },
-                        shape = M3Shapes.CornerFull,
-                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
-                        modifier = Modifier.weight(1f)
-                    ) {
-                        Icon(imageVector = Icons.Default.OpenInNew, contentDescription = null, modifier = Modifier.size(16.dp))
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text(stringResource(R.string.action_open))
-                    }
-                }
-            }
+            MusicDetailContent(
+                scrobble = scrobble,
+                onDismiss = onClose,
+                onShowSnackbar = onShowSnackbar
+            )
         }
     }
 }

@@ -31,7 +31,7 @@ data class BooksUiState(
     val fromDateFilter: String? = null,
     val toDateFilter: String? = null,
     val selectedShelf: String = "all", // "all", "read", "to-read", "currently-reading"
-    val sortBy: String = "rating_desc", // "rating_desc", "rating_asc", "title", "author", "date"
+    val sortBy: String = "date", // "rating_desc", "rating_asc", "title", "author", "date"
     val error: String? = null
 )
 
@@ -67,8 +67,8 @@ private fun filterAndSortBooks(
         "rating_desc" -> filtered.sortedByDescending { it.my_rating }
         "rating_asc" -> filtered.sortedBy { it.my_rating }
         "title" -> filtered.sortedBy { it.title.lowercase(Locale.getDefault()) }
-        "date" -> filtered.sortedByDescending { it.date_read }
-        else -> filtered
+        "date" -> filtered.sortedByDescending { it.date_read.trim().replace('/', '-') }
+        else -> filtered.sortedByDescending { it.date_read.trim().replace('/', '-') }
     }
 }
 
@@ -211,6 +211,20 @@ class BooksViewModel(
     fun setSortBy(sort: String) {
         if (_uiState.value.sortBy == sort) return
         _uiState.update { it.copy(sortBy = sort, isFiltering = true) }
+        recomputeFilter(debounceMs = 0L)
+    }
+
+    fun resetFilters() {
+        _uiState.update {
+            it.copy(
+                searchQuery = "",
+                selectedDateFilter = null,
+                fromDateFilter = null,
+                toDateFilter = null,
+                selectedShelf = "all",
+                isFiltering = true
+            )
+        }
         recomputeFilter(debounceMs = 0L)
     }
 

@@ -207,3 +207,137 @@ CREATE TABLE IF NOT EXISTS music_sync_runs (
   ran_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
+-- Trakt.tv Integration Tables
+CREATE TABLE IF NOT EXISTS trakt_sync_settings (
+  id INTEGER PRIMARY KEY CHECK (id = 1),
+  username TEXT,
+  client_id TEXT,
+  sync_movies INTEGER NOT NULL DEFAULT 1,
+  sync_episodes INTEGER NOT NULL DEFAULT 1,
+  sync_ratings INTEGER NOT NULL DEFAULT 1,
+  interval_minutes INTEGER NOT NULL DEFAULT 360,
+  enabled INTEGER NOT NULL DEFAULT 1,
+  updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS trakt_history (
+  history_id TEXT PRIMARY KEY,
+  media_type TEXT NOT NULL,          -- 'movie' veya 'episode'
+  title TEXT NOT NULL,               -- Film adı veya Dizi adı
+  year INTEGER,
+  season INTEGER,                    -- Dizi ise sezon
+  episode_number INTEGER,            -- Dizi ise bölüm no
+  episode_title TEXT,                -- Bölüm adı
+  watched_at TEXT NOT NULL,          -- ISO 8601 UTC
+  trakt_id INTEGER,
+  imdb_id TEXT,
+  tmdb_id INTEGER,
+  user_rating INTEGER,               -- 1 - 10
+  image_url TEXT,
+  raw_json TEXT NOT NULL,
+  imported_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS idx_trakt_history_watched ON trakt_history(watched_at DESC);
+CREATE INDEX IF NOT EXISTS idx_trakt_history_type ON trakt_history(media_type);
+
+CREATE TABLE IF NOT EXISTS trakt_sync_runs (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  source TEXT NOT NULL,
+  status TEXT NOT NULL,
+  inserted INTEGER NOT NULL DEFAULT 0,
+  updated INTEGER NOT NULL DEFAULT 0,
+  message TEXT,
+  ran_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+-- MDBList Integration Tables
+CREATE TABLE IF NOT EXISTS mdblist_settings (
+  id INTEGER PRIMARY KEY CHECK (id = 1),
+  api_key TEXT,
+  sync_ratings_enabled INTEGER NOT NULL DEFAULT 1,
+  sync_lists_enabled INTEGER NOT NULL DEFAULT 0,
+  updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS mdblist_ratings_cache (
+  id TEXT PRIMARY KEY,               -- imdb_id veya 'tmdb_' + tmdb_id
+  imdb_id TEXT,
+  tmdb_id INTEGER,
+  media_type TEXT NOT NULL,          -- 'movie' veya 'show'
+  title TEXT NOT NULL,
+  year INTEGER,
+  score_imdb REAL,                   -- IMDb puanı (örn: 8.4)
+  score_tmdb INTEGER,                -- TMDb % puanı (örn: 82)
+  score_trakt INTEGER,               -- Trakt % puanı (örn: 80)
+  score_letterboxd REAL,             -- Letterboxd puanı (örn: 4.1)
+  score_tomatoes INTEGER,            -- Rotten Tomatoes Tomatometer % (örn: 94)
+  score_audience INTEGER,            -- Rotten Tomatoes Audience % (örn: 91)
+  score_metacritic INTEGER,          -- Metacritic Metascore (örn: 84)
+  certification TEXT,                -- PG-13, R vb.
+  poster TEXT,                       -- Afiş görseli URL
+  description TEXT,                  -- Film / dizi konusu / özeti
+  user_rating REAL,                  -- Kullanıcının verdiği puan (5 yıldız ölçeğinde)
+  rated_at TEXT,                     -- Puanlama / izleme tarihi
+  ratings_json TEXT,                 -- Ham puan dökümü JSON
+  updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS idx_mdblist_ratings_imdb ON mdblist_ratings_cache(imdb_id);
+CREATE INDEX IF NOT EXISTS idx_mdblist_ratings_tmdb ON mdblist_ratings_cache(tmdb_id);
+
+CREATE TABLE IF NOT EXISTS mdblist_sync_runs (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  source TEXT NOT NULL,
+  status TEXT NOT NULL,
+  inserted INTEGER NOT NULL DEFAULT 0,
+  updated INTEGER NOT NULL DEFAULT 0,
+  message TEXT,
+  ran_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Simkl Integration Tables
+CREATE TABLE IF NOT EXISTS simkl_sync_settings (
+  id INTEGER PRIMARY KEY CHECK (id = 1),
+  client_id TEXT,
+  access_token TEXT,
+  user_id TEXT,
+  sync_movies INTEGER NOT NULL DEFAULT 1,
+  sync_shows INTEGER NOT NULL DEFAULT 1,
+  sync_anime INTEGER NOT NULL DEFAULT 1,
+  sync_ratings INTEGER NOT NULL DEFAULT 1,
+  interval_minutes INTEGER NOT NULL DEFAULT 360,
+  enabled INTEGER NOT NULL DEFAULT 1,
+  updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS simkl_history (
+  id TEXT PRIMARY KEY,               -- 'simkl_movie_1234', 'simkl_show_5678', 'simkl_anime_9101'
+  simkl_id INTEGER NOT NULL,
+  item_type TEXT NOT NULL,          -- 'movie', 'show', 'anime'
+  title TEXT NOT NULL,
+  year INTEGER,
+  last_ep_watched TEXT,             -- Dizi/Anime için 'S01E12'
+  status TEXT NOT NULL DEFAULT 'completed', -- 'completed', 'watching' vb.
+  user_rating INTEGER,              -- 1 - 10
+  poster_url TEXT,
+  imdb_id TEXT,
+  tmdb_id INTEGER,
+  mal_id TEXT,
+  raw_json TEXT NOT NULL,
+  watched_at TEXT NOT NULL,         -- ISO 8601 UTC
+  imported_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS idx_simkl_history_watched ON simkl_history(watched_at DESC);
+CREATE INDEX IF NOT EXISTS idx_simkl_history_type ON simkl_history(item_type);
+
+CREATE TABLE IF NOT EXISTS simkl_sync_runs (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  source TEXT NOT NULL,
+  status TEXT NOT NULL,
+  inserted INTEGER NOT NULL DEFAULT 0,
+  updated INTEGER NOT NULL DEFAULT 0,
+  message TEXT,
+  ran_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+
+

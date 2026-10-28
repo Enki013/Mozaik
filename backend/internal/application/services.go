@@ -1419,6 +1419,10 @@ func (s *Services) RecentSyncRuns(ctx context.Context, limit int) ([]sqlite.Sync
 	return s.store.RecentSyncRuns(ctx, limit)
 }
 
+func (s *Services) LastSyncRun(ctx context.Context, table string) (*sqlite.SyncRun, error) {
+	return s.store.LastSyncRun(ctx, table)
+}
+
 func (s *Services) AllDataExport(ctx context.Context) (map[string]any, error) {
 	return s.store.AllDataExport(ctx)
 }

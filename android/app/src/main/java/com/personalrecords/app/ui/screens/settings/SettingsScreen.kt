@@ -24,7 +24,14 @@ import androidx.compose.material.icons.automirrored.filled.MenuBook
 import androidx.compose.material.icons.filled.*
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material3.*
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.ui.semantics.Role
+import androidx.compose.foundation.selection.selectableGroup
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.runtime.*
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.Alignment
@@ -77,6 +84,28 @@ fun SettingsScreen(
     var showLastFmEditor by remember { mutableStateOf(false) }
     var showListenBrainzEditor by remember { mutableStateOf(false) }
     var showStatsFmEditor by remember { mutableStateOf(false) }
+    var showTraktEditor by remember { mutableStateOf(false) }
+    var traktUsernameInput by remember(state.traktUsername) { mutableStateOf(state.traktUsername) }
+    var traktClientIdInput by remember(state.traktClientId) { mutableStateOf(state.traktClientId) }
+    var traktSyncMoviesInput by remember(state.traktSyncMovies) { mutableStateOf(state.traktSyncMovies) }
+    var traktSyncEpisodesInput by remember(state.traktSyncEpisodes) { mutableStateOf(state.traktSyncEpisodes) }
+    var traktSyncRatingsInput by remember(state.traktSyncRatings) { mutableStateOf(state.traktSyncRatings) }
+
+    var showMdbListEditor by remember { mutableStateOf(false) }
+    var mdblistApiKeyInput by remember(state.mdblistApiKey) { mutableStateOf(state.mdblistApiKey) }
+    var mdblistApiKeyVisible by remember { mutableStateOf(false) }
+    var mdblistSyncRatingsInput by remember(state.mdblistSyncRatings) { mutableStateOf(state.mdblistSyncRatings) }
+    var mdblistSyncListsInput by remember(state.mdblistSyncLists) { mutableStateOf(state.mdblistSyncLists) }
+
+    var showSimklEditor by remember { mutableStateOf(false) }
+    var simklClientIdInput by remember(state.simklClientId) { mutableStateOf(state.simklClientId) }
+    var simklAccessTokenInput by remember { mutableStateOf("") }
+    var simklAccessTokenVisible by remember { mutableStateOf(false) }
+    var simklSyncMoviesInput by remember(state.simklSyncMovies) { mutableStateOf(state.simklSyncMovies) }
+    var simklSyncShowsInput by remember(state.simklSyncShows) { mutableStateOf(state.simklSyncShows) }
+    var simklSyncAnimeInput by remember(state.simklSyncAnime) { mutableStateOf(state.simklSyncAnime) }
+    var simklSyncRatingsInput by remember(state.simklSyncRatings) { mutableStateOf(state.simklSyncRatings) }
+
     var secretVisible by remember { mutableStateOf(false) }
     var lastfmKeyVisible by remember { mutableStateOf(false) }
     var lastfmKeyCleared by remember(showLastFmEditor) { mutableStateOf(false) }
@@ -88,7 +117,7 @@ fun SettingsScreen(
     val otherActivePlugins = remember(state.enabledPluginIds) {
         com.personalrecords.app.core.integrations.PluginRegistry.defaultPlugins.filter { plugin ->
             (plugin.id in state.enabledPluginIds) &&
-                plugin.id !in setOf("notification", "notification_relay", "health_connect", "fatsecret", "letterboxd", "goodreads", "lastfm", "listenbrainz", "statsfm", "web_scrobbler")
+                plugin.id !in setOf("notification", "notification_relay", "health_connect", "fatsecret", "letterboxd", "goodreads", "lastfm", "listenbrainz", "statsfm", "web_scrobbler", "trakt", "mdblist", "simkl")
         }
     }
 
@@ -208,6 +237,36 @@ fun SettingsScreen(
         }
     }
 
+    LaunchedEffect(state.traktSaveMessage) {
+        state.traktSaveMessage?.let {
+            snackbarHostState.showSnackbar(it)
+            viewModel.clearTraktSaveMessage()
+            if (!it.startsWith("Hata") && !it.startsWith("Error")) {
+                showTraktEditor = false
+            }
+        }
+    }
+
+    LaunchedEffect(state.mdblistSaveMessage) {
+        state.mdblistSaveMessage?.let {
+            snackbarHostState.showSnackbar(it)
+            viewModel.clearMdbListSaveMessage()
+            if (!it.startsWith("Hata") && !it.startsWith("Error")) {
+                showMdbListEditor = false
+            }
+        }
+    }
+
+    LaunchedEffect(state.simklSaveMessage) {
+        state.simklSaveMessage?.let {
+            snackbarHostState.showSnackbar(it)
+            viewModel.clearSimklSaveMessage()
+            if (!it.startsWith("Hata") && !it.startsWith("Error")) {
+                showSimklEditor = false
+            }
+        }
+    }
+
     var isRefreshing by remember { mutableStateOf(false) }
     val listState = androidx.compose.foundation.lazy.rememberLazyListState()
 
@@ -232,10 +291,19 @@ fun SettingsScreen(
         }
     }
 
+    val scrollBehavior = TopAppBarDefaults.enterAlwaysScrollBehavior(rememberTopAppBarState())
     Scaffold(
-        modifier = Modifier.fillMaxSize(),
+        modifier = Modifier
+            .fillMaxSize()
+            .nestedScroll(scrollBehavior.nestedScrollConnection),
+        topBar = {
+            ExpressivePageTopAppBar(
+                title = stringResource(R.string.title_settings),
+                scrollBehavior = scrollBehavior
+            )
+        },
         contentWindowInsets = WindowInsets.statusBars,
-        snackbarHost = { SnackbarHost(snackbarHostState, modifier = Modifier.navigationBarsPadding().padding(bottom = 96.dp)) }
+        snackbarHost = { SnackbarHost(snackbarHostState, modifier = Modifier.padding(bottom = floatingBottomNavigationContentPadding())) }
     ) { innerPadding ->
         ExpressivePullToRefreshBox(
             isRefreshing = isRefreshing,
@@ -253,7 +321,7 @@ fun SettingsScreen(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(horizontal = 12.dp),
-                contentPadding = PaddingValues(top = 4.dp, bottom = 144.dp),
+                contentPadding = PaddingValues(top = 4.dp, bottom = floatingBottomNavigationContentPadding()),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 // ==========================================
@@ -350,8 +418,8 @@ fun SettingsScreen(
 
                             // Connection status chip
                             state.connectionSuccess?.let { ok ->
-                                val statusBg = if (ok) domainNutritionContainer() else MaterialTheme.colorScheme.errorContainer
-                                val statusFg = if (ok) domainNutritionOnContainer() else MaterialTheme.colorScheme.onErrorContainer
+                                val statusBg = if (ok) statusColors(StatusTone.Active).container else MaterialTheme.colorScheme.errorContainer
+                                val statusFg = if (ok) statusColors(StatusTone.Active).onContainer else MaterialTheme.colorScheme.onErrorContainer
                                 Surface(
                                     shape = M3Shapes.CornerFull,
                                     color = statusBg,
@@ -409,6 +477,37 @@ fun SettingsScreen(
 
                         Spacer(modifier = Modifier.height(8.dp))
 
+                        var apiKeyVisible by remember { mutableStateOf(false) }
+
+                        OutlinedTextField(
+                            value = state.serverApiKey,
+                            onValueChange = { viewModel.updateServerApiKeyInput(it) },
+                            modifier = Modifier.fillMaxWidth(),
+                            label = { Text(stringResource(R.string.settings_server_api_key_label)) },
+                            placeholder = { Text(stringResource(R.string.settings_server_api_key_hint)) },
+                            singleLine = true,
+                            visualTransformation = if (apiKeyVisible) VisualTransformation.None else PasswordVisualTransformation(),
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+                            leadingIcon = {
+                                Icon(
+                                    imageVector = Icons.Default.Key,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.primary
+                                )
+                            },
+                            trailingIcon = {
+                                IconButton(onClick = { apiKeyVisible = !apiKeyVisible }) {
+                                    Icon(
+                                        imageVector = if (apiKeyVisible) Icons.Default.VisibilityOff else Icons.Default.Visibility,
+                                        contentDescription = if (apiKeyVisible) "Gizle" else "Göster"
+                                    )
+                                }
+                            },
+                            shape = M3Shapes.CornerMedium
+                        )
+
+                        Spacer(modifier = Modifier.height(8.dp))
+
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -417,15 +516,9 @@ fun SettingsScreen(
                             Button(
                                 onClick = { viewModel.saveServerUrl() },
                                 interactionSource = saveBtnInteraction,
-                                shape = rememberExpressiveButtonShape(
-                                    interactionSource = saveBtnInteraction,
-                                    restingCorner = M3CornerRadius.Medium,
-                                    pressedCorner = M3CornerRadius.ExtraSmall
-                                ),
+                                shapes = expressiveButtonShapes(),
                                 modifier = Modifier
-                                    .weight(1f)
-                                    .height(42.dp)
-                                    .expressivePressScale(saveBtnInteraction),
+                                    .weight(1f),
                                 contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp)
                             ) {
                                 Row(
@@ -448,21 +541,14 @@ fun SettingsScreen(
                                 onClick = { viewModel.testConnection() },
                                 enabled = !state.isTestingConnection,
                                 interactionSource = testBtnInteraction,
-                                shape = rememberExpressiveButtonShape(
-                                    interactionSource = testBtnInteraction,
-                                    restingCorner = M3CornerRadius.Medium,
-                                    pressedCorner = M3CornerRadius.ExtraSmall
-                                ),
+                                shapes = expressiveButtonShapes(),
                                 modifier = Modifier
-                                    .weight(1f)
-                                    .height(42.dp)
-                                    .expressivePressScale(testBtnInteraction),
+                                    .weight(1f),
                                 contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp)
                             ) {
                                 if (state.isTestingConnection) {
                                     ExpressiveLoadingIndicator(
                                         size = 16.dp,
-                                        strokeWidth = 2.dp,
                                         color = MaterialTheme.colorScheme.primary
                                     )
                                 } else {
@@ -481,6 +567,20 @@ fun SettingsScreen(
                                     }
                                 }
                             }
+                        }
+
+                        state.authStatusMessage?.let { msg ->
+                            Spacer(modifier = Modifier.height(10.dp))
+                            Text(
+                                text = msg,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = if (state.connectionSuccess == true) {
+                                    MaterialTheme.colorScheme.primary
+                                } else {
+                                    MaterialTheme.colorScheme.error
+                                },
+                                modifier = Modifier.padding(start = 4.dp)
+                            )
                         }
                     }
                 }
@@ -657,17 +757,16 @@ fun SettingsScreen(
                             horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
                             Button(
+                                shapes = expressiveButtonShapes(),
                                 onClick = {
                                     clipboardManager.setText(AnnotatedString(webhookUrl))
                                     coroutineScope.launch {
                                         snackbarHostState.showSnackbar(context.getString(R.string.toast_webhook_copied))
                                     }
                                 },
-                                shape = M3Shapes.CornerMedium,
                                 modifier = Modifier
                                     .weight(1f)
-                                    .height(42.dp)
-                                    .expressivePressScale(remember { MutableInteractionSource() }),
+                                    .height(42.dp),
                                 contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp)
                             ) {
                                 Row(
@@ -690,16 +789,15 @@ fun SettingsScreen(
                             }
 
                             OutlinedButton(
+                                shapes = expressiveButtonShapes(),
                                 onClick = {
                                     val intent = Intent(Intent.ACTION_VIEW,
                                         "https://github.com/cobanov/notification-relay-webhook/releases".toUri())
                                     context.startActivity(intent)
                                 },
-                                shape = M3Shapes.CornerMedium,
                                 modifier = Modifier
                                     .weight(1f)
-                                    .height(42.dp)
-                                    .expressivePressScale(remember { MutableInteractionSource() }),
+                                    .height(42.dp),
                                 contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp)
                             ) {
                                 Row(
@@ -718,6 +816,70 @@ fun SettingsScreen(
                                         softWrap = false,
                                         overflow = TextOverflow.Ellipsis
                                     )
+                                }
+                            }
+                        }
+
+                        if (state.apiKey.isNotBlank()) {
+                            val authWebhookUrl = "$healthWebhookUrl?api_key=${state.apiKey}"
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Surface(
+                                shape = M3Shapes.CornerMedium,
+                                color = MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.35f),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Column(modifier = Modifier.padding(10.dp)) {
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.Lock,
+                                            contentDescription = null,
+                                            modifier = Modifier.size(16.dp),
+                                            tint = MaterialTheme.colorScheme.tertiary
+                                        )
+                                        Text(
+                                            text = "API Anahtarı Koruması Aktif (401 Önleme)",
+                                            style = MaterialTheme.typography.labelSmallEmphasized,
+                                            color = MaterialTheme.colorScheme.onTertiaryContainer
+                                        )
+                                    }
+                                    Spacer(modifier = Modifier.height(4.dp))
+                                    Text(
+                                        text = stringResource(R.string.settings_webhook_auth_header_tip),
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                    Spacer(modifier = Modifier.height(6.dp))
+                                    OutlinedButton(
+                                        shapes = expressiveButtonShapes(),
+                                        onClick = {
+                                            clipboardManager.setText(AnnotatedString(authWebhookUrl))
+                                            coroutineScope.launch {
+                                                snackbarHostState.showSnackbar(context.getString(R.string.toast_webhook_auth_copied))
+                                            }
+                                        },
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .height(38.dp),
+                                        contentPadding = PaddingValues(horizontal = 10.dp, vertical = 0.dp)
+                                    ) {
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Default.Key,
+                                                contentDescription = null,
+                                                modifier = Modifier.size(14.dp)
+                                            )
+                                            Text(
+                                                text = stringResource(R.string.action_copy_auth_url),
+                                                style = MaterialTheme.typography.labelMediumEmphasized
+                                            )
+                                        }
+                                    }
                                 }
                             }
                         }
@@ -776,8 +938,8 @@ fun SettingsScreen(
                             ) {
                                 SettingsIconBox(
                                     icon = Icons.Default.Favorite,
-                                    containerColor = domainHealthContainer(),
-                                    contentColor = domainHealthOnContainer()
+                                    containerColor = recordCategoryColors(RecordCategory.Health).container,
+                                    contentColor = recordCategoryColors(RecordCategory.Health).onContainer
                                 )
                                 Column(modifier = Modifier.weight(1f, fill = false)) {
                                     Text(
@@ -836,17 +998,16 @@ fun SettingsScreen(
                             horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
                             Button(
+                                shapes = expressiveButtonShapes(),
                                 onClick = {
                                     clipboardManager.setText(AnnotatedString(healthWebhookUrl))
                                     coroutineScope.launch {
                                         snackbarHostState.showSnackbar(context.getString(R.string.toast_webhook_copied))
                                     }
                                 },
-                                shape = M3Shapes.CornerMedium,
                                 modifier = Modifier
                                     .weight(1f)
-                                    .height(42.dp)
-                                    .expressivePressScale(remember { MutableInteractionSource() }),
+                                    .height(42.dp),
                                 contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp)
                             ) {
                                 Row(
@@ -869,16 +1030,15 @@ fun SettingsScreen(
                             }
 
                             OutlinedButton(
+                                shapes = expressiveButtonShapes(),
                                 onClick = {
                                     val intent = Intent(Intent.ACTION_VIEW,
                                         "https://github.com/mcnaveen/health-connect-webhook/releases".toUri())
                                     context.startActivity(intent)
                                 },
-                                shape = M3Shapes.CornerMedium,
                                 modifier = Modifier
                                     .weight(1f)
-                                    .height(42.dp)
-                                    .expressivePressScale(remember { MutableInteractionSource() }),
+                                    .height(42.dp),
                                 contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp)
                             ) {
                                 Row(
@@ -897,6 +1057,70 @@ fun SettingsScreen(
                                         softWrap = false,
                                         overflow = TextOverflow.Ellipsis
                                     )
+                                }
+                            }
+                        }
+
+                        if (state.apiKey.isNotBlank()) {
+                            val authWebhookUrl = "$healthWebhookUrl?api_key=${state.apiKey}"
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Surface(
+                                shape = M3Shapes.CornerMedium,
+                                color = MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.35f),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Column(modifier = Modifier.padding(10.dp)) {
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.Lock,
+                                            contentDescription = null,
+                                            modifier = Modifier.size(16.dp),
+                                            tint = MaterialTheme.colorScheme.tertiary
+                                        )
+                                        Text(
+                                            text = "API Anahtarı Koruması Aktif (401 Önleme)",
+                                            style = MaterialTheme.typography.labelSmallEmphasized,
+                                            color = MaterialTheme.colorScheme.onTertiaryContainer
+                                        )
+                                    }
+                                    Spacer(modifier = Modifier.height(4.dp))
+                                    Text(
+                                        text = stringResource(R.string.settings_webhook_auth_header_tip),
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                    Spacer(modifier = Modifier.height(6.dp))
+                                    OutlinedButton(
+                                        shapes = expressiveButtonShapes(),
+                                        onClick = {
+                                            clipboardManager.setText(AnnotatedString(authWebhookUrl))
+                                            coroutineScope.launch {
+                                                snackbarHostState.showSnackbar(context.getString(R.string.toast_webhook_auth_copied))
+                                            }
+                                        },
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .height(38.dp),
+                                        contentPadding = PaddingValues(horizontal = 10.dp, vertical = 0.dp)
+                                    ) {
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Default.Key,
+                                                contentDescription = null,
+                                                modifier = Modifier.size(14.dp)
+                                            )
+                                            Text(
+                                                text = stringResource(R.string.action_copy_auth_url),
+                                                style = MaterialTheme.typography.labelMediumEmphasized
+                                            )
+                                        }
+                                    }
                                 }
                             }
                         }
@@ -974,30 +1198,11 @@ fun SettingsScreen(
                             }
 
                             if (state.isConnected) {
-                                Surface(
-                                    shape = M3Shapes.CornerFull,
-                                    color = domainNutritionContainer(),
+                                ExpressiveStatusBadge(
+                                    text = stringResource(R.string.badge_connected),
+                                    tone = StatusTone.Active,
                                     modifier = Modifier.padding(start = 8.dp)
-                                ) {
-                                    Row(
-                                        verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.spacedBy(4.dp),
-                                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
-                                    ) {
-                                        Box(
-                                            modifier = Modifier
-                                                .size(6.dp)
-                                                .background(domainNutritionOnContainer(), M3Shapes.CornerFull)
-                                        )
-                                        Text(
-                                            text = stringResource(R.string.badge_connected),
-                                            color = domainNutritionOnContainer(),
-                                            style = MaterialTheme.typography.labelSmallEmphasized,
-                                            maxLines = 1,
-                                            softWrap = false
-                                        )
-                                    }
-                                }
+                                )
                             } else if (state.hasKeys) {
                                 Surface(
                                     shape = M3Shapes.CornerFull,
@@ -1037,7 +1242,7 @@ fun SettingsScreen(
                                         Icon(
                                             imageVector = Icons.Default.CheckCircle,
                                             contentDescription = null,
-                                            tint = domainNutritionColor(),
+                                            tint = statusColors(StatusTone.Active).indicator,
                                             modifier = Modifier.size(20.dp)
                                         )
                                         Column(modifier = Modifier.weight(1f)) {
@@ -1058,11 +1263,10 @@ fun SettingsScreen(
                                     }
                                     // Nested inside 12dp summary Surface -> 8dp CornerSmall
                                     FilledTonalButton(
+                                        shapes = expressiveButtonShapes(),
                                         onClick = { showKeyEditor = !showKeyEditor },
-                                        shape = M3Shapes.CornerSmall,
                                         modifier = Modifier
-                                            .height(34.dp)
-                                            .expressivePressScale(remember { MutableInteractionSource() }),
+                                            .height(34.dp),
                                         contentPadding = PaddingValues(horizontal = 10.dp, vertical = 0.dp)
                                     ) {
                                         Row(
@@ -1158,6 +1362,7 @@ fun SettingsScreen(
                                     Spacer(modifier = Modifier.height(10.dp))
 
                                     Button(
+                                        shapes = expressiveButtonShapes(),
                                         onClick = {
                                             viewModel.saveFatSecretKeys()
                                             showKeyEditor = false
@@ -1165,9 +1370,7 @@ fun SettingsScreen(
                                         enabled = !state.isSavingKeys && state.consumerKey.isNotBlank() && state.consumerSecret.isNotBlank(),
                                         modifier = Modifier
                                             .fillMaxWidth()
-                                            .height(42.dp)
-                                            .expressivePressScale(remember { MutableInteractionSource() }),
-                                        shape = M3Shapes.CornerSmall,
+                                            .height(42.dp),
                                         contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp)
                                     ) {
                                         if (state.isSavingKeys) {
@@ -1200,6 +1403,7 @@ fun SettingsScreen(
                                     if (state.hasKeys && !state.isConnected) {
                                         Spacer(modifier = Modifier.height(8.dp))
                                         FilledTonalButton(
+                                            shapes = expressiveButtonShapes(),
                                             onClick = {
                                                 val baseUrl = state.serverUrl.trim().trimEnd('/')
                                                 if (baseUrl.isBlank()) {
@@ -1216,9 +1420,7 @@ fun SettingsScreen(
                                             },
                                             modifier = Modifier
                                                 .fillMaxWidth()
-                                                .height(42.dp)
-                                                .expressivePressScale(remember { MutableInteractionSource() }),
-                                            shape = M3Shapes.CornerSmall,
+                                                .height(42.dp),
                                             contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp)
                                         ) {
                                             Row(
@@ -1334,13 +1536,12 @@ fun SettingsScreen(
                         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                 FilledTonalButton(
+                                    shapes = expressiveButtonShapes(),
                                     onClick = { viewModel.syncFatSecret(1) },
                                     enabled = state.isSyncing == null,
-                                    shape = M3Shapes.CornerMedium,
                                     modifier = Modifier
                                         .weight(1f)
-                                        .height(40.dp)
-                                        .expressivePressScale(remember { MutableInteractionSource() }),
+                                        .height(40.dp),
                                     contentPadding = PaddingValues(horizontal = 10.dp, vertical = 0.dp)
                                 ) {
                                     Text(
@@ -1352,13 +1553,12 @@ fun SettingsScreen(
                                     )
                                 }
                                 FilledTonalButton(
+                                    shapes = expressiveButtonShapes(),
                                     onClick = { viewModel.syncFatSecret(30) },
                                     enabled = state.isSyncing == null,
-                                    shape = M3Shapes.CornerMedium,
                                     modifier = Modifier
                                         .weight(1f)
-                                        .height(40.dp)
-                                        .expressivePressScale(remember { MutableInteractionSource() }),
+                                        .height(40.dp),
                                     contentPadding = PaddingValues(horizontal = 10.dp, vertical = 0.dp)
                                 ) {
                                     Text(
@@ -1372,13 +1572,12 @@ fun SettingsScreen(
                             }
                             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                 FilledTonalButton(
+                                    shapes = expressiveButtonShapes(),
                                     onClick = { viewModel.syncFatSecret(365) },
                                     enabled = state.isSyncing == null,
-                                    shape = M3Shapes.CornerMedium,
                                     modifier = Modifier
                                         .weight(1f)
-                                        .height(40.dp)
-                                        .expressivePressScale(remember { MutableInteractionSource() }),
+                                        .height(40.dp),
                                     contentPadding = PaddingValues(horizontal = 10.dp, vertical = 0.dp)
                                 ) {
                                     Text(
@@ -1390,13 +1589,12 @@ fun SettingsScreen(
                                     )
                                 }
                                 FilledTonalButton(
+                                    shapes = expressiveButtonShapes(),
                                     onClick = { viewModel.syncFatSecret(1095) },
                                     enabled = state.isSyncing == null,
-                                    shape = M3Shapes.CornerMedium,
                                     modifier = Modifier
                                         .weight(1f)
-                                        .height(40.dp)
-                                        .expressivePressScale(remember { MutableInteractionSource() }),
+                                        .height(40.dp),
                                     contentPadding = PaddingValues(horizontal = 10.dp, vertical = 0.dp)
                                 ) {
                                     Text(
@@ -1451,30 +1649,11 @@ fun SettingsScreen(
                             }
 
                             if (state.letterboxdUrl.isNotBlank()) {
-                                Surface(
-                                    shape = M3Shapes.CornerFull,
-                                    color = domainNutritionContainer(),
+                                ExpressiveStatusBadge(
+                                    text = stringResource(R.string.badge_connected),
+                                    tone = StatusTone.Active,
                                     modifier = Modifier.padding(start = 8.dp)
-                                ) {
-                                    Row(
-                                        verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.spacedBy(4.dp),
-                                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
-                                    ) {
-                                        Box(
-                                            modifier = Modifier
-                                                .size(6.dp)
-                                                .background(domainNutritionOnContainer(), M3Shapes.CornerFull)
-                                        )
-                                        Text(
-                                            text = stringResource(R.string.badge_connected),
-                                            color = domainNutritionOnContainer(),
-                                            style = MaterialTheme.typography.labelSmallEmphasized,
-                                            maxLines = 1,
-                                            softWrap = false
-                                        )
-                                    }
-                                }
+                                )
                             }
                         }
 
@@ -1499,7 +1678,7 @@ fun SettingsScreen(
                                         Icon(
                                             imageVector = Icons.Default.CheckCircle,
                                             contentDescription = null,
-                                            tint = domainNutritionColor(),
+                                            tint = statusColors(StatusTone.Active).indicator,
                                             modifier = Modifier.size(20.dp)
                                         )
                                         Column(modifier = Modifier.weight(1f)) {
@@ -1521,11 +1700,10 @@ fun SettingsScreen(
                                     }
                                     // Nested inside 12dp summary Surface -> 8dp CornerSmall
                                     FilledTonalButton(
+                                        shapes = expressiveButtonShapes(),
                                         onClick = { showLetterboxdEditor = !showLetterboxdEditor },
-                                        shape = M3Shapes.CornerSmall,
                                         modifier = Modifier
-                                            .height(34.dp)
-                                            .expressivePressScale(remember { MutableInteractionSource() }),
+                                            .height(34.dp),
                                         contentPadding = PaddingValues(horizontal = 10.dp, vertical = 0.dp)
                                     ) {
                                         Row(
@@ -1597,16 +1775,15 @@ fun SettingsScreen(
                                     Spacer(modifier = Modifier.height(8.dp))
 
                                     Button(
+                                        shapes = expressiveButtonShapes(),
                                         onClick = {
                                             viewModel.saveLetterboxdSettings()
                                             showLetterboxdEditor = false
                                         },
                                         enabled = !state.isSavingLetterboxd && state.letterboxdUrl.isNotBlank(),
-                                        shape = M3Shapes.CornerSmall,
                                         modifier = Modifier
                                             .fillMaxWidth()
-                                            .height(42.dp)
-                                            .expressivePressScale(remember { MutableInteractionSource() }),
+                                            .height(42.dp),
                                         contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp)
                                     ) {
                                         if (state.isSavingLetterboxd) {
@@ -1638,13 +1815,12 @@ fun SettingsScreen(
                         if (state.letterboxdUrl.isNotBlank()) {
                             Spacer(modifier = Modifier.height(8.dp))
                             FilledTonalButton(
+                                shapes = expressiveButtonShapes(),
                                 onClick = { viewModel.syncLetterboxd() },
                                 enabled = state.isSyncing == null,
-                                shape = M3Shapes.CornerMedium,
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .height(42.dp)
-                                    .expressivePressScale(remember { MutableInteractionSource() }),
+                                    .height(42.dp),
                                 contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp)
                             ) {
                                 if (state.isSyncing == "letterboxd") {
@@ -1724,30 +1900,11 @@ fun SettingsScreen(
                             }
 
                             if (state.goodreadsUrl.isNotBlank()) {
-                                Surface(
-                                    shape = M3Shapes.CornerFull,
-                                    color = domainNutritionContainer(),
+                                ExpressiveStatusBadge(
+                                    text = stringResource(R.string.badge_connected),
+                                    tone = StatusTone.Active,
                                     modifier = Modifier.padding(start = 8.dp)
-                                ) {
-                                    Row(
-                                        verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.spacedBy(4.dp),
-                                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
-                                    ) {
-                                        Box(
-                                            modifier = Modifier
-                                                .size(6.dp)
-                                                .background(domainNutritionOnContainer(), M3Shapes.CornerFull)
-                                        )
-                                        Text(
-                                            text = stringResource(R.string.badge_connected),
-                                            color = domainNutritionOnContainer(),
-                                            style = MaterialTheme.typography.labelSmallEmphasized,
-                                            maxLines = 1,
-                                            softWrap = false
-                                        )
-                                    }
-                                }
+                                )
                             }
                         }
 
@@ -1772,7 +1929,7 @@ fun SettingsScreen(
                                         Icon(
                                             imageVector = Icons.Default.CheckCircle,
                                             contentDescription = null,
-                                            tint = domainNutritionColor(),
+                                            tint = statusColors(StatusTone.Active).indicator,
                                             modifier = Modifier.size(20.dp)
                                         )
                                         Column(modifier = Modifier.weight(1f)) {
@@ -1794,11 +1951,10 @@ fun SettingsScreen(
                                     }
                                     // Nested inside 12dp summary Surface -> 8dp CornerSmall
                                     FilledTonalButton(
+                                        shapes = expressiveButtonShapes(),
                                         onClick = { showGoodreadsEditor = !showGoodreadsEditor },
-                                        shape = M3Shapes.CornerSmall,
                                         modifier = Modifier
-                                            .height(34.dp)
-                                            .expressivePressScale(remember { MutableInteractionSource() }),
+                                            .height(34.dp),
                                         contentPadding = PaddingValues(horizontal = 10.dp, vertical = 0.dp)
                                     ) {
                                         Row(
@@ -1870,16 +2026,15 @@ fun SettingsScreen(
                                     Spacer(modifier = Modifier.height(8.dp))
 
                                     Button(
+                                        shapes = expressiveButtonShapes(),
                                         onClick = {
                                             viewModel.saveGoodreadsSettings()
                                             showGoodreadsEditor = false
                                         },
                                         enabled = !state.isSavingGoodreads && state.goodreadsUrl.isNotBlank(),
-                                        shape = M3Shapes.CornerSmall,
                                         modifier = Modifier
                                             .fillMaxWidth()
-                                            .height(42.dp)
-                                            .expressivePressScale(remember { MutableInteractionSource() }),
+                                            .height(42.dp),
                                         contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp)
                                     ) {
                                         if (state.isSavingGoodreads) {
@@ -1911,13 +2066,12 @@ fun SettingsScreen(
                         if (state.goodreadsUrl.isNotBlank()) {
                             Spacer(modifier = Modifier.height(8.dp))
                             FilledTonalButton(
+                                shapes = expressiveButtonShapes(),
                                 onClick = { viewModel.syncGoodreads() },
                                 enabled = state.isSyncing == null,
-                                shape = M3Shapes.CornerMedium,
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .height(42.dp)
-                                    .expressivePressScale(remember { MutableInteractionSource() }),
+                                    .height(42.dp),
                                 contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp)
                             ) {
                                 if (state.isSyncing == "goodreads") {
@@ -1959,6 +2113,925 @@ fun SettingsScreen(
                 }
                 }
 
+                // 5b. Trakt.tv API
+                if (state.enabledPluginIds.contains("trakt")) {
+                    item(key = "config_trakt") {
+                        SettingsCard {
+                            // Trakt Card Header
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Row(
+                                    modifier = Modifier.weight(1f),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                                ) {
+                                    SettingsIconBox(
+                                        icon = Icons.Default.Tv,
+                                        containerColor = MaterialTheme.colorScheme.errorContainer,
+                                        contentColor = MaterialTheme.colorScheme.onErrorContainer
+                                    )
+                                    Column(modifier = Modifier.weight(1f, fill = false)) {
+                                        Text(
+                                            text = stringResource(R.string.settings_trakt_title),
+                                            style = MaterialTheme.typography.titleMediumEmphasized,
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis
+                                        )
+                                        Text(
+                                            text = stringResource(R.string.settings_trakt_desc),
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis
+                                        )
+                                    }
+                                }
+
+                                if (state.traktUsername.isNotBlank()) {
+                                    ExpressiveStatusBadge(
+                                        text = stringResource(R.string.badge_connected),
+                                        tone = StatusTone.Active,
+                                        modifier = Modifier.padding(start = 8.dp)
+                                    )
+                                }
+                            }
+
+                            // Configured Summary Box
+                            if (state.traktUsername.isNotBlank()) {
+                                Spacer(modifier = Modifier.height(10.dp))
+                                Surface(
+                                    shape = M3Shapes.CornerMedium,
+                                    color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.65f),
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        modifier = Modifier.padding(12.dp)
+                                    ) {
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(10.dp),
+                                            modifier = Modifier.weight(1f)
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Default.CheckCircle,
+                                                contentDescription = null,
+                                                tint = statusColors(StatusTone.Active).indicator,
+                                                modifier = Modifier.size(20.dp)
+                                            )
+                                            Column(modifier = Modifier.weight(1f)) {
+                                                Text(
+                                                    text = "@${state.traktUsername}",
+                                                    style = MaterialTheme.typography.titleSmallEmphasized
+                                                )
+                                                Text(
+                                                    text = buildString {
+                                                        val items = mutableListOf<String>()
+                                                        if (state.traktSyncMovies) items.add("Filmler")
+                                                        if (state.traktSyncEpisodes) items.add("Diziler")
+                                                        if (state.traktSyncRatings) items.add("Puanlar")
+                                                        append(items.joinToString(" · "))
+                                                    },
+                                                    style = MaterialTheme.typography.bodySmall,
+                                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                    maxLines = 1,
+                                                    overflow = TextOverflow.Ellipsis
+                                                )
+                                            }
+                                        }
+
+                                        FilledTonalButton(
+                                            shapes = expressiveButtonShapes(),
+                                            onClick = { showTraktEditor = !showTraktEditor },
+                                            modifier = Modifier
+                                                .height(34.dp),
+                                            contentPadding = PaddingValues(horizontal = 10.dp, vertical = 0.dp)
+                                        ) {
+                                            Row(
+                                                verticalAlignment = Alignment.CenterVertically,
+                                                horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                            ) {
+                                                Icon(
+                                                    imageVector = if (showTraktEditor) Icons.Default.ExpandLess else Icons.Default.Edit,
+                                                    contentDescription = null,
+                                                    modifier = Modifier.size(14.dp)
+                                                )
+                                                Text(
+                                                    text = if (showTraktEditor) stringResource(R.string.action_cancel) else stringResource(R.string.action_edit),
+                                                    style = MaterialTheme.typography.labelMedium,
+                                                    maxLines = 1,
+                                                    softWrap = false
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+
+                            // Editor / Initial Setup Inputs
+                            AnimatedVisibility(
+                                visible = state.traktUsername.isBlank() || showTraktEditor,
+                                enter = expandVertically(animationSpec = M3ExpressiveMotion.defaultSpatial()) + fadeIn(animationSpec = M3ExpressiveMotion.defaultEffects()),
+                                exit = shrinkVertically(animationSpec = M3ExpressiveMotion.defaultSpatial()) + fadeOut(animationSpec = M3ExpressiveMotion.fastEffects())
+                            ) {
+                                Surface(
+                                    shape = M3Shapes.CornerMedium,
+                                    color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.65f),
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(top = 8.dp)
+                                ) {
+                                    Column(
+                                        modifier = Modifier.padding(12.dp),
+                                        verticalArrangement = Arrangement.spacedBy(10.dp)
+                                    ) {
+                                        OutlinedTextField(
+                                            value = traktUsernameInput,
+                                            onValueChange = { traktUsernameInput = it },
+                                            modifier = Modifier.fillMaxWidth(),
+                                            label = { Text(stringResource(R.string.settings_trakt_user_label)) },
+                                            placeholder = { Text(stringResource(R.string.settings_trakt_user_hint)) },
+                                            singleLine = true,
+                                            leadingIcon = {
+                                                Icon(
+                                                    imageVector = Icons.Default.Person,
+                                                    contentDescription = null,
+                                                    tint = MaterialTheme.colorScheme.primary
+                                                )
+                                            },
+                                            shape = M3Shapes.CornerSmall
+                                        )
+
+                                        OutlinedTextField(
+                                            value = traktClientIdInput,
+                                            onValueChange = { traktClientIdInput = it },
+                                            modifier = Modifier.fillMaxWidth(),
+                                            label = { Text(stringResource(R.string.settings_trakt_client_id_label)) },
+                                            placeholder = { Text(stringResource(R.string.settings_trakt_client_id_hint)) },
+                                            singleLine = true,
+                                            leadingIcon = {
+                                                Icon(
+                                                    imageVector = Icons.Default.Key,
+                                                    contentDescription = null,
+                                                    tint = MaterialTheme.colorScheme.primary
+                                                )
+                                            },
+                                            shape = M3Shapes.CornerSmall,
+                                            supportingText = {
+                                                Text(stringResource(R.string.settings_trakt_hint))
+                                            }
+                                        )
+
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                                        ) {
+                                            Row(
+                                                verticalAlignment = Alignment.CenterVertically,
+                                                modifier = Modifier.clickable { traktSyncMoviesInput = !traktSyncMoviesInput }
+                                            ) {
+                                                Checkbox(
+                                                    checked = traktSyncMoviesInput,
+                                                    onCheckedChange = { traktSyncMoviesInput = it }
+                                                )
+                                                Text(
+                                                    text = stringResource(R.string.settings_trakt_sync_movies),
+                                                    style = MaterialTheme.typography.bodySmall
+                                                )
+                                            }
+                                            Row(
+                                                verticalAlignment = Alignment.CenterVertically,
+                                                modifier = Modifier.clickable { traktSyncEpisodesInput = !traktSyncEpisodesInput }
+                                            ) {
+                                                Checkbox(
+                                                    checked = traktSyncEpisodesInput,
+                                                    onCheckedChange = { traktSyncEpisodesInput = it }
+                                                )
+                                                Text(
+                                                    text = stringResource(R.string.settings_trakt_sync_episodes),
+                                                    style = MaterialTheme.typography.bodySmall
+                                                )
+                                            }
+                                        }
+
+                                        Button(
+                                            shapes = expressiveButtonShapes(),
+                                            onClick = {
+                                                viewModel.saveTraktSettings(
+                                                    username = traktUsernameInput,
+                                                    clientId = traktClientIdInput,
+                                                    syncMovies = traktSyncMoviesInput,
+                                                    syncEpisodes = traktSyncEpisodesInput,
+                                                    syncRatings = traktSyncRatingsInput
+                                                )
+                                                showTraktEditor = false
+                                            },
+                                            enabled = !state.isSavingTrakt && traktUsernameInput.isNotBlank(),
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .height(42.dp),
+                                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp)
+                                        ) {
+                                            if (state.isSavingTrakt) {
+                                                ExpressiveLoadingIndicator(
+                                                    size = 16.dp,
+                                                    strokeWidth = 2.dp,
+                                                    color = MaterialTheme.colorScheme.onPrimary
+                                                )
+                                            } else {
+                                                Row(
+                                                    verticalAlignment = Alignment.CenterVertically,
+                                                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                                ) {
+                                                    Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(16.dp))
+                                                    Text(
+                                                        text = stringResource(R.string.action_save),
+                                                        style = MaterialTheme.typography.labelLargeEmphasized,
+                                                        maxLines = 1,
+                                                        softWrap = false,
+                                                        overflow = TextOverflow.Ellipsis
+                                                    )
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+
+                            if (state.traktUsername.isNotBlank()) {
+                                Spacer(modifier = Modifier.height(8.dp))
+                                FilledTonalButton(
+                                    shapes = expressiveButtonShapes(),
+                                    onClick = { viewModel.syncTrakt() },
+                                    enabled = state.isSyncing == null,
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(42.dp),
+                                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp)
+                                ) {
+                                    if (state.isSyncing == "trakt") {
+                                        ExpressiveLoadingIndicator(
+                                            size = 16.dp,
+                                            strokeWidth = 2.dp,
+                                            color = MaterialTheme.colorScheme.primary
+                                        )
+                                        Spacer(modifier = Modifier.width(8.dp))
+                                        Text(
+                                            text = stringResource(R.string.action_syncing),
+                                            style = MaterialTheme.typography.labelLarge,
+                                            maxLines = 1,
+                                            softWrap = false,
+                                            overflow = TextOverflow.Ellipsis
+                                        )
+                                    } else {
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Default.Sync,
+                                                contentDescription = null,
+                                                modifier = Modifier.size(16.dp)
+                                            )
+                                            Text(
+                                                text = stringResource(R.string.settings_trakt_sync),
+                                                style = MaterialTheme.typography.labelLarge,
+                                                maxLines = 1,
+                                                softWrap = false,
+                                                overflow = TextOverflow.Ellipsis
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // 5c. MDBList API
+                if (state.enabledPluginIds.contains("mdblist")) {
+                    item(key = "config_mdblist") {
+                        SettingsCard {
+                            // MDBList Card Header
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Row(
+                                    modifier = Modifier.weight(1f),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                                ) {
+                                    SettingsIconBox(
+                                        icon = Icons.Default.VideoLibrary,
+                                        containerColor = MaterialTheme.colorScheme.primaryContainer,
+                                        contentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                                    )
+                                    Column(modifier = Modifier.weight(1f, fill = false)) {
+                                        Text(
+                                            text = stringResource(R.string.settings_mdblist_title),
+                                            style = MaterialTheme.typography.titleMediumEmphasized,
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis
+                                        )
+                                        Text(
+                                            text = stringResource(R.string.settings_mdblist_desc),
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis
+                                        )
+                                    }
+                                }
+
+                                if (state.mdblistApiKey.isNotBlank()) {
+                                    ExpressiveStatusBadge(
+                                        text = stringResource(R.string.badge_connected),
+                                        tone = StatusTone.Active,
+                                        modifier = Modifier.padding(start = 8.dp)
+                                    )
+                                }
+                            }
+
+                            // Configured Summary Box
+                            if (state.mdblistApiKey.isNotBlank()) {
+                                Spacer(modifier = Modifier.height(10.dp))
+                                Surface(
+                                    shape = M3Shapes.CornerMedium,
+                                    color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.65f),
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        modifier = Modifier.padding(12.dp)
+                                    ) {
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(10.dp),
+                                            modifier = Modifier.weight(1f)
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Default.CheckCircle,
+                                                contentDescription = null,
+                                                tint = statusColors(StatusTone.Active).indicator,
+                                                modifier = Modifier.size(20.dp)
+                                            )
+                                            Column(modifier = Modifier.weight(1f)) {
+                                                Text(
+                                                    text = "API Key: ••••••••${state.mdblistApiKey.takeLast(4)}",
+                                                    style = MaterialTheme.typography.titleSmallEmphasized
+                                                )
+                                                Text(
+                                                    text = "IMDb, RT, Metacritic, Letterboxd, Trakt",
+                                                    style = MaterialTheme.typography.bodySmall,
+                                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                    maxLines = 1,
+                                                    overflow = TextOverflow.Ellipsis
+                                                )
+                                            }
+                                        }
+
+                                        FilledTonalButton(
+                                            shapes = expressiveButtonShapes(),
+                                            onClick = { showMdbListEditor = !showMdbListEditor },
+                                            modifier = Modifier
+                                                .height(34.dp),
+                                            contentPadding = PaddingValues(horizontal = 10.dp, vertical = 0.dp)
+                                        ) {
+                                            Row(
+                                                verticalAlignment = Alignment.CenterVertically,
+                                                horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                            ) {
+                                                Icon(
+                                                    imageVector = if (showMdbListEditor) Icons.Default.ExpandLess else Icons.Default.Edit,
+                                                    contentDescription = null,
+                                                    modifier = Modifier.size(14.dp)
+                                                )
+                                                Text(
+                                                    text = if (showMdbListEditor) stringResource(R.string.action_cancel) else stringResource(R.string.action_edit),
+                                                    style = MaterialTheme.typography.labelMedium,
+                                                    maxLines = 1,
+                                                    softWrap = false
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+
+                            // Editor / Initial Setup Inputs
+                            AnimatedVisibility(
+                                visible = state.mdblistApiKey.isBlank() || showMdbListEditor,
+                                enter = expandVertically(animationSpec = M3ExpressiveMotion.defaultSpatial()) + fadeIn(animationSpec = M3ExpressiveMotion.defaultEffects()),
+                                exit = shrinkVertically(animationSpec = M3ExpressiveMotion.defaultSpatial()) + fadeOut(animationSpec = M3ExpressiveMotion.fastEffects())
+                            ) {
+                                Surface(
+                                    shape = M3Shapes.CornerMedium,
+                                    color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.65f),
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(top = 8.dp)
+                                ) {
+                                    Column(
+                                        modifier = Modifier.padding(12.dp),
+                                        verticalArrangement = Arrangement.spacedBy(10.dp)
+                                    ) {
+                                        OutlinedTextField(
+                                            value = mdblistApiKeyInput,
+                                            onValueChange = { mdblistApiKeyInput = it },
+                                            modifier = Modifier.fillMaxWidth(),
+                                            label = { Text(stringResource(R.string.settings_mdblist_apikey_label)) },
+                                            placeholder = { Text(stringResource(R.string.settings_mdblist_apikey_hint)) },
+                                            singleLine = true,
+                                            visualTransformation = if (mdblistApiKeyVisible) VisualTransformation.None else PasswordVisualTransformation(),
+                                            leadingIcon = {
+                                                Icon(
+                                                    imageVector = Icons.Default.VpnKey,
+                                                    contentDescription = null,
+                                                    tint = MaterialTheme.colorScheme.primary
+                                                )
+                                            },
+                                            trailingIcon = {
+                                                IconButton(onClick = { mdblistApiKeyVisible = !mdblistApiKeyVisible }) {
+                                                    Icon(
+                                                        imageVector = if (mdblistApiKeyVisible) Icons.Default.VisibilityOff else Icons.Default.Visibility,
+                                                        contentDescription = null
+                                                    )
+                                                }
+                                            },
+                                            shape = M3Shapes.CornerSmall,
+                                            supportingText = {
+                                                Text(stringResource(R.string.settings_mdblist_hint))
+                                            }
+                                        )
+
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            modifier = Modifier.clickable { mdblistSyncRatingsInput = !mdblistSyncRatingsInput }
+                                        ) {
+                                            Checkbox(
+                                                checked = mdblistSyncRatingsInput,
+                                                onCheckedChange = { mdblistSyncRatingsInput = it }
+                                            )
+                                            Text(
+                                                text = stringResource(R.string.settings_mdblist_sync_ratings),
+                                                style = MaterialTheme.typography.bodySmall
+                                            )
+                                        }
+
+                                        Button(
+                                            shapes = expressiveButtonShapes(),
+                                            onClick = {
+                                                viewModel.saveMdbListSettings(
+                                                    apiKey = mdblistApiKeyInput,
+                                                    syncRatings = mdblistSyncRatingsInput,
+                                                    syncLists = mdblistSyncListsInput
+                                                )
+                                                showMdbListEditor = false
+                                            },
+                                            enabled = !state.isSavingMdbList && mdblistApiKeyInput.isNotBlank(),
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .height(42.dp),
+                                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp)
+                                        ) {
+                                            if (state.isSavingMdbList) {
+                                                ExpressiveLoadingIndicator(
+                                                    size = 16.dp,
+                                                    strokeWidth = 2.dp,
+                                                    color = MaterialTheme.colorScheme.onPrimary
+                                                )
+                                            } else {
+                                                Row(
+                                                    verticalAlignment = Alignment.CenterVertically,
+                                                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                                ) {
+                                                    Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(16.dp))
+                                                    Text(
+                                                        text = stringResource(R.string.action_save),
+                                                        style = MaterialTheme.typography.labelLargeEmphasized,
+                                                        maxLines = 1,
+                                                        softWrap = false,
+                                                        overflow = TextOverflow.Ellipsis
+                                                    )
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+
+                            if (state.mdblistApiKey.isNotBlank()) {
+                                Spacer(modifier = Modifier.height(8.dp))
+                                FilledTonalButton(
+                                    shapes = expressiveButtonShapes(),
+                                    onClick = { viewModel.syncMdbList() },
+                                    enabled = state.isSyncing == null,
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(42.dp),
+                                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp)
+                                ) {
+                                    if (state.isSyncing == "mdblist") {
+                                        ExpressiveLoadingIndicator(
+                                            size = 16.dp,
+                                            strokeWidth = 2.dp,
+                                            color = MaterialTheme.colorScheme.primary
+                                        )
+                                        Spacer(modifier = Modifier.width(8.dp))
+                                        Text(
+                                            text = stringResource(R.string.action_syncing),
+                                            style = MaterialTheme.typography.labelLarge,
+                                            maxLines = 1,
+                                            softWrap = false,
+                                            overflow = TextOverflow.Ellipsis
+                                        )
+                                    } else {
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Default.Sync,
+                                                contentDescription = null,
+                                                modifier = Modifier.size(16.dp)
+                                            )
+                                            Text(
+                                                text = stringResource(R.string.settings_mdblist_sync),
+                                                style = MaterialTheme.typography.labelLarge,
+                                                maxLines = 1,
+                                                softWrap = false,
+                                                overflow = TextOverflow.Ellipsis
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // 5d. Simkl API
+                if (state.enabledPluginIds.contains("simkl")) {
+                    item(key = "config_simkl") {
+                        SettingsCard {
+                            // Simkl Card Header
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Row(
+                                    modifier = Modifier.weight(1f),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                                ) {
+                                    SettingsIconBox(
+                                        icon = Icons.Default.Tv,
+                                        containerColor = MaterialTheme.colorScheme.tertiaryContainer,
+                                        contentColor = MaterialTheme.colorScheme.onTertiaryContainer
+                                    )
+                                    Column(modifier = Modifier.weight(1f, fill = false)) {
+                                        Text(
+                                            text = stringResource(R.string.settings_simkl_title),
+                                            style = MaterialTheme.typography.titleMediumEmphasized,
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis
+                                        )
+                                        Text(
+                                            text = stringResource(R.string.settings_simkl_desc),
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis
+                                        )
+                                    }
+                                }
+
+                                if (state.isSimklConnected) {
+                                    ExpressiveStatusBadge(
+                                        text = stringResource(R.string.badge_connected),
+                                        tone = StatusTone.Active,
+                                        modifier = Modifier.padding(start = 8.dp)
+                                    )
+                                }
+                            }
+
+                            // Connected info display
+                            if (state.isSimklConnected && !showSimklEditor) {
+                                Spacer(modifier = Modifier.height(6.dp))
+                                Surface(
+                                    shape = M3Shapes.CornerMedium,
+                                    color = MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.5f),
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(horizontal = 12.dp, vertical = 8.dp),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                            modifier = Modifier.weight(1f, fill = false)
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Default.CheckCircle,
+                                                contentDescription = null,
+                                                tint = MaterialTheme.colorScheme.primary,
+                                                modifier = Modifier.size(18.dp)
+                                            )
+                                            Column {
+                                                Text(
+                                                    text = if (state.simklMaskedToken.isNotBlank()) "Token: ${state.simklMaskedToken}" else "Simkl Hesabı Bağlı",
+                                                    style = MaterialTheme.typography.titleSmallEmphasized
+                                                )
+                                                val syncTypes = listOfNotNull(
+                                                    if (state.simklSyncMovies) "Film" else null,
+                                                    if (state.simklSyncShows) "Dizi" else null,
+                                                    if (state.simklSyncAnime) "Anime" else null,
+                                                    if (state.simklSyncRatings) "Puan" else null
+                                                ).joinToString(", ")
+                                                Text(
+                                                    text = "Eşitlenen: ${syncTypes.ifEmpty { "Yok" }}",
+                                                    style = MaterialTheme.typography.bodySmall,
+                                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                    maxLines = 1,
+                                                    overflow = TextOverflow.Ellipsis
+                                                )
+                                            }
+                                        }
+
+                                        FilledTonalButton(
+                                            shapes = expressiveButtonShapes(),
+                                            onClick = { showSimklEditor = !showSimklEditor },
+                                            modifier = Modifier
+                                                .height(34.dp),
+                                            contentPadding = PaddingValues(horizontal = 10.dp, vertical = 0.dp)
+                                        ) {
+                                            Row(
+                                                verticalAlignment = Alignment.CenterVertically,
+                                                horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                            ) {
+                                                Icon(
+                                                    imageVector = if (showSimklEditor) Icons.Default.ExpandLess else Icons.Default.Edit,
+                                                    contentDescription = null,
+                                                    modifier = Modifier.size(14.dp)
+                                                )
+                                                Text(
+                                                    text = if (showSimklEditor) stringResource(R.string.action_cancel) else stringResource(R.string.action_edit),
+                                                    style = MaterialTheme.typography.labelMedium,
+                                                    maxLines = 1,
+                                                    softWrap = false
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+
+                            // Editor / Initial Setup Inputs
+                            AnimatedVisibility(
+                                visible = !state.isSimklConnected || showSimklEditor,
+                                enter = expandVertically(animationSpec = M3ExpressiveMotion.defaultSpatial()) + fadeIn(animationSpec = M3ExpressiveMotion.defaultEffects()),
+                                exit = shrinkVertically(animationSpec = M3ExpressiveMotion.defaultSpatial()) + fadeOut(animationSpec = M3ExpressiveMotion.fastEffects())
+                            ) {
+                                Surface(
+                                    shape = M3Shapes.CornerMedium,
+                                    color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.65f),
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(top = 8.dp)
+                                ) {
+                                    Column(
+                                        modifier = Modifier.padding(12.dp),
+                                        verticalArrangement = Arrangement.spacedBy(10.dp)
+                                    ) {
+                                        OutlinedTextField(
+                                            value = simklAccessTokenInput,
+                                            onValueChange = { simklAccessTokenInput = it },
+                                            modifier = Modifier.fillMaxWidth(),
+                                            label = { Text(stringResource(R.string.settings_simkl_token_label)) },
+                                            placeholder = { Text(if (state.simklMaskedToken.isNotBlank()) state.simklMaskedToken else stringResource(R.string.settings_simkl_token_hint)) },
+                                            singleLine = true,
+                                            visualTransformation = if (simklAccessTokenVisible) VisualTransformation.None else PasswordVisualTransformation(),
+                                            leadingIcon = {
+                                                Icon(
+                                                    imageVector = Icons.Default.VpnKey,
+                                                    contentDescription = null,
+                                                    tint = MaterialTheme.colorScheme.primary
+                                                )
+                                            },
+                                            trailingIcon = {
+                                                IconButton(onClick = { simklAccessTokenVisible = !simklAccessTokenVisible }) {
+                                                    Icon(
+                                                        imageVector = if (simklAccessTokenVisible) Icons.Default.VisibilityOff else Icons.Default.Visibility,
+                                                        contentDescription = null
+                                                    )
+                                                }
+                                            },
+                                            shape = M3Shapes.CornerSmall,
+                                            colors = OutlinedTextFieldDefaults.colors(
+                                                focusedBorderColor = MaterialTheme.colorScheme.primary,
+                                                unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant
+                                            )
+                                        )
+
+                                        OutlinedTextField(
+                                            value = simklClientIdInput,
+                                            onValueChange = { simklClientIdInput = it },
+                                            modifier = Modifier.fillMaxWidth(),
+                                            label = { Text(stringResource(R.string.settings_simkl_client_id_label)) },
+                                            placeholder = { Text(stringResource(R.string.settings_simkl_client_id_hint)) },
+                                            singleLine = true,
+                                            leadingIcon = {
+                                                Icon(
+                                                    imageVector = Icons.Default.Settings,
+                                                    contentDescription = null,
+                                                    tint = MaterialTheme.colorScheme.primary
+                                                )
+                                            },
+                                            shape = M3Shapes.CornerSmall,
+                                            colors = OutlinedTextFieldDefaults.colors(
+                                                focusedBorderColor = MaterialTheme.colorScheme.primary,
+                                                unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant
+                                            )
+                                        )
+
+                                        // Sync checkboxes
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                        ) {
+                                            Row(
+                                                verticalAlignment = Alignment.CenterVertically,
+                                                modifier = Modifier.weight(1f)
+                                            ) {
+                                                Checkbox(
+                                                    checked = simklSyncMoviesInput,
+                                                    onCheckedChange = { simklSyncMoviesInput = it }
+                                                )
+                                                Text(
+                                                    text = stringResource(R.string.settings_simkl_sync_movies),
+                                                    style = MaterialTheme.typography.bodySmall
+                                                )
+                                            }
+                                            Row(
+                                                verticalAlignment = Alignment.CenterVertically,
+                                                modifier = Modifier.weight(1f)
+                                            ) {
+                                                Checkbox(
+                                                    checked = simklSyncShowsInput,
+                                                    onCheckedChange = { simklSyncShowsInput = it }
+                                                )
+                                                Text(
+                                                    text = stringResource(R.string.settings_simkl_sync_shows),
+                                                    style = MaterialTheme.typography.bodySmall
+                                                )
+                                            }
+                                        }
+
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                        ) {
+                                            Row(
+                                                verticalAlignment = Alignment.CenterVertically,
+                                                modifier = Modifier.weight(1f)
+                                            ) {
+                                                Checkbox(
+                                                    checked = simklSyncAnimeInput,
+                                                    onCheckedChange = { simklSyncAnimeInput = it }
+                                                )
+                                                Text(
+                                                    text = stringResource(R.string.settings_simkl_sync_anime),
+                                                    style = MaterialTheme.typography.bodySmall
+                                                )
+                                            }
+                                            Row(
+                                                verticalAlignment = Alignment.CenterVertically,
+                                                modifier = Modifier.weight(1f)
+                                            ) {
+                                                Checkbox(
+                                                    checked = simklSyncRatingsInput,
+                                                    onCheckedChange = { simklSyncRatingsInput = it }
+                                                )
+                                                Text(
+                                                    text = stringResource(R.string.settings_simkl_sync_ratings),
+                                                    style = MaterialTheme.typography.bodySmall
+                                                )
+                                            }
+                                        }
+
+                                        Text(
+                                            text = stringResource(R.string.settings_simkl_hint),
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+
+                                        Button(
+                                            shapes = expressiveButtonShapes(),
+                                            onClick = {
+                                                viewModel.saveSimklSettings(
+                                                    clientId = simklClientIdInput,
+                                                    accessToken = simklAccessTokenInput,
+                                                    syncMovies = simklSyncMoviesInput,
+                                                    syncShows = simklSyncShowsInput,
+                                                    syncAnime = simklSyncAnimeInput,
+                                                    syncRatings = simklSyncRatingsInput
+                                                )
+                                                showSimklEditor = false
+                                            },
+                                            enabled = !state.isSavingSimkl && (simklAccessTokenInput.isNotBlank() || state.isSimklConnected),
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .height(42.dp),
+                                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp)
+                                        ) {
+                                            if (state.isSavingSimkl) {
+                                                ExpressiveLoadingIndicator(
+                                                    size = 16.dp,
+                                                    strokeWidth = 2.dp,
+                                                    color = MaterialTheme.colorScheme.onPrimary
+                                                )
+                                            } else {
+                                                Row(
+                                                    verticalAlignment = Alignment.CenterVertically,
+                                                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                                ) {
+                                                    Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(16.dp))
+                                                    Text(
+                                                        text = stringResource(R.string.action_save),
+                                                        style = MaterialTheme.typography.labelLargeEmphasized,
+                                                        maxLines = 1,
+                                                        softWrap = false,
+                                                        overflow = TextOverflow.Ellipsis
+                                                    )
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+
+                            if (state.isSimklConnected) {
+                                Spacer(modifier = Modifier.height(8.dp))
+                                FilledTonalButton(
+                                    shapes = expressiveButtonShapes(),
+                                    onClick = { viewModel.syncSimkl() },
+                                    enabled = state.isSyncing == null,
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(42.dp),
+                                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp)
+                                ) {
+                                    if (state.isSyncing == "simkl") {
+                                        ExpressiveLoadingIndicator(
+                                            size = 16.dp,
+                                            strokeWidth = 2.dp,
+                                            color = MaterialTheme.colorScheme.primary
+                                        )
+                                        Spacer(modifier = Modifier.width(8.dp))
+                                        Text(
+                                            text = stringResource(R.string.action_syncing),
+                                            style = MaterialTheme.typography.labelLarge,
+                                            maxLines = 1,
+                                            softWrap = false,
+                                            overflow = TextOverflow.Ellipsis
+                                        )
+                                    } else {
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Default.Sync,
+                                                contentDescription = null,
+                                                modifier = Modifier.size(16.dp)
+                                            )
+                                            Text(
+                                                text = stringResource(R.string.settings_simkl_sync),
+                                                style = MaterialTheme.typography.labelLarge,
+                                                maxLines = 1,
+                                                softWrap = false,
+                                                overflow = TextOverflow.Ellipsis
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
                 // 6. Last.fm API
                 if (state.enabledPluginIds.contains("lastfm")) {
                     item(key = "config_lastfm") {
@@ -1997,30 +3070,11 @@ fun SettingsScreen(
                             }
 
                             if (state.lastfmUsername.isNotBlank()) {
-                                Surface(
-                                    shape = M3Shapes.CornerFull,
-                                    color = domainNutritionContainer(),
+                                ExpressiveStatusBadge(
+                                    text = stringResource(R.string.badge_connected),
+                                    tone = StatusTone.Active,
                                     modifier = Modifier.padding(start = 8.dp)
-                                ) {
-                                    Row(
-                                        verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.spacedBy(4.dp),
-                                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
-                                    ) {
-                                        Box(
-                                            modifier = Modifier
-                                                .size(6.dp)
-                                                .background(domainNutritionOnContainer(), M3Shapes.CornerFull)
-                                        )
-                                        Text(
-                                            text = stringResource(R.string.badge_connected),
-                                            color = domainNutritionOnContainer(),
-                                            style = MaterialTheme.typography.labelSmallEmphasized,
-                                            maxLines = 1,
-                                            softWrap = false
-                                        )
-                                    }
-                                }
+                                )
                             }
                         }
 
@@ -2045,7 +3099,7 @@ fun SettingsScreen(
                                         Icon(
                                             imageVector = Icons.Default.CheckCircle,
                                             contentDescription = null,
-                                            tint = domainNutritionColor(),
+                                            tint = statusColors(StatusTone.Active).indicator,
                                             modifier = Modifier.size(20.dp)
                                         )
                                         Column(modifier = Modifier.weight(1f)) {
@@ -2064,11 +3118,10 @@ fun SettingsScreen(
                                     }
                                     // Nested inside 12dp summary Surface -> 8dp CornerSmall
                                     FilledTonalButton(
+                                        shapes = expressiveButtonShapes(),
                                         onClick = { showLastFmEditor = !showLastFmEditor },
-                                        shape = M3Shapes.CornerSmall,
                                         modifier = Modifier
-                                            .height(34.dp)
-                                            .expressivePressScale(remember { MutableInteractionSource() }),
+                                            .height(34.dp),
                                         contentPadding = PaddingValues(horizontal = 10.dp, vertical = 0.dp)
                                     ) {
                                         Row(
@@ -2196,16 +3249,15 @@ fun SettingsScreen(
                                     Spacer(modifier = Modifier.height(8.dp))
 
                                     Button(
+                                        shapes = expressiveButtonShapes(),
                                         onClick = {
                                             viewModel.saveMusicSettings()
                                             showLastFmEditor = false
                                         },
                                         enabled = !state.isSavingMusicSettings && state.lastfmUsername.isNotBlank(),
-                                        shape = M3Shapes.CornerSmall,
                                         modifier = Modifier
                                             .fillMaxWidth()
-                                            .height(42.dp)
-                                            .expressivePressScale(remember { MutableInteractionSource() }),
+                                            .height(42.dp),
                                         contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp)
                                     ) {
                                         if (state.isSavingMusicSettings) {
@@ -2237,13 +3289,12 @@ fun SettingsScreen(
                         if (state.lastfmUsername.isNotBlank()) {
                             Spacer(modifier = Modifier.height(8.dp))
                             FilledTonalButton(
+                                shapes = expressiveButtonShapes(),
                                 onClick = { viewModel.syncLastFm() },
                                 enabled = state.isSyncing == null,
-                                shape = M3Shapes.CornerMedium,
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .height(42.dp)
-                                    .expressivePressScale(remember { MutableInteractionSource() }),
+                                    .height(42.dp),
                                 contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp)
                             ) {
                                 if (state.isSyncing == "lastfm") {
@@ -2323,30 +3374,11 @@ fun SettingsScreen(
                                 }
 
                                 if (state.listenbrainzUsername.isNotBlank()) {
-                                    Surface(
-                                        shape = M3Shapes.CornerFull,
-                                        color = domainNutritionContainer(),
+                                    ExpressiveStatusBadge(
+                                        text = stringResource(R.string.badge_connected),
+                                        tone = StatusTone.Active,
                                         modifier = Modifier.padding(start = 8.dp)
-                                    ) {
-                                        Row(
-                                            verticalAlignment = Alignment.CenterVertically,
-                                            horizontalArrangement = Arrangement.spacedBy(4.dp),
-                                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
-                                        ) {
-                                            Box(
-                                                modifier = Modifier
-                                                    .size(6.dp)
-                                                    .background(domainNutritionOnContainer(), M3Shapes.CornerFull)
-                                            )
-                                            Text(
-                                                text = stringResource(R.string.badge_connected),
-                                                color = domainNutritionOnContainer(),
-                                                style = MaterialTheme.typography.labelSmallEmphasized,
-                                                maxLines = 1,
-                                                softWrap = false
-                                            )
-                                        }
-                                    }
+                                    )
                                 }
                             }
 
@@ -2371,7 +3403,7 @@ fun SettingsScreen(
                                             Icon(
                                                 imageVector = Icons.Default.CheckCircle,
                                                 contentDescription = null,
-                                                tint = domainNutritionColor(),
+                                                tint = statusColors(StatusTone.Active).indicator,
                                                 modifier = Modifier.size(20.dp)
                                             )
                                             Column(modifier = Modifier.weight(1f)) {
@@ -2393,11 +3425,10 @@ fun SettingsScreen(
                                             }
                                         }
                                         FilledTonalButton(
+                                            shapes = expressiveButtonShapes(),
                                             onClick = { showListenBrainzEditor = !showListenBrainzEditor },
-                                            shape = M3Shapes.CornerSmall,
                                             modifier = Modifier
-                                                .height(34.dp)
-                                                .expressivePressScale(remember { MutableInteractionSource() }),
+                                                .height(34.dp),
                                             contentPadding = PaddingValues(horizontal = 10.dp, vertical = 0.dp)
                                         ) {
                                             Row(
@@ -2525,16 +3556,15 @@ fun SettingsScreen(
                                         Spacer(modifier = Modifier.height(8.dp))
 
                                         Button(
+                                            shapes = expressiveButtonShapes(),
                                             onClick = {
                                                 viewModel.saveListenBrainzSettings(clearToken = listenBrainzTokenCleared && state.listenbrainzToken.isBlank() && state.listenbrainzTokenSet)
                                                 showListenBrainzEditor = false
                                             },
                                             enabled = !state.isSavingListenBrainz && state.listenbrainzUsername.isNotBlank(),
-                                            shape = M3Shapes.CornerSmall,
                                             modifier = Modifier
                                                 .fillMaxWidth()
-                                                .height(42.dp)
-                                                .expressivePressScale(remember { MutableInteractionSource() }),
+                                                .height(42.dp),
                                             contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp)
                                         ) {
                                             if (state.isSavingListenBrainz) {
@@ -2566,13 +3596,12 @@ fun SettingsScreen(
                             if (state.listenbrainzUsername.isNotBlank()) {
                                 Spacer(modifier = Modifier.height(8.dp))
                                 FilledTonalButton(
+                                    shapes = expressiveButtonShapes(),
                                     onClick = { viewModel.syncListenBrainz() },
                                     enabled = state.isSyncing == null,
-                                    shape = M3Shapes.CornerMedium,
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .height(42.dp)
-                                        .expressivePressScale(remember { MutableInteractionSource() }),
+                                        .height(42.dp),
                                     contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp)
                                 ) {
                                     if (state.isSyncing == "listenbrainz") {
@@ -2652,30 +3681,11 @@ fun SettingsScreen(
                                 }
 
                                 if (state.statsfmUsername.isNotBlank()) {
-                                    Surface(
-                                        shape = M3Shapes.CornerFull,
-                                        color = domainNutritionContainer(),
+                                    ExpressiveStatusBadge(
+                                        text = stringResource(R.string.badge_connected),
+                                        tone = StatusTone.Active,
                                         modifier = Modifier.padding(start = 8.dp)
-                                    ) {
-                                        Row(
-                                            verticalAlignment = Alignment.CenterVertically,
-                                            horizontalArrangement = Arrangement.spacedBy(4.dp),
-                                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
-                                        ) {
-                                            Box(
-                                                modifier = Modifier
-                                                    .size(6.dp)
-                                                    .background(domainNutritionOnContainer(), M3Shapes.CornerFull)
-                                            )
-                                            Text(
-                                                text = stringResource(R.string.badge_connected),
-                                                color = domainNutritionOnContainer(),
-                                                style = MaterialTheme.typography.labelSmallEmphasized,
-                                                maxLines = 1,
-                                                softWrap = false
-                                            )
-                                        }
-                                    }
+                                    )
                                 }
                             }
 
@@ -2700,7 +3710,7 @@ fun SettingsScreen(
                                             Icon(
                                                 imageVector = Icons.Default.CheckCircle,
                                                 contentDescription = null,
-                                                tint = domainNutritionColor(),
+                                                tint = statusColors(StatusTone.Active).indicator,
                                                 modifier = Modifier.size(20.dp)
                                             )
                                             Column(modifier = Modifier.weight(1f)) {
@@ -2718,11 +3728,10 @@ fun SettingsScreen(
                                             }
                                         }
                                         FilledTonalButton(
+                                            shapes = expressiveButtonShapes(),
                                             onClick = { showStatsFmEditor = !showStatsFmEditor },
-                                            shape = M3Shapes.CornerSmall,
                                             modifier = Modifier
-                                                .height(34.dp)
-                                                .expressivePressScale(remember { MutableInteractionSource() }),
+                                                .height(34.dp),
                                             contentPadding = PaddingValues(horizontal = 10.dp, vertical = 0.dp)
                                         ) {
                                             Row(
@@ -2794,16 +3803,15 @@ fun SettingsScreen(
                                         Spacer(modifier = Modifier.height(8.dp))
 
                                         Button(
+                                            shapes = expressiveButtonShapes(),
                                             onClick = {
                                                 viewModel.saveStatsFmSettings()
                                                 showStatsFmEditor = false
                                             },
                                             enabled = !state.isSavingStatsFm && state.statsfmUsername.isNotBlank(),
-                                            shape = M3Shapes.CornerSmall,
                                             modifier = Modifier
                                                 .fillMaxWidth()
-                                                .height(42.dp)
-                                                .expressivePressScale(remember { MutableInteractionSource() }),
+                                                .height(42.dp),
                                             contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp)
                                         ) {
                                             if (state.isSavingStatsFm) {
@@ -2835,13 +3843,12 @@ fun SettingsScreen(
                             if (state.statsfmUsername.isNotBlank()) {
                                 Spacer(modifier = Modifier.height(8.dp))
                                 FilledTonalButton(
+                                    shapes = expressiveButtonShapes(),
                                     onClick = { viewModel.syncStatsFm() },
                                     enabled = state.isSyncing == null,
-                                    shape = M3Shapes.CornerMedium,
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .height(42.dp)
-                                        .expressivePressScale(remember { MutableInteractionSource() }),
+                                        .height(42.dp),
                                     contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp)
                                 ) {
                                     if (state.isSyncing == "statsfm") {
@@ -3036,17 +4043,16 @@ fun SettingsScreen(
                             horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
                             Button(
+                                shapes = expressiveButtonShapes(),
                                 onClick = {
                                     clipboardManager.setText(AnnotatedString(musicWebhookUrl))
                                     coroutineScope.launch {
                                         snackbarHostState.showSnackbar(context.getString(R.string.toast_webhook_copied))
                                     }
                                 },
-                                shape = M3Shapes.CornerMedium,
                                 modifier = Modifier
                                     .weight(1f)
-                                    .height(42.dp)
-                                    .expressivePressScale(remember { MutableInteractionSource() }),
+                                    .height(42.dp),
                                 contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp)
                             ) {
                                 Row(
@@ -3069,6 +4075,7 @@ fun SettingsScreen(
                             }
 
                             OutlinedButton(
+                                shapes = expressiveButtonShapes(),
                                 onClick = {
                                     val intent = Intent(
                                         Intent.ACTION_VIEW,
@@ -3076,11 +4083,9 @@ fun SettingsScreen(
                                     )
                                     context.startActivity(intent)
                                 },
-                                shape = M3Shapes.CornerMedium,
                                 modifier = Modifier
                                     .weight(1f)
-                                    .height(42.dp)
-                                    .expressivePressScale(remember { MutableInteractionSource() }),
+                                    .height(42.dp),
                                 contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp)
                             ) {
                                 Row(
@@ -3099,6 +4104,70 @@ fun SettingsScreen(
                                         softWrap = false,
                                         overflow = TextOverflow.Ellipsis
                                     )
+                                }
+                            }
+                        }
+
+                        if (state.apiKey.isNotBlank()) {
+                            val authWebhookUrl = "$healthWebhookUrl?api_key=${state.apiKey}"
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Surface(
+                                shape = M3Shapes.CornerMedium,
+                                color = MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.35f),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Column(modifier = Modifier.padding(10.dp)) {
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.Lock,
+                                            contentDescription = null,
+                                            modifier = Modifier.size(16.dp),
+                                            tint = MaterialTheme.colorScheme.tertiary
+                                        )
+                                        Text(
+                                            text = "API Anahtarı Koruması Aktif (401 Önleme)",
+                                            style = MaterialTheme.typography.labelSmallEmphasized,
+                                            color = MaterialTheme.colorScheme.onTertiaryContainer
+                                        )
+                                    }
+                                    Spacer(modifier = Modifier.height(4.dp))
+                                    Text(
+                                        text = stringResource(R.string.settings_webhook_auth_header_tip),
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                    Spacer(modifier = Modifier.height(6.dp))
+                                    OutlinedButton(
+                                        shapes = expressiveButtonShapes(),
+                                        onClick = {
+                                            clipboardManager.setText(AnnotatedString(authWebhookUrl))
+                                            coroutineScope.launch {
+                                                snackbarHostState.showSnackbar(context.getString(R.string.toast_webhook_auth_copied))
+                                            }
+                                        },
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .height(38.dp),
+                                        contentPadding = PaddingValues(horizontal = 10.dp, vertical = 0.dp)
+                                    ) {
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Default.Key,
+                                                contentDescription = null,
+                                                modifier = Modifier.size(14.dp)
+                                            )
+                                            Text(
+                                                text = stringResource(R.string.action_copy_auth_url),
+                                                style = MaterialTheme.typography.labelMediumEmphasized
+                                            )
+                                        }
+                                    }
                                 }
                             }
                         }
@@ -3192,6 +4261,7 @@ fun SettingsScreen(
                             horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
                             FilledTonalButton(
+                                shapes = expressiveButtonShapes(),
                                 onClick = {
                                     val baseUrl = state.serverUrl.trim().trimEnd('/')
                                     if (baseUrl.isBlank()) {
@@ -3203,11 +4273,9 @@ fun SettingsScreen(
                                         triggerDownload("$baseUrl/api/export/all", "personal_records_$timestamp.json")
                                     }
                                 },
-                                shape = M3Shapes.CornerMedium,
                                 modifier = Modifier
                                     .weight(1f)
-                                    .height(42.dp)
-                                    .expressivePressScale(remember { MutableInteractionSource() }),
+                                    .height(42.dp),
                                 contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp)
                             ) {
                                 Row(
@@ -3230,6 +4298,7 @@ fun SettingsScreen(
                             }
 
                             FilledTonalButton(
+                                shapes = expressiveButtonShapes(),
                                 onClick = {
                                     val baseUrl = state.serverUrl.trim().trimEnd('/')
                                     if (baseUrl.isBlank()) {
@@ -3241,11 +4310,9 @@ fun SettingsScreen(
                                         triggerDownload("$baseUrl/api/export/db", "personal_records_$timestamp.sqlite3")
                                     }
                                 },
-                                shape = M3Shapes.CornerMedium,
                                 modifier = Modifier
                                     .weight(1f)
-                                    .height(42.dp)
-                                    .expressivePressScale(remember { MutableInteractionSource() }),
+                                    .height(42.dp),
                                 contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp)
                             ) {
                                 Row(
@@ -3398,13 +4465,8 @@ fun LanguageSelectionScreen(
         modifier = Modifier.fillMaxSize(),
         contentWindowInsets = WindowInsets.statusBars,
         topBar = {
-            TopAppBar(
-                title = {
-                    Text(
-                        text = stringResource(R.string.settings_language_screen_title),
-                        style = MaterialTheme.typography.titleLargeEmphasized
-                    )
-                },
+            ExpressivePageTopAppBar(
+                title = stringResource(R.string.settings_language_screen_title),
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
                         Icon(
@@ -3412,65 +4474,48 @@ fun LanguageSelectionScreen(
                             contentDescription = stringResource(R.string.action_back)
                         )
                     }
-                },
-                actions = {},
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.surface
-                )
+                }
             )
-        },
-        containerColor = MaterialTheme.colorScheme.background
+        }
     ) { innerPadding ->
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
-                .padding(horizontal = 12.dp),
-            contentPadding = PaddingValues(top = 10.dp, bottom = 144.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
+                .padding(horizontal = 12.dp)
+                .selectableGroup(),
+            contentPadding = PaddingValues(
+                top = 10.dp,
+                bottom = 24.dp + WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
+            )
         ) {
-            item {
-                SettingsCard {
-                    languages.forEachIndexed { index, item ->
-                        val isSelected = currentLanguage == item.code
-                        val label = item.labelRes?.let { stringResource(it) } ?: item.rawLabel.orEmpty()
-
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clip(M3Shapes.CornerSmall)
-                                .clickable { onLanguageSelected(item.code) }
-                                .padding(horizontal = 16.dp, vertical = 14.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text(
-                                text = label,
-                                style = if (isSelected) MaterialTheme.typography.bodyLargeEmphasized else MaterialTheme.typography.bodyLarge,
-                                color = MaterialTheme.colorScheme.onSurface,
-                                modifier = Modifier.weight(1f)
+            itemsIndexed(languages, key = { _, item -> item.code }) { index, item ->
+                val isSelected = currentLanguage == item.code
+                val label = item.labelRes?.let { stringResource(it) } ?: item.rawLabel.orEmpty()
+                GroupedListItemSurface(
+                    index = index,
+                    itemCount = languages.size,
+                    addLeadingGap = true
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .selectable(
+                                selected = isSelected,
+                                onClick = { onLanguageSelected(item.code) },
+                                role = Role.RadioButton
                             )
-                            if (isSelected) {
-                                Box(
-                                    modifier = Modifier
-                                        .size(24.dp)
-                                        .background(MaterialTheme.colorScheme.primary, M3Shapes.CornerFull),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Default.Check,
-                                        contentDescription = null,
-                                        tint = MaterialTheme.colorScheme.onPrimary,
-                                        modifier = Modifier.size(16.dp)
-                                    )
-                                }
-                            }
-                        }
-                        if (index < languages.lastIndex) {
-                            HorizontalDivider(
-                                modifier = Modifier.padding(horizontal = 16.dp),
-                                color = MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.5f)
-                            )
-                        }
+                            .padding(horizontal = 16.dp, vertical = 12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = label,
+                            style = if (isSelected) MaterialTheme.typography.bodyLargeEmphasized else MaterialTheme.typography.bodyLarge,
+                            color = MaterialTheme.colorScheme.onSurface,
+                            modifier = Modifier.weight(1f)
+                        )
+                        // onClick = null: the whole row handles selection and semantics.
+                        RadioButton(selected = isSelected, onClick = null)
                     }
                 }
             }
@@ -3613,15 +4658,14 @@ private fun GenericPluginSettingsCard(
             Spacer(modifier = Modifier.height(8.dp))
 
             Button(
+                shapes = expressiveButtonShapes(),
                 onClick = {
                     clipboardManager.setText(AnnotatedString(webhookUrl))
                     onShowToast(context.getString(R.string.toast_webhook_copied))
                 },
-                shape = M3Shapes.CornerMedium,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(42.dp)
-                    .expressivePressScale(remember { MutableInteractionSource() }),
+                    .height(42.dp),
                 contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp)
             ) {
                 Row(
@@ -3653,6 +4697,7 @@ private fun GenericPluginSettingsCard(
             ) {
                 if (plugin.officialUrl != null) {
                     OutlinedButton(
+                        shapes = expressiveButtonShapes(),
                         onClick = {
                             try {
                                 val intent = Intent(Intent.ACTION_VIEW, plugin.officialUrl.toUri())
@@ -3661,11 +4706,9 @@ private fun GenericPluginSettingsCard(
                                 onShowToast(e.message ?: "URL açılamadı")
                             }
                         },
-                        shape = M3Shapes.CornerMedium,
                         modifier = Modifier
                             .weight(1f)
-                            .height(42.dp)
-                            .expressivePressScale(remember { MutableInteractionSource() }),
+                            .height(42.dp),
                         contentPadding = PaddingValues(horizontal = 10.dp, vertical = 0.dp)
                     ) {
                         Row(
@@ -3689,12 +4732,11 @@ private fun GenericPluginSettingsCard(
                 }
 
                 FilledTonalButton(
+                    shapes = expressiveButtonShapes(),
                     onClick = onOpenCatalog,
-                    shape = M3Shapes.CornerMedium,
                     modifier = Modifier
                         .weight(1f)
-                        .height(42.dp)
-                        .expressivePressScale(remember { MutableInteractionSource() }),
+                        .height(42.dp),
                     contentPadding = PaddingValues(horizontal = 10.dp, vertical = 0.dp)
                 ) {
                     Row(

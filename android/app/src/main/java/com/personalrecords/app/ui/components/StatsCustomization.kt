@@ -5,8 +5,6 @@ import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
@@ -21,18 +19,18 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.personalrecords.app.R
 import com.personalrecords.app.core.theme.*
 
 /**
- * Modifier providing a playful M3 physical shake/jiggle effect when edit mode is active.
- * Applies subtle rotation and micro-translation with slight phase offsets.
+ * Edit-mode jiggle for reorderable stat cards: subtle looping rotation and lift.
+ * Separate from [expressiveShake], which is the one-shot error shake.
+ * Disabled when the system "remove animations" setting is on.
  */
 @Composable
-fun Modifier.expressiveShake(enabled: Boolean, index: Int = 0): Modifier {
-    if (!enabled) return this
+fun Modifier.expressiveEditJiggle(enabled: Boolean, index: Int = 0): Modifier {
+    if (!enabled || LocalReducedMotion.current) return this
     val infiniteTransition = rememberInfiniteTransition(label = "expressive_shake_$index")
     val rotation by infiniteTransition.animateFloat(
         initialValue = -1.4f,
@@ -79,42 +77,44 @@ fun StatCardContainer(
     content: @Composable () -> Unit
 ) {
     val haptic = LocalHapticFeedback.current
-    Box(
-        modifier = modifier.expressiveShake(enabled = isEditMode, index = index)
-    ) {
-        content()
-
-        AnimatedVisibility(
-            visible = isEditMode,
-            enter = fadeIn(animationSpec = M3ExpressiveMotion.fastSpatial()) +
-                    scaleIn(initialScale = 0.4f, animationSpec = M3ExpressiveMotion.fastSpatial()),
-            exit = fadeOut(animationSpec = M3ExpressiveMotion.fastEffects()) +
-                    scaleOut(targetScale = 0.4f, animationSpec = M3ExpressiveMotion.fastEffects()),
-            modifier = Modifier
-                .align(Alignment.TopEnd)
-                .padding(top = 4.dp, end = 4.dp)
+    key(cardId) {
+        Box(
+            modifier = modifier.expressiveEditJiggle(enabled = isEditMode, index = index)
         ) {
-            Surface(
-                onClick = {
-                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                    onHideCard()
-                },
-                shape = CircleShape,
-                color = MaterialTheme.colorScheme.errorContainer,
-                contentColor = MaterialTheme.colorScheme.onErrorContainer,
-                tonalElevation = 3.dp,
-                shadowElevation = 4.dp,
-                modifier = Modifier.size(28.dp)
+            content()
+
+            AnimatedVisibility(
+                visible = isEditMode,
+                enter = fadeIn(animationSpec = M3ExpressiveMotion.fastEffects()) +
+                        scaleIn(initialScale = 0.4f, animationSpec = M3ExpressiveMotion.fastSpatial()),
+                exit = fadeOut(animationSpec = M3ExpressiveMotion.fastEffects()) +
+                        scaleOut(targetScale = 0.4f, animationSpec = M3ExpressiveMotion.fastSpatial()),
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .padding(top = 4.dp, end = 4.dp)
             ) {
-                Box(
-                    contentAlignment = Alignment.Center,
-                    modifier = Modifier.fillMaxSize()
+                Surface(
+                    onClick = {
+                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                        onHideCard()
+                    },
+                    shape = CircleShape,
+                    color = MaterialTheme.colorScheme.errorContainer,
+                    contentColor = MaterialTheme.colorScheme.onErrorContainer,
+                    tonalElevation = 3.dp,
+                    shadowElevation = 4.dp,
+                    modifier = Modifier.size(28.dp)
                 ) {
-                    Icon(
-                        imageVector = Icons.Default.VisibilityOff,
-                        contentDescription = stringResource(R.string.stats_hide_this_card),
-                        modifier = Modifier.size(15.dp)
-                    )
+                    Box(
+                        contentAlignment = Alignment.Center,
+                        modifier = Modifier.fillMaxSize()
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.VisibilityOff,
+                            contentDescription = stringResource(R.string.stats_hide_this_card),
+                            modifier = Modifier.size(15.dp)
+                        )
+                    }
                 }
             }
         }
@@ -123,7 +123,7 @@ fun StatCardContainer(
 
 /**
  * TopAppBar Action for stat cards:
- * - When in Edit Mode: Displays a "Bitti" (Done) pill button with Check icon.
+ * - When in Edit Mode: Displays a "Done" pill button with Check icon.
  * - When NOT in Edit Mode: Displays a customize icon button (with optional dot badge if cards are hidden).
  */
 @Composable
@@ -133,14 +133,17 @@ fun TopAppBarStatsAction(
     onToggleEditMode: () -> Unit,
     onOpenCustomization: () -> Unit
 ) {
+    val effectsSpec = M3ExpressiveMotion.fastEffects<Float>()
+    val spatialSpec = M3ExpressiveMotion.fastSpatial<Float>()
+
     AnimatedContent(
         targetState = isEditMode,
         transitionSpec = {
-            (fadeIn(animationSpec = M3ExpressiveMotion.fastSpatial()) +
-             scaleIn(initialScale = 0.8f, animationSpec = M3ExpressiveMotion.fastSpatial()))
+            (fadeIn(animationSpec = effectsSpec) +
+             scaleIn(initialScale = 0.8f, animationSpec = spatialSpec))
                 .togetherWith(
-                    fadeOut(animationSpec = M3ExpressiveMotion.fastEffects()) +
-                    scaleOut(targetScale = 0.8f, animationSpec = M3ExpressiveMotion.fastEffects())
+                    fadeOut(animationSpec = effectsSpec) +
+                    scaleOut(targetScale = 0.8f, animationSpec = spatialSpec)
                 )
         },
         label = "top_bar_stats_action"
@@ -148,9 +151,9 @@ fun TopAppBarStatsAction(
         if (inEditMode) {
             FilledTonalButton(
                 onClick = onToggleEditMode,
-                modifier = Modifier.height(34.dp),
+                modifier = Modifier,
                 contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
-                shape = M3Shapes.CornerFull,
+                shapes = expressiveButtonShapes(),
                 colors = ButtonDefaults.filledTonalButtonColors(
                     containerColor = MaterialTheme.colorScheme.primaryContainer,
                     contentColor = MaterialTheme.colorScheme.onPrimaryContainer
@@ -217,7 +220,10 @@ fun StatsCustomizationBottomSheet(
     onResetDefault: () -> Unit,
     onDismissRequest: () -> Unit
 ) {
-    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val sheetState = rememberBottomSheetState(
+        initialValue = SheetValue.Hidden,
+        enabledValues = setOf(SheetValue.Hidden, SheetValue.Expanded)
+    )
 
     ModalBottomSheet(
         onDismissRequest = onDismissRequest,
@@ -279,7 +285,7 @@ fun StatsCustomizationBottomSheet(
                         onDismissRequest()
                     },
                     modifier = Modifier.fillMaxWidth(),
-                    shape = M3Shapes.CornerMedium,
+                    shapes = expressiveButtonShapes(),
                     colors = ButtonDefaults.filledTonalButtonColors(
                         containerColor = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.5f),
                         contentColor = MaterialTheme.colorScheme.onErrorContainer
@@ -366,7 +372,7 @@ fun StatsCustomizationBottomSheet(
                                     IconButton(
                                         onClick = { onMoveCard(card.id, -1) },
                                         enabled = index > 0,
-                                        modifier = Modifier.size(32.dp)
+                                        modifier = Modifier.size(48.dp)
                                     ) {
                                         Icon(
                                             imageVector = Icons.Default.KeyboardArrowUp,
@@ -379,7 +385,7 @@ fun StatsCustomizationBottomSheet(
                                     IconButton(
                                         onClick = { onMoveCard(card.id, 1) },
                                         enabled = index < cards.lastIndex,
-                                        modifier = Modifier.size(32.dp)
+                                        modifier = Modifier.size(48.dp)
                                     ) {
                                         Icon(
                                             imageVector = Icons.Default.KeyboardArrowDown,
@@ -423,7 +429,7 @@ fun StatsCustomizationBottomSheet(
             ) {
                 TextButton(
                     onClick = onResetDefault,
-                    shape = M3Shapes.CornerFull
+                    shapes = expressiveButtonShapes()
                 ) {
                     Text(
                         text = stringResource(R.string.stats_reset_default),
@@ -433,7 +439,7 @@ fun StatsCustomizationBottomSheet(
 
                 Button(
                     onClick = onDismissRequest,
-                    shape = M3Shapes.CornerFull
+                    shapes = expressiveButtonShapes()
                 ) {
                     Text(
                         text = stringResource(R.string.action_close),

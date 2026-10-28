@@ -29,6 +29,7 @@
     <string name="action_saving">Saving…</string>
     <string name="action_sync">Sync</string>
     <string name="action_sync_all">Sync All</string>
+    <string name="overview_sync_all_short">Sync</string>
     <string name="action_syncing">Syncing…</string>
     <string name="overview_sync_all_done">All active integrations synced successfully!</string>
     <string name="action_test_connection">Test Connection</string>
@@ -36,6 +37,7 @@
     <string name="action_cancel">Cancel</string>
     <string name="action_close">Close</string>
     <string name="action_ok">OK</string>
+    <string name="common_error_title">Something went wrong</string>
     <string name="action_retry">Retry</string>
     <string name="action_copy_url">Copy URL</string>
     <string name="action_download_apk">Download APK</string>
@@ -78,20 +80,11 @@
     <string name="overview_hero_remaining">%1$d kcal left</string>
     <string name="overview_hero_exceeded">%1$d kcal over</string>
     <string name="overview_hero_goal_pct">%1$d%% of goal</string>
-    <string name="overview_hero_nutrition_subtitle_remaining">Goal %1$d kcal • %2$d kcal left</string>
-    <string name="overview_hero_nutrition_subtitle_exceeded">Goal %1$d kcal • %2$d kcal over</string>
-    <string name="overview_hero_books_subtitle">Goodreads library archive</string>
-    <string name="overview_hero_movies_subtitle">Letterboxd watch diary</string>
-    <string name="overview_hero_music_today_subtitle">Today: %1$d new tracks</string>
-    <string name="overview_hero_music_total_subtitle">Listening and scrobble archive</string>
     <string name="overview_hero_today_music">Today: %1$d tracks</string>
     <string name="overview_hero_total_tracks">%1$d total tracks</string>
     <string name="overview_hero_total_films">%1$d logged films</string>
     <string name="overview_hero_total_books">%1$d books in shelf</string>
-    <string name="overview_hero_latest_track">LAST PLAYED</string>
-    <string name="overview_hero_latest_film">LAST WATCHED</string>
-    <string name="overview_hero_latest_book">LAST ADDED</string>
-    <string name="overview_hero_latest_meal">LAST MEAL</string>
+    <string name="overview_hero_latest_added">Recently added</string>
     <string name="overview_hero_no_recent_music">No scrobbles yet</string>
     <string name="overview_hero_no_recent_film">No films logged yet</string>
     <string name="overview_hero_no_recent_book">No books recorded yet</string>
@@ -101,18 +94,42 @@
     <string name="overview_hero_action_movies">Open Movies</string>
     <string name="overview_hero_action_books">Open Library</string>
     <string name="overview_hero_status_nutrition">Daily calories &amp; meals tracker</string>
-    <string name="overview_hero_status_music">Scrobbles &amp; listening history</string>
-    <string name="overview_hero_status_movies">Letterboxd diary &amp; reviews</string>
-    <string name="overview_hero_status_books">Goodreads shelves &amp; reading list</string>
+    <string name="overview_hero_status_music">Listening history &amp; tracks archive</string>
+    <string name="overview_hero_status_movies">Watch diary &amp; film log</string>
+    <string name="overview_hero_status_books">Library &amp; reading list archive</string>
+    <string name="overview_hero_book_read_summary">%1$d books read</string>
+    <string name="overview_hero_status_health">Daily movement, sleep &amp; vital signs</string>
+    <string name="overview_hero_status_notifications">Captured notifications and app activity</string>
+    <string name="overview_hero_unit_steps">steps</string>
+    <string name="overview_hero_unit_notifications">notifications</string>
+    <string name="overview_hero_pill_heart_rate">Heart rate</string>
+    <string name="overview_hero_pill_sleep">Sleep</string>
+    <string name="overview_hero_pill_active_kcal">Active kcal</string>
+    <string name="overview_hero_pill_today">Today</string>
+    <string name="overview_hero_pill_apps">Apps</string>
+    <string name="overview_health_records_summary">%1$d health records</string>
+    <string name="overview_health_no_recent_record">No health records yet</string>
+    <string name="overview_notifications_provider">Android</string>
+    <string name="overview_notifications_today_summary">%1$d captured today</string>
+    <string name="overview_notifications_no_recent">No notifications captured yet</string>
     <string name="overview_hero_tag_diary">Watch Diary</string>
     <string name="overview_hero_tag_shelf">Goodreads Shelf</string>
-    <string name="overview_hero_tag_shelf_music">Scrobble Archive</string>
-    <string name="overview_hero_this_year_count">This year: %1$d</string>
-    <string name="overview_hero_goal_label_compact">Goal: %1$d</string>
-    <string name="overview_hero_remaining_compact">%1$d left</string>
-    <string name="overview_hero_exceeded_compact">%1$d over</string>
-    <string name="overview_integrations_title">Integrations &amp; Synchronization</string>
-    <string name="overview_integrations_subtitle">Instant one-tap data sync</string>
+    <string name="overview_hero_pill_reading">Reading</string>
+    <string name="overview_hero_pill_read">Read</string>
+    <string name="overview_hero_pill_pages">Pages</string>
+    <string name="overview_hero_pill_rating">Avg Rating</string>
+    <string name="overview_hero_pill_this_month">This Month</string>
+    <string name="overview_hero_pill_rewatch">Rewatch</string>
+    <string name="overview_hero_pill_artists">Artists</string>
+    <string name="overview_hero_pill_albums">Albums</string>
+    <string name="overview_hero_pill_this_week">This Week</string>
+    <string name="overview_hero_pill_remaining">Remaining</string>
+    <string name="overview_hero_pill_goal">Goal</string>
+    <string name="overview_integrations_title">Integrations</string>
+    <string name="overview_integrations_subtitle">Manage connected services</string>
+    <string name="overview_stats_all_hidden">All overview stat cards are hidden.</string>
+    <string name="overview_stats_show_cards">Show cards</string>
+    <string name="overview_stats_page_indicator">Stats card %1$d of %2$d</string>
     <string name="overview_integration_fatsecret">FatSecret</string>
     <string name="overview_integration_fatsecret_desc">Nutrition diary</string>
     <string name="overview_integration_goodreads">Goodreads RSS</string>
@@ -146,19 +163,23 @@
     <!-- Records Screen -->
     <string name="records_section_health">Health &amp; Living</string>
     <string name="records_item_nutrition_title">Nutrition Diary</string>
-    <string name="records_item_nutrition_sub">FatSecret · %1$d recorded meals</string>
+    <string name="records_item_nutrition_sub">%1$d recorded meals</string>
+    <string name="records_item_nutrition_empty">No recorded meals yet</string>
     <string name="records_item_healthconnect_title">Health Connect</string>
-    <string name="records_item_healthconnect_sub">Steps, sleep, heart rate and workouts</string>
+    <string name="records_item_healthconnect_sub">Steps, sleep, heart rate and activity</string>
     <string name="records_section_media">Culture &amp; Media</string>
     <string name="records_item_movies_title">Movies &amp; Cinema</string>
-    <string name="records_item_movies_sub">Letterboxd · %1$d films watched</string>
+    <string name="records_item_movies_sub">%1$d movies and series watched</string>
+    <string name="records_item_movies_empty">Watch diary and ratings</string>
     <string name="records_item_books_title">Library &amp; Books</string>
-    <string name="records_item_books_sub">Goodreads · %1$d books recorded</string>
+    <string name="records_item_books_sub">%1$d recorded books</string>
+    <string name="records_item_books_empty">Read and reading list</string>
     <string name="records_item_music_title">Music &amp; Audio</string>
-    <string name="records_item_music_sub">Spotify and podcast listening history</string>
+    <string name="records_item_music_sub">Tracks and listening history</string>
     <string name="records_section_system">System &amp; Device</string>
     <string name="records_item_notifications_title">Notification Log</string>
-    <string name="records_item_notifications_sub">Webhook Relay · %1$d notifications</string>
+    <string name="records_item_notifications_sub">%1$d notifications recorded</string>
+    <string name="records_item_notifications_empty">Device notification history</string>
     <string name="records_item_automation_title">Automation &amp; Actions</string>
     <string name="records_item_automation_sub">Tasker, n8n and webhook triggers</string>
     <string name="records_toast_healthconnect">Health Connect webhook integration will be available soon.</string>
@@ -182,6 +203,8 @@
     <string name="settings_server_url_label">Server URL</string>
     <string name="settings_server_url_hint">https://your-api.domain.com</string>
     <string name="settings_server_url_support">Do not include trailing slash (/)</string>
+    <string name="settings_server_api_key_label">API Key / Token (Optional)</string>
+    <string name="settings_server_api_key_hint">Enter if your server has API_KEY configured</string>
 
     <string name="settings_section_webhook">Notification Webhook Integration</string>
     <string name="settings_webhook_title">Notification Relay Webhook</string>
@@ -192,6 +215,9 @@
     <string name="settings_setup_step_1">1. Install Notification Relay APK and grant Notification Access permission.</string>
     <string name="settings_setup_step_2">2. In Webhooks tab tap \'+\' and paste the target webhook URL above.</string>
     <string name="settings_setup_step_3">3. Tap Test and save. All notifications will be saved to your database automatically.</string>
+    <string name="settings_webhook_auth_header_tip">API Key protection is active on your server. To prevent 401 errors, add X-Webhook-Secret to Headers in Notification Relay or copy the authenticated URL.</string>
+    <string name="action_copy_auth_url">Copy Authenticated URL</string>
+    <string name="toast_webhook_auth_copied">Authenticated Webhook URL copied</string>
 
     <string name="settings_section_fatsecret">Nutrition Integration (FatSecret)</string>
     <string name="settings_fatsecret_title">FatSecret API (BYOK)</string>
@@ -313,16 +339,20 @@
     <string name="books_pages">%1$d pages</string>
 
     <!-- Movies Screen -->
-    <string name="movies_stats_total">Total Movies</string>
+    <string name="movies_stats_total">Total Watched</string>
+    <string name="movies_stats_total_desc">All watched movies and series archive</string>
+    <string name="movies_badge_watched">Films &amp; Series</string>
     <string name="movies_badge_letterboxd">Letterboxd</string>
+    <string name="movies_type_show">Series</string>
     <string name="movies_stats_rated">%1$d rated</string>
     <string name="movies_stats_avg_rating">Average Rating</string>
+    <string name="movies_stats_avg_rating_desc">Rated content and rewatches</string>
     <string name="movies_stats_rewatch">%1$d rewatches</string>
-    <string name="movies_search_placeholder">Search movie title or year…</string>
+    <string name="movies_search_placeholder">Search movies, series or year…</string>
     <string name="movies_filter_all">All</string>
     <string name="movies_filter_rewatches">Rewatches</string>
     <string name="movies_filter_highest_rated">Highest Rated</string>
-    <string name="movies_empty">No movies found.</string>
+    <string name="movies_empty">No movies or series found.</string>
     <string name="movies_rewatch_badge">Rewatch</string>
 
     <!-- Notifications Screen -->
@@ -362,7 +392,7 @@
     <!-- Health Connect Screen & Integration -->
     <string name="nav_health_connect">Health Connect</string>
     <string name="title_health_connect">Health Connect</string>
-    <string name="records_item_healthconnect_count">Health Connect · %1$d health records</string>
+    <string name="records_item_healthconnect_count">%1$d health records</string>
     <string name="health_metric_steps_title">Daily Steps</string>
     <string name="health_metric_steps_badge">Steps</string>
     <string name="health_metric_sleep_title">Last Sleep</string>
@@ -437,7 +467,7 @@
     <string name="music_detail_duration">Duration</string>
     <string name="music_detail_source">Source</string>
     <string name="music_detail_time">Listened At</string>
-    <string name="records_item_music_count">Music &amp; Audio · %1$d scrobbles</string>
+    <string name="records_item_music_count">%1$d tracks played</string>
     <string name="timeline_count_music">%1$d songs</string>
     <string name="timeline_filter_music">Music</string>
     <string name="settings_section_music_webhook">Web Scrobbler Webhook Integration</string>
@@ -478,6 +508,7 @@
     <string name="catalog_filter_system">System &amp; Device</string>
     <string name="catalog_configure">Configure</string>
     <string name="catalog_setup_webhook">Setup Webhook</string>
+    <string name="catalog_open_official_site">Open %1$s official website</string>
     <string name="catalog_empty_search">No integration plugin matches your search.</string>
     <string name="catalog_empty_active">No active integrations. Enable any plugin from the catalog (+).</string>
     <string name="catalog_banner_title">Modular Service Ecosystem</string>
@@ -527,6 +558,56 @@
     <string name="plugin_desc_statsfm">Spotify streams and listening statistics sync.</string>
     <string name="plugin_long_desc_statsfm">Sync Spotify streams, top tracks, and listening analytics from your public Stats.fm (Spotistats) profile.</string>
 
+    <!-- Trakt & MDBList Plugins -->
+    <string name="plugin_badge_trakt">Trakt.tv</string>
+    <string name="plugin_desc_trakt">Movies &amp; TV shows watch history, scrobble, and ratings.</string>
+    <string name="plugin_long_desc_trakt">Sync watched movies, TV show episodes, watchlists, and ratings via Trakt.tv API.</string>
+    <string name="plugin_badge_mdblist">MDBList</string>
+    <string name="plugin_desc_mdblist">Dynamic movie/show lists and multi-platform rating aggregator.</string>
+    <string name="plugin_long_desc_mdblist">Sync curated lists, IMDb/Trakt/TMDB/Rotten Tomatoes/Metacritic ratings, and watchlist filters via MDBList API.</string>
+
+    <string name="settings_trakt_title">Trakt.tv</string>
+    <string name="settings_trakt_desc">Movies &amp; TV shows watch history, scrobble, and ratings.</string>
+    <string name="settings_trakt_user_label">Trakt Username</string>
+    <string name="settings_trakt_user_hint">e.g. username</string>
+    <string name="settings_trakt_client_id_label">Client ID (Optional)</string>
+    <string name="settings_trakt_client_id_hint">Leave blank for default public client</string>
+    <string name="settings_trakt_sync_movies">Sync Movies</string>
+    <string name="settings_trakt_sync_episodes">Sync TV Episodes</string>
+    <string name="settings_trakt_sync_ratings">Sync Ratings</string>
+    <string name="settings_trakt_save">Save Trakt</string>
+    <string name="settings_trakt_sync">Sync Trakt</string>
+    <string name="settings_trakt_hint">Fetches your watched movies and TV show episodes from your public Trakt profile.</string>
+
+    <string name="settings_mdblist_title">MDBList</string>
+    <string name="settings_mdblist_desc">Multi-platform ratings aggregator (IMDb, RT, Metacritic, Letterboxd)</string>
+    <string name="settings_mdblist_apikey_label">MDBList API Key</string>
+    <string name="settings_mdblist_apikey_hint">Get from mdblist.com/preferences</string>
+    <string name="settings_mdblist_sync_ratings">Auto-cache Media Ratings</string>
+    <string name="settings_mdblist_sync_lists">Sync Custom Lists (Coming Soon)</string>
+    <string name="settings_mdblist_save">Save MDBList</string>
+    <string name="settings_mdblist_sync">Sync MDBList</string>
+    <string name="settings_mdblist_hint">Aggregates IMDb, Rotten Tomatoes, Metacritic, and Letterboxd scores for your media library.</string>
+
+    <!-- Simkl Plugin -->
+    <string name="plugin_badge_simkl">Simkl</string>
+    <string name="plugin_desc_simkl">Movies, TV shows &amp; anime watch history and episode tracker.</string>
+    <string name="plugin_long_desc_simkl">Sync watched movies, TV shows, and anime (including last watched episode and ratings) via Simkl API.</string>
+
+    <string name="settings_simkl_title">Simkl</string>
+    <string name="settings_simkl_desc">Movies, TV Shows &amp; Anime Watch History &amp; Ratings</string>
+    <string name="settings_simkl_token_label">Simkl User Access Token</string>
+    <string name="settings_simkl_token_hint">Required for sync (simkl.com/settings/developer)</string>
+    <string name="settings_simkl_client_id_label">Client ID (Optional)</string>
+    <string name="settings_simkl_client_id_hint">Leave blank for default client</string>
+    <string name="settings_simkl_sync_movies">Sync Movies</string>
+    <string name="settings_simkl_sync_shows">Sync TV Shows</string>
+    <string name="settings_simkl_sync_anime">Sync Anime</string>
+    <string name="settings_simkl_sync_ratings">Sync Ratings</string>
+    <string name="settings_simkl_save">Save Simkl</string>
+    <string name="settings_simkl_sync">Sync Simkl</string>
+    <string name="settings_simkl_hint">Syncs your watched movies, shows, and anime series directly from your Simkl account.</string>
+
     <string name="settings_listenbrainz_title">ListenBrainz</string>
     <string name="settings_listenbrainz_desc">Open-source music scrobbling powered by MetaBrainz</string>
     <string name="settings_listenbrainz_username">ListenBrainz Username</string>
@@ -562,5 +643,50 @@
     <string name="stats_hide_card_action">Hide \"%1$s\" Card</string>
     <string name="stats_hide_this_card">Hide Card</string>
     <string name="stats_reset_default">Reset to Default</string>
+
+    <!-- Stats customization sheet labels -->
+    <string name="stats_card_books_total_title">Total Books</string>
+    <string name="stats_card_books_total_desc">All books in your reading diary</string>
+    <string name="stats_card_books_to_read_title">To Read</string>
+    <string name="stats_card_books_to_read_desc">Your to-read list and ratings</string>
+    <string name="stats_card_health_steps_title">Steps</string>
+    <string name="stats_card_health_steps_desc">Daily step count and date</string>
+    <string name="stats_card_health_hr_title">Average Heart Rate</string>
+    <string name="stats_card_health_hr_desc">Heart rate in bpm</string>
+    <string name="stats_card_health_sleep_title">Sleep Duration</string>
+    <string name="stats_card_health_sleep_desc">Total sleep per day</string>
+    <string name="stats_card_health_active_title">Active Calories</string>
+    <string name="stats_card_health_active_desc">Active calories burned and latest weight</string>
+    <string name="stats_card_notifications_total_title">Total Notifications</string>
+    <string name="stats_card_notifications_total_desc">All captured notifications and app count</string>
+    <string name="stats_card_notifications_today_title">Today\'s Feed</string>
+    <string name="stats_card_notifications_today_desc">Notifications received today</string>
+    <string name="stats_card_music_total_title">Total Listens</string>
+    <string name="stats_card_music_total_desc">All-time scrobble count</string>
+    <string name="stats_card_music_today_title">Listened Today</string>
+    <string name="stats_card_music_today_desc">Tracks played today</string>
+    <string name="stats_card_music_artists_title">Unique Artists</string>
+    <string name="stats_card_music_artists_desc">Number of distinct artists played</string>
+    <string name="stats_card_music_albums_title">Unique Albums</string>
+    <string name="stats_card_music_albums_desc">Number of distinct albums played</string>
+    <string name="stats_card_nutrition_calories_title">Today\'s Calories</string>
+    <string name="stats_card_nutrition_calories_desc">Calories eaten and remaining goal</string>
+    <string name="stats_card_nutrition_meals_title">Meal Entries</string>
+    <string name="stats_card_nutrition_meals_desc">Today\'s meals and total entries</string>
+    <string name="stats_card_nutrition_protein_title">Protein</string>
+    <string name="stats_card_nutrition_protein_desc">Daily protein grams and share</string>
+    <string name="stats_card_nutrition_carbfat_title">Carbs &amp; Fat</string>
+    <string name="stats_card_nutrition_carbfat_desc">Carb and fat balance and shares</string>
+    <string name="timeline_days_short">%1$dd</string>
+    <string name="filter_clear_date">Clear date filter</string>
+    <string name="filter_app">App</string>
+    <string name="filter_artist">Artist</string>
+    <string name="movies_filter_mdblist">MDBList</string>
+    <string name="sort_calories">Calories (High-Low)</string>
+    <string name="sort_protein">Protein (High-Low)</string>
+    <plurals name="filter_result_count">
+        <item quantity="one">%d result</item>
+        <item quantity="other">%d results</item>
+    </plurals>
 </resources>
 

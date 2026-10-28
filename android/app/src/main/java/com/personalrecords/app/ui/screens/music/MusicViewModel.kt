@@ -276,6 +276,21 @@ class MusicViewModel(
         recomputeFilter(debounceMs = if (query.isEmpty()) 0L else 150L)
     }
 
+    fun resetFilters() {
+        _uiState.update {
+            it.copy(
+                selectedFilter = "all",
+                selectedArtist = null,
+                searchQuery = "",
+                selectedDateFilter = null,
+                fromDateFilter = null,
+                toDateFilter = null,
+                isFiltering = true
+            )
+        }
+        recomputeFilter(debounceMs = 0L)
+    }
+
     private fun recomputeFilter(debounceMs: Long) {
         filterJob?.cancel()
         filterJob = viewModelScope.launch {

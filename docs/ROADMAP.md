@@ -57,12 +57,25 @@ Bu belge, projenin tamamlanan mimari ve performans aşamalarını ve gelecekte p
 
 ---
 
-## 🔮 Aşama 3: İleri Entegrasyonlar & Arka Plan Senkronizasyonu (Gelecek Vizyon)
+## 🔮 Aşama 3: İleri Entegrasyonlar & Yeni Eklentiler
 
+- [x] **Trakt.tv Eklentisi (Sinema & Dizi Scrobbler - Tamamlandı):**
+  - Trakt.tv API v2 entegrasyonu ile izlenen filmler ve dizi bölümlerinin (sezon/bölüm bazlı) zaman tüneline ve veritabanına aktarımı.
+  - Cloudflare D1 & Go SQLite tabloları (`trakt_sync_settings`, `trakt_history`, `trakt_sync_runs`).
+  - Android Ayarlar sekmesinde Trakt kartı, kullanıcı adı, Client ID ve film/dizi/puan filtreleme toggle'ları.
+  - 90 saniyelik senkronizasyon cooldown koruması ve force bypass desteği.
+- [x] **MDBList Eklentisi (Çoklu Platform Puan Agregatörü - Tamamlandı):**
+  - MDBList API ile çoklu kaynak puan agregasyonu (Rotten Tomatoes 🍅, RT Audience 🍿, IMDb ⭐, Metascore Ⓜ️, Letterboxd 🟢, Trakt 📺).
+  - 14 günlük akıllı SQLite önbellekleme (`mdblist_ratings_cache`) ile ücretsiz API kota tasarrufu.
+  - Film detay kartlarında yatay kaydırılabilir Material 3 Expressive `MediaRatingBadges` bileşeni.
+  - Cloudflare Worker, Go Backend ve Android Kotlin mimari paritesi.
+- [ ] **Sinema Listesinde Çoklu Platform Puan Rozetleri (İsteğe Bağlı Toggle):**
+  - Film kartlarında IMDb, Rotten Tomatoes (🍅) ve Metacritic (MC) rozetlerinin Ayarlar sekmesinden kullanıcı tercihine göre açılıp kapatılabilmesi (`Ayarlar > Sinema > Kartlarda Eleştirmen Puanlarını Göster`). Sadeliği korumak adına varsayılan olarak kapalı tutulacak, film detay sayfasında ise her zaman görüntülenecektir.
 - [ ] **WorkManager ile Arka Plan Health Connect Senkronizasyonu:**
   - Health Connect verilerini kullanıcı uygulamayı açmasa bile arka planda periyodik olarak sunucuya aktaran worker servisi.
-- [ ] **Yeni Servis Eklentileri:**
-  - Spotify (Dinleme geçmişi eklentisi).
-  - Steam / Oyun kütüphanesi eklentisi.
+- [ ] **Spotify Direct API:**
+  - Doğrudan Spotify Connect ve anlık çalan şarkı / çalma listesi senkronizasyonu.
+- [ ] **Steam:**
+  - Steam oyun kütüphanesi, oynama süreleri ve başarım (*achievement*) geçmişi.
 - [ ] **Widget Desteği:**
-  - Günlük kalori, adım ve son aktiviteleri ana ekranda gösteren Jetpack Glance widget'ları.
+  - Günlük kalori, adım, son izlenen film/dizi ve aktiviteleri ana ekranda gösteren Jetpack Glance widget'ları.

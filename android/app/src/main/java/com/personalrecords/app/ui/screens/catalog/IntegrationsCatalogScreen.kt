@@ -6,15 +6,19 @@ import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -27,6 +31,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -41,7 +47,7 @@ import com.personalrecords.app.core.theme.*
 import com.personalrecords.app.ui.components.*
 import kotlinx.coroutines.launch
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
 fun IntegrationsCatalogScreen(
     viewModel: IntegrationsCatalogViewModel,
@@ -51,6 +57,7 @@ fun IntegrationsCatalogScreen(
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
     val coroutineScope = rememberCoroutineScope()
+    val scrollBehavior = TopAppBarDefaults.enterAlwaysScrollBehavior(rememberTopAppBarState())
     var selectedWebhookPlugin by remember { mutableStateOf<IntegrationPlugin?>(null) }
 
     LaunchedEffect(state.toastMessage) {
@@ -61,7 +68,9 @@ fun IntegrationsCatalogScreen(
     }
 
     Scaffold(
-        modifier = Modifier.fillMaxSize(),
+        modifier = Modifier
+            .fillMaxSize()
+            .nestedScroll(scrollBehavior.nestedScrollConnection),
         contentWindowInsets = WindowInsets.statusBars,
         snackbarHost = {
             SnackbarHost(
@@ -72,15 +81,10 @@ fun IntegrationsCatalogScreen(
             )
         },
         topBar = {
-            TopAppBar(
-                title = {
-                    Text(
-                        text = stringResource(R.string.title_integrations_catalog),
-                        style = MaterialTheme.typography.titleLargeEmphasized,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                },
+            ExpressivePageTopAppBar(
+                title = stringResource(R.string.title_integrations_catalog),
+                subtitle = stringResource(R.string.catalog_subtitle),
+                scrollBehavior = scrollBehavior,
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
                         Icon(
@@ -89,10 +93,6 @@ fun IntegrationsCatalogScreen(
                         )
                     }
                 },
-                actions = {},
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.surface
-                )
             )
         }
     ) { innerPadding ->
@@ -108,79 +108,31 @@ fun IntegrationsCatalogScreen(
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             // Search & Category Filters
-            item(key = "catalog_search_filters") {
+            stickyHeader(key = "catalog_search_filters", contentType = "sticky_header") {
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    OutlinedTextField(
+                    ExpressiveSearchField(
                         value = state.searchQuery,
                         onValueChange = { viewModel.setSearchQuery(it) },
-                        placeholder = {
-                            Text(
-                                text = stringResource(R.string.catalog_search_hint),
-                                style = MaterialTheme.typography.bodyMedium,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
-                            )
-                        },
-                        leadingIcon = {
-                            Icon(
-                                imageVector = Icons.Default.Search,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        },
-                        trailingIcon = {
-                            if (state.searchQuery.isNotBlank()) {
-                                IconButton(onClick = { viewModel.setSearchQuery("") }) {
-                                    Icon(
-                                        imageVector = Icons.Default.Clear,
-                                        contentDescription = stringResource(R.string.action_clear)
-                                    )
-                                }
-                            }
-                        },
-                        singleLine = true,
-                        shape = M3Shapes.CornerFull,
+                        placeholder = stringResource(R.string.catalog_search_hint),
+                        clearContentDescription = stringResource(R.string.action_clear),
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(horizontal = 16.dp),
-                        colors = TextFieldDefaults.colors(
-                            focusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-                            unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-                            disabledContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-                            focusedIndicatorColor = Color.Transparent,
-                            unfocusedIndicatorColor = Color.Transparent,
-                            disabledIndicatorColor = Color.Transparent
-                        )
+                            .padding(horizontal = 16.dp)
                     )
 
-                    // Category Filter Chips (Edge-to-edge scroll with contentPadding)
-                    LazyRow(
-                        modifier = Modifier.fillMaxWidth(),
-                        contentPadding = PaddingValues(horizontal = 16.dp),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    // Single-choice category filter: same connected button group as every other screen.
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .horizontalScroll(rememberScrollState())
+                            .padding(horizontal = 16.dp)
                     ) {
-                        items(IntegrationCategory.entries) { cat ->
-                            val isSelected = state.selectedCategory == cat
-                            ExpressiveFilterChip(
-                                selected = isSelected,
-                                onClick = { viewModel.setSelectedCategory(cat) },
-                                leadingIcon = if (isSelected) {
-                                    {
-                                        Icon(
-                                            imageVector = Icons.Default.Check,
-                                            contentDescription = null,
-                                            modifier = Modifier.size(FilterChipDefaults.IconSize)
-                                        )
-                                    }
-                                } else null,
-                                label = {
-                                    Text(
-                                        text = stringResource(cat.labelRes),
-                                        style = MaterialTheme.typography.labelMedium
-                                    )
-                                }
-                            )
-                        }
+                        ExpressiveConnectedButtonGroup(
+                            items = IntegrationCategory.entries,
+                            selectedItem = state.selectedCategory,
+                            onItemSelected = { viewModel.setSelectedCategory(it) },
+                            labelProvider = { stringResource(it.labelRes) }
+                        )
                     }
                 }
             }
@@ -243,6 +195,15 @@ private fun CatalogPluginCard(
     onOpenSettings: (() -> Unit)?
 ) {
     val context = LocalContext.current
+    val colorScheme = MaterialTheme.colorScheme
+    val categoryColors = recordCategoryColors(plugin.recordCategory())
+    val accentContainer = categoryColors.container
+    val onAccentContainer = categoryColors.onContainer
+    val iconContainerColor by animateColorAsState(
+        targetValue = if (plugin.isEnabled) accentContainer else colorScheme.surfaceContainerHigh,
+        animationSpec = M3ExpressiveMotion.defaultEffects(),
+        label = "plugin_icon_container"
+    )
     val syncRotation = remember { Animatable(0f) }
     LaunchedEffect(isSyncing) {
         if (isSyncing) {
@@ -262,20 +223,17 @@ private fun CatalogPluginCard(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp),
-        shape = M3Shapes.CornerLarge,
+        shape = M3Shapes.CornerLargeIncreased,
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+            containerColor = colorScheme.surfaceContainerLow
         ),
-        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
-        border = BorderStroke(
-            width = 1.dp,
-            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = if (plugin.isEnabled) 0.35f else 0.2f)
-        )
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(14.dp)
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
             // Header: Icon + Info + Switch
             Row(
@@ -290,20 +248,16 @@ private fun CatalogPluginCard(
                 ) {
                     Box(
                         modifier = Modifier
-                            .size(42.dp)
-                            .clip(M3Shapes.CornerMedium)
-                            .background(
-                                if (plugin.isEnabled) MaterialTheme.colorScheme.primaryContainer
-                                else MaterialTheme.colorScheme.surfaceContainerHigh
-                            ),
+                            .size(48.dp)
+                            .clip(M3Shapes.CornerLarge)
+                            .background(iconContainerColor),
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
                             imageVector = plugin.icon,
                             contentDescription = null,
-                            tint = if (plugin.isEnabled) MaterialTheme.colorScheme.onPrimaryContainer
-                            else MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.size(22.dp)
+                            tint = if (plugin.isEnabled) onAccentContainer else colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(24.dp)
                         )
                     }
 
@@ -321,8 +275,6 @@ private fun CatalogPluginCard(
                             overflow = TextOverflow.Ellipsis
                         )
 
-                        Spacer(modifier = Modifier.height(3.dp))
-
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(6.dp)
@@ -330,216 +282,187 @@ private fun CatalogPluginCard(
                             val badgeLabel = if (plugin.badgeRes != 0) stringResource(plugin.badgeRes) else plugin.badge
                             Surface(
                                 shape = M3Shapes.CornerFull,
-                                color = if (plugin.isEnabled) MaterialTheme.colorScheme.secondaryContainer
-                                else MaterialTheme.colorScheme.surfaceContainerHigh
+                                color = colorScheme.surfaceContainerHigh
                             ) {
                                 Text(
                                     text = badgeLabel,
                                     style = MaterialTheme.typography.labelSmall,
-                                    color = if (plugin.isEnabled) MaterialTheme.colorScheme.onSecondaryContainer
-                                    else MaterialTheme.colorScheme.onSurfaceVariant,
-                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
+                                    color = colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
                                 )
                             }
 
-                            val statusLabel = if (plugin.isEnabled) stringResource(R.string.plugin_status_active) else stringResource(R.string.plugin_status_paused)
-                            Surface(
-                                shape = M3Shapes.CornerFull,
-                                color = if (plugin.isEnabled) MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
-                                else MaterialTheme.colorScheme.error.copy(alpha = 0.12f)
-                            ) {
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(4.dp),
-                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
-                                ) {
-                                    Box(
-                                        modifier = Modifier
-                                            .size(5.dp)
-                                            .background(
-                                                if (plugin.isEnabled) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error,
-                                                CircleShape
-                                            )
-                                    )
-                                    Text(
-                                        text = statusLabel,
-                                        style = MaterialTheme.typography.labelSmallEmphasized,
-                                        color = if (plugin.isEnabled) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error
-                                    )
-                                }
+                            val statusLabel = if (plugin.isEnabled) {
+                                stringResource(R.string.plugin_status_active)
+                            } else {
+                                stringResource(R.string.plugin_status_paused)
                             }
+                            ExpressiveStatusBadge(
+                                text = statusLabel,
+                                tone = if (plugin.isEnabled) StatusTone.Active else StatusTone.Paused
+                            )
                         }
                     }
                 }
 
                 Switch(
                     checked = plugin.isEnabled,
-                    onCheckedChange = onToggle,
-                    colors = SwitchDefaults.colors(
-                        checkedThumbColor = MaterialTheme.colorScheme.primary,
-                        checkedTrackColor = MaterialTheme.colorScheme.primaryContainer,
-                        uncheckedThumbColor = MaterialTheme.colorScheme.outline,
-                        uncheckedTrackColor = MaterialTheme.colorScheme.surfaceContainerHighest,
-                        uncheckedBorderColor = MaterialTheme.colorScheme.outline
-                    )
+                    onCheckedChange = { enabled ->
+                        if (!plugin.isInDevelopment || !enabled) onToggle(enabled)
+                    },
+                    enabled = !plugin.isInDevelopment || plugin.isEnabled
                 )
             }
-
-            Spacer(modifier = Modifier.height(8.dp))
 
             val desc = if (plugin.shortDescRes != 0) stringResource(plugin.shortDescRes) else plugin.shortDescription
             Text(
                 text = desc,
                 style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+                color = colorScheme.onSurfaceVariant,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis
             )
 
-            Spacer(modifier = Modifier.height(12.dp))
-
-            // Action Buttons Row - M3 Expressive Connected Button Group
+            // Keep actions separate so their shapes and touch targets stay clear on narrow screens.
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(3.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 if (plugin.type == IntegrationType.WEBHOOK) {
                     val hasOfficialUrl = plugin.officialUrl != null
-                    val webhookBtnShape = if (hasOfficialUrl) {
-                        RoundedCornerShape(topStart = 24.dp, bottomStart = 24.dp, topEnd = 8.dp, bottomEnd = 8.dp)
-                    } else {
-                        M3Shapes.CornerFull
-                    }
+                    val setupInteraction = remember { MutableInteractionSource() }
 
                     FilledTonalButton(
                         onClick = onConfigureWebhook,
-                        shape = webhookBtnShape,
+                        enabled = !plugin.isInDevelopment,
+                        interactionSource = setupInteraction,
+                        shapes = expressiveButtonShapes(),
                         contentPadding = PaddingValues(horizontal = 14.dp, vertical = 4.dp),
                         modifier = Modifier
                             .weight(1f)
-                            .height(38.dp)
+                            .heightIn(min = 48.dp)
+                            .expressivePressScale(setupInteraction)
                     ) {
                         Icon(
                             imageVector = Icons.Default.Tune,
                             contentDescription = null,
-                            modifier = Modifier.size(16.dp)
+                            modifier = Modifier.size(18.dp)
                         )
-                        Spacer(modifier = Modifier.width(6.dp))
+                        Spacer(modifier = Modifier.width(8.dp))
                         Text(
                             text = stringResource(R.string.catalog_setup_webhook),
-                            style = MaterialTheme.typography.labelMedium
+                            style = MaterialTheme.typography.labelLargeEmphasized,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
                         )
                     }
 
                     if (hasOfficialUrl) {
-                        OutlinedIconButton(
-                            onClick = {
-                                try {
-                                    val intent = Intent(Intent.ACTION_VIEW, Uri.parse(plugin.officialUrl))
-                                    context.startActivity(intent)
-                                } catch (_: Exception) {}
-                            },
-                            shape = RoundedCornerShape(topStart = 8.dp, bottomStart = 8.dp, topEnd = 24.dp, bottomEnd = 24.dp),
-                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
-                            modifier = Modifier.size(38.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.OpenInBrowser,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.size(18.dp)
-                            )
-                        }
+                        OfficialSiteButton(plugin = plugin, context = context)
                     }
                 } else if (plugin.syncServiceKey != null) {
                     val hasSettings = onOpenSettings != null
                     val hasOfficialUrl = plugin.officialUrl != null
-
-                    val syncShape = if (hasSettings || hasOfficialUrl) {
-                        RoundedCornerShape(topStart = 24.dp, bottomStart = 24.dp, topEnd = 8.dp, bottomEnd = 8.dp)
-                    } else {
-                        M3Shapes.CornerFull
-                    }
+                    val syncInteraction = remember { MutableInteractionSource() }
 
                     FilledTonalButton(
                         onClick = onSync,
-                        enabled = plugin.isEnabled && !isSyncing,
-                        shape = syncShape,
-                        colors = ButtonDefaults.filledTonalButtonColors(
-                            containerColor = MaterialTheme.colorScheme.primaryContainer,
-                            contentColor = MaterialTheme.colorScheme.onPrimaryContainer
-                        ),
+                        enabled = plugin.isEnabled && !isSyncing && !plugin.isInDevelopment,
+                        interactionSource = syncInteraction,
+                        shapes = expressiveButtonShapes(),
                         contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
                         modifier = Modifier
                             .weight(1f)
-                            .height(38.dp)
+                            .heightIn(min = 48.dp)
+                            .expressivePressScale(syncInteraction)
                     ) {
                         Icon(
                             imageVector = Icons.Default.Sync,
                             contentDescription = null,
                             modifier = Modifier
-                                .size(16.dp)
+                                .size(18.dp)
                                 .rotate(syncRotation.value)
                         )
-                        Spacer(modifier = Modifier.width(6.dp))
+                        Spacer(modifier = Modifier.width(8.dp))
                         Text(
                             text = stringResource(R.string.action_sync),
-                            style = MaterialTheme.typography.labelMedium
+                            style = MaterialTheme.typography.labelLargeEmphasized,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
                         )
                     }
 
                     if (hasSettings) {
-                        val configShape = if (hasOfficialUrl) {
-                            RoundedCornerShape(8.dp)
-                        } else {
-                            RoundedCornerShape(topStart = 8.dp, bottomStart = 8.dp, topEnd = 24.dp, bottomEnd = 24.dp)
-                        }
-
+                        val settingsInteraction = remember { MutableInteractionSource() }
                         OutlinedButton(
-                            onClick = onOpenSettings,
-                            shape = configShape,
-                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                            onClick = {
+                                if (!plugin.isInDevelopment) onOpenSettings?.invoke()
+                            },
+                            enabled = !plugin.isInDevelopment,
+                            interactionSource = settingsInteraction,
+                            shapes = expressiveButtonShapes(),
                             contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
                             modifier = Modifier
                                 .weight(1f)
-                                .height(38.dp)
+                                .heightIn(min = 48.dp)
+                                .expressivePressScale(settingsInteraction)
                         ) {
                             Icon(
                                 imageVector = Icons.Default.Settings,
                                 contentDescription = null,
-                                modifier = Modifier.size(16.dp)
+                                modifier = Modifier.size(18.dp)
                             )
-                            Spacer(modifier = Modifier.width(6.dp))
+                            Spacer(modifier = Modifier.width(8.dp))
                             Text(
                                 text = stringResource(R.string.catalog_configure),
-                                style = MaterialTheme.typography.labelMedium
+                                style = MaterialTheme.typography.labelLargeEmphasized,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
                             )
                         }
                     }
 
                     if (hasOfficialUrl) {
-                        OutlinedIconButton(
-                            onClick = {
-                                try {
-                                    val intent = Intent(Intent.ACTION_VIEW, Uri.parse(plugin.officialUrl))
-                                    context.startActivity(intent)
-                                } catch (_: Exception) {}
-                            },
-                            shape = RoundedCornerShape(topStart = 8.dp, bottomStart = 8.dp, topEnd = 24.dp, bottomEnd = 24.dp),
-                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
-                            modifier = Modifier.size(38.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.OpenInBrowser,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.size(18.dp)
-                            )
-                        }
+                        OfficialSiteButton(plugin = plugin, context = context)
                     }
                 }
             }
         }
     }
+}
+
+@Composable
+private fun OfficialSiteButton(
+    plugin: IntegrationPlugin,
+    context: Context
+) {
+    val officialUrl = plugin.officialUrl ?: return
+    FilledTonalIconButton(
+        onClick = {
+            try {
+                context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(officialUrl)))
+            } catch (_: Exception) {
+                // The system may not have a browser available for this URL.
+            }
+        },
+        modifier = Modifier.size(48.dp)
+    ) {
+        Icon(
+            imageVector = Icons.Default.OpenInBrowser,
+            contentDescription = stringResource(R.string.catalog_open_official_site, plugin.name),
+            modifier = Modifier.size(20.dp)
+        )
+    }
+}
+
+private fun IntegrationPlugin.recordCategory(): RecordCategory = when {
+    id == "fatsecret" -> RecordCategory.Nutrition
+    id == "goodreads" -> RecordCategory.Books
+    id == "letterboxd" -> RecordCategory.Movies
+    id == "health_connect" -> RecordCategory.Health
+    category == IntegrationCategory.MUSIC -> RecordCategory.Music
+    else -> RecordCategory.Notifications
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -550,7 +473,10 @@ private fun PluginWebhookBottomSheet(
     onDismiss: () -> Unit,
     onShowSnackbar: (String) -> Unit
 ) {
-    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val sheetState = rememberBottomSheetState(
+        initialValue = SheetValue.Hidden,
+        enabledValues = setOf(SheetValue.Hidden, SheetValue.Expanded)
+    )
     val context = LocalContext.current
     val clipboardManager = remember {
         context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
@@ -666,7 +592,7 @@ private fun PluginWebhookBottomSheet(
                         clipboardManager.setPrimaryClip(clip)
                         onShowSnackbar(context.getString(R.string.toast_webhook_copied))
                     },
-                    shape = M3Shapes.CornerFull,
+                    shapes = expressiveButtonShapes(),
                     modifier = Modifier.weight(1f)
                 ) {
                     Icon(
@@ -694,7 +620,7 @@ private fun PluginWebhookBottomSheet(
                                 onShowSnackbar(context.getString(R.string.music_open_failed))
                             }
                         },
-                        shape = M3Shapes.CornerFull,
+                        shapes = expressiveButtonShapes(),
                         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
                         modifier = Modifier.weight(1f)
                     ) {

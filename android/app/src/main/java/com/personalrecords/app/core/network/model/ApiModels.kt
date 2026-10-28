@@ -48,6 +48,13 @@ data class HealthResponse(
     val ok: Boolean = true
 )
 
+@Serializable
+data class AuthVerifyDto(
+    val required: Boolean = false,
+    val authenticated: Boolean = true,
+    val error: String? = null
+)
+
 @Immutable
 @Serializable
 data class DashboardDto(
@@ -186,7 +193,16 @@ data class FilmDto(
     val image_url: String? = null,
     val watched_date: String? = null,
     val diary_date: String? = null,
-    val imported_at: String? = null
+    val source: String? = "letterboxd",
+    val imported_at: String? = null,
+    val score_imdb: Double? = null,
+    val score_tomatoes: Int? = null,
+    val score_metacritic: Int? = null,
+    val score_tmdb: Int? = null,
+    val score_trakt: Int? = null,
+    val score_letterboxd: Double? = null,
+    val certification: String? = null,
+    val media_type: String? = null
 ) {
     val displayTitle: String
         get() = name?.ifBlank { null } ?: title ?: ""
@@ -201,7 +217,18 @@ data class FilmDto(
         get() = watched_date ?: ""
 
     val safeReview: String
-        get() = review ?: ""
+        get() = if (source.equals("mdblist", ignoreCase = true)) "" else (review ?: "")
+
+    val isShow: Boolean
+        get() = media_type.equals("show", ignoreCase = true) || media_type.equals("tv", ignoreCase = true) || media_type.equals("series", ignoreCase = true)
+
+    val displaySource: String
+        get() = when (source?.lowercase()) {
+            "mdblist" -> "MDBList"
+            "trakt" -> "Trakt"
+            "simkl" -> "Simkl"
+            else -> "Letterboxd"
+        }
 }
 
 @Serializable
@@ -592,6 +619,163 @@ data class SyncStatsFmResponse(
     val inserted: Int = 0,
     val updated: Int = 0,
     val totalProcessed: Int = 0,
+    val message: String = "",
+    val error: String? = null
+)
+
+// ==========================================
+// Trakt.tv & MDBList Integration DTOs
+// ==========================================
+
+@Serializable
+data class TraktSettingsDto(
+    val username: String = "",
+    val client_id: String = "",
+    val sync_movies: Boolean = true,
+    val sync_episodes: Boolean = true,
+    val sync_ratings: Boolean = true,
+    val enabled: Boolean = true
+)
+
+@Serializable
+data class SaveTraktSettingsRequest(
+    val username: String,
+    val client_id: String? = null,
+    val sync_movies: Boolean = true,
+    val sync_episodes: Boolean = true,
+    val sync_ratings: Boolean = true,
+    val enabled: Boolean = true
+)
+
+@Serializable
+data class TraktHistoryItemDto(
+    val history_id: String,
+    val media_type: String, // "movie" or "episode"
+    val title: String,
+    val year: Int? = null,
+    val season: Int? = null,
+    val episode_number: Int? = null,
+    val episode_title: String? = null,
+    val watched_at: String,
+    val trakt_id: Long? = null,
+    val imdb_id: String? = null,
+    val tmdb_id: Long? = null,
+    val user_rating: Int? = null,
+    val image_url: String? = null
+)
+
+@Serializable
+data class TraktHistoryResponseDto(
+    val ok: Boolean = true,
+    val page: Int = 1,
+    val limit: Int = 50,
+    val total: Int = 0,
+    val items: List<TraktHistoryItemDto> = emptyList()
+)
+
+@Serializable
+data class MdbListSettingsDto(
+    val api_key: String = "",
+    val sync_ratings_enabled: Boolean = true,
+    val sync_lists_enabled: Boolean = false
+)
+
+@Serializable
+data class SaveMdbListSettingsRequest(
+    val api_key: String,
+    val sync_ratings_enabled: Boolean = true,
+    val sync_lists_enabled: Boolean = false
+)
+
+@Serializable
+data class MdbListRatingsDto(
+    val id: String = "",
+    val imdb_id: String? = null,
+    val tmdb_id: Long? = null,
+    val media_type: String = "movie",
+    val title: String = "",
+    val year: Int? = null,
+    val score_imdb: Double? = null,
+    val score_tmdb: Int? = null,
+    val score_trakt: Int? = null,
+    val score_letterboxd: Double? = null,
+    val score_tomatoes: Int? = null,
+    val score_audience: Int? = null,
+    val score_metacritic: Int? = null,
+    val certification: String? = null,
+    val updated_at: String? = null
+)
+
+@Serializable
+data class MediaRatingsResponseDto(
+    val ok: Boolean = true,
+    val source: String = "",
+    val ratings: MdbListRatingsDto? = null,
+    val error: String? = null
+)
+
+// ==========================================
+// Simkl Integration DTOs
+// ==========================================
+
+@Serializable
+data class SimklSettingsDto(
+    val ok: Boolean = true,
+    val client_id: String = "",
+    val access_token_set: Boolean = false,
+    val masked_token: String = "",
+    val user_id: String = "",
+    val sync_movies: Boolean = true,
+    val sync_shows: Boolean = true,
+    val sync_anime: Boolean = true,
+    val sync_ratings: Boolean = true,
+    val enabled: Boolean = true,
+    val is_connected: Boolean = false
+)
+
+@Serializable
+data class SaveSimklSettingsRequest(
+    val client_id: String? = null,
+    val access_token: String? = null,
+    val user_id: String? = null,
+    val sync_movies: Boolean = true,
+    val sync_shows: Boolean = true,
+    val sync_anime: Boolean = true,
+    val sync_ratings: Boolean = true,
+    val enabled: Boolean = true
+)
+
+@Serializable
+data class SimklHistoryItemDto(
+    val id: String,
+    val simkl_id: Long,
+    val item_type: String, // "movie", "show", "anime"
+    val title: String,
+    val year: Int? = null,
+    val last_ep_watched: String? = null,
+    val status: String? = null, // "completed", "watching", etc.
+    val user_rating: Int? = null,
+    val poster_url: String? = null,
+    val imdb_id: String? = null,
+    val tmdb_id: Long? = null,
+    val mal_id: Long? = null,
+    val watched_at: String
+)
+
+@Serializable
+data class SimklHistoryResponseDto(
+    val ok: Boolean = true,
+    val page: Int = 1,
+    val limit: Int = 50,
+    val total: Int = 0,
+    val items: List<SimklHistoryItemDto> = emptyList()
+)
+
+@Serializable
+data class SyncSimklResponse(
+    val ok: Boolean = true,
+    val inserted: Int = 0,
+    val updated: Int = 0,
     val message: String = "",
     val error: String? = null
 )

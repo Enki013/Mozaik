@@ -1,21 +1,277 @@
 import { Hono } from "hono";
 import { cors } from "hono/cors";
+import { getCookie, setCookie, deleteCookie } from "hono/cookie";
 
 export interface Env {
   DB: D1Database;
+  API_KEY?: string;
+  WEBHOOK_SECRET?: string;
+  ALLOWED_ORIGINS?: string;
   FATSECRET_CONSUMER_KEY?: string;
   FATSECRET_CONSUMER_SECRET?: string;
   LASTFM_API_KEY?: string;
   LASTFM_USERNAME?: string;
+  TRAKT_CLIENT_ID?: string;
+  MDBLIST_API_KEY?: string;
+  SIMKL_CLIENT_ID?: string;
 }
+
+const FALLBACK_SIMKL_CLIENT_ID = "4e183fa88921cf89be1f6002fbe75ea751d38fc5a0b7274041e17d9bb73ad6ba";
 
 const app = new Hono<{ Bindings: Env }>();
 
+// 1. Hardened CORS Policy with Credentials Support
 app.use("*", cors({
-  origin: "*",
+  origin: (origin, c) => {
+    if (!origin) return "*"; // Native mobile apps (OkHttp), curl, server-to-server
+    if (
+      origin.startsWith("http://localhost:") ||
+      origin.startsWith("http://127.0.0.1:") ||
+      origin.startsWith("http://10.0.2.2:") ||
+      origin.endsWith(".workers.dev") ||
+      origin.startsWith("chrome-extension://") ||
+      origin.startsWith("moz-extension://")
+    ) {
+      return origin;
+    }
+    const customAllowed = ((c.env as any)?.ALLOWED_ORIGINS || "")
+      .split(",")
+      .map((s: string) => s.trim())
+      .filter(Boolean);
+    if (customAllowed.includes(origin)) {
+      return origin;
+    }
+    return null; // Reject untrusted cross-origin requests
+  },
   allowMethods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-  allowHeaders: ["Content-Type", "Authorization"],
+  allowHeaders: ["Content-Type", "Authorization", "X-API-Key", "X-Webhook-Secret", "x-api-key"],
+  credentials: true,
 }));
+
+// 2. HTTP Security Hardening Headers Middleware
+app.use("*", async (c, next) => {
+  await next();
+  c.header("X-Content-Type-Options", "nosniff");
+  c.header("X-Frame-Options", "DENY");
+  c.header("X-XSS-Protection", "1; mode=block");
+  c.header("Referrer-Policy", "strict-origin-when-cross-origin");
+  c.header("Permissions-Policy", "camera=(), microphone=(), geolocation=(), payment=()");
+
+  const contentType = c.res.headers.get("Content-Type") || "";
+  if (contentType.includes("text/html")) {
+    c.header(
+      "Content-Security-Policy",
+      "default-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://fonts.gstatic.com; " +
+      "img-src 'self' data: https:; " +
+      "font-src 'self' https://fonts.gstatic.com data:; " +
+      "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; " +
+      "connect-src 'self' https:; " +
+      "frame-ancestors 'none';"
+    );
+  }
+});
+
+// --- Sync Cooldown & Rate Limiting Helper ---
+async function checkSyncCooldown(
+  db: D1Database,
+  tableName: string,
+  cooldownSeconds: number = 90,
+  force: boolean = false
+): Promise<{ allowed: boolean; remainingSeconds: number }> {
+  if (force) return { allowed: true, remainingSeconds: 0 };
+  try {
+    const lastRow = await db
+      .prepare(`SELECT ran_at FROM ${tableName} ORDER BY id DESC LIMIT 1`)
+      .first<any>();
+
+    if (!lastRow || !lastRow.ran_at) {
+      return { allowed: true, remainingSeconds: 0 };
+    }
+
+    let ranAtStr = String(lastRow.ran_at).trim();
+    if (!ranAtStr.endsWith("Z") && !ranAtStr.includes("+")) {
+      ranAtStr = ranAtStr.replace(" ", "T") + "Z";
+    }
+    const lastTime = new Date(ranAtStr).getTime();
+    if (isNaN(lastTime)) {
+      return { allowed: true, remainingSeconds: 0 };
+    }
+
+    const now = Date.now();
+    const elapsedSeconds = Math.floor((now - lastTime) / 1000);
+    if (elapsedSeconds < cooldownSeconds && elapsedSeconds >= 0) {
+      return { allowed: false, remainingSeconds: cooldownSeconds - elapsedSeconds };
+    }
+  } catch (err) {
+    // If table doesn't exist yet, allow
+  }
+  return { allowed: true, remainingSeconds: 0 };
+}
+
+// --- Security & Authentication Helpers ---
+export function isAuthorized(c: any): boolean {
+  const apiKey = (c.env?.API_KEY || "").trim();
+  // If no API_KEY configured in environment, system is in open mode
+  if (!apiKey) {
+    return true;
+  }
+
+  // 1. Authorization header (Bearer or Basic)
+  const authHeader = c.req.header("Authorization") || "";
+  if (authHeader) {
+    const bearerMatch = authHeader.match(/^Bearer\s+(.+)$/i);
+    if (bearerMatch && bearerMatch[1].trim() === apiKey) {
+      return true;
+    }
+    const basicMatch = authHeader.match(/^Basic\s+(.+)$/i);
+    if (basicMatch) {
+      try {
+        const decoded = atob(basicMatch[1]);
+        const parts = decoded.split(":");
+        const pass = parts.length > 1 ? parts.slice(1).join(":") : parts[0];
+        if (pass.trim() === apiKey) {
+          return true;
+        }
+      } catch {}
+    }
+  }
+
+  // 2. X-API-Key headers
+  const xApiKey = c.req.header("X-API-Key") || c.req.header("x-api-key");
+  if (xApiKey && xApiKey.trim() === apiKey) {
+    return true;
+  }
+
+  // 3. Cookie (pr_auth)
+  const cookieVal = getCookie(c, "pr_auth");
+  if (cookieVal && cookieVal.trim() === apiKey) {
+    return true;
+  }
+
+  // 4. Query parameter (?api_key= or ?token=)
+  const queryToken = c.req.query("api_key") || c.req.query("token");
+  if (queryToken && queryToken.trim() === apiKey) {
+    return true;
+  }
+
+  return false;
+}
+
+export function isWebhookAuthorized(c: any): boolean {
+  const webhookSecret = (c.env?.WEBHOOK_SECRET || c.env?.API_KEY || "").trim();
+  if (!webhookSecret) {
+    return true; // No secret configured yet
+  }
+
+  const clientSecret =
+    c.req.header("X-Webhook-Secret") ||
+    c.req.header("X-API-Key") ||
+    c.req.header("x-api-key") ||
+    c.req.header("Authorization")?.replace(/^Bearer\s+/i, "").trim() ||
+    c.req.query("secret") ||
+    c.req.query("api_key");
+
+  return clientSecret === webhookSecret;
+}
+
+// Authentication & Security Middleware
+app.use("*", async (c, next) => {
+  const path = c.req.path;
+  const method = c.req.method;
+
+  // Preflight requests
+  if (method === "OPTIONS") {
+    return next();
+  }
+
+  // 1. Health check is always public
+  if (path === "/api/health") {
+    return next();
+  }
+
+  // 2. Auth management endpoints
+  if (path === "/api/auth/verify" || path === "/api/auth/login" || path === "/api/auth/logout") {
+    return next();
+  }
+
+  // 3. Webhooks (Notification Relay, Health Connect, Web Scrobbler)
+  if (path.startsWith("/api/webhooks/") || path.startsWith("/webhooks/")) {
+    if (!isWebhookAuthorized(c)) {
+      return c.json({
+        ok: false,
+        success: false,
+        error: "Yetkisiz istek: Webhook Secret veya API Anahtarı geçersiz veya eksik."
+      }, 401);
+    }
+    return next();
+  }
+
+  // 4. Web Dashboard shell (GET or HEAD /) is public; client UI prompts for key if needed
+  if (path === "/" && (method === "GET" || method === "HEAD")) {
+    return next();
+  }
+
+  // 5. OAuth callbacks (e.g. /fatsecret/callback) need to receive external redirects
+  if (path === "/fatsecret/callback") {
+    return next();
+  }
+
+  // 6. All other endpoints (/api/*, /settings/*, exports, syncs, etc.) require authorization
+  if (!isAuthorized(c)) {
+    return c.json({
+      ok: false,
+      success: false,
+      error: "Yetkisiz erişim: Bu uç noktaya erişmek için geçerli bir API Anahtarı (Bearer Token, X-API-Key veya oturum çerezi) gereklidir."
+    }, 401);
+  }
+
+  return next();
+});
+
+// Authentication Endpoints
+app.get("/api/auth/verify", (c) => {
+  const apiKey = (c.env?.API_KEY || "").trim();
+  if (!apiKey) {
+    return c.json({ required: false, authenticated: true });
+  }
+  const authenticated = isAuthorized(c);
+  if (!authenticated) {
+    return c.json({ required: true, authenticated: false, error: "Yetkisiz oturum." }, 401);
+  }
+  return c.json({ required: true, authenticated: true });
+});
+
+app.post("/api/auth/login", async (c) => {
+  const apiKey = (c.env?.API_KEY || "").trim();
+  if (!apiKey) {
+    return c.json({ ok: true, message: "API_KEY tanımlanmamış, kimlik doğrulama zorunlu değil.", required: false });
+  }
+
+  let body: any = {};
+  try {
+    body = await c.req.json();
+  } catch {}
+
+  const submittedKey = (body.apiKey || body.token || body.password || "").trim();
+  if (submittedKey !== apiKey) {
+    return c.json({ ok: false, error: "Hatalı API Anahtarı veya Şifre." }, 401);
+  }
+
+  setCookie(c, "pr_auth", apiKey, {
+    path: "/",
+    httpOnly: true,
+    secure: true,
+    sameSite: "Lax",
+    maxAge: 31536000,
+  });
+
+  return c.json({ ok: true, message: "Giriş başarılı.", token: apiKey });
+});
+
+app.post("/api/auth/logout", (c) => {
+  deleteCookie(c, "pr_auth", { path: "/" });
+  return c.json({ ok: true, message: "Çıkış yapıldı." });
+});
 
 // Date helpers
 function dateIntToISO(dateInt: number): string {
@@ -142,19 +398,180 @@ async function ensureMusicTables(db: D1Database) {
   `).run();
 }
 
+async function ensureTraktTables(db: D1Database) {
+  await db.prepare(`
+    CREATE TABLE IF NOT EXISTS trakt_sync_settings (
+      id INTEGER PRIMARY KEY CHECK (id = 1),
+      username TEXT,
+      client_id TEXT,
+      sync_movies INTEGER NOT NULL DEFAULT 1,
+      sync_episodes INTEGER NOT NULL DEFAULT 1,
+      sync_ratings INTEGER NOT NULL DEFAULT 1,
+      interval_minutes INTEGER NOT NULL DEFAULT 360,
+      enabled INTEGER NOT NULL DEFAULT 1,
+      updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+    )
+  `).run();
+  await db.prepare(`
+    CREATE TABLE IF NOT EXISTS trakt_history (
+      history_id TEXT PRIMARY KEY,
+      media_type TEXT NOT NULL,
+      title TEXT NOT NULL,
+      year INTEGER,
+      season INTEGER,
+      episode_number INTEGER,
+      episode_title TEXT,
+      watched_at TEXT NOT NULL,
+      trakt_id INTEGER,
+      imdb_id TEXT,
+      tmdb_id INTEGER,
+      user_rating INTEGER,
+      image_url TEXT,
+      raw_json TEXT NOT NULL,
+      imported_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+    )
+  `).run();
+  await db.prepare("CREATE INDEX IF NOT EXISTS idx_trakt_history_watched ON trakt_history(watched_at DESC)").run();
+  await db.prepare("CREATE INDEX IF NOT EXISTS idx_trakt_history_type ON trakt_history(media_type)").run();
+  await db.prepare(`
+    CREATE TABLE IF NOT EXISTS trakt_sync_runs (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      source TEXT NOT NULL,
+      status TEXT NOT NULL,
+      inserted INTEGER NOT NULL DEFAULT 0,
+      updated INTEGER NOT NULL DEFAULT 0,
+      message TEXT,
+      ran_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+    )
+  `).run();
+}
+
+async function ensureMdbListTables(db: D1Database) {
+  await db.prepare(`
+    CREATE TABLE IF NOT EXISTS mdblist_settings (
+      id INTEGER PRIMARY KEY CHECK (id = 1),
+      api_key TEXT,
+      sync_ratings_enabled INTEGER NOT NULL DEFAULT 1,
+      sync_lists_enabled INTEGER NOT NULL DEFAULT 0,
+      updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+    )
+  `).run();
+  await db.prepare(`
+    CREATE TABLE IF NOT EXISTS mdblist_ratings_cache (
+      id TEXT PRIMARY KEY,
+      imdb_id TEXT,
+      tmdb_id INTEGER,
+      media_type TEXT NOT NULL,
+      title TEXT NOT NULL,
+      year INTEGER,
+      score_imdb REAL,
+      score_tmdb INTEGER,
+      score_trakt INTEGER,
+      score_letterboxd REAL,
+      score_tomatoes INTEGER,
+      score_audience INTEGER,
+      score_metacritic INTEGER,
+      certification TEXT,
+      poster TEXT,
+      description TEXT,
+      ratings_json TEXT,
+      updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+    )
+  `).run();
+  try { await db.prepare("ALTER TABLE mdblist_ratings_cache ADD COLUMN poster TEXT").run(); } catch (_) {}
+  try { await db.prepare("ALTER TABLE mdblist_ratings_cache ADD COLUMN description TEXT").run(); } catch (_) {}
+  try { await db.prepare("ALTER TABLE mdblist_ratings_cache ADD COLUMN user_rating REAL").run(); } catch (_) {}
+  try { await db.prepare("ALTER TABLE mdblist_ratings_cache ADD COLUMN rated_at TEXT").run(); } catch (_) {}
+  await db.prepare("CREATE INDEX IF NOT EXISTS idx_mdblist_ratings_imdb ON mdblist_ratings_cache(imdb_id)").run();
+  await db.prepare("CREATE INDEX IF NOT EXISTS idx_mdblist_ratings_tmdb ON mdblist_ratings_cache(tmdb_id)").run();
+  await db.prepare(`
+    CREATE TABLE IF NOT EXISTS mdblist_sync_runs (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      source TEXT NOT NULL,
+      status TEXT NOT NULL,
+      inserted INTEGER NOT NULL DEFAULT 0,
+      updated INTEGER NOT NULL DEFAULT 0,
+      message TEXT,
+      ran_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+    )
+  `).run();
+}
+
+async function ensureSimklTables(db: D1Database) {
+  await db.prepare(`
+    CREATE TABLE IF NOT EXISTS simkl_sync_settings (
+      id INTEGER PRIMARY KEY CHECK (id = 1),
+      client_id TEXT,
+      access_token TEXT,
+      user_id TEXT,
+      sync_movies INTEGER NOT NULL DEFAULT 1,
+      sync_shows INTEGER NOT NULL DEFAULT 1,
+      sync_anime INTEGER NOT NULL DEFAULT 1,
+      sync_ratings INTEGER NOT NULL DEFAULT 1,
+      interval_minutes INTEGER NOT NULL DEFAULT 360,
+      enabled INTEGER NOT NULL DEFAULT 1,
+      updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+    )
+  `).run();
+  await db.prepare(`
+    CREATE TABLE IF NOT EXISTS simkl_history (
+      id TEXT PRIMARY KEY,
+      simkl_id INTEGER NOT NULL,
+      item_type TEXT NOT NULL,
+      title TEXT NOT NULL,
+      year INTEGER,
+      last_ep_watched TEXT,
+      status TEXT NOT NULL DEFAULT 'completed',
+      user_rating INTEGER,
+      poster_url TEXT,
+      imdb_id TEXT,
+      tmdb_id INTEGER,
+      mal_id TEXT,
+      raw_json TEXT NOT NULL,
+      watched_at TEXT NOT NULL,
+      imported_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+    )
+  `).run();
+  await db.prepare("CREATE INDEX IF NOT EXISTS idx_simkl_history_watched ON simkl_history(watched_at DESC)").run();
+  await db.prepare("CREATE INDEX IF NOT EXISTS idx_simkl_history_type ON simkl_history(item_type)").run();
+  await db.prepare(`
+    CREATE TABLE IF NOT EXISTS simkl_sync_runs (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      source TEXT NOT NULL,
+      status TEXT NOT NULL,
+      inserted INTEGER NOT NULL DEFAULT 0,
+      updated INTEGER NOT NULL DEFAULT 0,
+      message TEXT,
+      ran_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+    )
+  `).run();
+}
+
 // 2. Dashboard
 app.get("/api/dashboard", async (c) => {
   const db = c.env.DB;
   await ensureHealthTable(db);
   await ensureMusicTables(db);
+  await ensureTraktTables(db);
+  await ensureMdbListTables(db);
+  await ensureSimklTables(db);
 
-  const [booksCount, filmsCount, foodsCount, notifCount, healthCount, musicCount] = await Promise.all([
+  const [booksCount, filmsCount, foodsCount, notifCount, healthCount, musicCount, traktCount, mdblistCount, simklCount, totalFilmsCount] = await Promise.all([
     db.prepare("SELECT count(*) as c FROM goodreads_books").first<any>(),
     db.prepare("SELECT count(*) as c FROM letterboxd_films").first<any>(),
     db.prepare("SELECT count(*) as c FROM fatsecret_food_entries").first<any>(),
     db.prepare("SELECT count(*) as c FROM notifications").first<any>(),
     db.prepare("SELECT count(*) as c FROM health_records").first<any>(),
     db.prepare("SELECT count(*) as c FROM music_scrobbles").first<any>(),
+    db.prepare("SELECT count(*) as c FROM trakt_history").first<any>(),
+    db.prepare("SELECT count(*) as c FROM mdblist_ratings_cache").first<any>(),
+    db.prepare("SELECT count(*) as c FROM simkl_history").first<any>(),
+    db.prepare(`
+      SELECT (
+        (SELECT count(*) FROM letterboxd_films) +
+        (SELECT count(*) FROM mdblist_ratings_cache WHERE lower(title) NOT IN (SELECT lower(name) FROM letterboxd_films WHERE name IS NOT NULL))
+      ) as c
+    `).first<any>(),
   ]);
 
   const today = todayDateInt();
@@ -175,12 +592,18 @@ app.get("/api/dashboard", async (c) => {
   const grSettings = await db.prepare("SELECT feed_url FROM goodreads_sync_settings WHERE id = 1").first<any>();
   const lbSettings = await db.prepare("SELECT feed_url FROM letterboxd_sync_settings WHERE id = 1").first<any>();
   const musicSettings = await db.prepare("SELECT lastfm_username FROM music_sync_settings WHERE id = 1").first<any>();
+  const traktSettings = await db.prepare("SELECT username FROM trakt_sync_settings WHERE id = 1").first<any>();
+  const mdbSettings = await db.prepare("SELECT api_key FROM mdblist_settings WHERE id = 1").first<any>();
+  const simklSettings = await db.prepare("SELECT access_token FROM simkl_sync_settings WHERE id = 1").first<any>();
 
-  const [fatRun, grRun, lbRun, musicRun] = await Promise.all([
+  const [fatRun, grRun, lbRun, musicRun, traktRun, mdbRun, simklRun] = await Promise.all([
     db.prepare("SELECT * FROM fatsecret_sync_runs ORDER BY id DESC LIMIT 1").first(),
     db.prepare("SELECT * FROM goodreads_sync_runs ORDER BY id DESC LIMIT 1").first(),
     db.prepare("SELECT * FROM letterboxd_sync_runs ORDER BY id DESC LIMIT 1").first(),
     db.prepare("SELECT * FROM music_sync_runs ORDER BY id DESC LIMIT 1").first(),
+    db.prepare("SELECT * FROM trakt_sync_runs ORDER BY id DESC LIMIT 1").first(),
+    db.prepare("SELECT * FROM mdblist_sync_runs ORDER BY id DESC LIMIT 1").first(),
+    db.prepare("SELECT * FROM simkl_sync_runs ORDER BY id DESC LIMIT 1").first(),
   ]);
 
   const calorieTargetRow = await db
@@ -190,12 +613,16 @@ app.get("/api/dashboard", async (c) => {
 
   return c.json({
     counts: {
+      total_films: totalFilmsCount?.c || filmsCount?.c || 0,
       goodreads_books: booksCount?.c || 0,
       letterboxd_films: filmsCount?.c || 0,
       fatsecret_food_entries: foodsCount?.c || 0,
       notifications: notifCount?.c || 0,
       health_records: healthCount?.c || 0,
       music_scrobbles: musicCount?.c || 0,
+      trakt_history: traktCount?.c || 0,
+      mdblist_ratings: mdblistCount?.c || 0,
+      simkl_history: simklCount?.c || 0,
     },
     today: {
       date: todayIso,
@@ -209,12 +636,18 @@ app.get("/api/dashboard", async (c) => {
       letterboxd_rss: !!(lbSettings?.feed_url),
       health_connect: (healthCount?.c || 0) > 0,
       music: (musicCount?.c || 0) > 0 || !!(musicSettings?.lastfm_username),
+      trakt: !!(traktSettings?.username),
+      mdblist: !!(mdbSettings?.api_key),
+      simkl: !!(simklSettings?.access_token),
     },
     last_sync: {
       fatsecret: fatRun || null,
       goodreads: grRun || null,
       letterboxd: lbRun || null,
       music: musicRun || null,
+      trakt: traktRun || null,
+      mdblist: mdbRun || null,
+      simkl: simklRun || null,
     },
     calorie_target: calorieTarget,
   });
@@ -525,6 +958,100 @@ app.get("/api/activity", async (c) => {
     });
   }
 
+  // Trakt history (Movies and Shows/Episodes)
+  await ensureTraktTables(db);
+  const traktEntries = await db
+    .prepare("SELECT * FROM trakt_history ORDER BY watched_at DESC LIMIT ?")
+    .bind(limit * 3)
+    .all<any>();
+
+  for (const t of traktEntries.results) {
+    const dISO = t.watched_at ? t.watched_at.substring(0, 10) : "";
+    if (!dISO) continue;
+    if (minDateISO && dISO < minDateISO) continue;
+    if (maxDateISO && dISO > maxDateISO) continue;
+
+    const isEpisode = t.media_type === "episode";
+    const subtitle = isEpisode
+      ? `S${String(t.season || 1).padStart(2, "0")}E${String(t.episode_number || 1).padStart(2, "0")}${t.episode_title ? " · " + t.episode_title : ""}`
+      : (t.year ? String(t.year) : "Film");
+
+    allItems.push({
+      id: "trakt_" + t.history_id,
+      source: "trakt",
+      type: isEpisode ? "show" : "movie",
+      date: dISO,
+      time: t.watched_at && t.watched_at.length >= 16 ? t.watched_at.substring(11, 16) : "",
+      timestamp: t.watched_at || "",
+      title: t.title,
+      subtitle: subtitle,
+      details: {
+        history_id: t.history_id,
+        media_type: t.media_type,
+        title: t.title,
+        year: t.year,
+        season: t.season,
+        episode_number: t.episode_number,
+        episode_title: t.episode_title,
+        watched_at: t.watched_at,
+        trakt_id: t.trakt_id,
+        imdb_id: t.imdb_id,
+        tmdb_id: t.tmdb_id,
+        user_rating: t.user_rating,
+        image_url: t.image_url,
+      },
+    });
+  }
+
+  await ensureSimklTables(db);
+  const simklEntries = await db
+    .prepare("SELECT * FROM simkl_history ORDER BY watched_at DESC LIMIT ?")
+    .bind(limit * 3)
+    .all<any>();
+
+  for (const s of simklEntries.results || []) {
+    const dISO = s.watched_at ? s.watched_at.substring(0, 10) : "";
+    if (!dISO) continue;
+    if (minDateISO && dISO < minDateISO) continue;
+    if (maxDateISO && dISO > maxDateISO) continue;
+
+    const isAnime = s.item_type === "anime";
+    const isShow = s.item_type === "show";
+    let subtitle = "";
+    if (s.last_ep_watched) {
+      subtitle = s.last_ep_watched;
+    } else if (s.year) {
+      subtitle = String(s.year);
+    }
+    if (s.user_rating) {
+      subtitle += (subtitle ? " · " : "") + `★ ${s.user_rating}/10`;
+    }
+
+    allItems.push({
+      id: "simkl_" + s.id,
+      source: "simkl",
+      type: isAnime ? "anime" : (isShow ? "show" : "movie"),
+      date: dISO,
+      time: s.watched_at && s.watched_at.length >= 16 ? s.watched_at.substring(11, 16) : "",
+      timestamp: s.watched_at || "",
+      title: s.title,
+      subtitle: subtitle,
+      details: {
+        id: s.id,
+        simkl_id: s.simkl_id,
+        item_type: s.item_type,
+        title: s.title,
+        year: s.year,
+        last_ep_watched: s.last_ep_watched,
+        user_rating: s.user_rating,
+        poster_url: s.poster_url,
+        imdb_id: s.imdb_id,
+        tmdb_id: s.tmdb_id,
+        mal_id: s.mal_id,
+      },
+    });
+  }
+
   // Sort all items descending by date and timestamp
   allItems.sort((a, b) => {
     if (a.date !== b.date) return b.date.localeCompare(a.date);
@@ -659,16 +1186,152 @@ app.get("/api/goodreads/books", async (c) => {
   return c.json({ items: rows.results });
 });
 
-// 7. Letterboxd Films
-app.get("/api/letterboxd/films", async (c) => {
-  const limit = parseInt(c.req.query("limit") || "100", 10);
-  const rows = await c.env.DB
-    .prepare("SELECT * FROM letterboxd_films ORDER BY coalesce(watched_date, diary_date, imported_at) DESC LIMIT ?")
-    .bind(limit)
-    .all<any>();
+// 7. Unified Films / Movies Hub (Letterboxd + MDBList + Trakt + Simkl)
+const getUnifiedFilmsHandler = async (c: any) => {
+  const limit = parseInt(c.req.query("limit") || "300", 10);
+  const db = c.env.DB;
+  await ensureMdbListTables(db);
+  await ensureTraktTables(db);
+  await ensureSimklTables(db);
 
-  return c.json({ items: rows.results });
-});
+  try {
+    const sql = `
+      SELECT 
+        f.film_key,
+        f.letterboxd_uri,
+        f.name,
+        f.name as title,
+        f.year,
+        f.rating,
+        coalesce(f.watched_date, substr(f.diary_date, 1, 10), substr(f.imported_at, 1, 10)) as watched_date,
+        f.diary_date,
+        f.rewatch,
+        f.tags,
+        f.review as review,
+        coalesce(f.image_url, m.poster) as image_url,
+        'letterboxd' as source,
+        f.imported_at,
+        m.score_imdb,
+        m.score_tomatoes,
+        m.score_metacritic,
+        m.score_tmdb,
+        m.score_trakt,
+        m.score_letterboxd,
+        m.certification,
+        'movie' as media_type
+      FROM letterboxd_films f
+      LEFT JOIN mdblist_ratings_cache m ON lower(f.name) = lower(m.title)
+
+      UNION ALL
+
+      SELECT 
+        'mdblist-' || m.id as film_key,
+        null as letterboxd_uri,
+        m.title as name,
+        m.title as title,
+        m.year,
+        coalesce(m.user_rating, m.score_letterboxd, (m.score_imdb / 2.0), 0.0) as rating,
+        coalesce(substr(m.rated_at, 1, 10), substr(m.updated_at, 1, 10)) as watched_date,
+        null as diary_date,
+        'No' as rewatch,
+        null as tags,
+        null as review,
+        m.poster as image_url,
+        'mdblist' as source,
+        m.updated_at as imported_at,
+        m.score_imdb,
+        m.score_tomatoes,
+        m.score_metacritic,
+        m.score_tmdb,
+        m.score_trakt,
+        m.score_letterboxd,
+        m.certification,
+        coalesce(m.media_type, 'movie') as media_type
+      FROM mdblist_ratings_cache m
+      WHERE lower(m.title) NOT IN (SELECT lower(name) FROM letterboxd_films WHERE name IS NOT NULL)
+      AND (m.media_type IN ('movie', 'show', 'tv', 'series') OR m.media_type IS NULL)
+
+      UNION ALL
+
+      SELECT 
+        'trakt-' || t.history_id as film_key,
+        null as letterboxd_uri,
+        t.title as name,
+        t.title as title,
+        t.year,
+        coalesce(t.user_rating, 0.0) as rating,
+        substr(t.watched_at, 1, 10) as watched_date,
+        null as diary_date,
+        'No' as rewatch,
+        null as tags,
+        null as review,
+        coalesce(t.image_url, m.poster) as image_url,
+        'trakt' as source,
+        t.imported_at,
+        m.score_imdb,
+        m.score_tomatoes,
+        m.score_metacritic,
+        m.score_tmdb,
+        m.score_trakt,
+        m.score_letterboxd,
+        m.certification,
+        coalesce(t.media_type, 'movie') as media_type
+      FROM trakt_history t
+      LEFT JOIN mdblist_ratings_cache m ON lower(t.title) = lower(m.title)
+      WHERE (t.media_type IN ('movie', 'show', 'episode') OR t.media_type IS NULL)
+      AND lower(t.title) NOT IN (SELECT lower(name) FROM letterboxd_films WHERE name IS NOT NULL)
+      AND lower(t.title) NOT IN (SELECT lower(title) FROM mdblist_ratings_cache WHERE media_type IN ('movie', 'show', 'tv', 'series'))
+
+      UNION ALL
+
+      SELECT 
+        'simkl-' || s.id as film_key,
+        null as letterboxd_uri,
+        s.title as name,
+        s.title as title,
+        s.year,
+        coalesce(s.user_rating, 0.0) as rating,
+        substr(s.watched_at, 1, 10) as watched_date,
+        null as diary_date,
+        'No' as rewatch,
+        null as tags,
+        null as review,
+        coalesce(s.poster_url, m.poster) as image_url,
+        'simkl' as source,
+        s.imported_at,
+        m.score_imdb,
+        m.score_tomatoes,
+        m.score_metacritic,
+        m.score_tmdb,
+        m.score_trakt,
+        m.score_letterboxd,
+        m.certification,
+        coalesce(s.item_type, 'movie') as media_type
+      FROM simkl_history s
+      LEFT JOIN mdblist_ratings_cache m ON lower(s.title) = lower(m.title)
+      WHERE (s.item_type IN ('movie', 'show', 'tv', 'anime') OR s.item_type IS NULL)
+      AND lower(s.title) NOT IN (SELECT lower(name) FROM letterboxd_films WHERE name IS NOT NULL)
+      AND lower(s.title) NOT IN (SELECT lower(title) FROM mdblist_ratings_cache WHERE media_type IN ('movie', 'show', 'tv', 'series'))
+      AND lower(s.title) NOT IN (SELECT lower(title) FROM trakt_history WHERE media_type IN ('movie', 'show', 'episode'))
+
+      ORDER BY watched_date DESC, imported_at DESC
+      LIMIT ?
+    `;
+
+    const rows = (await db.prepare(sql).bind(limit).all()) as any;
+    return c.json({ items: rows.results || [] });
+  } catch (err: any) {
+    console.error("Unified films error:", err);
+    const fallback = (await db
+      .prepare("SELECT * FROM letterboxd_films ORDER BY coalesce(watched_date, diary_date, imported_at) DESC LIMIT ?")
+      .bind(limit)
+      .all()) as any;
+    return c.json({ items: fallback.results || [] });
+  }
+};
+
+app.get("/api/letterboxd/films", getUnifiedFilmsHandler);
+app.get("/api/movies", getUnifiedFilmsHandler);
 
 // 8. Calorie Target
 app.get("/api/settings/calorie-target", async (c) => {
@@ -852,6 +1515,17 @@ app.get("/api/sync/status", async (c) => {
 
 // 10. Sync Goodreads RSS
 app.post("/api/sync/goodreads", async (c) => {
+  const force = c.req.query("force") === "true";
+  const cooldown = await checkSyncCooldown(c.env.DB, "goodreads_sync_runs", 90, force);
+  if (!cooldown.allowed) {
+    return c.json({
+      ok: false,
+      error: `Goodreads senkronizasyonu bekleme süresinde (cooldown). Lütfen ${cooldown.remainingSeconds} saniye sonra tekrar deneyin.`,
+      remaining_seconds: cooldown.remainingSeconds,
+      cooldown: true
+    }, 429);
+  }
+
   const settings = await c.env.DB
     .prepare("SELECT feed_url FROM goodreads_sync_settings WHERE id = 1")
     .first<any>();
@@ -884,9 +1558,9 @@ app.post("/api/sync/goodreads", async (c) => {
 
     while ((match = itemRegex.exec(xml)) !== null) {
       const itemContent = match[1];
-      const title = extractTag(itemContent, "title");
+      const title = decodeXmlEntities(extractTag(itemContent, "title"));
       const bookId = extractTag(itemContent, "book_id") || extractTag(itemContent, "guid") || hashStr(title);
-      const author = extractTag(itemContent, "author_name");
+      const author = decodeXmlEntities(extractTag(itemContent, "author_name"));
       const userRating = parseInt(extractTag(itemContent, "user_rating") || "0", 10);
       const avgRating = parseFloat(extractTag(itemContent, "average_rating") || "0");
       const bookPublished = parseInt(extractTag(itemContent, "book_published") || "0", 10);
@@ -938,6 +1612,17 @@ app.post("/api/sync/goodreads", async (c) => {
 
 // 11. Sync Letterboxd RSS
 app.post("/api/sync/letterboxd", async (c) => {
+  const force = c.req.query("force") === "true";
+  const cooldown = await checkSyncCooldown(c.env.DB, "letterboxd_sync_runs", 90, force);
+  if (!cooldown.allowed) {
+    return c.json({
+      ok: false,
+      error: `Letterboxd senkronizasyonu bekleme süresinde (cooldown). Lütfen ${cooldown.remainingSeconds} saniye sonra tekrar deneyin.`,
+      remaining_seconds: cooldown.remainingSeconds,
+      cooldown: true
+    }, 429);
+  }
+
   const settings = await c.env.DB
     .prepare("SELECT feed_url FROM letterboxd_sync_settings WHERE id = 1")
     .first<any>();
@@ -1253,6 +1938,17 @@ app.post("/api/letterboxd/import", async (c) => {
 
 // 12. Sync FatSecret
 app.post("/api/sync/fatsecret", async (c) => {
+  const force = c.req.query("force") === "true";
+  const cooldown = await checkSyncCooldown(c.env.DB, "fatsecret_sync_runs", 90, force);
+  if (!cooldown.allowed) {
+    return c.json({
+      ok: false,
+      error: `FatSecret senkronizasyonu bekleme süresinde (cooldown). Lütfen ${cooldown.remainingSeconds} saniye sonra tekrar deneyin.`,
+      remaining_seconds: cooldown.remainingSeconds,
+      cooldown: true
+    }, 429);
+  }
+
   let days = 3;
   try {
     const body = await c.req.json();
@@ -2459,6 +3155,17 @@ app.post("/api/settings/plugins", async (c) => {
 
 // 21. Last.fm Sync API
 app.post("/api/music/sync-lastfm", async (c) => {
+  const force = c.req.query("force") === "true";
+  const cooldown = await checkSyncCooldown(c.env.DB, "music_sync_runs", 90, force);
+  if (!cooldown.allowed) {
+    return c.json({
+      ok: false,
+      error: `Last.fm senkronizasyonu bekleme süresinde (cooldown). Lütfen ${cooldown.remainingSeconds} saniye sonra tekrar deneyin.`,
+      remaining_seconds: cooldown.remainingSeconds,
+      cooldown: true
+    }, 429);
+  }
+
   const db = c.env.DB;
   await ensureMusicTables(db);
 
@@ -3020,14 +3727,778 @@ app.post("/api/music/import", async (c) => {
   });
 });
 
+// ==========================================
+// 23. Trakt.tv Integration Endpoints
+// ==========================================
 
-// Simple Tag Extractor helper
+const FALLBACK_TRAKT_CLIENT_ID = "4e183fa88921cf89be1f6002fbe75ea751d38fc5a0b7274041e17d9bb73ad6ba";
+
+app.get("/api/settings/trakt", async (c) => {
+  const db = c.env.DB;
+  await ensureTraktTables(db);
+  const row = (await db.prepare("SELECT username, client_id, sync_movies, sync_episodes, sync_ratings, enabled FROM trakt_sync_settings WHERE id = 1").first()) as any;
+  return c.json({
+    username: row?.username || "",
+    client_id: row?.client_id || "",
+    sync_movies: row ? row.sync_movies === 1 : true,
+    sync_episodes: row ? row.sync_episodes === 1 : true,
+    sync_ratings: row ? row.sync_ratings === 1 : true,
+    enabled: row ? row.enabled === 1 : true,
+  });
+});
+
+app.post("/api/settings/trakt", async (c) => {
+  const db = c.env.DB;
+  await ensureTraktTables(db);
+  const body = await c.req.json().catch(() => ({}));
+
+  const username = (body.username || "").trim();
+  const clientId = (body.client_id || "").trim();
+  const syncMovies = body.sync_movies !== false ? 1 : 0;
+  const syncEpisodes = body.sync_episodes !== false ? 1 : 0;
+  const syncRatings = body.sync_ratings !== false ? 1 : 0;
+  const enabled = body.enabled !== false ? 1 : 0;
+
+  await db.prepare(`
+    INSERT INTO trakt_sync_settings (id, username, client_id, sync_movies, sync_episodes, sync_ratings, enabled, updated_at)
+    VALUES (1, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+    ON CONFLICT(id) DO UPDATE SET
+      username = excluded.username,
+      client_id = excluded.client_id,
+      sync_movies = excluded.sync_movies,
+      sync_episodes = excluded.sync_episodes,
+      sync_ratings = excluded.sync_ratings,
+      enabled = excluded.enabled,
+      updated_at = CURRENT_TIMESTAMP
+  `).bind(username, clientId, syncMovies, syncEpisodes, syncRatings, enabled).run();
+
+  await db.prepare(`
+    INSERT OR REPLACE INTO user_settings (key, value, updated_at)
+    VALUES ('plugin:trakt:enabled', ?, CURRENT_TIMESTAMP)
+  `).bind(enabled === 1 ? "1" : "0").run();
+
+  return c.json({ ok: true, message: "Trakt ayarları başarıyla kaydedildi." });
+});
+
+app.post("/api/sync/trakt", async (c) => {
+  const db = c.env.DB;
+  await ensureTraktTables(db);
+
+  const force = c.req.query("force") === "true";
+  const cooldown = await checkSyncCooldown(db, "trakt_sync_runs", 90, force);
+  if (!cooldown.allowed) {
+    return c.json({
+      ok: false,
+      error: `Trakt senkronizasyonu bekleme süresinde (cooldown). Lütfen ${cooldown.remainingSeconds} saniye sonra tekrar deneyin.`,
+      remaining_seconds: cooldown.remainingSeconds,
+      cooldown: true,
+    }, 429);
+  }
+
+  let body: any = {};
+  try { body = await c.req.json(); } catch (e) {}
+
+  const row = (await db.prepare("SELECT username, client_id, sync_movies, sync_episodes, sync_ratings FROM trakt_sync_settings WHERE id = 1").first()) as any;
+  const username = (body.username || row?.username || "").trim();
+  const clientId = (body.client_id || row?.client_id || c.env.TRAKT_CLIENT_ID || FALLBACK_TRAKT_CLIENT_ID).trim();
+
+  if (!username) {
+    return c.json({ ok: false, error: "Trakt kullanıcı adı tanımlanmamış. Lütfen Ayarlar > Trakt.tv bölümünden kullanıcı adınızı kaydedin." }, 400);
+  }
+
+  const syncMovies = row ? row.sync_movies === 1 : true;
+  const syncEpisodes = row ? row.sync_episodes === 1 : true;
+  const syncRatings = row ? row.sync_ratings === 1 : true;
+
+  const traktHeaders = {
+    "Content-Type": "application/json",
+    "trakt-api-version": "2",
+    "trakt-api-key": clientId,
+    "User-Agent": "PersonalRecordsApp/1.0",
+  };
+
+  let totalInserted = 0;
+  let totalUpdated = 0;
+
+  try {
+    // 1. Fetch ratings map if enabled
+    const ratingsMap = new Map<string, number>();
+    if (syncRatings) {
+      try {
+        const [mRatingsRes, eRatingsRes] = await Promise.all([
+          fetch(`https://api.trakt.tv/users/${encodeURIComponent(username)}/ratings/movies`, { headers: traktHeaders }),
+          fetch(`https://api.trakt.tv/users/${encodeURIComponent(username)}/ratings/episodes`, { headers: traktHeaders }),
+        ]);
+        if (mRatingsRes.ok) {
+          const mRatings = (await mRatingsRes.json()) as any[];
+          for (const r of mRatings) {
+            if (r.movie?.ids?.trakt && r.rating) {
+              ratingsMap.set("m_" + r.movie.ids.trakt, r.rating);
+            }
+          }
+        }
+        if (eRatingsRes.ok) {
+          const eRatings = (await eRatingsRes.json()) as any[];
+          for (const r of eRatings) {
+            if (r.episode?.ids?.trakt && r.rating) {
+              ratingsMap.set("e_" + r.episode.ids.trakt, r.rating);
+            }
+          }
+        }
+      } catch (e) {
+        // Ratings fetch is optional enhancement
+      }
+    }
+
+    // 2. Fetch Watched Movies History
+    if (syncMovies) {
+      const moviesRes = await fetch(
+        `https://api.trakt.tv/users/${encodeURIComponent(username)}/history/movies?page=1&limit=100&extended=full`,
+        { headers: traktHeaders }
+      );
+      if (moviesRes.ok) {
+        const movies = (await moviesRes.json()) as any[];
+        for (const item of movies) {
+          if (!item.movie) continue;
+          const historyId = "trakt_m_" + item.id;
+          const title = item.movie.title || "";
+          const year = Number(item.movie.year) || null;
+          const watchedAt = item.watched_at || new Date().toISOString();
+          const traktId = item.movie.ids?.trakt ? Number(item.movie.ids.trakt) : null;
+          const imdbId = item.movie.ids?.imdb || null;
+          const tmdbId = item.movie.ids?.tmdb ? Number(item.movie.ids.tmdb) : null;
+          const userRating = (traktId && ratingsMap.has("m_" + traktId)) ? ratingsMap.get("m_" + traktId) : null;
+          const rawJson = JSON.stringify(item);
+
+          const existing = await db.prepare("SELECT history_id FROM trakt_history WHERE history_id = ?").bind(historyId).first();
+
+          await db.prepare(`
+            INSERT INTO trakt_history (history_id, media_type, title, year, season, episode_number, episode_title, watched_at, trakt_id, imdb_id, tmdb_id, user_rating, image_url, raw_json)
+            VALUES (?, 'movie', ?, ?, NULL, NULL, NULL, ?, ?, ?, ?, ?, NULL, ?)
+            ON CONFLICT(history_id) DO UPDATE SET
+              user_rating = excluded.user_rating,
+              imdb_id = excluded.imdb_id,
+              tmdb_id = excluded.tmdb_id
+          `).bind(historyId, title, year, watchedAt, traktId, imdbId, tmdbId, userRating, rawJson).run();
+
+          if (existing) totalUpdated++;
+          else totalInserted++;
+        }
+      }
+    }
+
+    // 3. Fetch Watched Episodes History
+    if (syncEpisodes) {
+      const episodesRes = await fetch(
+        `https://api.trakt.tv/users/${encodeURIComponent(username)}/history/episodes?page=1&limit=100&extended=full`,
+        { headers: traktHeaders }
+      );
+      if (episodesRes.ok) {
+        const episodes = (await episodesRes.json()) as any[];
+        for (const item of episodes) {
+          if (!item.show || !item.episode) continue;
+          const historyId = "trakt_e_" + item.id;
+          const showTitle = item.show.title || "";
+          const episodeTitle = item.episode.title || "";
+          const season = Number(item.episode.season) || 1;
+          const episodeNumber = Number(item.episode.number) || 1;
+          const year = Number(item.show.year) || null;
+          const watchedAt = item.watched_at || new Date().toISOString();
+          const traktId = item.episode.ids?.trakt ? Number(item.episode.ids.trakt) : null;
+          const imdbId = item.show.ids?.imdb || item.episode.ids?.imdb || null;
+          const tmdbId = item.show.ids?.tmdb ? Number(item.show.ids.tmdb) : null;
+          const userRating = (traktId && ratingsMap.has("e_" + traktId)) ? ratingsMap.get("e_" + traktId) : null;
+          const rawJson = JSON.stringify(item);
+
+          const existing = await db.prepare("SELECT history_id FROM trakt_history WHERE history_id = ?").bind(historyId).first();
+
+          await db.prepare(`
+            INSERT INTO trakt_history (history_id, media_type, title, year, season, episode_number, episode_title, watched_at, trakt_id, imdb_id, tmdb_id, user_rating, image_url, raw_json)
+            VALUES (?, 'episode', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, ?)
+            ON CONFLICT(history_id) DO UPDATE SET
+              user_rating = excluded.user_rating,
+              imdb_id = excluded.imdb_id,
+              tmdb_id = excluded.tmdb_id
+          `).bind(historyId, showTitle, year, season, episodeNumber, episodeTitle, watchedAt, traktId, imdbId, tmdbId, userRating, rawJson).run();
+
+          if (existing) totalUpdated++;
+          else totalInserted++;
+        }
+      }
+    }
+
+    await db.prepare(`
+      INSERT INTO trakt_sync_runs (source, status, inserted, updated, message)
+      VALUES ('trakt', 'success', ?, ?, ?)
+    `).bind(
+      totalInserted,
+      totalUpdated,
+      `Trakt.tv senkronizasyonu tamamlandı: ${totalInserted} yeni kayıt, ${totalUpdated} güncellendi.`
+    ).run();
+
+    return c.json({
+      ok: true,
+      inserted: totalInserted,
+      updated: totalUpdated,
+      message: `Trakt.tv senkronizasyonu başarılı: ${totalInserted} yeni izleme aktarıldı, ${totalUpdated} güncellendi.`
+    });
+  } catch (err: any) {
+    await db.prepare(`
+      INSERT INTO trakt_sync_runs (source, status, inserted, updated, message)
+      VALUES ('trakt', 'error', ?, ?, ?)
+    `).bind(totalInserted, totalUpdated, err.message).run();
+
+    return c.json({ ok: false, error: err.message }, 500);
+  }
+});
+
+app.get("/api/trakt/history", async (c) => {
+  const db = c.env.DB;
+  await ensureTraktTables(db);
+
+  const mediaType = c.req.query("type")?.trim(); // 'movie' or 'episode'
+  const limit = Math.min(Math.max(parseInt(c.req.query("limit") || "50", 10), 1), 200);
+  const page = Math.max(parseInt(c.req.query("page") || "1", 10), 1);
+  const offset = (page - 1) * limit;
+
+  let query = "SELECT * FROM trakt_history";
+  const params: any[] = [];
+
+  if (mediaType === "movie" || mediaType === "episode") {
+    query += " WHERE media_type = ?";
+    params.push(mediaType);
+  }
+
+  query += " ORDER BY watched_at DESC LIMIT ? OFFSET ?";
+  params.push(limit, offset);
+
+  const rows = await db.prepare(query).bind(...params).all<any>();
+
+  let countQuery = "SELECT count(*) as c FROM trakt_history";
+  if (mediaType === "movie" || mediaType === "episode") {
+    countQuery += " WHERE media_type = '" + mediaType + "'";
+  }
+  const totalCount = await db.prepare(countQuery).first<any>();
+
+  return c.json({
+    ok: true,
+    page,
+    limit,
+    total: totalCount?.c || 0,
+    items: rows.results || [],
+  });
+});
+
+// ==========================================
+// 24. MDBList Integration Endpoints
+// ==========================================
+
+app.get("/api/settings/mdblist", async (c) => {
+  const db = c.env.DB;
+  await ensureMdbListTables(db);
+  const row = (await db.prepare("SELECT api_key, sync_ratings_enabled, sync_lists_enabled FROM mdblist_settings WHERE id = 1").first()) as any;
+  return c.json({
+    api_key: row?.api_key || "",
+    sync_ratings_enabled: row ? row.sync_ratings_enabled === 1 : true,
+    sync_lists_enabled: row ? row.sync_lists_enabled === 1 : false,
+  });
+});
+
+app.post("/api/settings/mdblist", async (c) => {
+  const db = c.env.DB;
+  await ensureMdbListTables(db);
+  const body = await c.req.json().catch(() => ({}));
+
+  const apiKey = (body.api_key || "").trim();
+  const syncRatings = body.sync_ratings_enabled !== false ? 1 : 0;
+  const syncLists = body.sync_lists_enabled === true ? 1 : 0;
+
+  await db.prepare(`
+    INSERT INTO mdblist_settings (id, api_key, sync_ratings_enabled, sync_lists_enabled, updated_at)
+    VALUES (1, ?, ?, ?, CURRENT_TIMESTAMP)
+    ON CONFLICT(id) DO UPDATE SET
+      api_key = excluded.api_key,
+      sync_ratings_enabled = excluded.sync_ratings_enabled,
+      sync_lists_enabled = excluded.sync_lists_enabled,
+      updated_at = CURRENT_TIMESTAMP
+  `).bind(apiKey, syncRatings, syncLists).run();
+
+  await db.prepare(`
+    INSERT OR REPLACE INTO user_settings (key, value, updated_at)
+    VALUES ('plugin:mdblist:enabled', ?, CURRENT_TIMESTAMP)
+  `).bind(apiKey ? "1" : "0").run();
+
+  return c.json({ ok: true, message: "MDBList ayarları başarıyla kaydedildi." });
+});
+
+// Dynamic Multi-Platform Rating Lookup (Cache -> MDBList API fallback)
+app.get("/api/media/ratings", async (c) => {
+  const db = c.env.DB;
+  await ensureMdbListTables(db);
+
+  const imdbId = c.req.query("imdb_id")?.trim();
+  const tmdbIdParam = c.req.query("tmdb_id")?.trim();
+  const tmdbId = tmdbIdParam ? parseInt(tmdbIdParam, 10) : null;
+  const titleParam = (c.req.query("title") || c.req.query("query") || c.req.query("s"))?.trim();
+  const yearParam = (c.req.query("year") || c.req.query("y"))?.trim();
+  const searchYear = yearParam ? parseInt(yearParam, 10) : null;
+  const mediaType = (c.req.query("type") || "movie").trim(); // 'movie' or 'show'
+
+  if (!imdbId && !tmdbId && !titleParam) {
+    return c.json({ ok: false, error: "imdb_id, tmdb_id veya title parametresi gereklidir." }, 400);
+  }
+
+  // 1. Check SQLite Cache First
+  let cacheRow: any = null;
+  if (imdbId) {
+    cacheRow = await db.prepare("SELECT * FROM mdblist_ratings_cache WHERE imdb_id = ?").bind(imdbId).first();
+  }
+  if (!cacheRow && tmdbId) {
+    cacheRow = await db.prepare("SELECT * FROM mdblist_ratings_cache WHERE tmdb_id = ?").bind(tmdbId).first();
+  }
+  if (!cacheRow && titleParam) {
+    if (searchYear) {
+      cacheRow = await db.prepare("SELECT * FROM mdblist_ratings_cache WHERE LOWER(title) = LOWER(?) AND (year = ? OR year IS NULL) ORDER BY updated_at DESC").bind(titleParam, searchYear).first();
+    } else {
+      cacheRow = await db.prepare("SELECT * FROM mdblist_ratings_cache WHERE LOWER(title) = LOWER(?) ORDER BY updated_at DESC").bind(titleParam).first();
+    }
+  }
+
+  // If found in cache and updated in last 14 days, return immediately
+  if (cacheRow) {
+    const updatedAt = new Date(cacheRow.updated_at).getTime();
+    const ageDays = (Date.now() - updatedAt) / (1000 * 60 * 60 * 24);
+    if (ageDays < 14) {
+      return c.json({
+        ok: true,
+        source: "cache",
+        ratings: cacheRow,
+      });
+    }
+  }
+
+  // 2. Not in cache or stale: Check if user configured MDBList API Key
+  const mdbSettings = (await db.prepare("SELECT api_key FROM mdblist_settings WHERE id = 1").first()) as any;
+  const apiKey = (mdbSettings?.api_key || c.env.MDBLIST_API_KEY || "").trim();
+
+  if (!apiKey) {
+    if (cacheRow) return c.json({ ok: true, source: "cache_stale", ratings: cacheRow });
+    return c.json({ ok: false, error: "MDBList API Key yapılandırılmamış ve önbellekte veri yok." }, 404);
+  }
+
+  try {
+    let lookupUrl = "";
+    if (imdbId) {
+      lookupUrl = `https://api.mdblist.com/imdb/${encodeURIComponent(mediaType)}/${encodeURIComponent(imdbId)}/?apikey=${encodeURIComponent(apiKey)}`;
+    } else if (tmdbId) {
+      lookupUrl = `https://api.mdblist.com/tmdb/${encodeURIComponent(mediaType)}/${encodeURIComponent(tmdbId)}/?apikey=${encodeURIComponent(apiKey)}`;
+    } else if (titleParam) {
+      const searchUrl = `https://api.mdblist.com/search/${encodeURIComponent(mediaType)}?query=${encodeURIComponent(titleParam)}${searchYear ? `&year=${searchYear}` : ""}&apikey=${encodeURIComponent(apiKey)}`;
+      const searchRes = await fetch(searchUrl, {
+        headers: { "User-Agent": "PersonalRecordsApp/1.0" },
+      });
+      if (!searchRes.ok) {
+        if (cacheRow) return c.json({ ok: true, source: "cache_fallback", ratings: cacheRow });
+        return c.json({ ok: false, error: `MDBList arama hatası: ${searchRes.statusText}` }, (searchRes.status >= 400 && searchRes.status < 600 ? searchRes.status : 502) as any);
+      }
+      const searchData = (await searchRes.json()) as any;
+      const first = Array.isArray(searchData.search) && searchData.search.length > 0 ? searchData.search[0] : null;
+      if (!first) {
+        if (cacheRow) return c.json({ ok: true, source: "cache_fallback", ratings: cacheRow });
+        return c.json({ ok: false, error: "MDBList üzerinde eşleşen film/dizi bulunamadı." }, 404);
+      }
+      const foundImdb = first.ids?.imdbid || first.ids?.imdb || first.imdb_id;
+      const foundTmdb = Number(first.ids?.tmdbid || first.ids?.tmdb || first.id || first.tmdb_id) || null;
+      if (foundImdb) {
+        lookupUrl = `https://api.mdblist.com/imdb/${encodeURIComponent(mediaType)}/${encodeURIComponent(foundImdb)}?apikey=${encodeURIComponent(apiKey)}`;
+      } else if (foundTmdb) {
+        lookupUrl = `https://api.mdblist.com/tmdb/${encodeURIComponent(mediaType)}/${encodeURIComponent(foundTmdb)}?apikey=${encodeURIComponent(apiKey)}`;
+      } else {
+        lookupUrl = `https://api.mdblist.com/search/${encodeURIComponent(mediaType)}?query=${encodeURIComponent(titleParam)}&apikey=${encodeURIComponent(apiKey)}`;
+      }
+    }
+
+    const res = await fetch(lookupUrl, {
+      headers: { "User-Agent": "PersonalRecordsApp/1.0" },
+    });
+
+    if (!res.ok) {
+      if (cacheRow) return c.json({ ok: true, source: "cache_fallback", ratings: cacheRow });
+      return c.json({ ok: false, error: `MDBList API hatası: ${res.statusText}` }, (res.status >= 400 && res.status < 600 ? res.status : 502) as any);
+    }
+
+    const data = (await res.json()) as any;
+    const finalImdb = data.ids?.imdb || data.ids?.imdbid || data.imdb_id || imdbId || null;
+    const finalTmdb = Number(data.ids?.tmdb || data.ids?.tmdbid || data.tmdb_id || tmdbId) || null;
+    const cacheId = finalImdb || (finalTmdb ? "tmdb_" + finalTmdb : (titleParam ? "title_" + titleParam.toLowerCase().replace(/[^a-z0-9]/g, "_") : "media_" + Date.now()));
+    const title = data.title || titleParam || "";
+    const year = Number(data.year) || searchYear || null;
+    const certification = data.certification || data.rating || null;
+
+    let scoreImdb: number | null = null;
+    let scoreTmdb: number | null = null;
+    let scoreTrakt: number | null = null;
+    let scoreLetterboxd: number | null = null;
+    let scoreTomatoes: number | null = null;
+    let scoreAudience: number | null = null;
+    let scoreMetacritic: number | null = null;
+
+    if (Array.isArray(data.ratings)) {
+      for (const r of data.ratings) {
+        const src = String(r.source).toLowerCase();
+        const val = Number(r.value || r.score);
+        if (src === "imdb") scoreImdb = val;
+        else if (src === "tmdb") scoreTmdb = Math.round(val);
+        else if (src === "trakt") scoreTrakt = Math.round(val);
+        else if (src === "letterboxd") scoreLetterboxd = Math.round(val * 10) / 10;
+        else if (src === "tomatoes") scoreTomatoes = Math.round(val);
+        else if (src === "tomatoesaudience" || src === "audience" || src === "popcorn") scoreAudience = Math.round(val);
+        else if (src === "metacritic") scoreMetacritic = Math.round(val);
+      }
+    }
+
+    if (scoreImdb === null && data.score_imdb) scoreImdb = Number(data.score_imdb);
+    if (scoreTmdb === null && data.score_tmdb) scoreTmdb = Number(data.score_tmdb);
+    if (scoreMetacritic === null && data.score_metacritic) scoreMetacritic = Number(data.score_metacritic);
+    if (scoreTomatoes === null && data.score_tomatoes) scoreTomatoes = Number(data.score_tomatoes);
+
+    const ratingsJson = JSON.stringify(data.ratings || []);
+
+    await db.prepare(`
+      INSERT INTO mdblist_ratings_cache (
+        id, imdb_id, tmdb_id, media_type, title, year,
+        score_imdb, score_tmdb, score_trakt, score_letterboxd,
+        score_tomatoes, score_audience, score_metacritic, certification,
+        ratings_json, updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+      ON CONFLICT(id) DO UPDATE SET
+        title = COALESCE(excluded.title, mdblist_ratings_cache.title),
+        year = COALESCE(excluded.year, mdblist_ratings_cache.year),
+        score_imdb = excluded.score_imdb,
+        score_tmdb = excluded.score_tmdb,
+        score_trakt = excluded.score_trakt,
+        score_letterboxd = excluded.score_letterboxd,
+        score_tomatoes = excluded.score_tomatoes,
+        score_audience = excluded.score_audience,
+        score_metacritic = excluded.score_metacritic,
+        certification = excluded.certification,
+        ratings_json = excluded.ratings_json,
+        updated_at = CURRENT_TIMESTAMP
+    `).bind(
+      cacheId, finalImdb, finalTmdb, mediaType, title, year,
+      scoreImdb, scoreTmdb, scoreTrakt, scoreLetterboxd,
+      scoreTomatoes, scoreAudience, scoreMetacritic, certification,
+      ratingsJson
+    ).run();
+
+    const fresh = await db.prepare("SELECT * FROM mdblist_ratings_cache WHERE id = ?").bind(cacheId).first();
+    return c.json({
+      ok: true,
+      source: "mdblist_live",
+      ratings: fresh,
+    });
+  } catch (err: any) {
+    if (cacheRow) return c.json({ ok: true, source: "cache_error_fallback", ratings: cacheRow });
+    return c.json({ ok: false, error: err.message }, 500);
+  }
+});
+
+// Helper function to cache MDBList movie & show ratings
+async function cacheMdbListMovieData(
+  db: D1Database,
+  data: any,
+  mediaType: string = "movie",
+  fallbackTitle: string = "",
+  fallbackYear: number | null = null,
+  userRating: number | null = null,
+  ratedAt: string | null = null
+) {
+  const finalImdb = data.ids?.imdb || data.ids?.imdbid || data.imdb_id || null;
+  const finalTmdb = Number(data.ids?.tmdb || data.ids?.tmdbid || data.tmdb_id) || null;
+  const cacheId = finalImdb || (finalTmdb ? "tmdb_" + finalTmdb : (fallbackTitle ? "title_" + fallbackTitle.toLowerCase().replace(/[^a-z0-9]/g, "_") : "media_" + Date.now()));
+  const title = data.title || fallbackTitle || "";
+  const year = Number(data.year || fallbackYear) || null;
+  const certification = data.certification || data.rating || null;
+
+  let scoreImdb: number | null = null;
+  let scoreTmdb: number | null = null;
+  let scoreTrakt: number | null = null;
+  let scoreLetterboxd: number | null = null;
+  let scoreTomatoes: number | null = null;
+  let scoreAudience: number | null = null;
+  let scoreMetacritic: number | null = null;
+
+  if (Array.isArray(data.ratings)) {
+    for (const r of data.ratings) {
+      const src = String(r.source).toLowerCase();
+      const val = Number(r.value || r.score);
+      if (src === "imdb") scoreImdb = val;
+      else if (src === "tmdb") scoreTmdb = Math.round(val);
+      else if (src === "trakt") scoreTrakt = Math.round(val);
+      else if (src === "letterboxd") scoreLetterboxd = Math.round(val * 10) / 10;
+      else if (src === "tomatoes") scoreTomatoes = Math.round(val);
+      else if (src === "tomatoesaudience" || src === "audience" || src === "popcorn") scoreAudience = Math.round(val);
+      else if (src === "metacritic") scoreMetacritic = Math.round(val);
+    }
+  }
+
+  if (scoreImdb === null && data.score_imdb) scoreImdb = Number(data.score_imdb);
+  if (scoreTmdb === null && data.score_tmdb) scoreTmdb = Number(data.score_tmdb);
+  if (scoreMetacritic === null && data.score_metacritic) scoreMetacritic = Number(data.score_metacritic);
+  if (scoreTomatoes === null && data.score_tomatoes) scoreTomatoes = Number(data.score_tomatoes);
+
+  const poster = data.poster || null;
+  const description = data.description || null;
+
+  await db.prepare(`
+    INSERT INTO mdblist_ratings_cache (
+      id, imdb_id, tmdb_id, media_type, title, year,
+      score_imdb, score_tmdb, score_trakt, score_letterboxd,
+      score_tomatoes, score_audience, score_metacritic, certification,
+      poster, description, user_rating, rated_at,
+      ratings_json, updated_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+    ON CONFLICT(id) DO UPDATE SET
+      title = COALESCE(excluded.title, mdblist_ratings_cache.title),
+      year = COALESCE(excluded.year, mdblist_ratings_cache.year),
+      media_type = COALESCE(excluded.media_type, mdblist_ratings_cache.media_type),
+      score_imdb = excluded.score_imdb,
+      score_tmdb = excluded.score_tmdb,
+      score_trakt = excluded.score_trakt,
+      score_letterboxd = excluded.score_letterboxd,
+      score_tomatoes = excluded.score_tomatoes,
+      score_audience = excluded.score_audience,
+      score_metacritic = excluded.score_metacritic,
+      certification = excluded.certification,
+      poster = COALESCE(excluded.poster, mdblist_ratings_cache.poster),
+      description = COALESCE(excluded.description, mdblist_ratings_cache.description),
+      user_rating = COALESCE(excluded.user_rating, mdblist_ratings_cache.user_rating),
+      rated_at = COALESCE(excluded.rated_at, mdblist_ratings_cache.rated_at),
+      ratings_json = excluded.ratings_json,
+      updated_at = CURRENT_TIMESTAMP
+  `).bind(
+    cacheId, finalImdb, finalTmdb, mediaType, title, year,
+    scoreImdb, scoreTmdb, scoreTrakt, scoreLetterboxd,
+    scoreTomatoes, scoreAudience, scoreMetacritic, certification,
+    poster, description, userRating, ratedAt,
+    JSON.stringify(data.ratings || [])
+  ).run();
+}
+
+// Batch MDBList Enricher: queries ratings for recent Trakt, Simkl & Letterboxd items
+app.post("/api/sync/mdblist", async (c) => {
+  const db = c.env.DB;
+  await ensureMdbListTables(db);
+  await ensureTraktTables(db);
+  await ensureSimklTables(db);
+
+  const force = c.req.query("force") === "true";
+  const cooldown = await checkSyncCooldown(db, "mdblist_sync_runs", 90, force);
+  if (!cooldown.allowed) {
+    return c.json({
+      ok: false,
+      error: `MDBList senkronizasyonu bekleme süresinde (cooldown). Lütfen ${cooldown.remainingSeconds} saniye sonra tekrar deneyin.`,
+      remaining_seconds: cooldown.remainingSeconds,
+      cooldown: true,
+    }, 429);
+  }
+
+  const mdbSettings = (await db.prepare("SELECT api_key FROM mdblist_settings WHERE id = 1").first()) as any;
+  const apiKey = (mdbSettings?.api_key || c.env.MDBLIST_API_KEY || "").trim();
+
+  if (!apiKey) {
+    return c.json({ ok: false, error: "MDBList API Key tanımlanmamış. Lütfen Ayarlar > MDBList bölümünden API anahtarınızı kaydedin." }, 400);
+  }
+
+  let enrichedCount = 0;
+  try {
+    // 1. Sync User's personal ratings from MDBList (movies & shows / series)
+    try {
+      const uRes = await fetch(`https://api.mdblist.com/sync/ratings?apikey=${encodeURIComponent(apiKey)}`, {
+        headers: { "User-Agent": "PersonalRecordsApp/1.0" }
+      });
+      if (uRes.ok) {
+        const uData = (await uRes.json()) as any;
+
+        // Movies
+        for (const item of uData.movies || []) {
+          const m = item.movie;
+          const imdbId = m?.ids?.imdb || m?.ids?.imdbid;
+          const tmdbId = Number(m?.ids?.tmdb || m?.ids?.tmdbid) || null;
+          if (!imdbId && !tmdbId) continue;
+
+          const userRating = item.rating_precise ? item.rating_precise / 2.0 : (item.rating ? item.rating / 2.0 : null);
+          const ratedAt = item.rated_at ? String(item.rated_at).substring(0, 10) : null;
+
+          const existing = (await db.prepare("SELECT id FROM mdblist_ratings_cache WHERE imdb_id = ? OR (tmdb_id = ? AND tmdb_id IS NOT NULL)").bind(imdbId || "", tmdbId || 0).first()) as any;
+          if (!existing) {
+            const lookupUrl = imdbId
+              ? `https://api.mdblist.com/imdb/movie/${encodeURIComponent(imdbId)}?apikey=${encodeURIComponent(apiKey)}`
+              : `https://api.mdblist.com/tmdb/movie/${encodeURIComponent(String(tmdbId))}?apikey=${encodeURIComponent(apiKey)}`;
+            const detailRes = await fetch(lookupUrl, { headers: { "User-Agent": "PersonalRecordsApp/1.0" } });
+            if (detailRes.ok) {
+              const detailData = (await detailRes.json()) as any;
+              await cacheMdbListMovieData(db, detailData, "movie", m.title, m.year, userRating, ratedAt);
+              enrichedCount++;
+            }
+          } else {
+            await db.prepare("UPDATE mdblist_ratings_cache SET user_rating = COALESCE(?, user_rating), rated_at = COALESCE(?, rated_at), media_type = 'movie' WHERE id = ?")
+              .bind(userRating, ratedAt, existing.id).run();
+          }
+        }
+
+        // Shows / TV Series (Diziler)
+        for (const item of uData.shows || []) {
+          const s = item.show;
+          const imdbId = s?.ids?.imdb || s?.ids?.imdbid;
+          const tmdbId = Number(s?.ids?.tmdb || s?.ids?.tmdbid) || null;
+          if (!imdbId && !tmdbId) continue;
+
+          const userRating = item.rating_precise ? item.rating_precise / 2.0 : (item.rating ? item.rating / 2.0 : null);
+          const ratedAt = item.rated_at ? String(item.rated_at).substring(0, 10) : null;
+
+          const existing = (await db.prepare("SELECT id FROM mdblist_ratings_cache WHERE imdb_id = ? OR (tmdb_id = ? AND tmdb_id IS NOT NULL)").bind(imdbId || "", tmdbId || 0).first()) as any;
+          if (!existing) {
+            const lookupUrl = imdbId
+              ? `https://api.mdblist.com/imdb/show/${encodeURIComponent(imdbId)}?apikey=${encodeURIComponent(apiKey)}`
+              : `https://api.mdblist.com/tmdb/show/${encodeURIComponent(String(tmdbId))}?apikey=${encodeURIComponent(apiKey)}`;
+            const detailRes = await fetch(lookupUrl, { headers: { "User-Agent": "PersonalRecordsApp/1.0" } });
+            if (detailRes.ok) {
+              const detailData = (await detailRes.json()) as any;
+              await cacheMdbListMovieData(db, detailData, "show", s.title, s.year, userRating, ratedAt);
+              enrichedCount++;
+            }
+          } else {
+            await db.prepare("UPDATE mdblist_ratings_cache SET user_rating = COALESCE(?, user_rating), rated_at = COALESCE(?, rated_at), media_type = 'show' WHERE id = ?")
+              .bind(userRating, ratedAt, existing.id).run();
+          }
+        }
+      }
+    } catch (e: any) {
+      console.warn("MDBList user ratings sync error:", e.message);
+    }
+
+    // 2. Enrich from letterboxd_films
+    const letterboxdFilms = await db.prepare(`
+      SELECT DISTINCT name as title, year FROM letterboxd_films
+      WHERE name IS NOT NULL AND name != ''
+      LIMIT 15
+    `).all<any>();
+
+    for (const film of letterboxdFilms.results || []) {
+      const existing = await db.prepare("SELECT id FROM mdblist_ratings_cache WHERE lower(title) = lower(?)").bind(film.title).first();
+      if (existing) continue;
+
+      try {
+        const sUrl = `https://api.mdblist.com/search/movie?query=${encodeURIComponent(film.title)}&apikey=${encodeURIComponent(apiKey)}`;
+        const sRes = await fetch(sUrl, { headers: { "User-Agent": "PersonalRecordsApp/1.0" } });
+        if (sRes.ok) {
+          const sData = (await sRes.json()) as any;
+          const results = Array.isArray(sData.search) ? sData.search : [];
+          const match = results.find((r: any) => r.year === film.year) || results[0];
+          if (match) {
+            const imdbId = match.ids?.imdbid || match.ids?.imdb;
+            const tmdbId = Number(match.ids?.tmdbid || match.ids?.tmdb) || null;
+            if (imdbId || tmdbId) {
+              const lookupUrl = imdbId
+                ? `https://api.mdblist.com/imdb/movie/${encodeURIComponent(imdbId)}?apikey=${encodeURIComponent(apiKey)}`
+                : `https://api.mdblist.com/tmdb/movie/${encodeURIComponent(String(tmdbId))}?apikey=${encodeURIComponent(apiKey)}`;
+              const detailRes = await fetch(lookupUrl, { headers: { "User-Agent": "PersonalRecordsApp/1.0" } });
+              if (detailRes.ok) {
+                const detailData = (await detailRes.json()) as any;
+                await cacheMdbListMovieData(db, detailData, "movie", film.title, film.year);
+                enrichedCount++;
+              }
+            }
+          }
+        }
+      } catch (err: any) {
+        console.warn("MDBList letterboxd enrich error:", err.message);
+      }
+    }
+
+    // 3. Enrich from Simkl & Trakt items (if present)
+    const historyCandidates = await db.prepare(`
+      SELECT DISTINCT imdb_id, tmdb_id, 'movie' as media_type, title, year FROM simkl_history
+      WHERE (imdb_id IS NOT NULL AND imdb_id != '') OR (tmdb_id IS NOT NULL)
+      UNION
+      SELECT DISTINCT imdb_id, tmdb_id, media_type, title, year FROM trakt_history
+      WHERE (imdb_id IS NOT NULL AND imdb_id != '') OR (tmdb_id IS NOT NULL)
+      LIMIT 15
+    `).all<any>();
+
+    for (const item of historyCandidates.results || []) {
+      const imdbId = item.imdb_id;
+      const tmdbId = item.tmdb_id;
+      const mediaType = item.media_type || "movie";
+
+      // Check if already in cache
+      let existing: any = null;
+      if (imdbId) {
+        existing = await db.prepare("SELECT id FROM mdblist_ratings_cache WHERE imdb_id = ?").bind(imdbId).first();
+      }
+      if (!existing && tmdbId) {
+        existing = await db.prepare("SELECT id FROM mdblist_ratings_cache WHERE tmdb_id = ?").bind(tmdbId).first();
+      }
+      if (existing) continue;
+
+      let lookupUrl = "";
+      if (imdbId) {
+        lookupUrl = `https://api.mdblist.com/imdb/${encodeURIComponent(mediaType)}/${encodeURIComponent(imdbId)}?apikey=${encodeURIComponent(apiKey)}`;
+      } else if (tmdbId) {
+        lookupUrl = `https://api.mdblist.com/tmdb/${encodeURIComponent(mediaType)}/${encodeURIComponent(tmdbId)}?apikey=${encodeURIComponent(apiKey)}`;
+      }
+
+      if (!lookupUrl) continue;
+
+      const res = await fetch(lookupUrl, { headers: { "User-Agent": "PersonalRecordsApp/1.0" } });
+      if (res.ok) {
+        const data = (await res.json()) as any;
+        await cacheMdbListMovieData(db, data, mediaType, item.title, item.year);
+        enrichedCount++;
+      }
+    }
+
+    await db.prepare(`
+      INSERT INTO mdblist_sync_runs (source, status, inserted, updated, message)
+      VALUES ('mdblist', 'success', ?, 0, ?)
+    `).bind(enrichedCount, `MDBList senkronizasyonu tamamlandı: ${enrichedCount} medya puanı zenginleştirildi.`).run();
+
+    return c.json({
+      ok: true,
+      enriched: enrichedCount,
+      message: `MDBList senkronizasyonu başarılı: ${enrichedCount} medya puanı güncellendi.`
+    });
+  } catch (err: any) {
+    await db.prepare(`
+      INSERT INTO mdblist_sync_runs (source, status, inserted, updated, message)
+      VALUES ('mdblist', 'error', 0, 0, ?)
+    `).bind(err.message).run();
+    return c.json({ ok: false, error: err.message }, 500);
+  }
+});
+
+
+// Decodes the XML entities feeds leave in plain-text fields (&apos; &amp; &#39; ...).
+function decodeXmlEntities(value: string): string {
+  if (!value.includes("&")) return value;
+  const named: Record<string, string> = { amp: "&", lt: "<", gt: ">", quot: '"', apos: "'", nbsp: "\u00A0" };
+  return value.replace(/&(#x[0-9a-f]+|#[0-9]+|[a-z]+);/gi, (whole, body: string) => {
+    if (body[0] === "#") {
+      const code = body[1] === "x" || body[1] === "X" ? parseInt(body.slice(2), 16) : parseInt(body.slice(1), 10);
+      return Number.isFinite(code) ? String.fromCodePoint(code) : whole;
+    }
+    return named[body.toLowerCase()] ?? whole;
+  });
+}
+
+// Simple Tag Extractor helper. Plain-text values are entity-decoded; CDATA is returned as-is.
 function extractTag(xml: string, tag: string): string {
   const regex = new RegExp(`<${tag}[^>]*>(?:<!\\[CDATA\\[([\\s\\S]*?)\\]\\]>|([\\s\\S]*?))<\\/${tag}>`, "i");
   const match = xml.match(regex);
   if (!match) return "";
-  const val = match[1] !== undefined ? match[1] : match[2];
-  return val.trim();
+  if (match[1] !== undefined) return match[1].trim();
+  return decodeXmlEntities(match[2]).trim();
 }
 
 function hashStr(str: string): string {
@@ -3038,6 +4509,288 @@ function hashStr(str: string): string {
   }
   return Math.abs(hash).toString(16);
 }
+
+// ==========================================
+// Simkl Endpoints (Movies, Shows & Anime)
+// ==========================================
+
+app.get("/api/settings/simkl", async (c) => {
+  const db = c.env.DB;
+  await ensureSimklTables(db);
+  const row = (await db.prepare("SELECT client_id, access_token, user_id, sync_movies, sync_shows, sync_anime, sync_ratings, enabled FROM simkl_sync_settings WHERE id = 1").first()) as any;
+  const hasToken = Boolean(row?.access_token);
+  return c.json({
+    ok: true,
+    client_id: row?.client_id || "",
+    access_token_set: hasToken,
+    masked_token: hasToken ? "••••••••" + String(row.access_token).slice(-4) : "",
+    user_id: row?.user_id || "",
+    sync_movies: row ? row.sync_movies === 1 : true,
+    sync_shows: row ? row.sync_shows === 1 : true,
+    sync_anime: row ? row.sync_anime === 1 : true,
+    sync_ratings: row ? row.sync_ratings === 1 : true,
+    enabled: row ? row.enabled === 1 : true,
+    is_connected: hasToken,
+  });
+});
+
+app.post("/api/settings/simkl", async (c) => {
+  const db = c.env.DB;
+  await ensureSimklTables(db);
+  const body = (await c.req.json().catch(() => ({}))) as any;
+  const clientId = body.client_id !== undefined ? String(body.client_id).trim() : null;
+  const accessToken = body.access_token !== undefined ? String(body.access_token).trim() : null;
+  const userId = body.user_id !== undefined ? String(body.user_id).trim() : null;
+  const syncMovies = body.sync_movies !== undefined ? (body.sync_movies ? 1 : 0) : 1;
+  const syncShows = body.sync_shows !== undefined ? (body.sync_shows ? 1 : 0) : 1;
+  const syncAnime = body.sync_anime !== undefined ? (body.sync_anime ? 1 : 0) : 1;
+  const syncRatings = body.sync_ratings !== undefined ? (body.sync_ratings ? 1 : 0) : 1;
+  const enabled = body.enabled !== undefined ? (body.enabled ? 1 : 0) : 1;
+
+  const existing = (await db.prepare("SELECT client_id, access_token, user_id FROM simkl_sync_settings WHERE id = 1").first()) as any;
+  const finalClientId = clientId !== null ? clientId : (existing?.client_id || "");
+  const finalToken = accessToken !== null ? (accessToken || null) : (existing?.access_token || null);
+  const finalUserId = userId !== null ? userId : (existing?.user_id || "");
+
+  await db.prepare(`
+    INSERT INTO simkl_sync_settings (id, client_id, access_token, user_id, sync_movies, sync_shows, sync_anime, sync_ratings, enabled, updated_at)
+    VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+    ON CONFLICT(id) DO UPDATE SET
+      client_id = excluded.client_id,
+      access_token = COALESCE(excluded.access_token, simkl_sync_settings.access_token),
+      user_id = excluded.user_id,
+      sync_movies = excluded.sync_movies,
+      sync_shows = excluded.sync_shows,
+      sync_anime = excluded.sync_anime,
+      sync_ratings = excluded.sync_ratings,
+      enabled = excluded.enabled,
+      updated_at = CURRENT_TIMESTAMP
+  `).bind(finalClientId, finalToken, finalUserId, syncMovies, syncShows, syncAnime, syncRatings, enabled).run();
+
+  await db.prepare(`
+    INSERT OR REPLACE INTO user_settings (key, value, updated_at)
+    VALUES ('plugin:simkl:enabled', ?, CURRENT_TIMESTAMP)
+  `).bind(enabled === 1 ? "1" : "0").run();
+
+  return c.json({ ok: true, message: "Simkl ayarları başarıyla kaydedildi." });
+});
+
+app.get("/api/simkl/history", async (c) => {
+  const db = c.env.DB;
+  await ensureSimklTables(db);
+
+  const mediaType = c.req.query("type")?.trim(); // 'movie', 'show', or 'anime'
+  const limit = Math.min(Math.max(parseInt(c.req.query("limit") || "50", 10), 1), 200);
+  const page = Math.max(parseInt(c.req.query("page") || "1", 10), 1);
+  const offset = (page - 1) * limit;
+
+  let query = "SELECT * FROM simkl_history";
+  const params: any[] = [];
+
+  if (mediaType === "movie" || mediaType === "show" || mediaType === "anime") {
+    query += " WHERE item_type = ?";
+    params.push(mediaType);
+  }
+
+  query += " ORDER BY watched_at DESC LIMIT ? OFFSET ?";
+  params.push(limit, offset);
+
+  const rows = await db.prepare(query).bind(...params).all<any>();
+
+  let countQuery = "SELECT count(*) as c FROM simkl_history";
+  if (mediaType === "movie" || mediaType === "show" || mediaType === "anime") {
+    countQuery += " WHERE item_type = '" + mediaType + "'";
+  }
+  const totalCount = await db.prepare(countQuery).first<any>();
+
+  return c.json({
+    ok: true,
+    page,
+    limit,
+    total: totalCount?.c || 0,
+    items: rows.results || [],
+  });
+});
+
+app.post("/api/sync/simkl", async (c) => {
+  const db = c.env.DB;
+  await ensureSimklTables(db);
+
+  const force = c.req.query("force") === "true";
+  const cooldown = await checkSyncCooldown(db, "simkl_sync_runs", 90, force);
+  if (!cooldown.allowed) {
+    return c.json({
+      ok: false,
+      error: `Simkl senkronizasyonu bekleme süresinde (cooldown). Lütfen ${cooldown.remainingSeconds} saniye sonra tekrar deneyin.`,
+      remaining_seconds: cooldown.remainingSeconds,
+      cooldown: true,
+    }, 429);
+  }
+
+  const row = (await db.prepare("SELECT client_id, access_token, sync_movies, sync_shows, sync_anime, sync_ratings FROM simkl_sync_settings WHERE id = 1").first()) as any;
+  const token = (row?.access_token || "").trim();
+  const clientId = (row?.client_id || c.env.SIMKL_CLIENT_ID || FALLBACK_SIMKL_CLIENT_ID).trim();
+
+  if (!token) {
+    return c.json({ ok: false, error: "Simkl Access Token tanımlanmamış. Lütfen Ayarlar > Simkl bölümünden Access Token kaydedin." }, 400);
+  }
+
+  const syncMovies = row ? row.sync_movies === 1 : true;
+  const syncShows = row ? row.sync_shows === 1 : true;
+  const syncAnime = row ? row.sync_anime === 1 : true;
+
+  const simklHeaders = {
+    "Content-Type": "application/json",
+    "simkl-api-key": clientId,
+    "Authorization": `Bearer ${token}`,
+    "User-Agent": "PersonalRecordsApp/1.0",
+  };
+
+  let insertedTotal = 0;
+  let updatedTotal = 0;
+
+  try {
+    // 1. Movies
+    if (syncMovies) {
+      const res = await fetch("https://api.simkl.com/sync/all-items/movies/completed?extended=full", { headers: simklHeaders });
+      if (res.ok) {
+        const data = (await res.json().catch(() => ({}))) as any;
+        const list = Array.isArray(data.movies) ? data.movies : [];
+        for (const item of list) {
+          const simklId = Number(item.movie?.ids?.simkl || item.ids?.simkl);
+          const title = item.movie?.title || item.title;
+          if (!simklId || !title) continue;
+
+          const itemId = `simkl_movie_${simklId}`;
+          const year = Number(item.movie?.year || item.year) || null;
+          const watchedAt = item.last_watched_at || new Date().toISOString();
+          const userRating = Number(item.user_rating || item.rating) || null;
+          let poster = item.movie?.poster ? (String(item.movie.poster).startsWith("http") ? item.movie.poster : `https://simkl.in/posters/${item.movie.poster}`) : null;
+          const imdbId = item.movie?.ids?.imdb || null;
+          const tmdbId = Number(item.movie?.ids?.tmdb) || null;
+
+          const exists = await db.prepare("SELECT id FROM simkl_history WHERE id = ?").bind(itemId).first();
+          if (exists) {
+            await db.prepare(`
+              UPDATE simkl_history SET
+                title = ?, year = ?, user_rating = ?, poster_url = ?, imdb_id = ?, tmdb_id = ?, watched_at = ?, raw_json = ?
+              WHERE id = ?
+            `).bind(title, year, userRating, poster, imdbId, tmdbId, watchedAt, JSON.stringify(item), itemId).run();
+            updatedTotal++;
+          } else {
+            await db.prepare(`
+              INSERT INTO simkl_history (id, simkl_id, item_type, title, year, user_rating, poster_url, imdb_id, tmdb_id, watched_at, raw_json)
+              VALUES (?, ?, 'movie', ?, ?, ?, ?, ?, ?, ?, ?)
+            `).bind(itemId, simklId, title, year, userRating, poster, imdbId, tmdbId, watchedAt, JSON.stringify(item)).run();
+            insertedTotal++;
+          }
+        }
+      }
+    }
+
+    // 2. TV Shows (Completed & Watching)
+    if (syncShows) {
+      for (const status of ["completed", "watching"]) {
+        const res = await fetch(`https://api.simkl.com/sync/all-items/shows/${status}?extended=full`, { headers: simklHeaders });
+        if (res.ok) {
+          const data = (await res.json().catch(() => ({}))) as any;
+          const list = Array.isArray(data.shows) ? data.shows : [];
+          for (const item of list) {
+            const simklId = Number(item.show?.ids?.simkl || item.ids?.simkl);
+            const title = item.show?.title || item.title;
+            if (!simklId || !title) continue;
+
+            const itemId = `simkl_show_${simklId}`;
+            const year = Number(item.show?.year || item.year) || null;
+            const watchedAt = item.last_watched_at || new Date().toISOString();
+            const userRating = Number(item.user_rating || item.rating) || null;
+            let lastEp = item.last_ep_watched || (item.next_to_watch ? `S${item.next_to_watch.season}E${item.next_to_watch.episode}` : null);
+            let poster = item.show?.poster ? (String(item.show.poster).startsWith("http") ? item.show.poster : `https://simkl.in/posters/${item.show.poster}`) : null;
+            const imdbId = item.show?.ids?.imdb || null;
+            const tmdbId = Number(item.show?.ids?.tmdb) || null;
+
+            const exists = await db.prepare("SELECT id FROM simkl_history WHERE id = ?").bind(itemId).first();
+            if (exists) {
+              await db.prepare(`
+                UPDATE simkl_history SET
+                  title = ?, year = ?, last_ep_watched = ?, status = ?, user_rating = ?, poster_url = ?, imdb_id = ?, tmdb_id = ?, watched_at = ?, raw_json = ?
+                WHERE id = ?
+              `).bind(title, year, lastEp, status, userRating, poster, imdbId, tmdbId, watchedAt, JSON.stringify(item), itemId).run();
+              updatedTotal++;
+            } else {
+              await db.prepare(`
+                INSERT INTO simkl_history (id, simkl_id, item_type, title, year, last_ep_watched, status, user_rating, poster_url, imdb_id, tmdb_id, watched_at, raw_json)
+                VALUES (?, ?, 'show', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+              `).bind(itemId, simklId, title, year, lastEp, status, userRating, poster, imdbId, tmdbId, watchedAt, JSON.stringify(item)).run();
+              insertedTotal++;
+            }
+          }
+        }
+      }
+    }
+
+    // 3. Anime (Completed & Watching)
+    if (syncAnime) {
+      for (const status of ["completed", "watching"]) {
+        const res = await fetch(`https://api.simkl.com/sync/all-items/anime/${status}?extended=full`, { headers: simklHeaders });
+        if (res.ok) {
+          const data = (await res.json().catch(() => ({}))) as any;
+          const list = Array.isArray(data.anime) ? data.anime : [];
+          for (const item of list) {
+            const simklId = Number(item.anime?.ids?.simkl || item.ids?.simkl);
+            const title = item.anime?.title || item.title;
+            if (!simklId || !title) continue;
+
+            const itemId = `simkl_anime_${simklId}`;
+            const year = Number(item.anime?.year || item.year) || null;
+            const watchedAt = item.last_watched_at || new Date().toISOString();
+            const userRating = Number(item.user_rating || item.rating) || null;
+            let lastEp = item.last_ep_watched || null;
+            let poster = item.anime?.poster ? (String(item.anime.poster).startsWith("http") ? item.anime.poster : `https://simkl.in/posters/${item.anime.poster}`) : null;
+            const malId = String(item.anime?.ids?.mal || "") || null;
+            const imdbId = item.anime?.ids?.imdb || null;
+            const tmdbId = Number(item.anime?.ids?.tmdb) || null;
+
+            const exists = await db.prepare("SELECT id FROM simkl_history WHERE id = ?").bind(itemId).first();
+            if (exists) {
+              await db.prepare(`
+                UPDATE simkl_history SET
+                  title = ?, year = ?, last_ep_watched = ?, status = ?, user_rating = ?, poster_url = ?, imdb_id = ?, tmdb_id = ?, mal_id = ?, watched_at = ?, raw_json = ?
+                WHERE id = ?
+              `).bind(title, year, lastEp, status, userRating, poster, imdbId, tmdbId, malId, watchedAt, JSON.stringify(item), itemId).run();
+              updatedTotal++;
+            } else {
+              await db.prepare(`
+                INSERT INTO simkl_history (id, simkl_id, item_type, title, year, last_ep_watched, status, user_rating, poster_url, imdb_id, tmdb_id, mal_id, watched_at, raw_json)
+                VALUES (?, ?, 'anime', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+              `).bind(itemId, simklId, title, year, lastEp, status, userRating, poster, imdbId, tmdbId, malId, watchedAt, JSON.stringify(item)).run();
+              insertedTotal++;
+            }
+          }
+        }
+      }
+    }
+
+    const message = `Simkl senkronizasyonu tamamlandı: ${insertedTotal} yeni, ${updatedTotal} güncellenen.`;
+    await db.prepare(`
+      INSERT INTO simkl_sync_runs (source, status, inserted, updated, message)
+      VALUES ('simkl', 'success', ?, ?, ?)
+    `).bind(insertedTotal, updatedTotal, message).run();
+
+    return c.json({
+      ok: true,
+      inserted: insertedTotal,
+      updated: updatedTotal,
+      message,
+    });
+  } catch (err: any) {
+    await db.prepare(`
+      INSERT INTO simkl_sync_runs (source, status, inserted, updated, message)
+      VALUES ('simkl', 'error', 0, 0, ?)
+    `).bind(err.message).run();
+    return c.json({ ok: false, error: err.message }, 500);
+  }
+});
 
 export default {
   fetch: app.fetch,
@@ -3066,6 +4819,14 @@ export default {
         });
         await app.fetch(musicReq, env, ctx);
       }
+      const traktReq = new Request("http://localhost/api/sync/trakt", { method: "POST" });
+      await app.fetch(traktReq, env, ctx);
+      const mdbReq = new Request("http://localhost/api/sync/mdblist", { method: "POST" });
+      await app.fetch(mdbReq, env, ctx);
+
+      // Simkl sync
+      const simklReq = new Request("http://localhost/api/sync/simkl", { method: "POST" });
+      await app.fetch(simklReq, env, ctx);
     } catch (err) {
       console.error("Scheduled sync error:", err);
     }

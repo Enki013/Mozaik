@@ -25,13 +25,17 @@ data class MoviesUiState(
     val filteredFilms: List<FilmDto> = emptyList(),
     val ratedFilmsCount: Int = 0,
     val rewatchFilmsCount: Int = 0,
+    val mdbListFilmsCount: Int = 0,
+    val letterboxdFilmsCount: Int = 0,
     val avgRatingText: String = "0.0",
     val searchQuery: String = "",
     val selectedDateFilter: String? = null,
     val fromDateFilter: String? = null,
     val toDateFilter: String? = null,
     val onlyRewatches: Boolean = false,
-    val sortBy: String = "rating_desc", // "rating_desc", "rating_asc", "year", "date", "title"
+    val onlyMdbList: Boolean = false,
+    val onlyLetterboxd: Boolean = false,
+    val sortBy: String = "date", // "rating_desc", "rating_asc", "year", "date", "title"
     val error: String? = null
 )
 
@@ -42,6 +46,8 @@ private fun filterAndSortFilms(
     fromDate: String?,
     toDate: String?,
     rewatchesOnly: Boolean,
+    mdbListOnly: Boolean,
+    letterboxdOnly: Boolean,
     sort: String
 ): List<FilmDto> {
     if (films.isEmpty()) return emptyList()
@@ -49,6 +55,12 @@ private fun filterAndSortFilms(
         val matchesSearch = query.isBlank() ||
             film.displayTitle.contains(query, ignoreCase = true)
         val matchesRewatch = !rewatchesOnly || film.rewatch
+        val isMdb = film.source.equals("mdblist", ignoreCase = true)
+        val matchesSource = when {
+            mdbListOnly -> isMdb
+            letterboxdOnly -> !isMdb
+            else -> true
+        }
         val filmDate = film.safeWatchedDate.ifBlank { film.diary_date ?: "" }
         val matchesDate = when {
             singleDate != null -> filmDate.startsWith(singleDate)
@@ -58,16 +70,16 @@ private fun filterAndSortFilms(
             toDate != null -> filmDate.isNotBlank() && filmDate <= toDate
             else -> true
         }
-        matchesSearch && matchesRewatch && matchesDate
+        matchesSearch && matchesRewatch && matchesSource && matchesDate
     }
 
     return when (sort) {
         "rating_desc" -> filtered.sortedByDescending { it.safeRating }
         "rating_asc" -> filtered.sortedBy { it.safeRating }
         "year" -> filtered.sortedByDescending { it.safeYear }
-        "date" -> filtered.sortedByDescending { it.safeWatchedDate }
+        "date" -> filtered.sortedByDescending { it.safeWatchedDate.ifBlank { it.diary_date.orEmpty() } }
         "title" -> filtered.sortedBy { it.displayTitle.lowercase(Locale.getDefault()) }
-        else -> filtered
+        else -> filtered.sortedByDescending { it.safeWatchedDate.ifBlank { it.diary_date.orEmpty() } }
     }
 }
 
@@ -85,7 +97,7 @@ class MoviesViewModel(
 
     private suspend fun applyFilmsList(films: List<FilmDto>) {
         val snap = _uiState.value
-        val (filtered, ratedCount, rewatchCount, avgText) = withContext(Dispatchers.Default) {
+        val (filtered, ratedCount, rewatchCount, mdbCount, lbCount, avgText) = withContext(Dispatchers.Default) {
             val list = filterAndSortFilms(
                 films = films,
                 query = snap.searchQuery,
@@ -93,14 +105,18 @@ class MoviesViewModel(
                 fromDate = snap.fromDateFilter,
                 toDate = snap.toDateFilter,
                 rewatchesOnly = snap.onlyRewatches,
+                mdbListOnly = snap.onlyMdbList,
+                letterboxdOnly = snap.onlyLetterboxd,
                 sort = snap.sortBy
             )
             val rated = films.filter { it.safeRating > 0 }
             val rewatches = films.count { it.rewatch }
+            val mdbs = films.count { it.source.equals("mdblist", ignoreCase = true) }
+            val lbs = films.size - mdbs
             val avg = if (rated.isNotEmpty()) {
                 String.format(Locale.US, "%.1f", rated.map { it.safeRating }.average())
             } else "0.0"
-            MoviesStatsResult(list, rated.size, rewatches, avg)
+            MoviesStatsResult(list, rated.size, rewatches, mdbs, lbs, avg)
         }
         _uiState.update {
             it.copy(
@@ -110,6 +126,8 @@ class MoviesViewModel(
                 filteredFilms = filtered,
                 ratedFilmsCount = ratedCount,
                 rewatchFilmsCount = rewatchCount,
+                mdbListFilmsCount = mdbCount,
+                letterboxdFilmsCount = lbCount,
                 avgRatingText = avgText,
                 error = null
             )
@@ -210,9 +228,59 @@ class MoviesViewModel(
         recomputeFilter(debounceMs = 0L)
     }
 
+    fun toggleMdbList() {
+        _uiState.update {
+            it.copy(
+                onlyMdbList = !it.onlyMdbList,
+                onlyLetterboxd = false,
+                isFiltering = true
+            )
+        }
+        recomputeFilter(debounceMs = 0L)
+    }
+
+    fun toggleLetterboxd() {
+        _uiState.update {
+            it.copy(
+                onlyLetterboxd = !it.onlyLetterboxd,
+                onlyMdbList = false,
+                isFiltering = true
+            )
+        }
+        recomputeFilter(debounceMs = 0L)
+    }
+
     fun setSortBy(sort: String) {
         if (_uiState.value.sortBy == sort) return
         _uiState.update { it.copy(sortBy = sort, isFiltering = true) }
+        recomputeFilter(debounceMs = 0L)
+    }
+
+    /** Single-select source filter: "all", "letterboxd" or "mdblist". */
+    fun setSource(source: String) {
+        _uiState.update {
+            it.copy(
+                onlyLetterboxd = source == "letterboxd",
+                onlyMdbList = source == "mdblist",
+                isFiltering = true
+            )
+        }
+        recomputeFilter(debounceMs = 0L)
+    }
+
+    fun resetFilters() {
+        _uiState.update {
+            it.copy(
+                searchQuery = "",
+                selectedDateFilter = null,
+                fromDateFilter = null,
+                toDateFilter = null,
+                onlyRewatches = false,
+                onlyLetterboxd = false,
+                onlyMdbList = false,
+                isFiltering = true
+            )
+        }
         recomputeFilter(debounceMs = 0L)
     }
 
@@ -229,6 +297,8 @@ class MoviesViewModel(
                     fromDate = snap.fromDateFilter,
                     toDate = snap.toDateFilter,
                     rewatchesOnly = snap.onlyRewatches,
+                    mdbListOnly = snap.onlyMdbList,
+                    letterboxdOnly = snap.onlyLetterboxd,
                     sort = snap.sortBy
                 )
             }
@@ -246,5 +316,7 @@ private data class MoviesStatsResult(
     val filtered: List<FilmDto>,
     val ratedCount: Int,
     val rewatchCount: Int,
+    val mdbCount: Int,
+    val lbCount: Int,
     val avgText: String
 )

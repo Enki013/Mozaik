@@ -20,6 +20,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontStyle
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.personalrecords.app.PersonalRecordsApp
@@ -46,21 +47,25 @@ fun MoviesScreen(
     var showDatePicker by remember { mutableStateOf(false) }
     var selectedFilm by remember { mutableStateOf<FilmDto?>(null) }
 
-    val cinemaColor = domainCinemaColor()
+    val cinemaColor = recordCategoryColors(RecordCategory.Movies).accent
     val ratingColor = domainRatingColor()
-    val moviesStatCards = remember(cinemaColor, ratingColor) {
+    val totalTitle = stringResource(R.string.movies_stats_total)
+    val totalDesc = stringResource(R.string.movies_stats_total_desc)
+    val avgTitle = stringResource(R.string.movies_stats_avg_rating)
+    val avgDesc = stringResource(R.string.movies_stats_avg_rating_desc)
+    val moviesStatCards = remember(cinemaColor, ratingColor, totalTitle, totalDesc, avgTitle, avgDesc) {
         listOf(
             StatCardItem(
                 id = "movies_total",
-                title = "Toplam Film",
-                description = "Letterboxd günlüğündeki tüm filmler",
+                title = totalTitle,
+                description = totalDesc,
                 icon = Icons.Default.Movie,
                 iconTint = cinemaColor
             ),
             StatCardItem(
                 id = "movies_avg_rating",
-                title = "Ortalama Puan",
-                description = "Puanlanan filmler ve yeniden izlemeler",
+                title = avgTitle,
+                description = avgDesc,
                 icon = Icons.Filled.Star,
                 iconTint = ratingColor
             )
@@ -85,9 +90,9 @@ fun MoviesScreen(
     }
 
     val scrollBehavior = TopAppBarDefaults.enterAlwaysScrollBehavior(rememberTopAppBarState())
-    val configuration = LocalConfiguration.current
-    val isWideScreen = configuration.screenWidthDp >= 600
-    val isTwoPane = configuration.screenWidthDp >= 840
+    val adaptiveLayout = currentAdaptiveLayout()
+    val isWideScreen = adaptiveLayout.isWide
+    val isTwoPane = adaptiveLayout.showsDetailPane
     val gridState = rememberLazyGridState()
 
     Scaffold(
@@ -96,13 +101,8 @@ fun MoviesScreen(
             .nestedScroll(scrollBehavior.nestedScrollConnection),
         contentWindowInsets = WindowInsets.statusBars,
         topBar = {
-            TopAppBar(
-                title = {
-                    Text(
-                        text = stringResource(R.string.title_movies),
-                        style = MaterialTheme.typography.titleLargeEmphasized
-                    )
-                },
+            ExpressivePageTopAppBar(
+                title = stringResource(R.string.title_movies),
                 scrollBehavior = scrollBehavior,
                 navigationIcon = {
                     if (onNavigateBack != null) {
@@ -124,10 +124,7 @@ fun MoviesScreen(
                             showCustomizationSheet = true
                         }
                     )
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.surface
-                )
+                }
             )
         }
     ) { innerPadding ->
@@ -148,9 +145,13 @@ fun MoviesScreen(
                     columns = if (isWideScreen) GridCells.Adaptive(minSize = 340.dp) else GridCells.Fixed(1),
                     state = gridState,
                     modifier = Modifier
-                        .fillMaxSize()
-                        .padding(horizontal = 12.dp),
-                    contentPadding = PaddingValues(top = 10.dp, bottom = if (isWideScreen) 32.dp else 144.dp),
+                        .fillMaxSize(),
+                    contentPadding = PaddingValues(
+                        start = FilterGutter,
+                        end = FilterGutter,
+                        top = 10.dp,
+                        bottom = 24.dp + WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
+                    ),
                 horizontalArrangement = if (isWideScreen) Arrangement.spacedBy(8.dp) else Arrangement.Start,
                 verticalArrangement = if (isWideScreen) Arrangement.spacedBy(8.dp) else Arrangement.Top
             ) {
@@ -192,12 +193,12 @@ fun MoviesScreen(
                                     MetricCard(
                                         title = stringResource(R.string.movies_stats_total),
                                         value = "$totalFilms",
-                                        badgeText = stringResource(R.string.movies_badge_letterboxd),
+                                        badgeText = stringResource(R.string.movies_badge_watched),
                                         note = stringResource(R.string.movies_stats_rated, ratedFilms),
                                         valueIcon = Icons.Default.Movie,
-                                        valueIconTint = domainCinemaColor(),
-                                        badgeBg = domainCinemaContainer(),
-                                        badgeColor = domainCinemaOnContainer(),
+                                        valueIconTint = recordCategoryColors(RecordCategory.Movies).accent,
+                                        badgeBg = recordCategoryColors(RecordCategory.Movies).container,
+                                        badgeColor = recordCategoryColors(RecordCategory.Movies).onContainer,
                                         onLongClick = { isEditMode = true }
                                     )
                                 }
@@ -231,199 +232,102 @@ fun MoviesScreen(
                     }
                 }
 
-                // Error banner if any
                 state.error?.let { err ->
                     item(key = "movies_error_banner", span = { GridItemSpan(maxLineSpan) }, contentType = "error_banner") {
-                        Surface(
-                            color = MaterialTheme.colorScheme.errorContainer,
-                            shape = M3Shapes.CornerSmall,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(bottom = 8.dp)
-                        ) {
-                            Row(
-                                modifier = Modifier.padding(12.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Text(
-                                    text = "Hata: $err",
-                                    color = MaterialTheme.colorScheme.onErrorContainer,
-                                    style = MaterialTheme.typography.bodySmall,
-                                    modifier = Modifier.weight(1f)
-                                )
-                                TextButton(onClick = { viewModel.loadData() }) {
-                                    Text(
-                                        text = stringResource(R.string.action_retry),
-                                        style = MaterialTheme.typography.labelMediumEmphasized,
-                                        color = MaterialTheme.colorScheme.error
-                                    )
-                                }
-                            }
-                        }
+                        ExpressiveErrorBanner(
+                            message = err,
+                            onRetry = { viewModel.loadData() },
+                            modifier = expressiveItemModifier().padding(bottom = 8.dp)
+                        )
                     }
                 }
 
                 // Search Bar & Filter Header
-                item(key = "movies_sticky_header", span = { GridItemSpan(maxLineSpan) }, contentType = "sticky_header") {
-                    Surface(
-                        color = MaterialTheme.colorScheme.surface,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(bottom = 8.dp)
-                    ) {
-                        Column(
+                stickyHeader(key = "movies_sticky_header", contentType = "sticky_header") {
+                    ExpressiveFilterHeader {
+                        ExpressiveSearchField(
+                            value = state.searchQuery,
+                            onValueChange = { viewModel.setSearchQuery(it) },
+                            placeholder = stringResource(R.string.movies_search_placeholder),
+                            clearContentDescription = stringResource(R.string.action_clear),
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(vertical = 4.dp),
-                            verticalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            OutlinedTextField(
-                                value = state.searchQuery,
-                                onValueChange = { viewModel.setSearchQuery(it) },
-                                modifier = Modifier.fillMaxWidth(),
-                                placeholder = {
-                                    Text(
-                                        text = stringResource(R.string.movies_search_placeholder),
-                                        style = MaterialTheme.typography.bodyMedium,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
+                                .filterHeaderItem()
+                        )
+                        ExpressiveFilterRow {
+                            ExpressiveConnectedButtonGroup(
+                                items = listOf("all", "letterboxd", "mdblist"),
+                                selectedItem = when {
+                                    state.onlyLetterboxd -> "letterboxd"
+                                    state.onlyMdbList -> "mdblist"
+                                    else -> "all"
                                 },
-                                leadingIcon = {
-                                    Icon(
-                                        Icons.Default.Search,
-                                        contentDescription = null,
-                                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                        modifier = Modifier.size(20.dp)
-                                    )
-                                },
-                                trailingIcon = {
-                                    if (state.searchQuery.isNotEmpty()) {
-                                        IconButton(onClick = {
-                                            viewModel.setSearchQuery("")
-                                        }) {
-                                            Icon(
-                                                Icons.Default.Clear,
-                                                contentDescription = stringResource(R.string.action_clear),
-                                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                                modifier = Modifier.size(18.dp)
-                                            )
-                                        }
+                                onItemSelected = { key -> viewModel.setSource(key) },
+                                labelProvider = { key ->
+                                    when (key) {
+                                        "letterboxd" -> stringResource(R.string.movies_badge_letterboxd)
+                                        "mdblist" -> stringResource(R.string.movies_filter_mdblist)
+                                        else -> stringResource(R.string.filter_all)
                                     }
                                 },
-                                shape = M3Shapes.CornerFull,
-                                colors = OutlinedTextFieldDefaults.colors(
-                                    focusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-                                    unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainerLow,
-                                    focusedBorderColor = MaterialTheme.colorScheme.primary,
-                                    unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant
-                                ),
-                                singleLine = true
+                                iconProvider = { key, _ ->
+                                    when (key) {
+                                        "letterboxd" -> Icons.Default.Movie
+                                        "mdblist" -> Icons.Default.VideoLibrary
+                                        else -> null
+                                    }
+                                }
                             )
-
-                            val rewatchFilms = state.rewatchFilmsCount
-                            val rewatchLabel = stringResource(R.string.movies_filter_rewatches)
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .horizontalScroll(rememberScrollState()),
-                                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                val hasActiveDate = state.selectedDateFilter != null || state.fromDateFilter != null
-                                val dateLabel = formatDateRangeChipLabel(
+                        }
+                        val hasActiveDate = state.selectedDateFilter != null || state.fromDateFilter != null
+                        val hasActiveFilters = state.searchQuery.isNotEmpty() || hasActiveDate || state.onlyRewatches || state.onlyLetterboxd || state.onlyMdbList
+                        ExpressiveFilterRow {
+                            if (hasActiveFilters) {
+                                ExpressiveClearFiltersChip(onClick = { viewModel.resetFilters() })
+                            }
+                            ExpressiveDateFilterChip(
+                                label = formatDateRangeChipLabel(
                                     singleDate = state.selectedDateFilter,
                                     fromDate = state.fromDateFilter,
                                     toDate = state.toDateFilter,
                                     defaultText = stringResource(R.string.filter_pick_date)
-                                )
-
-                                ExpressiveFilterChip(
-                                    selected = hasActiveDate,
-                                    onClick = { showDatePicker = true },
-                                    leadingIcon = {
-                                        Icon(
-                                            imageVector = if (hasActiveDate) Icons.Default.DateRange else Icons.Default.CalendarMonth,
-                                            contentDescription = null,
-                                            modifier = Modifier.size(FilterChipDefaults.IconSize)
-                                        )
-                                    },
-                                    trailingIcon = if (hasActiveDate) {
-                                        {
-                                            Icon(
-                                                imageVector = Icons.Default.Close,
-                                                contentDescription = null,
-                                                modifier = Modifier
-                                                    .size(14.dp)
-                                                    .clickable {
-                                                        viewModel.clearDateFilter()
-                                                    }
-                                            )
-                                        }
-                                    } else null,
-                                    label = {
-                                        Text(
-                                            text = dateLabel,
-                                            style = MaterialTheme.typography.labelMedium
-                                        )
+                                ),
+                                isActive = hasActiveDate,
+                                onClick = { showDatePicker = true },
+                                onClear = { viewModel.clearDateFilter() }
+                            )
+                            ExpressiveFilterChip(
+                                selected = state.onlyRewatches,
+                                onClick = { viewModel.toggleRewatches() },
+                                leadingIcon = {
+                                    Icon(
+                                        imageVector = Icons.Default.Repeat,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(FilterChipDefaults.IconSize)
+                                    )
+                                },
+                                label = { Text(text = stringResource(R.string.movies_filter_rewatches), style = MaterialTheme.typography.labelLarge) }
+                            )
+                            ExpressiveDropdownFilterChip(
+                                options = listOf("date", "rating_desc", "rating_asc", "year", "title"),
+                                selected = state.sortBy,
+                                onSelect = { viewModel.setSortBy(it) },
+                                optionLabel = { key ->
+                                    when (key) {
+                                        "date" -> stringResource(R.string.sort_date_watched)
+                                        "rating_desc" -> stringResource(R.string.sort_rating_desc)
+                                        "rating_asc" -> stringResource(R.string.sort_rating_asc)
+                                        "year" -> stringResource(R.string.sort_release_year)
+                                        "title" -> stringResource(R.string.sort_movie_title)
+                                        else -> stringResource(R.string.action_sort)
                                     }
-                                )
-                                ExpressiveFilterChip(
-                                    selected = state.onlyRewatches,
-                                    onClick = {
-                                        viewModel.toggleRewatches()
-                                    },
-                                    label = {
-                                        Text(
-                                            text = "$rewatchLabel ($rewatchFilms)",
-                                            style = MaterialTheme.typography.labelMedium
-                                        )
-                                    },
-                                    leadingIcon = {
-                                        Icon(
-                                            imageVector = Icons.Default.Repeat,
-                                            contentDescription = null,
-                                            modifier = Modifier.size(FilterChipDefaults.IconSize)
-                                        )
-                                    }
-                                )
-
-                                val (sortLabel, sortIcon) = when (state.sortBy) {
-                                    "rating_desc" -> stringResource(R.string.sort_rating_desc) to Icons.Default.ArrowDownward
-                                    "rating_asc" -> stringResource(R.string.sort_rating_asc) to Icons.Default.ArrowUpward
-                                    "year" -> stringResource(R.string.sort_release_year) to Icons.Default.CalendarMonth
-                                    "date" -> stringResource(R.string.sort_date_watched) to Icons.Default.Schedule
-                                    "title" -> stringResource(R.string.sort_movie_title) to Icons.Default.SortByAlpha
-                                    else -> stringResource(R.string.action_sort) to Icons.AutoMirrored.Filled.Sort
-                                }
-                                ExpressiveAssistChip(
-                                    onClick = {
-                                        val nextSort = when (state.sortBy) {
-                                            "rating_desc" -> "rating_asc"
-                                            "rating_asc" -> "year"
-                                            "year" -> "date"
-                                            "date" -> "title"
-                                            else -> "rating_desc"
-                                        }
-                                        viewModel.setSortBy(nextSort)
-                                    },
-                                    leadingIcon = {
-                                        Icon(
-                                            imageVector = sortIcon,
-                                            contentDescription = null,
-                                            tint = MaterialTheme.colorScheme.primary,
-                                            modifier = Modifier.size(16.dp)
-                                        )
-                                    },
-                                    label = {
-                                        Text(
-                                            text = sortLabel,
-                                            style = MaterialTheme.typography.labelMediumEmphasized,
-                                            color = MaterialTheme.colorScheme.primary
-                                        )
-                                    },
-                                    colors = borderlessAssistChipColors()
-                                )
-                            }
+                                },
+                                leadingIcon = Icons.AutoMirrored.Filled.Sort,
+                                isActive = false
+                            )
+                        }
+                        if (hasActiveFilters) {
+                            ExpressiveFilterResultCount(count = state.filteredFilms.size)
                         }
                     }
                 }
@@ -437,24 +341,18 @@ fun MoviesScreen(
                                     .height(200.dp),
                                 contentAlignment = Alignment.Center
                             ) {
-                                ContainedLoadingIndicator(size = 44.dp)
+                                AppContainedLoadingIndicator(size = 44.dp)
                             }
                         }
                     }
-                } else if (state.filteredFilms.isEmpty()) {
+                } else if (state.filteredFilms.isEmpty() && state.error == null) {
                     item(key = "movies_empty", span = { GridItemSpan(maxLineSpan) }, contentType = "empty") {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(200.dp),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(
-                                text = stringResource(R.string.movies_empty),
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
+                        ExpressiveEmptyState(
+                            title = stringResource(R.string.movies_empty),
+                            icon = Icons.Default.Movie,
+                            iconContainerColor = recordCategoryColors(RecordCategory.Movies).container,
+                            iconContentColor = recordCategoryColors(RecordCategory.Movies).onContainer
+                        )
                     }
                 } else {
                     itemsIndexed(
@@ -465,7 +363,7 @@ fun MoviesScreen(
                         if (isWideScreen) {
                             Surface(
                                 modifier = expressiveItemModifier().fillMaxWidth(),
-                                shape = M3Shapes.CornerMedium,
+                                shape = M3Shapes.CornerLarge,
                                 color = MaterialTheme.colorScheme.surfaceContainerLow
                             ) {
                                 FilmRowItem(
@@ -492,42 +390,24 @@ fun MoviesScreen(
             }
         }
 
-        if (isTwoPane) {
-            Row(modifier = Modifier.fillMaxSize()) {
-                Box(
-                    modifier = Modifier
-                        .weight(1.15f)
-                        .fillMaxHeight()
-                ) {
-                    listContent()
+        ExpressiveListDetailLayout(
+            showDetailPane = isTwoPane,
+            detailPane = {
+                if (selectedFilm != null) {
+                    FilmDetailPaneCard(
+                        film = selectedFilm!!,
+                        onClose = { selectedFilm = null }
+                    )
+                } else {
+                    DetailPlaceholderPane(
+                        icon = Icons.Default.Movie,
+                        title = stringResource(R.string.adaptive_select_item_title),
+                        subtitle = stringResource(R.string.adaptive_select_item_subtitle)
+                    )
                 }
-                VerticalDivider(
-                    modifier = Modifier.fillMaxHeight(),
-                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
-                )
-                Box(
-                    modifier = Modifier
-                        .weight(0.85f)
-                        .fillMaxHeight()
-                        .padding(top = 10.dp, end = 12.dp, bottom = 32.dp)
-                ) {
-                    if (selectedFilm != null) {
-                        FilmDetailPaneCard(
-                            film = selectedFilm!!,
-                            onClose = { selectedFilm = null }
-                        )
-                    } else {
-                        DetailPlaceholderPane(
-                            icon = Icons.Default.Movie,
-                            title = stringResource(R.string.adaptive_select_item_title),
-                            subtitle = stringResource(R.string.adaptive_select_item_subtitle)
-                        )
-                    }
-                }
-            }
-        } else {
-            listContent()
-        }
+            },
+            list = listContent
+        )
     }
 }
 
@@ -587,25 +467,38 @@ fun FilmRowItem(
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis
             )
-            Spacer(modifier = Modifier.height(2.dp))
+            Spacer(modifier = Modifier.height(4.dp))
             Row(
                 horizontalArrangement = Arrangement.spacedBy(6.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                if (film.safeYear > 0) {
-                    Text(
-                        text = "${film.safeYear}",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
-                        maxLines = 1,
-                        softWrap = false
-                    )
+                if (film.isShow) {
+                    Surface(
+                        shape = M3Shapes.CornerFull,
+                        color = MaterialTheme.colorScheme.surfaceContainerHighest
+                    ) {
+                        Text(
+                            text = stringResource(R.string.movies_type_show),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 1.5.dp),
+                            maxLines = 1,
+                            softWrap = false
+                        )
+                    }
                 }
-                if (film.safeWatchedDate.isNotBlank()) {
+                val metaText = buildString {
+                    if (film.safeYear > 0) append(film.safeYear)
+                    if (film.safeWatchedDate.isNotBlank()) {
+                        if (isNotEmpty()) append(" · ")
+                        append(film.safeWatchedDate)
+                    }
+                }
+                if (metaText.isNotBlank()) {
                     Text(
-                        text = "· ${film.safeWatchedDate}",
+                        text = metaText,
                         style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                         maxLines = 1,
                         softWrap = false
                     )
@@ -613,7 +506,7 @@ fun FilmRowItem(
                 if (film.rewatch) {
                     Surface(
                         shape = M3Shapes.CornerFull,
-                        color = domainCinemaContainer()
+                        color = recordCategoryColors(RecordCategory.Movies).container
                     ) {
                         Row(
                             modifier = Modifier.padding(horizontal = 5.dp, vertical = 1.5.dp),
@@ -624,12 +517,12 @@ fun FilmRowItem(
                                 imageVector = Icons.Default.Repeat,
                                 contentDescription = null,
                                 modifier = Modifier.size(10.dp),
-                                tint = domainCinemaOnContainer()
+                                tint = recordCategoryColors(RecordCategory.Movies).onContainer
                             )
                             Text(
                                 text = stringResource(R.string.movies_rewatch_badge),
                                 style = MaterialTheme.typography.labelSmallEmphasized,
-                                color = domainCinemaOnContainer(),
+                                color = recordCategoryColors(RecordCategory.Movies).onContainer,
                                 maxLines = 1,
                                 softWrap = false
                             )
@@ -651,9 +544,35 @@ fun FilmRowItem(
             }
         }
 
-        if (film.safeRating > 0) {
-            Spacer(modifier = Modifier.width(8.dp))
-            RatingBadge(rating = film.safeRating)
+        Spacer(modifier = Modifier.width(8.dp))
+
+        // Trailing Column: Rating & Source Badge (matching MusicScreen design pattern)
+        Column(
+            horizontalAlignment = Alignment.End,
+            verticalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            if (film.safeRating > 0) {
+                RatingBadge(rating = film.safeRating)
+            }
+
+            val isMdbList = film.source.equals("mdblist", ignoreCase = true)
+            val sourceLabel = if (isMdbList) "MDBList" else stringResource(R.string.movies_badge_letterboxd)
+            val sourceColor = if (isMdbList) MaterialTheme.colorScheme.tertiary else recordCategoryColors(RecordCategory.Movies).accent
+
+            Surface(
+                shape = M3Shapes.CornerFull,
+                color = sourceColor.copy(alpha = 0.12f)
+            ) {
+                Text(
+                    text = sourceLabel,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = sourceColor,
+                    fontWeight = FontWeight.Medium,
+                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                    maxLines = 1,
+                    softWrap = false
+                )
+            }
         }
     }
 }

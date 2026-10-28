@@ -10,6 +10,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowForwardIos
 import androidx.compose.material.icons.automirrored.filled.MenuBook
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -41,15 +42,24 @@ fun RecordsScreen(
     onNavigateToMusic: () -> Unit = {}
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
-    val snackbarHostState = remember { SnackbarHostState() }
-    val coroutineScope = rememberCoroutineScope()
-
+    val listState = androidx.compose.foundation.lazy.rememberLazyListState()
+    // Short page: only collapse the bar when the list can actually scroll.
+    val scrollBehavior = TopAppBarDefaults.enterAlwaysScrollBehavior(
+        state = rememberTopAppBarState(),
+        canScroll = { listState.canScrollForward || listState.canScrollBackward }
+    )
     Scaffold(
-        modifier = Modifier.fillMaxSize(),
-        contentWindowInsets = WindowInsets.statusBars,
-        snackbarHost = { SnackbarHost(snackbarHostState, modifier = Modifier.navigationBarsPadding().padding(bottom = 96.dp)) }
+        modifier = Modifier
+            .fillMaxSize()
+            .nestedScroll(scrollBehavior.nestedScrollConnection),
+        topBar = {
+            ExpressivePageTopAppBar(
+                title = stringResource(R.string.title_records),
+                scrollBehavior = scrollBehavior
+            )
+        },
+        contentWindowInsets = WindowInsets.statusBars
     ) { innerPadding ->
-        val listState = androidx.compose.foundation.lazy.rememberLazyListState()
         var isRefreshing by remember { mutableStateOf(false) }
         LaunchedEffect(state.isLoading) {
             if (!state.isLoading) isRefreshing = false
@@ -84,7 +94,7 @@ fun RecordsScreen(
         ) {
             val counts = state.counts
             val booksCount = counts["goodreads_books"] ?: counts["books"] ?: 0
-            val filmsCount = counts["letterboxd_films"] ?: counts["films"] ?: 0
+            val filmsCount = counts["total_films"] ?: counts["films"] ?: (counts["letterboxd_films"] ?: 0)
             val foodsCount = counts["fatsecret_food_entries"] ?: counts["foods"] ?: 0
             val notifsCount = counts["notifications"] ?: 0
             val healthCount = counts["health_records"] ?: 0
@@ -95,9 +105,22 @@ fun RecordsScreen(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(horizontal = 12.dp),
-                contentPadding = PaddingValues(top = 8.dp, bottom = 144.dp),
+                contentPadding = PaddingValues(
+                    top = 8.dp,
+                    bottom = floatingBottomNavigationContentPadding()
+                ),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
+
+                state.error?.let { err ->
+                    item(key = "records_error_banner", contentType = "error_banner") {
+                        ExpressiveErrorBanner(
+                            message = err,
+                            onRetry = { viewModel.loadData() },
+                            modifier = expressiveItemModifier()
+                        )
+                    }
+                }
 
                 // Section 1: Sağlık & Yaşam
                 item(key = "records_header_health", contentType = "section_header") {
@@ -107,43 +130,33 @@ fun RecordsScreen(
                     )
                 }
                 item(key = "records_card_health", contentType = "section_card") {
-                    Card(
-                        modifier = expressiveItemModifier().fillMaxWidth(),
-                        shape = M3Shapes.CornerLarge,
-                        colors = CardDefaults.cardColors(
-                            containerColor = MaterialTheme.colorScheme.surfaceContainerLow
-                        ),
-                        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
-                        border = null
-                    ) {
-                        Column {
-                            RecordItemRow(
+                    RecordsGroup(
+                        modifier = expressiveItemModifier(),
+                        rows = listOf(
+                            RecordRowSpec(
+                                category = RecordCategory.Nutrition,
                                 icon = Icons.Default.Restaurant,
-                                iconBg = domainNutritionContainer(),
-                                iconTint = domainNutritionOnContainer(),
                                 title = stringResource(R.string.records_item_nutrition_title),
-                                subtitle = stringResource(R.string.records_item_nutrition_sub, foodsCount),
+                                subtitle = if (foodsCount > 0) {
+                                    stringResource(R.string.records_item_nutrition_sub, foodsCount)
+                                } else {
+                                    stringResource(R.string.records_item_nutrition_empty)
+                                },
                                 onClick = onNavigateToNutrition
-                            )
-                            HorizontalDivider(
-                                color = MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.5f),
-                                modifier = Modifier.padding(horizontal = 12.dp)
-                            )
-                            val healthSub = if (healthCount > 0) {
-                                stringResource(R.string.records_item_healthconnect_count, healthCount)
-                            } else {
-                                stringResource(R.string.records_item_healthconnect_sub)
-                            }
-                            RecordItemRow(
+                            ),
+                            RecordRowSpec(
+                                category = RecordCategory.Health,
                                 icon = Icons.Default.Favorite,
-                                iconBg = domainHealthContainer(),
-                                iconTint = domainHealthOnContainer(),
                                 title = stringResource(R.string.records_item_healthconnect_title),
-                                subtitle = healthSub,
+                                subtitle = if (healthCount > 0) {
+                                    stringResource(R.string.records_item_healthconnect_count, healthCount)
+                                } else {
+                                    stringResource(R.string.records_item_healthconnect_sub)
+                                },
                                 onClick = onNavigateToHealthConnect
                             )
-                        }
-                    }
+                        )
+                    )
                 }
 
                 // Section 2: Kültür & Medya
@@ -154,51 +167,44 @@ fun RecordsScreen(
                     )
                 }
                 item(key = "records_card_media", contentType = "section_card") {
-                    Card(
-                        modifier = expressiveItemModifier().fillMaxWidth(),
-                        shape = M3Shapes.CornerLarge,
-                        colors = CardDefaults.cardColors(
-                            containerColor = MaterialTheme.colorScheme.surfaceContainerLow
-                        ),
-                        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
-                        border = null
-                    ) {
-                        val musicToast = stringResource(R.string.records_toast_music)
-                        Column {
-                            RecordItemRow(
+                    RecordsGroup(
+                        modifier = expressiveItemModifier(),
+                        rows = listOf(
+                            RecordRowSpec(
+                                category = RecordCategory.Movies,
                                 icon = Icons.Default.Movie,
-                                iconBg = domainCinemaContainer(),
-                                iconTint = domainCinemaOnContainer(),
                                 title = stringResource(R.string.records_item_movies_title),
-                                subtitle = stringResource(R.string.records_item_movies_sub, filmsCount),
+                                subtitle = if (filmsCount > 0) {
+                                    stringResource(R.string.records_item_movies_sub, filmsCount)
+                                } else {
+                                    stringResource(R.string.records_item_movies_empty)
+                                },
                                 onClick = onNavigateToMovies
-                            )
-                            HorizontalDivider(
-                                color = MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.5f),
-                                modifier = Modifier.padding(horizontal = 12.dp)
-                            )
-                            RecordItemRow(
+                            ),
+                            RecordRowSpec(
+                                category = RecordCategory.Books,
                                 icon = Icons.AutoMirrored.Filled.MenuBook,
-                                iconBg = domainBooksContainer(),
-                                iconTint = domainBooksOnContainer(),
                                 title = stringResource(R.string.records_item_books_title),
-                                subtitle = stringResource(R.string.records_item_books_sub, booksCount),
+                                subtitle = if (booksCount > 0) {
+                                    stringResource(R.string.records_item_books_sub, booksCount)
+                                } else {
+                                    stringResource(R.string.records_item_books_empty)
+                                },
                                 onClick = onNavigateToBooks
-                            )
-                            HorizontalDivider(
-                                color = MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.5f),
-                                modifier = Modifier.padding(horizontal = 12.dp)
-                            )
-                            RecordItemRow(
+                            ),
+                            RecordRowSpec(
+                                category = RecordCategory.Music,
                                 icon = Icons.Default.MusicNote,
-                                iconBg = MaterialTheme.colorScheme.primaryContainer,
-                                iconTint = MaterialTheme.colorScheme.primary,
                                 title = stringResource(R.string.records_item_music_title),
-                                subtitle = if (musicCount > 0) stringResource(R.string.records_item_music_count, musicCount) else stringResource(R.string.records_item_music_sub),
+                                subtitle = if (musicCount > 0) {
+                                    stringResource(R.string.records_item_music_count, musicCount)
+                                } else {
+                                    stringResource(R.string.records_item_music_sub)
+                                },
                                 onClick = onNavigateToMusic
                             )
-                        }
-                    }
+                        )
+                    )
                 }
 
                 // Section 3: Sistem & Cihaz
@@ -209,24 +215,22 @@ fun RecordsScreen(
                     )
                 }
                 item(key = "records_card_system", contentType = "section_card") {
-                    Card(
-                        modifier = expressiveItemModifier().fillMaxWidth(),
-                        shape = M3Shapes.CornerLarge,
-                        colors = CardDefaults.cardColors(
-                            containerColor = MaterialTheme.colorScheme.surfaceContainerLow
-                        ),
-                        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
-                        border = null
-                    ) {
-                        RecordItemRow(
-                            icon = Icons.Default.Notifications,
-                            iconBg = MaterialTheme.colorScheme.secondaryContainer,
-                            iconTint = MaterialTheme.colorScheme.onSecondaryContainer,
-                            title = stringResource(R.string.records_item_notifications_title),
-                            subtitle = stringResource(R.string.records_item_notifications_sub, notifsCount),
-                            onClick = onNavigateToNotifications
+                    RecordsGroup(
+                        modifier = expressiveItemModifier(),
+                        rows = listOf(
+                            RecordRowSpec(
+                                category = RecordCategory.Notifications,
+                                icon = Icons.Default.Notifications,
+                                title = stringResource(R.string.records_item_notifications_title),
+                                subtitle = if (notifsCount > 0) {
+                                    stringResource(R.string.records_item_notifications_sub, notifsCount)
+                                } else {
+                                    stringResource(R.string.records_item_notifications_empty)
+                                },
+                                onClick = onNavigateToNotifications
+                            )
                         )
-                    }
+                    )
                 }
 
                 item(key = "records_bottom_spacer", contentType = "spacer") { Spacer(modifier = Modifier.height(20.dp)) }
@@ -248,6 +252,40 @@ private fun SectionTitle(
     )
 }
 
+private data class RecordRowSpec(
+    val category: RecordCategory,
+    val icon: ImageVector,
+    val title: String,
+    val subtitle: String,
+    val onClick: () -> Unit
+)
+
+/** One segmented group of navigation rows. */
+@Composable
+private fun RecordsGroup(
+    rows: List<RecordRowSpec>,
+    modifier: Modifier = Modifier
+) {
+    Column(
+        modifier = modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(M3ListMetrics.SegmentGap)
+    ) {
+        rows.forEachIndexed { index, row ->
+            val colors = recordCategoryColors(row.category)
+            GroupedListItemSurface(index = index, itemCount = rows.size) {
+                RecordItemRow(
+                    icon = row.icon,
+                    iconBg = colors.container,
+                    iconTint = colors.onContainer,
+                    title = row.title,
+                    subtitle = row.subtitle,
+                    onClick = row.onClick
+                )
+            }
+        }
+    }
+}
+
 @Composable
 private fun RecordItemRow(
     icon: ImageVector,
@@ -265,10 +303,10 @@ private fun RecordItemRow(
             .padding(horizontal = 12.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        // Leading Icon Box (optical roundness: 8.dp CornerSmall inside 16.dp CornerLarge card)
+        // Leading icon box: same 40dp / 8dp anatomy as the other list rows
         Box(
             modifier = Modifier
-                .size(42.dp)
+                .size(40.dp)
                 .clip(M3Shapes.CornerSmall)
                 .background(iconBg),
             contentAlignment = Alignment.Center
@@ -277,7 +315,7 @@ private fun RecordItemRow(
                 imageVector = icon,
                 contentDescription = null,
                 tint = iconTint,
-                modifier = Modifier.size(22.dp)
+                modifier = Modifier.size(20.dp)
             )
         }
 

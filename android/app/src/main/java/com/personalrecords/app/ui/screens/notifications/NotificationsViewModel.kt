@@ -30,6 +30,7 @@ data class NotificationsUiState(
     val selectedDateFilter: String? = null,
     val fromDateFilter: String? = null,
     val toDateFilter: String? = null,
+    val sortBy: String = "date_desc",
     val error: String? = null
 )
 
@@ -39,10 +40,11 @@ private fun filterNotifications(
     searchQuery: String,
     selectedDateFilter: String?,
     fromDateFilter: String?,
-    toDateFilter: String?
+    toDateFilter: String?,
+    sortBy: String = "date_desc"
 ): List<NotificationDto> {
     if (notifications.isEmpty()) return emptyList()
-    return notifications.filter { item ->
+    val filtered = notifications.filter { item ->
         val matchesApp = selectedApp == null || item.displayAppName == selectedApp
         val matchesSearch = searchQuery.isBlank() ||
             item.displayTitle.contains(searchQuery, ignoreCase = true) ||
@@ -59,6 +61,8 @@ private fun filterNotifications(
         }
         matchesApp && matchesSearch && matchesDate
     }
+
+    return if (sortBy == "date_asc") filtered.asReversed() else filtered
 }
 
 class NotificationsViewModel(
@@ -75,25 +79,28 @@ class NotificationsViewModel(
 
     private suspend fun applyNotificationsList(notifs: List<NotificationDto>) {
         val snap = _uiState.value
-        val (filtered, apps, todayCnt) = withContext(Dispatchers.Default) {
+        val (orderedNotifs, filteredResults) = withContext(Dispatchers.Default) {
+            val ordered = notifs.sortedByDescending { it.created_at.ifBlank { it.post_time } }
             val list = filterNotifications(
-                notifications = notifs,
+                notifications = ordered,
                 selectedApp = snap.selectedApp,
                 searchQuery = snap.searchQuery,
                 selectedDateFilter = snap.selectedDateFilter,
                 fromDateFilter = snap.fromDateFilter,
-                toDateFilter = snap.toDateFilter
+                toDateFilter = snap.toDateFilter,
+                sortBy = snap.sortBy
             )
-            val distinctApps = notifs.map { it.displayAppName }.distinct().sorted()
+            val distinctApps = ordered.map { it.displayAppName }.distinct().sorted()
             val todayISO = LocalDate.now().toString()
-            val today = notifs.count { it.formattedDate == todayISO }
-            Triple(list, distinctApps, today)
+            val today = ordered.count { it.formattedDate == todayISO }
+            ordered to Triple(list, distinctApps, today)
         }
+        val (filtered, apps, todayCnt) = filteredResults
         _uiState.update {
             it.copy(
                 isLoading = false,
                 isFiltering = false,
-                notifications = notifs,
+                notifications = orderedNotifs,
                 filteredNotifications = filtered,
                 appList = apps,
                 todayCount = todayCnt,
@@ -191,6 +198,12 @@ class NotificationsViewModel(
         recomputeFilter(debounceMs = 0L)
     }
 
+    fun setSortBy(sort: String) {
+        if (_uiState.value.sortBy == sort) return
+        _uiState.update { it.copy(sortBy = sort, isFiltering = true) }
+        recomputeFilter(debounceMs = 0L)
+    }
+
     fun resetFilters() {
         _uiState.update {
             it.copy(
@@ -217,7 +230,8 @@ class NotificationsViewModel(
                     searchQuery = snap.searchQuery,
                     selectedDateFilter = snap.selectedDateFilter,
                     fromDateFilter = snap.fromDateFilter,
-                    toDateFilter = snap.toDateFilter
+                    toDateFilter = snap.toDateFilter,
+                    sortBy = snap.sortBy
                 )
             }
             _uiState.update {

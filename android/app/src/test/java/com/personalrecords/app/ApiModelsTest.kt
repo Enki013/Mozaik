@@ -46,6 +46,43 @@ class ApiModelsTest {
     }
 
     @Test
+    fun testUnifiedFilmsWithMdbListScores() {
+        val jsonString = """
+        {
+          "items": [
+            {
+              "film_key": "mdblist-tt22084616",
+              "name": "Spider-Man: Brand New Day",
+              "year": 2026,
+              "rating": 4.0,
+              "watched_date": "2026-10-27",
+              "source": "mdblist",
+              "score_imdb": 7.9,
+              "score_tomatoes": 90,
+              "score_metacritic": 66,
+              "score_tmdb": 84,
+              "score_trakt": 85,
+              "certification": "PG-13",
+              "image_url": "https://image.tmdb.org/t/p/original/bjiS5ipwxb9JFy3XRRN4OAilSeX.jpg"
+            }
+          ]
+        }
+        """.trimIndent()
+
+        val response = json.decodeFromString<FilmsResponseDto>(jsonString)
+        assertEquals(1, response.items.size)
+        val film = response.items.first()
+        assertEquals("Spider-Man: Brand New Day", film.displayTitle)
+        assertEquals(2026, film.safeYear)
+        assertEquals(4.0, film.safeRating, 0.001)
+        assertEquals("MDBList", film.displaySource)
+        assertEquals(7.9, film.score_imdb ?: 0.0, 0.001)
+        assertEquals(90, film.score_tomatoes)
+        assertEquals(66, film.score_metacritic)
+        assertEquals(84, film.score_tmdb)
+    }
+
+    @Test
     fun testLiveLetterboxdFilmsDeserialization() {
         val stream = javaClass.classLoader?.getResourceAsStream("films.json")
         val jsonString = stream?.bufferedReader()?.use { it.readText() } ?: throw IllegalStateException("Resource not found")

@@ -3,7 +3,9 @@ package com.personalrecords.app.core.theme
 import android.app.Activity
 import android.os.Build
 import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.MotionScheme
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.dynamicDarkColorScheme
 import androidx.compose.material3.dynamicLightColorScheme
@@ -97,6 +99,7 @@ private val LightColorScheme = lightColorScheme(
 )
 
 @Composable
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 fun PersonalRecordsTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
     dynamicColor: Boolean = true,
@@ -143,6 +146,7 @@ fun PersonalRecordsTheme(
             colorScheme = colorScheme,
             typography = Typography,
             shapes = Shapes,
+            motionScheme = MotionScheme.expressive(),
             content = content
         )
     }
@@ -225,79 +229,32 @@ fun domainMusicOnContainer(): androidx.compose.ui.graphics.Color =
 fun domainMusicColor(): androidx.compose.ui.graphics.Color =
     if (isSystemInDarkTheme()) MusicAccentDark else MusicAccent
 
-// ==========================================
-// M3 Expressive Motion Physics Tokens
-// Source: .agent/skills/m3-expressive/references/tokens.md
-// Spatial = position, size, rotation, corner radius (bounces)
-// Effects = opacity, color (damping 1.0, never overshoots)
-// ==========================================
-
+// Route app transitions through the same official scheme that Material components use.
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 object M3ExpressiveMotion {
-    // --- Expressive Scheme (Material's recommended default) ---
-    const val EXPRESSIVE_DEFAULT_SPATIAL_DAMPING = 0.8f
-    const val EXPRESSIVE_DEFAULT_SPATIAL_STIFFNESS = 380f
+    @Composable
+    fun <T> defaultSpatial(): androidx.compose.animation.core.FiniteAnimationSpec<T> =
+        MaterialTheme.motionScheme.defaultSpatialSpec()
 
-    const val EXPRESSIVE_FAST_SPATIAL_DAMPING = 0.6f
-    const val EXPRESSIVE_FAST_SPATIAL_STIFFNESS = 800f
+    @Composable
+    fun <T> fastSpatial(): androidx.compose.animation.core.FiniteAnimationSpec<T> =
+        MaterialTheme.motionScheme.fastSpatialSpec()
 
-    const val EXPRESSIVE_SLOW_SPATIAL_DAMPING = 0.8f
-    const val EXPRESSIVE_SLOW_SPATIAL_STIFFNESS = 200f
+    @Composable
+    fun <T> slowSpatial(): androidx.compose.animation.core.FiniteAnimationSpec<T> =
+        MaterialTheme.motionScheme.slowSpatialSpec()
 
-    // --- Effects Springs (Identical in Expressive & Standard; never overshoot) ---
-    const val EFFECTS_DAMPING = 1.0f
-    const val DEFAULT_EFFECTS_STIFFNESS = 1600f
-    const val FAST_EFFECTS_STIFFNESS = 3800f
-    const val SLOW_EFFECTS_STIFFNESS = 800f
+    @Composable
+    fun <T> defaultEffects(): androidx.compose.animation.core.FiniteAnimationSpec<T> =
+        MaterialTheme.motionScheme.defaultEffectsSpec()
 
-    // --- Standard Scheme (Utilitarian fallback) ---
-    const val STANDARD_DEFAULT_SPATIAL_DAMPING = 0.9f
-    const val STANDARD_DEFAULT_SPATIAL_STIFFNESS = 700f
-    const val STANDARD_FAST_SPATIAL_DAMPING = 0.9f
-    const val STANDARD_FAST_SPATIAL_STIFFNESS = 1400f
-    const val STANDARD_SLOW_SPATIAL_DAMPING = 0.9f
-    const val STANDARD_SLOW_SPATIAL_STIFFNESS = 300f
+    @Composable
+    fun <T> fastEffects(): androidx.compose.animation.core.FiniteAnimationSpec<T> =
+        MaterialTheme.motionScheme.fastEffectsSpec()
 
-    fun <T> defaultSpatial(visibilityThreshold: T? = null): androidx.compose.animation.core.SpringSpec<T> =
-        androidx.compose.animation.core.spring(
-            dampingRatio = EXPRESSIVE_DEFAULT_SPATIAL_DAMPING,
-            stiffness = EXPRESSIVE_DEFAULT_SPATIAL_STIFFNESS,
-            visibilityThreshold = visibilityThreshold
-        )
-
-    fun <T> fastSpatial(visibilityThreshold: T? = null): androidx.compose.animation.core.SpringSpec<T> =
-        androidx.compose.animation.core.spring(
-            dampingRatio = EXPRESSIVE_FAST_SPATIAL_DAMPING,
-            stiffness = EXPRESSIVE_FAST_SPATIAL_STIFFNESS,
-            visibilityThreshold = visibilityThreshold
-        )
-
-    fun <T> slowSpatial(visibilityThreshold: T? = null): androidx.compose.animation.core.SpringSpec<T> =
-        androidx.compose.animation.core.spring(
-            dampingRatio = EXPRESSIVE_SLOW_SPATIAL_DAMPING,
-            stiffness = EXPRESSIVE_SLOW_SPATIAL_STIFFNESS,
-            visibilityThreshold = visibilityThreshold
-        )
-
-    fun <T> defaultEffects(visibilityThreshold: T? = null): androidx.compose.animation.core.SpringSpec<T> =
-        androidx.compose.animation.core.spring(
-            dampingRatio = EFFECTS_DAMPING,
-            stiffness = DEFAULT_EFFECTS_STIFFNESS,
-            visibilityThreshold = visibilityThreshold
-        )
-
-    fun <T> fastEffects(visibilityThreshold: T? = null): androidx.compose.animation.core.SpringSpec<T> =
-        androidx.compose.animation.core.spring(
-            dampingRatio = EFFECTS_DAMPING,
-            stiffness = FAST_EFFECTS_STIFFNESS,
-            visibilityThreshold = visibilityThreshold
-        )
-
-    fun <T> slowEffects(visibilityThreshold: T? = null): androidx.compose.animation.core.SpringSpec<T> =
-        androidx.compose.animation.core.spring(
-            dampingRatio = EFFECTS_DAMPING,
-            stiffness = SLOW_EFFECTS_STIFFNESS,
-            visibilityThreshold = visibilityThreshold
-        )
+    @Composable
+    fun <T> slowEffects(): androidx.compose.animation.core.FiniteAnimationSpec<T> =
+        MaterialTheme.motionScheme.slowEffectsSpec()
 
     @Composable
     fun isReducedMotion(): Boolean = LocalReducedMotion.current

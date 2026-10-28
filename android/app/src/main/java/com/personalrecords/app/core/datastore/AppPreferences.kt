@@ -16,6 +16,7 @@ val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "ap
 class AppPreferences(private val context: Context) {
     companion object {
         val SERVER_BASE_URL = stringPreferencesKey("server_base_url")
+        val SERVER_API_KEY = stringPreferencesKey("server_api_key")
         val CALORIE_TARGET = intPreferencesKey("calorie_target")
         val APP_LANGUAGE = stringPreferencesKey("app_language")
         val ENABLED_INTEGRATION_PLUGINS = stringSetPreferencesKey("enabled_integration_plugins")
@@ -78,6 +79,10 @@ class AppPreferences(private val context: Context) {
         prefs[SERVER_BASE_URL] ?: DEFAULT_BASE_URL
     }
 
+    val serverApiKey: Flow<String> = context.dataStore.data.map { prefs ->
+        prefs[SERVER_API_KEY] ?: ""
+    }
+
     val calorieTarget: Flow<Int?> = context.dataStore.data.map { prefs ->
         prefs[CALORIE_TARGET]
     }
@@ -98,6 +103,12 @@ class AppPreferences(private val context: Context) {
         }
         context.dataStore.edit { prefs ->
             prefs[SERVER_BASE_URL] = cleanUrl
+        }
+    }
+
+    suspend fun setServerApiKey(apiKey: String) {
+        context.dataStore.edit { prefs ->
+            prefs[SERVER_API_KEY] = apiKey.trim()
         }
     }
 

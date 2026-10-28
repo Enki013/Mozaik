@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"personal-records/internal/application"
+	"personal-records/internal/config"
 	"personal-records/internal/infrastructure/sqlite"
 )
 
@@ -27,6 +28,7 @@ type pageData struct {
 	LetterboxdFilms    []sqlite.LetterboxdFilm
 	FoodSummary        []sqlite.DailySummary
 	FoodEntries        []sqlite.FoodEntry
+	Notifications      []sqlite.Notification
 	FatSecretConnected bool
 	OAuthReady         bool
 	CalorieTarget      int
@@ -43,48 +45,129 @@ func renderHome(data pageData) string {
   <title>Personal Data Hub</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;600;700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <script>
+    (function() {
+      try {
+        var saved = localStorage.getItem('theme');
+        var prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+        if (saved === 'dark' || (!saved && prefersDark)) {
+          document.documentElement.classList.add('dark');
+        }
+      } catch (e) {}
+    })();
+  </script>
   <style>
+    /* shadcn/ui Zinc Design System */
     :root {
-      --bg: #fdf8fd;
+      --background: 0 0% 100%;
+      --foreground: 240 10% 3.9%;
+      --card: 0 0% 100%;
+      --card-foreground: 240 10% 3.9%;
+      --popover: 0 0% 100%;
+      --popover-foreground: 240 10% 3.9%;
+      --primary: 240 5.9% 10%;
+      --primary-foreground: 0 0% 98%;
+      --secondary: 240 4.8% 95.9%;
+      --secondary-foreground: 240 5.9% 10%;
+      --muted: 240 4.8% 95.9%;
+      --muted-foreground: 240 3.8% 46.1%;
+      --accent: 240 4.8% 95.9%;
+      --accent-foreground: 240 5.9% 10%;
+      --destructive: 0 84.2% 60.2%;
+      --destructive-foreground: 0 0% 98%;
+      --border: 240 5.9% 90%;
+      --input: 240 5.9% 90%;
+      --ring: 240 5.9% 10%;
+      --radius: 8px;
+
+      /* Aliases for seamless component compatibility */
+      --bg: #ffffff;
       --card-bg: #ffffff;
-      --card-border: #e6e0e9;
-      --text-main: #1d1b20;
-      --text-muted: #49454f;
-      --text-subtle: #79747e;
-      --primary: #6750a4;
-      --primary-hover: #523e85;
-      --primary-text: #ffffff;
-      --primary-container: #eaddff;
-      --on-primary-container: #21005d;
-      --secondary: #625b71;
-      --secondary-container: #e8def8;
-      --on-secondary-container: #1d192b;
-      --secondary-hover: #f3edf7;
-      --secondary-border: #cac4d0;
-      --radius: 12px;
-      /* Material Design 3 Tokens */
-      --md-sys-color-primary: #6750a4;
-      --md-sys-color-surface: #fef7ff;
-      --md-sys-color-surface-container: #f3edf7;
-      --md-sys-shape-corner-small: 8px;
-      --md-sys-shape-corner-medium: 12px;
-      --md-sys-shape-corner-full: 9999px;
+      --card-border: #e4e4e7;
+      --text-main: #09090b;
+      --text-muted: #71717a;
+      --text-subtle: #a1a1aa;
+      --primary-hover: #27272a;
+      --secondary-border: #d4d4d8;
+
+      /* Semantic Badges */
+      --badge-green-bg: #f0fdf4;
+      --badge-green-text: #15803d;
+      --badge-green-border: #bbf7d0;
+      --badge-amber-bg: #fffbeb;
+      --badge-amber-text: #b45309;
+      --badge-amber-border: #fde68a;
+      --badge-blue-bg: #eff6ff;
+      --badge-blue-text: #1d4ed8;
+      --badge-blue-border: #bfdbfe;
+      --badge-purple-bg: #faf5ff;
+      --badge-purple-text: #7e22ce;
+      --badge-purple-border: #e9d5ff;
     }
+
+    .dark {
+      --background: 240 10% 3.9%;
+      --foreground: 0 0% 98%;
+      --card: 240 10% 4.8%;
+      --card-foreground: 0 0% 98%;
+      --popover: 240 10% 4.8%;
+      --popover-foreground: 0 0% 98%;
+      --primary: 0 0% 98%;
+      --primary-foreground: 240 5.9% 10%;
+      --secondary: 240 3.7% 15.9%;
+      --secondary-foreground: 0 0% 98%;
+      --muted: 240 3.7% 15.9%;
+      --muted-foreground: 240 5% 64.9%;
+      --accent: 240 3.7% 15.9%;
+      --accent-foreground: 0 0% 98%;
+      --destructive: 0 62.8% 30.6%;
+      --destructive-foreground: 0 0% 98%;
+      --border: 240 3.7% 15.9%;
+      --input: 240 3.7% 15.9%;
+      --ring: 240 4.9% 83.9%;
+
+      --bg: #09090b;
+      --card-bg: #0c0c0e;
+      --card-border: #27272a;
+      --text-main: #fafafa;
+      --text-muted: #a1a1aa;
+      --text-subtle: #71717a;
+      --primary-hover: #e4e4e7;
+      --secondary-border: #3f3f46;
+
+      --badge-green-bg: #052e16;
+      --badge-green-text: #4ade80;
+      --badge-green-border: #14532d;
+      --badge-amber-bg: #451a03;
+      --badge-amber-text: #fbbf24;
+      --badge-amber-border: #78350f;
+      --badge-blue-bg: #172554;
+      --badge-blue-text: #60a5fa;
+      --badge-blue-border: #1e3a8a;
+      --badge-purple-bg: #3b0764;
+      --badge-purple-text: #c084fc;
+      --badge-purple-border: #581c87;
+    }
+
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
-      background-color: var(--bg);
-      color: var(--text-main);
-      font-family: 'Roboto', 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background-color: hsl(var(--background));
+      color: hsl(var(--foreground));
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
       font-size: 14px;
       line-height: 1.5;
       -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+      transition: background-color 0.2s ease, color 0.2s ease;
     }
+
     .app-container {
       max-width: 1280px;
       margin: 0 auto;
-      padding: 32px 24px 80px;
+      padding: 28px 24px 80px;
     }
+
     /* Header */
     .app-header {
       display: flex;
@@ -92,7 +175,7 @@ func renderHome(data pageData) string {
       align-items: center;
       margin-bottom: 24px;
       padding-bottom: 20px;
-      border-bottom: 1px solid var(--card-border);
+      border-bottom: 1px solid hsl(var(--border));
       flex-wrap: wrap;
       gap: 16px;
     }
@@ -102,25 +185,25 @@ func renderHome(data pageData) string {
       gap: 12px;
     }
     .brand-logo {
-      width: 40px;
-      height: 40px;
-      border-radius: 10px;
-      background: #0f172a;
-      color: #ffffff;
+      width: 38px;
+      height: 38px;
+      border-radius: var(--radius);
+      background: hsl(var(--primary));
+      color: hsl(var(--primary-foreground));
       display: flex;
       align-items: center;
       justify-content: center;
-      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
     }
     .brand-title {
-      font-size: 20px;
+      font-size: 19px;
       font-weight: 700;
-      color: #0f172a;
-      letter-spacing: -0.02em;
+      color: hsl(var(--foreground));
+      letter-spacing: -0.025em;
     }
     .brand-subtitle {
-      font-size: 13px;
-      color: var(--text-muted);
+      font-size: 12.5px;
+      color: hsl(var(--muted-foreground));
     }
     .header-badges {
       display: flex;
@@ -128,7 +211,39 @@ func renderHome(data pageData) string {
       gap: 8px;
       flex-wrap: wrap;
     }
-    /* Tabs */
+
+    /* Theme toggle button */
+    .theme-toggle-btn {
+      cursor: pointer;
+      font-size: 12px;
+      font-weight: 500;
+    }
+    .dark .sun-icon { display: inline-flex; align-items: center; gap: 4px; }
+    .dark .moon-icon { display: none; }
+    :not(.dark) .sun-icon { display: none; }
+    :not(.dark) .moon-icon { display: inline-flex; align-items: center; gap: 4px; }
+
+    /* Security Warning Banner */
+    .security-banner {
+      background: #fffbeb;
+      border: 1px solid #fde68a;
+      color: #92400e;
+      border-radius: var(--radius);
+      padding: 10px 14px;
+      margin-bottom: 20px;
+      font-size: 13px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      line-height: 1.4;
+    }
+    .dark .security-banner {
+      background: rgba(245, 158, 11, 0.12);
+      border-color: rgba(245, 158, 11, 0.25);
+      color: #fbbf24;
+    }
+
+    /* Tabs (shadcn/ui Tabs Style) */
     .tabs-wrapper {
       margin-bottom: 24px;
       overflow-x: auto;
@@ -136,21 +251,22 @@ func renderHome(data pageData) string {
     }
     .tabs-list {
       display: inline-flex;
-      background: #f1f5f9;
-      padding: 4px;
-      border-radius: 10px;
-      border: 1px solid #e2e8f0;
-      gap: 4px;
+      background: hsl(var(--muted));
+      padding: 3px;
+      border-radius: var(--radius);
+      border: 1px solid hsl(var(--border));
+      gap: 2px;
+      align-items: center;
     }
     .tab-trigger {
       display: inline-flex;
       align-items: center;
-      gap: 8px;
-      padding: 8px 16px;
-      font-size: 13.5px;
+      gap: 7px;
+      padding: 6px 14px;
+      font-size: 13px;
       font-weight: 500;
-      color: var(--text-muted);
-      border-radius: 7px;
+      color: hsl(var(--muted-foreground));
+      border-radius: calc(var(--radius) - 2px);
       border: 0;
       background: transparent;
       cursor: pointer;
@@ -159,15 +275,15 @@ func renderHome(data pageData) string {
       text-decoration: none;
     }
     .tab-trigger:hover {
-      color: var(--text-main);
-      background: rgba(255, 255, 255, 0.5);
+      color: hsl(var(--foreground));
     }
     .tab-trigger.active {
-      background: #ffffff;
-      color: #0f172a;
+      background: hsl(var(--card));
+      color: hsl(var(--foreground));
       font-weight: 600;
       box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08), 0 1px 2px rgba(0, 0, 0, 0.04);
     }
+
     /* Tab Panes */
     .tab-pane {
       display: none;
@@ -180,78 +296,90 @@ func renderHome(data pageData) string {
       from { opacity: 0; transform: translateY(2px); }
       to { opacity: 1; transform: translateY(0); }
     }
+
     /* Cards */
     .card {
-      background: var(--card-bg);
-      border: 1px solid var(--card-border);
-      border-radius: var(--radius);
+      background: hsl(var(--card));
+      border: 1px solid hsl(var(--border));
+      border-radius: calc(var(--radius) + 2px);
       box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.03);
       overflow: hidden;
+      margin-bottom: 24px;
     }
     .card-header {
-      padding: 20px 22px 14px;
+      padding: 18px 22px 14px;
       display: flex;
       justify-content: space-between;
       align-items: flex-start;
       gap: 16px;
+      border-bottom: 1px solid hsl(var(--border) / 0.7);
     }
     .card-title {
       font-size: 16px;
       font-weight: 600;
-      color: #0f172a;
-      letter-spacing: -0.01em;
+      color: hsl(var(--foreground));
+      letter-spacing: -0.015em;
     }
     .card-desc {
       font-size: 13px;
-      color: var(--text-muted);
+      color: hsl(var(--muted-foreground));
       margin-top: 2px;
     }
     .card-content {
       padding: 20px 22px;
     }
     .card-header + .card-content {
-      padding-top: 6px;
+      padding-top: 16px;
     }
-    /* Metric Cards */
+
+    /* Metric Cards (shadcn/ui Dashboard Stat Cards) */
     .metrics-grid {
       display: grid;
-      grid-template-columns: repeat(4, minmax(0, 1fr));
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
       gap: 16px;
       margin-bottom: 24px;
     }
     .metric-card {
-      background: #ffffff;
-      border: 1px solid var(--card-border);
+      background: hsl(var(--card));
+      border: 1px solid hsl(var(--border));
       border-radius: var(--radius);
-      padding: 20px;
-      box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.03);
+      padding: 18px 20px;
+      box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.03);
       display: flex;
       flex-direction: column;
       justify-content: space-between;
+      transition: border-color 0.15s ease, box-shadow 0.15s ease;
+    }
+    .metric-card:hover {
+      border-color: hsl(var(--ring) / 0.25);
+      box-shadow: 0 3px 6px -1px rgba(0, 0, 0, 0.05);
     }
     .metric-header {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      margin-bottom: 12px;
+      margin-bottom: 10px;
     }
     .metric-label {
-      font-size: 13px;
+      font-size: 12px;
       font-weight: 500;
-      color: var(--text-muted);
+      color: hsl(var(--muted-foreground));
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
     }
     .metric-value {
-      font-size: 28px;
+      font-size: 26px;
       font-weight: 700;
-      color: #0f172a;
+      color: hsl(var(--foreground));
       letter-spacing: -0.03em;
-      line-height: 1.1;
+      line-height: 1.15;
     }
     .metric-note {
-      font-size: 12.5px;
-      color: var(--text-muted);
+      font-size: 12px;
+      color: hsl(var(--muted-foreground));
       margin-top: 6px;
     }
+
     /* Layouts */
     .grid-2col {
       display: grid;
@@ -269,46 +397,104 @@ func renderHome(data pageData) string {
       flex-direction: column;
       gap: 20px;
     }
-    /* Badges */
+
+    /* Badges (shadcn/ui Badge Variants) */
     .badge {
       display: inline-flex;
       align-items: center;
       gap: 5px;
-      padding: 3px 9px;
+      padding: 2.5px 9px;
       border-radius: 9999px;
-      font-size: 12px;
+      font-size: 11.5px;
       font-weight: 500;
       line-height: 1.3;
       white-space: nowrap;
+      border: 1px solid transparent;
+      transition: all 0.15s ease;
     }
     .badge-dot {
       width: 6px;
       height: 6px;
       border-radius: 50%;
     }
-    .badge-slate { background: #f1f5f9; color: #475569; border: 1px solid #e2e8f0; }
-    .badge-slate .badge-dot { background: #94a3b8; }
-    .badge-green { background: #ecfdf5; color: #065f46; border: 1px solid #a7f3d0; }
-    .badge-green .badge-dot { background: #10b981; }
-    .badge-amber { background: #fffbeb; color: #92400e; border: 1px solid #fde68a; }
-    .badge-amber .badge-dot { background: #f59e0b; }
-    .badge-blue { background: #eff6ff; color: #1e40af; border: 1px solid #bfdbfe; }
-    .badge-blue .badge-dot { background: #3b82f6; }
-    .badge-purple { background: #faf5ff; color: #6b21a8; border: 1px solid #e9d5ff; }
-    .badge-purple .badge-dot { background: #a855f7; }
-    .badge-red { background: #fef2f2; color: #991b1b; border: 1px solid #fecaca; }
-    .badge-red .badge-dot { background: #ef4444; }
+    .badge-slate {
+      background: hsl(var(--secondary));
+      color: hsl(var(--secondary-foreground));
+      border-color: hsl(var(--border));
+    }
+    .badge-slate .badge-dot { background: hsl(var(--muted-foreground)); }
+    .badge-green {
+      background: var(--badge-green-bg);
+      color: var(--badge-green-text);
+      border-color: var(--badge-green-border);
+    }
+    .badge-green .badge-dot { background: #16a34a; }
+    .badge-amber {
+      background: var(--badge-amber-bg);
+      color: var(--badge-amber-text);
+      border-color: var(--badge-amber-border);
+    }
+    .badge-amber .badge-dot { background: #d97706; }
+    .badge-blue {
+      background: var(--badge-blue-bg);
+      color: var(--badge-blue-text);
+      border-color: var(--badge-blue-border);
+    }
+    .badge-blue .badge-dot { background: #2563eb; }
+    .badge-purple {
+      background: var(--badge-purple-bg);
+      color: var(--badge-purple-text);
+      border-color: var(--badge-purple-border);
+    }
+    .badge-purple .badge-dot { background: #7c3aed; }
+    .badge-red {
+      background: hsl(var(--destructive) / 0.1);
+      color: hsl(var(--destructive));
+      border-color: hsl(var(--destructive) / 0.2);
+    }
+    .badge-red .badge-dot { background: hsl(var(--destructive)); }
 
-    /* Buttons */
+    code {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      font-size: 12px;
+      background: hsl(var(--muted));
+      color: hsl(var(--foreground));
+      border: 1px solid hsl(var(--border));
+      padding: 2px 6px;
+      border-radius: 4px;
+    }
+    .webhook-box {
+      background: hsl(var(--muted)) !important;
+      border: 1px solid hsl(var(--border)) !important;
+      padding: 12px 16px;
+      border-radius: calc(var(--radius) - 2px);
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      font-size: 13px;
+      color: hsl(var(--foreground)) !important;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      word-break: break-all;
+    }
+    .webhook-box code,
+    .webhook-box span:first-child {
+      color: hsl(var(--foreground)) !important;
+      font-weight: 600;
+      background: transparent !important;
+      border: none !important;
+      padding: 0 !important;
+    }
+
+    /* Buttons (shadcn/ui Button Variants) */
     .button, button {
       display: inline-flex;
       align-items: center;
       justify-content: center;
       gap: 6px;
-      border-radius: 6px;
-      font-size: 13.5px;
+      border-radius: calc(var(--radius) - 2px);
+      font-size: 13px;
       font-weight: 500;
-      padding: 8px 14px;
+      padding: 7px 14px;
       cursor: pointer;
       transition: all 0.15s ease;
       text-decoration: none;
@@ -316,32 +502,34 @@ func renderHome(data pageData) string {
       min-height: 36px;
       white-space: nowrap;
       flex-shrink: 0;
+      outline: none;
     }
-    .button-primary, button:not(.secondary):not(.outline):not(.ghost) {
-      background: #0f172a;
-      color: #ffffff;
-      border-color: #0f172a;
+    .button-primary, button:not(.secondary):not(.outline):not(.ghost):not(.filter-chip):not(.tab-trigger) {
+      background: hsl(var(--primary));
+      color: hsl(var(--primary-foreground));
+      border-color: transparent;
+      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
     }
-    .button-primary:hover, button:not(.secondary):not(.outline):not(.ghost):hover {
-      background: #1e293b;
-      border-color: #1e293b;
+    .button-primary:hover, button:not(.secondary):not(.outline):not(.ghost):not(.filter-chip):not(.tab-trigger):hover {
+      background: hsl(var(--primary) / 0.9);
     }
     .button.secondary, button.secondary {
-      background: #ffffff;
-      color: #0f172a;
-      border-color: #e2e8f0;
-      box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.04);
+      background: hsl(var(--card));
+      color: hsl(var(--foreground));
+      border: 1px solid hsl(var(--border));
+      box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.02);
     }
     .button.secondary:hover, button.secondary:hover {
-      background: #f8fafc;
-      border-color: #cbd5e1;
+      background: hsl(var(--muted));
+      border-color: hsl(var(--border));
     }
     .button-sm {
-      padding: 5px 10px;
-      font-size: 12.5px;
+      padding: 4px 10px;
+      font-size: 12px;
       min-height: 30px;
-      border-radius: 5px;
+      border-radius: calc(var(--radius) - 3px);
     }
+
     /* Forms & Inputs */
     .form-group {
       display: flex;
@@ -352,26 +540,26 @@ func renderHome(data pageData) string {
     .form-label {
       font-size: 13px;
       font-weight: 500;
-      color: #334155;
+      color: hsl(var(--foreground));
     }
     .form-helper {
       font-size: 12px;
-      color: var(--text-muted);
+      color: hsl(var(--muted-foreground));
     }
     input[type="text"], input[type="number"], input[type="file"], select {
       width: 100%;
-      border: 1px solid #cbd5e1;
-      border-radius: 6px;
-      padding: 8px 12px;
-      font-size: 13.5px;
-      color: #0f172a;
-      background: #ffffff;
+      border: 1px solid hsl(var(--input));
+      border-radius: calc(var(--radius) - 2px);
+      padding: 7px 12px;
+      font-size: 13px;
+      color: hsl(var(--foreground));
+      background: hsl(var(--background));
       transition: border-color 0.15s, box-shadow 0.15s;
     }
     input[type="text"]:focus, input[type="number"]:focus, select:focus {
       outline: none;
-      border-color: #0f172a;
-      box-shadow: 0 0 0 2px rgba(15, 23, 42, 0.08);
+      border-color: hsl(var(--ring));
+      box-shadow: 0 0 0 1px hsl(var(--ring));
     }
     .form-inline {
       display: flex;
@@ -379,6 +567,7 @@ func renderHome(data pageData) string {
       gap: 10px;
       flex-wrap: wrap;
     }
+
     /* Tables */
     .table-container {
       width: 100%;
@@ -386,54 +575,55 @@ func renderHome(data pageData) string {
     }
     table {
       width: 100%;
-      border-collapse: separate;
-      border-spacing: 0;
+      border-collapse: collapse;
       font-size: 13.5px;
       text-align: left;
     }
     th {
-      background: #f8fafc;
-      color: #64748b;
+      background: hsl(var(--muted) / 0.5);
+      color: hsl(var(--muted-foreground));
       font-weight: 600;
-      font-size: 12px;
+      font-size: 11.5px;
       text-transform: uppercase;
-      letter-spacing: 0.04em;
+      letter-spacing: 0.05em;
       padding: 10px 14px;
-      border-bottom: 1px solid #e2e8f0;
+      border-bottom: 1px solid hsl(var(--border));
       white-space: nowrap;
     }
     td {
       padding: 12px 14px;
-      border-bottom: 1px solid #f1f5f9;
-      color: #1e293b;
+      border-bottom: 1px solid hsl(var(--border) / 0.6);
+      color: hsl(var(--foreground));
       vertical-align: middle;
     }
     tr:hover td {
-      background: #fbfcfd;
+      background: hsl(var(--muted) / 0.35);
     }
     tr:last-child td {
       border-bottom: 0;
     }
+
     /* Stars */
     .stars {
       color: #f59e0b;
-      font-size: 14px;
+      font-size: 13.5px;
       letter-spacing: 1px;
       display: inline-flex;
       align-items: center;
       gap: 2px;
     }
-    .star-empty { color: #cbd5e1; }
+    .star-empty { color: hsl(var(--muted-foreground) / 0.4); }
     .rating-num {
-      color: #64748b;
+      color: hsl(var(--muted-foreground));
       font-size: 12px;
       font-weight: 600;
       margin-left: 4px;
     }
+
     /* Progress Bars */
     .progress-bar-wrap {
-      height: 10px;
-      background: #f1f5f9;
+      height: 8px;
+      background: hsl(var(--muted));
       border-radius: 9999px;
       overflow: hidden;
       display: flex;
@@ -454,13 +644,14 @@ func renderHome(data pageData) string {
       align-items: center;
       gap: 6px;
       font-size: 12.5px;
-      color: #475569;
+      color: hsl(var(--muted-foreground));
     }
     .macro-dot {
       width: 8px;
       height: 8px;
       border-radius: 50%;
     }
+
     /* Filter Bar System */
     .filter-bar {
       display: flex;
@@ -469,8 +660,8 @@ func renderHome(data pageData) string {
       justify-content: space-between;
       gap: 12px;
       padding: 12px 18px;
-      background: #f8fafc;
-      border-bottom: 1px solid #e2e8f0;
+      background: hsl(var(--muted) / 0.4);
+      border-bottom: 1px solid hsl(var(--border));
     }
     .filter-controls {
       display: flex;
@@ -490,22 +681,22 @@ func renderHome(data pageData) string {
       left: 10px;
       top: 50%;
       transform: translateY(-50%);
-      color: #94a3b8;
+      color: hsl(var(--muted-foreground));
       pointer-events: none;
     }
     .filter-input {
       width: 100%;
       padding: 7px 10px 7px 32px !important;
       font-size: 13px !important;
-      background: #ffffff !important;
-      border: 1px solid #cbd5e1 !important;
-      border-radius: 6px !important;
+      background: hsl(var(--background)) !important;
+      border: 1px solid hsl(var(--input)) !important;
+      border-radius: calc(var(--radius) - 2px) !important;
       outline: none;
       transition: border-color 0.15s, box-shadow 0.15s;
     }
     .filter-input:focus {
-      border-color: #0f172a !important;
-      box-shadow: 0 0 0 2px rgba(15, 23, 42, 0.08) !important;
+      border-color: hsl(var(--ring)) !important;
+      box-shadow: 0 0 0 1px hsl(var(--ring)) !important;
     }
     .filter-chips {
       display: inline-flex;
@@ -518,38 +709,37 @@ func renderHome(data pageData) string {
       align-items: center;
       gap: 5px;
       padding: 4px 11px;
-      border-radius: 9999px;
+      border-radius: calc(var(--radius) - 2px);
       font-size: 12px;
       font-weight: 500;
-      background: #ffffff;
-      color: #475569;
-      border: 1px solid #e2e8f0;
+      background: hsl(var(--muted) / 0.7);
+      color: hsl(var(--muted-foreground));
+      border: 1px solid hsl(var(--border));
       cursor: pointer;
       user-select: none;
       transition: all 0.15s ease;
       min-height: 28px;
     }
     .filter-chip:hover {
-      background: #f1f5f9;
-      color: #0f172a;
-      border-color: #cbd5e1;
+      background: hsl(var(--muted));
+      color: hsl(var(--foreground));
     }
     .filter-chip.active {
-      background: #0f172a !important;
-      color: #ffffff !important;
-      border-color: #0f172a !important;
+      background: hsl(var(--primary)) !important;
+      color: hsl(var(--primary-foreground)) !important;
+      border-color: hsl(var(--primary)) !important;
       font-weight: 600 !important;
     }
     .filter-count-badge {
-      font-size: 12.5px;
-      color: #64748b;
+      font-size: 12px;
+      color: hsl(var(--muted-foreground));
       font-weight: 500;
       white-space: nowrap;
     }
     .filter-clear-btn {
       background: transparent;
       border: none;
-      color: #ef4444;
+      color: hsl(var(--destructive));
       font-size: 12px;
       font-weight: 500;
       cursor: pointer;
@@ -559,8 +749,9 @@ func renderHome(data pageData) string {
       min-height: auto;
     }
     .filter-clear-btn:hover {
-      color: #b91c1c;
+      opacity: 0.8;
     }
+
     /* Media Thumbnails */
     .media-thumb {
       width: 32px;
@@ -568,8 +759,8 @@ func renderHome(data pageData) string {
       border-radius: 4px;
       object-fit: cover;
       flex-shrink: 0;
-      background: #e2e8f0;
-      border: 1px solid #cbd5e1;
+      background: hsl(var(--muted));
+      border: 1px solid hsl(var(--border));
       box-shadow: 0 1px 2px rgba(0,0,0,0.05);
     }
     .media-thumb-placeholder {
@@ -577,13 +768,13 @@ func renderHome(data pageData) string {
       height: 46px;
       border-radius: 4px;
       flex-shrink: 0;
-      background: #f1f5f9;
-      border: 1px solid #e2e8f0;
+      background: hsl(var(--muted));
+      border: 1px solid hsl(var(--border));
       display: inline-flex;
       align-items: center;
       justify-content: center;
       font-size: 14px;
-      color: #94a3b8;
+      color: hsl(var(--muted-foreground));
     }
     .media-cell {
       display: flex;
@@ -594,10 +785,11 @@ func renderHome(data pageData) string {
     .media-cell-info {
       min-width: 0;
     }
+
     /* Calorie Budget Card */
     .budget-card {
-      background: #ffffff;
-      border: 1px solid #e2e8f0;
+      background: hsl(var(--card));
+      border: 1px solid hsl(var(--border));
       border-radius: var(--radius);
       padding: 18px 22px;
       margin-bottom: 20px;
@@ -616,6 +808,7 @@ func renderHome(data pageData) string {
       align-items: baseline;
       flex-wrap: wrap;
     }
+
     /* Table Sorting */
     th.sortable {
       cursor: pointer;
@@ -624,45 +817,47 @@ func renderHome(data pageData) string {
       white-space: nowrap;
     }
     th.sortable:hover {
-      background: #f1f5f9;
-      color: #0f172a;
+      background: hsl(var(--muted));
+      color: hsl(var(--foreground));
     }
     .sort-icon {
       display: inline-block;
       margin-left: 5px;
       font-size: 11px;
-      color: #94a3b8;
+      color: hsl(var(--muted-foreground));
       vertical-align: middle;
     }
     th.sort-desc .sort-icon,
     th.sort-asc .sort-icon {
-      color: #2563eb;
+      color: hsl(var(--foreground));
       font-weight: 700;
     }
+
     /* Date Picker Bar */
     .date-picker-bar {
       display: flex;
       align-items: center;
       gap: 12px;
       padding: 12px 22px;
-      background: #f8fafc;
-      border-bottom: 1px solid #e2e8f0;
+      background: hsl(var(--muted) / 0.4);
+      border-bottom: 1px solid hsl(var(--border));
       flex-wrap: wrap;
     }
     .date-input {
       padding: 5px 10px;
       font-size: 12.5px;
-      border: 1px solid #cbd5e1;
-      border-radius: 6px;
-      background: #ffffff;
-      color: #0f172a;
+      border: 1px solid hsl(var(--input));
+      border-radius: calc(var(--radius) - 2px);
+      background: hsl(var(--background));
+      color: hsl(var(--foreground));
       outline: none;
       font-family: inherit;
     }
     .date-input:focus {
-      border-color: #2563eb;
-      box-shadow: 0 0 0 1px #2563eb;
+      border-color: hsl(var(--ring));
+      box-shadow: 0 0 0 1px hsl(var(--ring));
     }
+
     /* Timeline styling */
     .timeline-day {
       margin-bottom: 24px;
@@ -672,19 +867,19 @@ func renderHome(data pageData) string {
       justify-content: space-between;
       align-items: center;
       padding: 10px 14px;
-      background: #f1f5f9;
-      border-radius: 8px;
+      background: hsl(var(--muted) / 0.5);
+      border-radius: var(--radius);
       margin-bottom: 10px;
-      border: 1px solid #e2e8f0;
+      border: 1px solid hsl(var(--border));
     }
     .timeline-day-title {
       font-size: 14px;
       font-weight: 600;
-      color: #0f172a;
+      color: hsl(var(--foreground));
     }
     .timeline-day-summary {
       font-size: 12.5px;
-      color: #64748b;
+      color: hsl(var(--muted-foreground));
       display: flex;
       align-items: center;
       gap: 10px;
@@ -695,9 +890,9 @@ func renderHome(data pageData) string {
       gap: 8px;
     }
     .timeline-item {
-      background: #ffffff;
-      border: 1px solid #e2e8f0;
-      border-radius: 8px;
+      background: hsl(var(--card));
+      border: 1px solid hsl(var(--border));
+      border-radius: var(--radius);
       padding: 12px 16px;
       display: flex;
       align-items: center;
@@ -706,7 +901,7 @@ func renderHome(data pageData) string {
       transition: border-color 0.15s, box-shadow 0.15s;
     }
     .timeline-item:hover {
-      border-color: #cbd5e1;
+      border-color: hsl(var(--ring) / 0.3);
       box-shadow: 0 2px 4px rgba(0, 0, 0, 0.03);
     }
     .timeline-item-main {
@@ -716,9 +911,9 @@ func renderHome(data pageData) string {
       min-width: 0;
     }
     .timeline-item-icon {
-      width: 36px;
-      height: 36px;
-      border-radius: 8px;
+      width: 34px;
+      height: 34px;
+      border-radius: calc(var(--radius) - 2px);
       display: flex;
       align-items: center;
       justify-content: center;
@@ -730,14 +925,14 @@ func renderHome(data pageData) string {
     .timeline-item-title {
       font-size: 14px;
       font-weight: 600;
-      color: #0f172a;
+      color: hsl(var(--foreground));
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
     }
     .timeline-item-sub {
       font-size: 12.5px;
-      color: #64748b;
+      color: hsl(var(--muted-foreground));
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
@@ -748,12 +943,13 @@ func renderHome(data pageData) string {
       gap: 10px;
       flex-shrink: 0;
     }
+
     .connection-row {
       display: flex;
       align-items: center;
       justify-content: space-between;
       padding: 14px 0;
-      border-bottom: 1px solid #f1f5f9;
+      border-bottom: 1px solid hsl(var(--border) / 0.6);
       gap: 16px;
     }
     .connection-row:last-child {
@@ -767,14 +963,14 @@ func renderHome(data pageData) string {
     .connection-info h4 {
       font-size: 14px;
       font-weight: 600;
-      color: #0f172a;
+      color: hsl(var(--foreground));
       display: flex;
       align-items: center;
       gap: 8px;
     }
     .connection-status-text {
       font-size: 12px;
-      color: #64748b;
+      color: hsl(var(--muted-foreground));
       margin-top: 2px;
       line-height: 1.4;
       overflow-wrap: break-word;
@@ -790,16 +986,96 @@ func renderHome(data pageData) string {
       flex-shrink: 0;
       min-width: 82px;
     }
+
     /* Empty State */
     .empty-state {
       padding: 40px 20px;
       text-align: center;
-      color: #64748b;
+      color: hsl(var(--muted-foreground));
     }
     .empty-icon {
       font-size: 32px;
       margin-bottom: 10px;
     }
+
+    /* Notification Feed */
+    .notif-feed-item {
+      background: hsl(var(--card));
+      border: 1px solid hsl(var(--border));
+      border-radius: var(--radius);
+      padding: 14px 16px;
+      margin-bottom: 12px;
+      transition: all 0.15s ease;
+    }
+    .notif-feed-item:hover {
+      border-color: hsl(var(--ring) / 0.3);
+      box-shadow: 0 2px 6px rgba(0,0,0,0.04);
+    }
+    .notif-feed-item-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 6px;
+    }
+    .notif-feed-item-title {
+      font-size: 14px;
+      font-weight: 600;
+      color: hsl(var(--foreground));
+    }
+    .notif-feed-item-body {
+      font-size: 13px;
+      color: hsl(var(--muted-foreground));
+      line-height: 1.45;
+      margin-top: 4px;
+    }
+    .notif-feed-item-sub {
+      font-size: 12px;
+      color: hsl(var(--muted-foreground));
+      margin-top: 4px;
+      font-style: italic;
+    }
+    .notif-pkg {
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      font-size: 11px;
+      color: hsl(var(--muted-foreground));
+    }
+    .notif-time {
+      font-size: 12px;
+      color: hsl(var(--muted-foreground));
+    }
+
+    /* Modal / Dialog */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.6);
+      backdrop-filter: blur(4px);
+      z-index: 999;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+    }
+    .modal-overlay.show {
+      display: flex;
+    }
+    .modal-card {
+      background: hsl(var(--card));
+      border: 1px solid hsl(var(--border));
+      border-radius: calc(var(--radius) + 4px);
+      max-width: 480px;
+      width: 100%;
+      padding: 24px;
+      box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.2);
+    }
+    .modal-body {
+      color: hsl(var(--muted-foreground));
+      font-size: 13px;
+      margin: 12px 0 20px;
+    }
+
     /* Responsive */
     @media (max-width: 1024px) {
       .metrics-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -807,7 +1083,7 @@ func renderHome(data pageData) string {
       .grid-3col { grid-template-columns: 1fr; }
     }
     @media (max-width: 640px) {
-      .app-container { padding: 20px 14px 60px; }
+      .app-container { padding: 18px 14px 60px; }
       .metrics-grid { grid-template-columns: 1fr; }
       .timeline-item { flex-direction: column; align-items: flex-start; gap: 8px; }
       .timeline-item-right { width: 100%; justify-content: space-between; }
@@ -820,7 +1096,7 @@ func renderHome(data pageData) string {
     <header class="app-header">
       <div class="brand">
         <div class="brand-logo">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
             <path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1-2.5-2.5Z"/>
             <path d="M6 6h10"/>
             <path d="M6 10h10"/>
@@ -836,11 +1112,38 @@ func renderHome(data pageData) string {
           <span class="badge-dot"></span>
           SQLite: ` + esc(data.DBName) + `
         </span>
+        <span class="badge badge-slate" title="Kayıtlı Bildirim Sayısı">
+          <span class="badge-dot"></span>
+          🔔 ` + number(len(data.Notifications)) + ` Bildirim
+        </span>
         ` + statusBadge("FatSecret", data.FatSecretConnected && data.OAuthReady) + `
         ` + statusBadge("Goodreads", data.GoodreadsSettings.FeedURL != "") + `
         ` + statusBadge("Letterboxd", data.LetterboxdSettings.FeedURL != "") + `
+        <button type="button" class="button secondary button-sm theme-toggle-btn" onclick="toggleTheme()" title="Temayı Değiştir" aria-label="Temayı Değiştir">
+          <span class="sun-icon">☀️ Aydınlık</span>
+          <span class="moon-icon">🌙 Karanlık</span>
+        </button>
+        ` + func() string {
+          if config.Env("API_KEY") != "" {
+            return `<form action="/api/auth/logout" method="POST" style="display:inline-block; margin:0;"><button type="submit" class="button secondary button-sm" title="Oturumu Kapat" style="cursor:pointer;">🔒 Çıkış</button></form>`
+          }
+          return ""
+        }() + `
       </div>
     </header>
+
+    ` + func() string {
+      if config.Env("API_KEY") == "" {
+        return `<div class="security-banner">
+          <span style="font-size:16px;">⚠️</span>
+          <div>
+            <b>Güvenlik Uyarısı:</b> API_KEY ortam değişkeni henüz tanımlanmadı. Sunucunuz şu an herkese açıktır.
+            <span style="opacity:0.85; margin-left: 4px;"><code>.env</code> dosyasına <code>API_KEY</code> tanımlayarak korumayı etkinleştirebilirsiniz.</span>
+          </div>
+        </div>`
+      }
+      return ""
+    }() + `
 
     <!-- Tabs Navigation -->
     <nav class="tabs-wrapper" aria-label="Sekmeler">
@@ -864,6 +1167,10 @@ func renderHome(data pageData) string {
         <button class="tab-trigger" data-tab="letterboxd" role="tab" aria-selected="false">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="m9 8 6 4-6 4Z"/></svg>
           Filmler (Letterboxd)
+        </button>
+        <button class="tab-trigger" data-tab="notifications" role="tab" aria-selected="false">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>
+          Bildirimler
         </button>
         <button class="tab-trigger" data-tab="settings" role="tab" aria-selected="false">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>
@@ -897,7 +1204,12 @@ func renderHome(data pageData) string {
       ` + renderLetterboxdTab(data) + `
     </div>
 
-    <!-- Tab 6: Settings -->
+    <!-- Tab 6: Notifications -->
+    <div id="pane-notifications" class="tab-pane" role="tabpanel">
+      ` + renderNotificationsTab(data) + `
+    </div>
+
+    <!-- Tab 7: Settings -->
     <div id="pane-settings" class="tab-pane" role="tabpanel">
       ` + renderSettingsTab(data) + `
     </div>
@@ -982,12 +1294,13 @@ func renderOverviewTab(data pageData) string {
 	var b strings.Builder
 	todayDate := fmt.Sprint(data.Dashboard.Today["date"])
 
-	// Top 4 Metric Cards
+	// Top 5 Metric Cards
 	b.WriteString(`<div class="metrics-grid">`)
 	b.WriteString(metricCard("Bugün Alınan Kalori", ratingZero(data.Overview.FatSecret.TodayCalories)+" kcal", fmt.Sprintf("%d öğün kaydı · %s", data.Overview.FatSecret.TodayEntries, todayDate), "FatSecret"))
 	b.WriteString(metricCard("Kütüphane Durumu", number(data.Overview.Goodreads.Total)+" kitap", fmt.Sprintf("%d okundu · %d okunacak", data.Overview.Goodreads.Read, data.Overview.Goodreads.ToRead), "Goodreads"))
 	b.WriteString(metricCard("İzlenen Filmler", number(data.Overview.Letterboxd.Total)+" film", fmt.Sprintf("%d puanlı · ort. %s", data.Overview.Letterboxd.Rated, rating(data.Overview.Letterboxd.AverageRating)), "Letterboxd"))
 	b.WriteString(metricCard("Toplam Yemek Günlüğü", number(data.Overview.FatSecret.Entries)+" kayıt", fmt.Sprintf("%d gün kayıtlı · ort. %s kcal/gün", data.Overview.FatSecret.LoggedDays, rating(data.Overview.FatSecret.AverageCalories)), "Beslenme"))
+	b.WriteString(metricCard("Gelen Bildirimler", number(len(data.Notifications))+" bildirim", "Android Bildirim İletimi", "Relay"))
 	b.WriteString(`</div>`)
 
 	// 2 Column Grid
@@ -1126,6 +1439,17 @@ func renderTimelineItemRow(item application.ActivityItem) string {
 		}
 		if item.Rewatch {
 			rightPills += ` <span class="badge badge-purple" style="font-size:11px;">🔄 Tekrar</span>`
+		}
+	case "notification":
+		iconBg = "#fff7ed"
+		iconSvg = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#ea580c" stroke-width="2"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>`
+		appName := fmt.Sprint(item.Details["app_name"])
+		if appName == "" || appName == "<nil>" {
+			appName = item.Subtitle
+		}
+		rightPills = fmt.Sprintf(`<span class="badge badge-amber">%s</span>`, esc(appName))
+		if isOngoing, ok := item.Details["is_ongoing"].(bool); ok && isOngoing {
+			rightPills += ` <span class="badge badge-amber" style="font-size:11px;">⚡ Devam Eden</span>`
 		}
 	}
 
@@ -1286,6 +1610,7 @@ func renderTimelineTab(data pageData) string {
         <button type="button" class="filter-chip" data-source="fatsecret" onclick="setTimelineFilter('fatsecret', this)">🥗 Yemekler</button>
         <button type="button" class="filter-chip" data-source="goodreads" onclick="setTimelineFilter('goodreads', this)">📚 Kitaplar</button>
         <button type="button" class="filter-chip" data-source="letterboxd" onclick="setTimelineFilter('letterboxd', this)">🎬 Filmler</button>
+        <button type="button" class="filter-chip" data-source="notification" onclick="setTimelineFilter('notification', this)">🔔 Bildirimler</button>
       </div>
       <button type="button" id="timelineClearBtn" class="filter-clear-btn" onclick="resetTimelineFilter()">Temizle</button>
     </div>
@@ -1889,6 +2214,214 @@ func renderSyncRunsTable(runs []sqlite.SyncRun) string {
 	}
 	b.WriteString(`</tbody></table>`)
 	return b.String()
+}
+
+func renderNotificationsTab(data pageData) string {
+	var b strings.Builder
+
+	// Calculate counts
+	appCounts := make(map[string]int)
+	ongoingCount := 0
+	for _, n := range data.Notifications {
+		appName := n.AppName
+		if appName == "" {
+			appName = n.PackageName
+		}
+		if appName != "" {
+			appCounts[appName]++
+		}
+		if n.IsOngoing {
+			ongoingCount++
+		}
+	}
+
+	// 1. Metric Cards
+	b.WriteString(`
+<div class="metrics-grid">
+  <div class="metric-card">
+    <div class="metric-header"><span class="metric-label">Toplam Bildirim</span><span class="badge badge-purple">Arşiv</span></div>
+    <div class="metric-value">` + number(len(data.Notifications)) + `</div>
+    <div class="metric-note">Veritabanında kayıtlı tüm bildirimler</div>
+  </div>
+  <div class="metric-card">
+    <div class="metric-header"><span class="metric-label">Farklı Uygulama</span><span class="badge badge-blue">Kaynaklar</span></div>
+    <div class="metric-value">` + number(len(appCounts)) + `</div>
+    <div class="metric-note">Bildirim gönderen uygulama adedi</div>
+  </div>
+  <div class="metric-card">
+    <div class="metric-header"><span class="metric-label">Devam Eden / Aktif</span><span class="badge badge-amber">Durum</span></div>
+    <div class="metric-value">` + number(ongoingCount) + `</div>
+    <div class="metric-note">Arka plan / kalıcı sistem bildirimleri</div>
+  </div>
+</div>`)
+
+	// 2. Webhook Relay Integration Card
+	b.WriteString(`
+<div class="card">
+  <div class="card-header">
+    <div>
+      <h2 class="card-title">🔔 Android Bildirim İletimi (Notification Relay)</h2>
+      <p class="card-desc">Android cihazınızdaki bildirimleri HTTP Webhook üzerinden yerel SQLite veritabanına aktarın.</p>
+    </div>
+    <div style="display:flex; gap:8px;">
+      <a class="button button-sm secondary" href="/api/notifications?limit=250" target="_blank">JSON API</a>
+      <button type="button" class="button button-sm" onclick="copyNotifWebhookUrl()">📋 Webhook URL Kopyala</button>
+    </div>
+  </div>
+  <div class="webhook-box" style="margin-bottom:12px;">
+    <span id="notifWebhookEndpoint" style="font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:13px; color:hsl(var(--foreground)) !important; font-weight:600;">/api/webhooks/notification</span>
+    <span id="notifWebhookFeedback" style="font-size:12px; color:#10b981; font-weight:600; margin-left:12px; display:none;">✓ URL Panoya Kopyalandı!</span>
+  </div>
+  <div style="font-size:12.5px; color:var(--text-muted); line-height:1.6;">
+    <strong>Kullanım Rehberi:</strong> Android cihazınıza <code>Notification Relay</code> veya <code>HTTP Shortcuts</code> uygulamasını kurun.
+    Uç nokta olarak yukarıdaki URL'i (veya yerel IP adresinizi, örn: <code>http://192.168.1.X:8080/api/webhooks/notification</code>) tanımlayın ve <code>POST</code> metoduyla JSON iletin.
+    <br>
+    <strong>Desteklenen JSON parametreleri:</strong> <code>packageName</code>, <code>appName</code>, <code>title</code>, <code>text</code>, <code>subText</code>, <code>bigText</code>, <code>postTime</code>, <code>ongoing</code>.
+  </div>
+</div>`)
+
+	// 3. Search and Feed Card
+	type appEntry struct {
+		Name  string
+		Count int
+	}
+	var sortedApps []appEntry
+	for name, count := range appCounts {
+		sortedApps = append(sortedApps, appEntry{Name: name, Count: count})
+	}
+	for i := 0; i < len(sortedApps)-1; i++ {
+		for j := i + 1; j < len(sortedApps); j++ {
+			if sortedApps[j].Count > sortedApps[i].Count {
+				sortedApps[i], sortedApps[j] = sortedApps[j], sortedApps[i]
+			}
+		}
+	}
+
+	var appOptions strings.Builder
+	appOptions.WriteString(fmt.Sprintf(`<option value="all">Tüm Uygulamalar (%d)</option>`, len(data.Notifications)))
+	for _, app := range sortedApps {
+		appOptions.WriteString(fmt.Sprintf(`<option value="%s">%s (%d)</option>`, esc(app.Name), esc(app.Name), app.Count))
+	}
+
+	b.WriteString(fmt.Sprintf(`
+<div class="card">
+  <div class="card-header">
+    <div>
+      <h2 class="card-title">Gelen Bildirim Akışı</h2>
+      <p class="card-desc">Cihazınızdan iletilen anlık bildirim geçmişi</p>
+    </div>
+  </div>
+  <div class="filter-bar">
+    <div class="filter-controls" style="flex-wrap:wrap; gap:10px;">
+      <div class="filter-input-wrapper" style="min-width:240px; flex:1;">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+        <input type="text" id="notifSearch" class="filter-input" placeholder="Başlık, metin veya paket adı ara..." oninput="filterNotifications()">
+      </div>
+      <select id="notifAppFilter" class="filter-input" style="width:auto; min-width:180px;" onchange="filterNotifications()">
+        %s
+      </select>
+      <label style="display:flex; align-items:center; gap:6px; font-size:13px; font-weight:500; cursor:pointer; white-space:nowrap;">
+        <input type="checkbox" id="notifOngoingOnly" onchange="filterNotifications()"> Sadece Devam Eden
+      </label>
+      <button type="button" class="filter-clear-btn" onclick="resetNotifFilter()">Temizle</button>
+    </div>
+    <div class="filter-count-badge" id="notifCountDisplay">Toplam %d bildirim</div>
+  </div>
+  <div id="notifFeedContainer">`, appOptions.String(), len(data.Notifications)))
+
+	if len(data.Notifications) == 0 {
+		b.WriteString(`
+    <div class="empty-state">
+      <div class="empty-icon">🔔</div>
+      <h3 style="font-size:16px; margin-bottom:4px; color:var(--text-main);">Henüz Bildirim Kaydı Yok</h3>
+      <p>Android cihazınızdan Notification Relay ile bildirim gönderdiğinizde burada listelenecektir.</p>
+    </div>`)
+	} else {
+		for _, n := range data.Notifications {
+			appName := n.AppName
+			if appName == "" {
+				appName = n.PackageName
+			}
+			if appName == "" {
+				appName = "Bilinmeyen Uygulama"
+			}
+
+			ongoingBadge := ""
+			if n.IsOngoing {
+				ongoingBadge = `<span class="badge badge-amber" style="font-size:11px;"><span class="badge-dot"></span>Devam Eden</span>`
+			}
+
+			text := n.Text
+			if text == "" {
+				text = n.BigText
+			}
+
+			subHtml := ""
+			if n.SubText != "" && n.SubText != text {
+				subHtml = fmt.Sprintf(`<div class="notif-feed-item-sub">%s</div>`, esc(n.SubText))
+			}
+
+			searchContent := strings.ToLower(fmt.Sprintf("%s %s %s %s %s", n.Title, text, n.SubText, n.PackageName, appName))
+			timeStr := formatNotifPostTime(n.PostTime)
+			if timeStr == "" {
+				timeStr = formatNotifPostTime(n.CreatedAt)
+			}
+
+			titleHtml := ""
+			if n.Title != "" {
+				titleHtml = fmt.Sprintf(`<div class="notif-feed-item-title">%s</div>`, esc(n.Title))
+			}
+
+			bodyHtml := ""
+			if text != "" {
+				bodyHtml = fmt.Sprintf(`<div class="notif-feed-item-body">%s</div>`, esc(text))
+			}
+
+			b.WriteString(fmt.Sprintf(`
+    <div class="notif-feed-item" data-app="%s" data-ongoing="%t" data-search="%s">
+      <div class="notif-feed-item-header">
+        <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+          <span class="badge badge-purple"><span class="badge-dot"></span>%s</span>
+          %s
+          <span class="notif-pkg">%s</span>
+        </div>
+        <span class="notif-time">🕒 %s</span>
+      </div>
+      %s
+      %s
+      %s
+    </div>`,
+				esc(appName),
+				n.IsOngoing,
+				esc(searchContent),
+				esc(appName),
+				ongoingBadge,
+				esc(n.PackageName),
+				esc(timeStr),
+				titleHtml,
+				bodyHtml,
+				subHtml,
+			))
+		}
+		b.WriteString(`
+    <div id="notifEmptySearch" style="display:none; padding:32px 16px; text-align:center; color:var(--text-muted);">
+      Arama kriterlerine uygun bildirim bulunamadı.
+    </div>`)
+	}
+
+	b.WriteString(`
+  </div>
+</div>`)
+
+	return b.String()
+}
+
+func formatNotifPostTime(ts string) string {
+	ts = strings.TrimSpace(ts)
+	if len(ts) >= 16 {
+		return strings.Replace(ts[:16], "T", " ", 1)
+	}
+	return ts
 }
 
 func renderSettingsTab(data pageData) string {
@@ -2732,7 +3265,86 @@ function filterFilms() {
   if (emptyEl) emptyEl.style.display = (visibleCount === 0 && rows.length > 0) ? 'block' : 'none';
 }
 
+// --- Notifications Filter & Relay Copy ---
+function copyNotifWebhookUrl() {
+  var url = window.location.origin + '/api/webhooks/notification';
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(url).then(function() {
+      var fb = document.getElementById('notifWebhookFeedback');
+      if (fb) {
+        fb.style.display = 'inline';
+        setTimeout(function() { fb.style.display = 'none'; }, 2500);
+      }
+    }).catch(function() {
+      prompt('Webhook URL kopyalayın:', url);
+    });
+  } else {
+    prompt('Webhook URL kopyalayın:', url);
+  }
+}
+
+function filterNotifications() {
+  var searchInput = document.getElementById('notifSearch');
+  var appSelect = document.getElementById('notifAppFilter');
+  var ongoingBox = document.getElementById('notifOngoingOnly');
+  var countEl = document.getElementById('notifCountDisplay');
+  var emptyEl = document.getElementById('notifEmptySearch');
+
+  var query = searchInput ? searchInput.value.toLowerCase().trim() : '';
+  var selectedApp = appSelect ? appSelect.value : 'all';
+  var ongoingOnly = ongoingBox ? ongoingBox.checked : false;
+
+  var items = document.querySelectorAll('.notif-feed-item');
+  var visibleCount = 0;
+
+  items.forEach(function(item) {
+    var itemApp = item.getAttribute('data-app') || '';
+    var isOngoing = item.getAttribute('data-ongoing') === 'true';
+    var searchData = item.getAttribute('data-search') || '';
+
+    var matchApp = (selectedApp === 'all' || itemApp === selectedApp);
+    var matchOngoing = (!ongoingOnly || isOngoing);
+    var matchQuery = (!query || searchData.indexOf(query) !== -1);
+
+    if (matchApp && matchOngoing && matchQuery) {
+      item.style.display = 'block';
+      visibleCount++;
+    } else {
+      item.style.display = 'none';
+    }
+  });
+
+  if (countEl) {
+    countEl.textContent = 'Gösterilen: ' + visibleCount + ' / ' + items.length + ' bildirim';
+  }
+  if (emptyEl) {
+    emptyEl.style.display = (visibleCount === 0 && items.length > 0) ? 'block' : 'none';
+  }
+}
+
+function resetNotifFilter() {
+  var searchInput = document.getElementById('notifSearch');
+  var appSelect = document.getElementById('notifAppFilter');
+  var ongoingBox = document.getElementById('notifOngoingOnly');
+  if (searchInput) searchInput.value = '';
+  if (appSelect) appSelect.value = 'all';
+  if (ongoingBox) ongoingBox.checked = false;
+  filterNotifications();
+}
+
+function toggleTheme() {
+  var isDark = document.documentElement.classList.toggle('dark');
+  try {
+    localStorage.setItem('theme', isDark ? 'dark' : 'light');
+  } catch (e) {}
+}
+
 document.addEventListener('DOMContentLoaded', function() {
+  // Initialize webhook URL with origin
+  var notifEndpointEl = document.getElementById('notifWebhookEndpoint');
+  if (notifEndpointEl && window.location.origin) {
+    notifEndpointEl.textContent = window.location.origin + '/api/webhooks/notification';
+  }
   // Bind tab buttons
   document.querySelectorAll('.tab-trigger').forEach(function(btn) {
     btn.addEventListener('click', function(e) {
@@ -2922,4 +3534,200 @@ document.addEventListener('DOMContentLoaded', function() {
   });
 });
 </script>`
+}
+
+func renderLoginPageHTML(errorMsg string) string {
+	errHtml := ""
+	if errorMsg != "" {
+		errHtml = `<div class="auth-error">` + html.EscapeString(errorMsg) + `</div>`
+	}
+
+	return `<!doctype html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Giriş · Personal Records</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <script>
+    (function() {
+      try {
+        var saved = localStorage.getItem('theme');
+        var prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+        if (saved === 'dark' || (!saved && prefersDark)) {
+          document.documentElement.classList.add('dark');
+        }
+      } catch (e) {}
+    })();
+  </script>
+  <style>
+    :root {
+      --background: 0 0% 100%;
+      --foreground: 240 10% 3.9%;
+      --card: 0 0% 100%;
+      --card-foreground: 240 10% 3.9%;
+      --primary: 240 5.9% 10%;
+      --primary-foreground: 0 0% 98%;
+      --secondary: 240 4.8% 95.9%;
+      --secondary-foreground: 240 5.9% 10%;
+      --muted: 240 4.8% 95.9%;
+      --muted-foreground: 240 3.8% 46.1%;
+      --destructive: 0 84.2% 60.2%;
+      --border: 240 5.9% 90%;
+      --input: 240 5.9% 90%;
+      --ring: 240 5.9% 10%;
+      --radius: 8px;
+    }
+    .dark {
+      --background: 240 10% 3.9%;
+      --foreground: 0 0% 98%;
+      --card: 240 10% 4.8%;
+      --card-foreground: 0 0% 98%;
+      --primary: 0 0% 98%;
+      --primary-foreground: 240 5.9% 10%;
+      --secondary: 240 3.7% 15.9%;
+      --secondary-foreground: 0 0% 98%;
+      --muted: 240 3.7% 15.9%;
+      --muted-foreground: 240 5% 64.9%;
+      --destructive: 0 62.8% 30.6%;
+      --border: 240 3.7% 15.9%;
+      --input: 240 3.7% 15.9%;
+      --ring: 240 4.9% 83.9%;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background-color: hsl(var(--background));
+      color: hsl(var(--foreground));
+      font-family: 'Inter', ui-sans-serif, system-ui, -apple-system, sans-serif;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+    }
+    .auth-card {
+      background: hsl(var(--card));
+      border: 1px solid hsl(var(--border));
+      border-radius: 12px;
+      padding: 32px 28px;
+      width: 100%;
+      max-width: 400px;
+      box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.15), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+    }
+    .auth-icon-wrap {
+      width: 44px;
+      height: 44px;
+      border-radius: 10px;
+      background: hsl(var(--secondary));
+      color: hsl(var(--foreground));
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 16px;
+      border: 1px solid hsl(var(--border));
+    }
+    .auth-title {
+      font-size: 18px;
+      font-weight: 700;
+      margin-bottom: 4px;
+    }
+    .auth-desc {
+      font-size: 13px;
+      color: hsl(var(--muted-foreground));
+      margin-bottom: 20px;
+      line-height: 1.45;
+    }
+    .auth-field {
+      margin-bottom: 16px;
+    }
+    .auth-label {
+      display: block;
+      font-size: 12px;
+      font-weight: 600;
+      color: hsl(var(--muted-foreground));
+      margin-bottom: 6px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .auth-input-wrap {
+      position: relative;
+      display: flex;
+      align-items: center;
+    }
+    .auth-input-wrap input {
+      width: 100%;
+      height: 40px;
+      padding: 0 40px 0 12px;
+      border-radius: 6px;
+      border: 1px solid hsl(var(--input));
+      background: transparent;
+      color: hsl(var(--foreground));
+      font-size: 14px;
+      outline: none;
+    }
+    .auth-input-wrap input:focus {
+      border-color: hsl(var(--ring));
+      box-shadow: 0 0 0 2px hsl(var(--ring) / 0.2);
+    }
+    .auth-toggle-btn {
+      position: absolute;
+      right: 8px;
+      background: transparent;
+      border: none;
+      color: hsl(var(--muted-foreground));
+      cursor: pointer;
+      font-size: 13px;
+      padding: 4px;
+    }
+    .auth-error {
+      font-size: 12.5px;
+      color: hsl(var(--destructive));
+      background: hsl(var(--destructive) / 0.1);
+      border: 1px solid hsl(var(--destructive) / 0.25);
+      padding: 8px 12px;
+      border-radius: 6px;
+      margin-bottom: 14px;
+    }
+    .btn-submit {
+      width: 100%;
+      height: 40px;
+      background: hsl(var(--primary));
+      color: hsl(var(--primary-foreground));
+      border: none;
+      border-radius: 6px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: opacity 0.15s ease;
+    }
+    .btn-submit:hover {
+      opacity: 0.9;
+    }
+  </style>
+</head>
+<body>
+  <div class="auth-card">
+    <div class="auth-icon-wrap">
+      <svg width="22" height="22" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>
+      </svg>
+    </div>
+    <h2 class="auth-title">Personal Records</h2>
+    <p class="auth-desc">Bu sunucu korumalıdır. Devam etmek için lütfen API Anahtarınızı girin.</p>
+    <form action="/api/auth/login" method="POST">
+      <div class="auth-field">
+        <label class="auth-label" for="auth-key-input">API Anahtarı / Şifre</label>
+        <div class="auth-input-wrap">
+          <input type="password" id="auth-key-input" name="apiKey" placeholder="••••••••••••" autofocus required />
+          <button type="button" class="auth-toggle-btn" onclick="var i=document.getElementById('auth-key-input');i.type=i.type==='password'?'text':'password';">👁️</button>
+        </div>
+      </div>
+      ` + errHtml + `
+      <button type="submit" class="btn-submit">Giriş Yap</button>
+    </form>
+  </div>
+</body>
+</html>`
 }

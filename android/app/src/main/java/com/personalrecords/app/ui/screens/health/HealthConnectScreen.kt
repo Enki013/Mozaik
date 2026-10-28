@@ -10,6 +10,7 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.Sort
 import androidx.compose.material.icons.automirrored.filled.DirectionsRun
 import androidx.compose.material.icons.automirrored.filled.DirectionsWalk
 import androidx.compose.material.icons.filled.*
@@ -20,6 +21,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -52,44 +54,54 @@ fun HealthConnectScreen(
     val orderedCardIds by preferences.getStatsCardsOrder("health_connect", defaultHealthCardsOrder)
         .collectAsStateWithLifecycle(initialValue = defaultHealthCardsOrder)
     val coroutineScope = rememberCoroutineScope()
+    val scrollBehavior = TopAppBarDefaults.enterAlwaysScrollBehavior(rememberTopAppBarState())
     var isEditMode by remember { mutableStateOf(false) }
     var showCustomizationSheet by remember { mutableStateOf(false) }
     var targetCardId by remember { mutableStateOf<String?>(null) }
     var selectedRecord by remember { mutableStateOf<HealthRecordDto?>(null) }
+    val isTwoPane = currentAdaptiveLayout().showsDetailPane
     var showDatePicker by remember { mutableStateOf(false) }
 
-    val healthColor = domainHealthColor()
-    val nutritionColor = domainNutritionColor()
+    val healthColor = recordCategoryColors(RecordCategory.Health).accent
+    val nutritionColor = recordCategoryColors(RecordCategory.Nutrition).accent
     val tertiaryColor = MaterialTheme.colorScheme.tertiary
     val errorColor = MaterialTheme.colorScheme.error
 
-    val healthStatCards = remember(healthColor, nutritionColor, tertiaryColor, errorColor) {
+    val healthStepsTitle = stringResource(R.string.stats_card_health_steps_title)
+    val healthStepsDesc = stringResource(R.string.stats_card_health_steps_desc)
+    val healthHrTitle = stringResource(R.string.stats_card_health_hr_title)
+    val healthHrDesc = stringResource(R.string.stats_card_health_hr_desc)
+    val healthSleepTitle = stringResource(R.string.stats_card_health_sleep_title)
+    val healthSleepDesc = stringResource(R.string.stats_card_health_sleep_desc)
+    val healthActiveTitle = stringResource(R.string.stats_card_health_active_title)
+    val healthActiveDesc = stringResource(R.string.stats_card_health_active_desc)
+    val healthStatCards = remember(healthColor, nutritionColor, tertiaryColor, errorColor, healthStepsTitle, healthStepsDesc, healthHrTitle, healthHrDesc, healthSleepTitle, healthSleepDesc, healthActiveTitle, healthActiveDesc) {
         listOf(
             StatCardItem(
                 id = "health_steps",
-                title = "Adım Sayısı",
-                description = "Günlük adım sayısı ve tarihi",
+                title = healthStepsTitle,
+                description = healthStepsDesc,
                 icon = Icons.AutoMirrored.Filled.DirectionsWalk,
                 iconTint = healthColor
             ),
             StatCardItem(
                 id = "health_hr",
-                title = "Ortalama Nabız",
-                description = "Kalp atış hızı ve bpm değeri",
+                title = healthHrTitle,
+                description = healthHrDesc,
                 icon = Icons.Default.Favorite,
                 iconTint = errorColor
             ),
             StatCardItem(
                 id = "health_sleep",
-                title = "Uyku Süresi",
-                description = "Günlük toplam uyku süresi",
+                title = healthSleepTitle,
+                description = healthSleepDesc,
                 icon = Icons.Default.Bedtime,
                 iconTint = tertiaryColor
             ),
             StatCardItem(
                 id = "health_active",
-                title = "Aktif Kalori",
-                description = "Aktif yakılan kalori ve son ağırlık",
+                title = healthActiveTitle,
+                description = healthActiveDesc,
                 icon = Icons.Default.LocalFireDepartment,
                 iconTint = nutritionColor
             )
@@ -119,16 +131,14 @@ fun HealthConnectScreen(
     }
 
     Scaffold(
-        modifier = Modifier.fillMaxSize(),
+        modifier = Modifier
+            .fillMaxSize()
+            .nestedScroll(scrollBehavior.nestedScrollConnection),
         contentWindowInsets = WindowInsets.statusBars,
         topBar = {
-            TopAppBar(
-                title = {
-                    Text(
-                        text = stringResource(R.string.title_health_connect),
-                        style = MaterialTheme.typography.titleLargeEmphasized
-                    )
-                },
+            ExpressivePageTopAppBar(
+                title = stringResource(R.string.title_health_connect),
+                scrollBehavior = scrollBehavior,
                 navigationIcon = {
                     if (onNavigateBack != null) {
                         IconButton(onClick = onNavigateBack) {
@@ -150,9 +160,6 @@ fun HealthConnectScreen(
                         }
                     )
                 },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.surface
-                )
             )
         }
     ) { innerPadding ->
@@ -189,171 +196,108 @@ fun HealthConnectScreen(
                 if (summary.today_active_calories > 0) "${summary.today_active_calories.toInt()} kcal" else "0 kcal"
             }
 
-            LazyColumn(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(horizontal = 12.dp),
-                contentPadding = PaddingValues(top = 10.dp, bottom = 144.dp),
-                verticalArrangement = Arrangement.Top
-            ) {
-                // Summary Metric Cards (Dynamic Chunked Grid)
-                item(key = "health_stats_grid", contentType = "stats_grid") {
-                    val visibleCardIds = orderedCardIds.filter { it !in hiddenCardIds }
-
-                    LaunchedEffect(visibleCardIds.isEmpty()) {
-                        if (visibleCardIds.isEmpty()) {
-                            isEditMode = false
-                        }
+            ExpressiveListDetailLayout(
+                showDetailPane = isTwoPane,
+                detailPane = {
+                    val rec = selectedRecord
+                    if (rec != null) {
+                        HealthRecordDetailPaneCard(record = rec, onClose = { selectedRecord = null })
+                    } else {
+                        DetailPlaceholderPane(
+                            icon = Icons.Default.Favorite,
+                            title = stringResource(R.string.adaptive_select_item_title),
+                            subtitle = stringResource(R.string.adaptive_select_item_subtitle)
+                        )
                     }
+                }
+            ) {
+                LazyColumn(
+                    modifier = Modifier
+                        .fillMaxSize(),
+                    contentPadding = PaddingValues(
+                        start = FilterGutter,
+                        end = FilterGutter,
+                        top = 10.dp,
+                        bottom = 24.dp + WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
+                    ),
+                    verticalArrangement = Arrangement.Top
+                ) {
+                    // Summary Metric Cards (Dynamic Chunked Grid)
+                    item(key = "health_stats_grid", contentType = "stats_grid") {
+                        val visibleCardIds = orderedCardIds.filter { it !in hiddenCardIds }
 
-                    if (visibleCardIds.isNotEmpty()) {
-                        val rows = visibleCardIds.chunked(2)
-                        Column(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(bottom = 8.dp),
-                            verticalArrangement = Arrangement.spacedBy(6.dp)
-                        ) {
-                            rows.forEachIndexed { rowIndex, rowCardIds ->
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.spacedBy(6.dp)
-                                ) {
-                                    rowCardIds.forEachIndexed { colIndex, cardId ->
-                                        val overallIndex = rowIndex * 2 + colIndex
-                                        HealthStatCardItemView(
-                                            cardId = cardId,
-                                            summary = summary,
-                                            stepsFormatted = stepsFormatted,
-                                            sleepFormatted = sleepFormatted,
-                                            hrFormatted = hrFormatted,
-                                            activeKcalFormatted = activeKcalFormatted,
-                                            isEditMode = isEditMode,
-                                            index = overallIndex,
-                                            onHideCard = {
-                                                coroutineScope.launch {
-                                                    preferences.toggleStatCardVisibility(cardId, false)
-                                                }
-                                            },
-                                            onLongClick = { isEditMode = true },
-                                            modifier = Modifier.weight(1f)
-                                        )
+                        LaunchedEffect(visibleCardIds.isEmpty()) {
+                            if (visibleCardIds.isEmpty()) {
+                                isEditMode = false
+                            }
+                        }
+
+                        if (visibleCardIds.isNotEmpty()) {
+                            val rows = visibleCardIds.chunked(2)
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(bottom = 8.dp),
+                                verticalArrangement = Arrangement.spacedBy(6.dp)
+                            ) {
+                                rows.forEachIndexed { rowIndex, rowCardIds ->
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                    ) {
+                                        rowCardIds.forEachIndexed { colIndex, cardId ->
+                                            val overallIndex = rowIndex * 2 + colIndex
+                                            HealthStatCardItemView(
+                                                cardId = cardId,
+                                                summary = summary,
+                                                stepsFormatted = stepsFormatted,
+                                                sleepFormatted = sleepFormatted,
+                                                hrFormatted = hrFormatted,
+                                                activeKcalFormatted = activeKcalFormatted,
+                                                isEditMode = isEditMode,
+                                                index = overallIndex,
+                                                onHideCard = {
+                                                    coroutineScope.launch {
+                                                        preferences.toggleStatCardVisibility(cardId, false)
+                                                    }
+                                                },
+                                                onLongClick = { isEditMode = true },
+                                                modifier = Modifier.weight(1f)
+                                            )
+                                        }
                                     }
                                 }
                             }
                         }
                     }
-                }
 
-                // Sticky Search Bar + Category Connected Button Group
-                stickyHeader(key = "health_sticky_header", contentType = "sticky_header") {
-                    Surface(
-                        color = MaterialTheme.colorScheme.surface,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(bottom = 6.dp)
-                    ) {
-                        Column(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(vertical = 2.dp),
-                            verticalArrangement = Arrangement.spacedBy(6.dp)
-                        ) {
-                            OutlinedTextField(
+                    state.error?.let { err ->
+                        item(key = "health_error_banner", contentType = "error_banner") {
+                            ExpressiveErrorBanner(
+                                message = err,
+                                onRetry = { viewModel.loadData() },
+                                modifier = expressiveItemModifier().padding(bottom = 8.dp)
+                            )
+                        }
+                    }
+
+                    // Sticky Search Bar + Category Connected Button Group
+                    stickyHeader(key = "health_sticky_header", contentType = "sticky_header") {
+                        ExpressiveFilterHeader {
+                            ExpressiveSearchField(
                                 value = state.searchQuery,
                                 onValueChange = { viewModel.setSearchQuery(it) },
-                                modifier = Modifier.fillMaxWidth(),
-                                placeholder = {
-                                    Text(
-                                        text = stringResource(R.string.health_search_placeholder),
-                                        style = MaterialTheme.typography.bodyMedium,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                },
-                                leadingIcon = {
-                                    Icon(
-                                        Icons.Default.Search,
-                                        contentDescription = null,
-                                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                        modifier = Modifier.size(20.dp)
-                                    )
-                                },
-                                trailingIcon = {
-                                    if (state.searchQuery.isNotEmpty()) {
-                                        IconButton(onClick = { viewModel.setSearchQuery("") }) {
-                                            Icon(
-                                                Icons.Default.Clear,
-                                                contentDescription = stringResource(R.string.action_clear),
-                                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                                modifier = Modifier.size(18.dp)
-                                            )
-                                        }
-                                    }
-                                },
-                                shape = M3Shapes.CornerFull,
-                                colors = OutlinedTextFieldDefaults.colors(
-                                    focusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-                                    unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainerLow,
-                                    focusedBorderColor = MaterialTheme.colorScheme.primary,
-                                    unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant
-                                ),
-                                singleLine = true
-                            )
-
-                            Row(
+                                placeholder = stringResource(R.string.health_search_placeholder),
+                                clearContentDescription = stringResource(R.string.action_clear),
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .horizontalScroll(rememberScrollState()),
-                                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                val hasActiveDate = state.selectedDateFilter != null || state.fromDateFilter != null
-                                val dateLabel = formatDateRangeChipLabel(
-                                    singleDate = state.selectedDateFilter,
-                                    fromDate = state.fromDateFilter,
-                                    toDate = state.toDateFilter,
-                                    defaultText = stringResource(R.string.filter_pick_date)
-                                )
-
-                                ExpressiveFilterChip(
-                                    selected = hasActiveDate,
-                                    onClick = { showDatePicker = true },
-                                    leadingIcon = {
-                                        Icon(
-                                            imageVector = if (hasActiveDate) Icons.Default.DateRange else Icons.Default.CalendarMonth,
-                                            contentDescription = null,
-                                            modifier = Modifier.size(FilterChipDefaults.IconSize)
-                                        )
-                                    },
-                                    trailingIcon = if (hasActiveDate) {
-                                        {
-                                            Icon(
-                                                imageVector = Icons.Default.Close,
-                                                contentDescription = null,
-                                                modifier = Modifier
-                                                    .size(14.dp)
-                                                    .clickable { viewModel.clearDateFilter() }
-                                            )
-                                        }
-                                    } else null,
-                                    label = {
-                                        Text(
-                                            text = dateLabel,
-                                            style = MaterialTheme.typography.labelMedium
-                                        )
-                                    }
-                                )
-
+                                    .filterHeaderItem()
+                            )
+                            ExpressiveFilterRow {
                                 ExpressiveConnectedButtonGroup(
                                     items = HealthCategoryKeys,
                                     selectedItem = state.selectedCategory,
-                                    onItemSelected = { key ->
-                                        if (state.selectedCategory == key && key != "all") {
-                                            viewModel.setCategoryFilter("all")
-                                        } else {
-                                            viewModel.setCategoryFilter(key)
-                                        }
-                                    },
+                                    onItemSelected = { key -> viewModel.setCategoryFilter(key) },
                                     labelProvider = { key ->
                                         when (key) {
                                             "activity" -> stringResource(R.string.health_cat_activity)
@@ -361,7 +305,7 @@ fun HealthConnectScreen(
                                             "vitals" -> stringResource(R.string.health_cat_vitals)
                                             "exercise" -> stringResource(R.string.health_cat_exercise)
                                             "body" -> stringResource(R.string.health_cat_body)
-                                            else -> stringResource(R.string.health_cat_all)
+                                            else -> stringResource(R.string.filter_all)
                                         }
                                     },
                                     iconProvider = { key, _ ->
@@ -371,135 +315,113 @@ fun HealthConnectScreen(
                                             "vitals" -> Icons.Default.MonitorHeart
                                             "exercise" -> Icons.Default.FitnessCenter
                                             "body" -> Icons.Default.MonitorWeight
-                                            else -> Icons.Default.Apps
+                                            else -> null
                                         }
                                     }
                                 )
-
-                                if (state.selectedCategory != "all" || state.searchQuery.isNotEmpty() || hasActiveDate) {
-                                    ExpressiveAssistChip(
-                                        onClick = { viewModel.resetFilters() },
-                                        label = {
-                                            Text(
-                                                text = stringResource(R.string.action_clear),
-                                                style = MaterialTheme.typography.labelMediumEmphasized,
-                                                color = MaterialTheme.colorScheme.error
-                                            )
-                                        },
-                                        colors = borderlessAssistChipColors(
-                                            labelColor = MaterialTheme.colorScheme.error
-                                        )
-                                    )
+                            }
+                            val hasActiveDate = state.selectedDateFilter != null || state.fromDateFilter != null
+                            val hasActiveFilters = state.searchQuery.isNotEmpty() || hasActiveDate || state.selectedCategory != "all"
+                            ExpressiveFilterRow {
+                                if (hasActiveFilters) {
+                                    ExpressiveClearFiltersChip(onClick = { viewModel.resetFilters() })
                                 }
+                                ExpressiveDateFilterChip(
+                                    label = formatDateRangeChipLabel(
+                                        singleDate = state.selectedDateFilter,
+                                        fromDate = state.fromDateFilter,
+                                        toDate = state.toDateFilter,
+                                        defaultText = stringResource(R.string.filter_pick_date)
+                                    ),
+                                    isActive = hasActiveDate,
+                                    onClick = { showDatePicker = true },
+                                    onClear = { viewModel.clearDateFilter() }
+                                )
+                                ExpressiveDropdownFilterChip(
+                                    options = listOf("date_desc", "date_asc"),
+                                    selected = state.sortBy,
+                                    onSelect = { viewModel.setSortBy(it) },
+                                    optionLabel = { key ->
+                                        when (key) {
+                                            "date_desc" -> stringResource(R.string.sort_newest)
+                                            "date_asc" -> stringResource(R.string.sort_oldest)
+                                            else -> stringResource(R.string.action_sort)
+                                        }
+                                    },
+                                    leadingIcon = Icons.AutoMirrored.Filled.Sort,
+                                    isActive = false
+                                )
+                            }
+                            if (hasActiveFilters) {
+                                ExpressiveFilterResultCount(count = state.filteredRecords.size)
                             }
                         }
                     }
-                }
 
-                // Loading or Empty or Items
-                if ((state.isLoading || state.isFiltering) && state.filteredRecords.isEmpty()) {
-                    if (!isRefreshing) {
-                        item(key = "health_loading", contentType = "loading") {
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .height(200.dp),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                ContainedLoadingIndicator(size = 44.dp)
-                            }
-                        }
-                    }
-                } else if (state.filteredRecords.isEmpty()) {
-                    item(key = "health_empty", contentType = "empty") {
-                        if (state.records.isEmpty()) {
-                            Card(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(vertical = 16.dp),
-                                colors = CardDefaults.cardColors(
-                                    containerColor = MaterialTheme.colorScheme.surfaceContainerLow
-                                ),
-                                shape = M3Shapes.CornerLarge
-                            ) {
-                                Column(
+                    // Loading or Empty or Items
+                    if ((state.isLoading || state.isFiltering) && state.filteredRecords.isEmpty()) {
+                        if (!isRefreshing) {
+                            item(key = "health_loading", contentType = "loading") {
+                                Box(
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .padding(20.dp),
-                                    horizontalAlignment = Alignment.CenterHorizontally,
-                                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                                        .height(200.dp),
+                                    contentAlignment = Alignment.Center
                                 ) {
-                                    Surface(
-                                        shape = M3Shapes.CornerFull,
-                                        color = domainHealthContainer(),
-                                        modifier = Modifier.size(56.dp)
-                                    ) {
-                                        Box(contentAlignment = Alignment.Center) {
-                                            Icon(
-                                                imageVector = Icons.Default.Favorite,
-                                                contentDescription = null,
-                                                tint = domainHealthOnContainer(),
-                                                modifier = Modifier.size(28.dp)
-                                            )
-                                        }
-                                    }
-                                    Text(
-                                        text = stringResource(R.string.health_empty_title),
-                                        style = MaterialTheme.typography.titleMediumEmphasized
-                                    )
-                                    Text(
-                                        text = stringResource(R.string.health_empty_guide),
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                        textAlign = TextAlign.Center
-                                    )
+                                    AppContainedLoadingIndicator(size = 44.dp)
                                 }
                             }
-                        } else {
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .height(160.dp),
-                                contentAlignment = Alignment.Center
+                        }
+                    } else if (state.filteredRecords.isEmpty() && state.error == null) {
+                        item(key = "health_empty", contentType = "empty") {
+                            if (state.records.isEmpty()) {
+                                ExpressiveEmptyState(
+                                    title = stringResource(R.string.health_empty_title),
+                                    message = stringResource(R.string.health_empty_guide),
+                                    icon = Icons.Default.Favorite,
+                                    iconContainerColor = recordCategoryColors(RecordCategory.Health).container,
+                                    iconContentColor = recordCategoryColors(RecordCategory.Health).onContainer
+                                )
+                            } else {
+                                ExpressiveEmptyState(
+                                    title = stringResource(R.string.health_search_empty),
+                                    icon = Icons.Default.SearchOff
+                                )
+                            }
+                        }
+                    } else {
+                        itemsIndexed(
+                            items = state.filteredRecords,
+                            key = { _, rec -> rec.id.ifBlank { "${rec.record_type}_${rec.start_time}_${rec.title}" } },
+                            contentType = { _, _ -> "health_row" }
+                        ) { index, rec ->
+                            LazyCardRowContainer(
+                                index = index,
+                                totalCount = state.filteredRecords.size
                             ) {
-                                Text(
-                                    text = stringResource(R.string.health_search_empty),
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                HealthRecordRowItem(
+                                    record = rec,
+                                    onClick = { selectedRecord = rec }
                                 )
                             }
                         }
                     }
-                } else {
-                    itemsIndexed(
-                        items = state.filteredRecords,
-                        key = { _, rec -> rec.id.ifBlank { "${rec.record_type}_${rec.start_time}_${rec.title}" } },
-                        contentType = { _, _ -> "health_row" }
-                    ) { index, rec ->
-                        LazyCardRowContainer(
-                            index = index,
-                            totalCount = state.filteredRecords.size
-                        ) {
-                            HealthRecordRowItem(
-                                record = rec,
-                                onClick = { selectedRecord = rec }
-                            )
-                        }
-                    }
-                }
 
-                item(key = "health_bottom_spacer", contentType = "spacer") {
-                    Spacer(modifier = Modifier.height(20.dp))
+                    item(key = "health_bottom_spacer", contentType = "spacer") {
+                        Spacer(modifier = Modifier.height(20.dp))
+                    }
                 }
             }
         }
     }
 
-    selectedRecord?.let { rec ->
-        HealthRecordDetailBottomSheet(
-            record = rec,
-            onDismiss = { selectedRecord = null }
-        )
+    if (!isTwoPane) {
+        selectedRecord?.let { rec ->
+            HealthRecordDetailBottomSheet(
+                record = rec,
+                onDismiss = { selectedRecord = null }
+            )
+        }
     }
 
     if (showCustomizationSheet) {
@@ -556,11 +478,11 @@ fun healthRecordVisuals(recordType: String, category: String): Triple<ImageVecto
     }
 
     val (bg, fg) = when (category) {
-        "activity" -> domainNutritionContainer() to domainNutritionOnContainer()
-        "sleep" -> domainCinemaContainer() to domainCinemaOnContainer()
+        "activity" -> recordCategoryColors(RecordCategory.Nutrition).container to recordCategoryColors(RecordCategory.Nutrition).onContainer
+        "sleep" -> recordCategoryColors(RecordCategory.Movies).container to recordCategoryColors(RecordCategory.Movies).onContainer
         "exercise" -> domainRatingContainer() to domainRatingOnContainer()
-        "body" -> domainBooksContainer() to domainBooksOnContainer()
-        else -> domainHealthContainer() to domainHealthOnContainer()
+        "body" -> recordCategoryColors(RecordCategory.Books).container to recordCategoryColors(RecordCategory.Books).onContainer
+        else -> recordCategoryColors(RecordCategory.Health).container to recordCategoryColors(RecordCategory.Health).onContainer
     }
     return Triple(icon, bg, fg)
 }
@@ -686,9 +608,9 @@ private fun HealthStatCardItemView(
                     badgeText = stringResource(R.string.health_metric_steps_badge),
                     note = summary.steps_date.ifBlank { stringResource(R.string.badge_daily) },
                     valueIcon = Icons.AutoMirrored.Filled.DirectionsWalk,
-                    valueIconTint = domainHealthColor(),
-                    badgeBg = domainHealthContainer(),
-                    badgeColor = domainHealthOnContainer(),
+                    valueIconTint = recordCategoryColors(RecordCategory.Health).accent,
+                    badgeBg = recordCategoryColors(RecordCategory.Health).container,
+                    badgeColor = recordCategoryColors(RecordCategory.Health).onContainer,
                     onLongClick = onLongClick
                 )
             }
@@ -730,9 +652,9 @@ private fun HealthStatCardItemView(
                     badgeText = stringResource(R.string.health_metric_active_badge),
                     note = fourthNote,
                     valueIcon = Icons.Default.LocalFireDepartment,
-                    valueIconTint = domainNutritionColor(),
-                    badgeBg = domainNutritionContainer(),
-                    badgeColor = domainNutritionOnContainer(),
+                    valueIconTint = recordCategoryColors(RecordCategory.Nutrition).accent,
+                    badgeBg = recordCategoryColors(RecordCategory.Nutrition).container,
+                    badgeColor = recordCategoryColors(RecordCategory.Nutrition).onContainer,
                     onLongClick = onLongClick
                 )
             }

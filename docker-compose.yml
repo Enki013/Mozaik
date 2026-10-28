@@ -14,6 +14,10 @@ services:
       - DB_PATH=/data/personal_records.sqlite3
       # Yerel ağdaki telefondan bağlanacaksanız ve FatSecret OAuth kullanacaksanız yerel IP'nizi yazın (Örn: http://192.168.1.50:8787)
       - APP_BASE_URL=http://localhost:8787
+      # Güvenlik & Kimlik Doğrulama
+      - API_KEY=${API_KEY:-}
+      - WEBHOOK_SECRET=${WEBHOOK_SECRET:-}
+      - ALLOWED_ORIGINS=${ALLOWED_ORIGINS:-}
       # Opsiyonel: Public FatSecret Gıda Arama (OAuth 2.0)
       # - FATSECRET_CLIENT_ID=
       # - FATSECRET_CLIENT_SECRET=

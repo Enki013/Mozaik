@@ -368,6 +368,28 @@ func TestNotificationWebhookAndAPI(t *testing.T) {
 	if actRes.Items[0].Title != "WhatsApp: Ahmet" {
 		t.Errorf("expected title 'WhatsApp: Ahmet', got %s", actRes.Items[0].Title)
 	}
+
+	// 5. GET / (Home Dashboard HTML) - verify notifications pane and content
+	reqHome := httptest.NewRequest(http.MethodGet, "/", nil)
+	recHome := httptest.NewRecorder()
+	handler.ServeHTTP(recHome, reqHome)
+
+	if recHome.Code != http.StatusOK {
+		t.Fatalf("expected 200 on home, got %d", recHome.Code)
+	}
+	bodyHome := recHome.Body.String()
+	if !strings.Contains(bodyHome, `id="pane-notifications"`) {
+		t.Errorf("expected home page to contain pane-notifications")
+	}
+	if !strings.Contains(bodyHome, "data-tab=\"notifications\"") {
+		t.Errorf("expected home page to contain notifications tab trigger")
+	}
+	if !strings.Contains(bodyHome, "WhatsApp") {
+		t.Errorf("expected home page to contain WhatsApp notification")
+	}
+	if !strings.Contains(bodyHome, "Ahmet") {
+		t.Errorf("expected home page to contain Ahmet notification title")
+	}
 }
 
 func TestSettingsAPILetterboxdAndGoodreads(t *testing.T) {
@@ -431,6 +453,146 @@ func TestSettingsAPILetterboxdAndGoodreads(t *testing.T) {
 
 func init() {
 	_ = time.Local
+}
+
+func TestAuthSecurityLayer(t *testing.T) {
+	_, _, handler := setupTestServer(t)
+
+	// Set API_KEY for this test
+	testKey := "secret-super-key-123"
+	_ = os.Setenv("API_KEY", testKey)
+	defer os.Unsetenv("API_KEY")
+
+	// 1. Health check must remain public
+	reqHealth := httptest.NewRequest(http.MethodGet, "/api/health", nil)
+	recHealth := httptest.NewRecorder()
+	handler.ServeHTTP(recHealth, reqHealth)
+	if recHealth.Code != http.StatusOK {
+		t.Fatalf("expected /api/health to be public 200, got %d", recHealth.Code)
+	}
+
+	// 2. Protected endpoint /api/dashboard without auth -> 401 Unauthorized
+	reqDash := httptest.NewRequest(http.MethodGet, "/api/dashboard", nil)
+	recDash := httptest.NewRecorder()
+	handler.ServeHTTP(recDash, reqDash)
+	if recDash.Code != http.StatusUnauthorized {
+		t.Fatalf("expected /api/dashboard without auth to return 401, got %d", recDash.Code)
+	}
+
+	// 3. Protected endpoint with Bearer token -> 200 OK
+	reqBearer := httptest.NewRequest(http.MethodGet, "/api/dashboard", nil)
+	reqBearer.Header.Set("Authorization", "Bearer "+testKey)
+	recBearer := httptest.NewRecorder()
+	handler.ServeHTTP(recBearer, reqBearer)
+	if recBearer.Code != http.StatusOK {
+		t.Fatalf("expected /api/dashboard with Bearer token to return 200, got %d", recBearer.Code)
+	}
+
+	// 4. Protected endpoint with X-API-Key -> 200 OK
+	reqKey := httptest.NewRequest(http.MethodGet, "/api/dashboard", nil)
+	reqKey.Header.Set("X-API-Key", testKey)
+	recKey := httptest.NewRecorder()
+	handler.ServeHTTP(recKey, reqKey)
+	if recKey.Code != http.StatusOK {
+		t.Fatalf("expected /api/dashboard with X-API-Key to return 200, got %d", recKey.Code)
+	}
+
+	// 5. Auth Login POST with JSON -> 200 OK & sets pr_auth cookie
+	loginBody := `{"apiKey":"` + testKey + `"}`
+	reqLogin := httptest.NewRequest(http.MethodPost, "/api/auth/login", strings.NewReader(loginBody))
+	reqLogin.Header.Set("Content-Type", "application/json")
+	recLogin := httptest.NewRecorder()
+	handler.ServeHTTP(recLogin, reqLogin)
+	if recLogin.Code != http.StatusOK {
+		t.Fatalf("expected /api/auth/login to return 200, got %d: %s", recLogin.Code, recLogin.Body.String())
+	}
+	cookies := recLogin.Result().Cookies()
+	var foundAuthCookie bool
+	for _, c := range cookies {
+		if c.Name == "pr_auth" && c.Value == testKey {
+			foundAuthCookie = true
+			break
+		}
+	}
+	if !foundAuthCookie {
+		t.Fatalf("expected pr_auth cookie to be set on successful login")
+	}
+
+	// 6. Request with pr_auth cookie -> 200 OK
+	reqCookie := httptest.NewRequest(http.MethodGet, "/api/dashboard", nil)
+	reqCookie.AddCookie(&http.Cookie{Name: "pr_auth", Value: testKey})
+	recCookie := httptest.NewRecorder()
+	handler.ServeHTTP(recCookie, reqCookie)
+	if recCookie.Code != http.StatusOK {
+		t.Fatalf("expected /api/dashboard with pr_auth cookie to return 200, got %d", recCookie.Code)
+	}
+}
+
+func TestSimklEndpoints(t *testing.T) {
+	_, _, handler := setupTestServer(t)
+
+	// 1. GET /api/settings/simkl (default)
+	reqGet := httptest.NewRequest(http.MethodGet, "/api/settings/simkl", nil)
+	recGet := httptest.NewRecorder()
+	handler.ServeHTTP(recGet, reqGet)
+	if recGet.Code != http.StatusOK {
+		t.Fatalf("expected 200 from GET /api/settings/simkl, got %d", recGet.Code)
+	}
+	var getResp map[string]any
+	if err := json.NewDecoder(recGet.Body).Decode(&getResp); err != nil {
+		t.Fatalf("failed to decode GET /api/settings/simkl response: %v", err)
+	}
+	if getResp["is_connected"] != false {
+		t.Errorf("expected is_connected=false by default, got %v", getResp["is_connected"])
+	}
+
+	// 2. POST /api/settings/simkl
+	postBody := `{"client_id":"simkl_test_client","access_token":"simkl_secret_token_123","sync_movies":true,"sync_shows":true,"sync_anime":true,"sync_ratings":true,"enabled":true}`
+	reqPost := httptest.NewRequest(http.MethodPost, "/api/settings/simkl", strings.NewReader(postBody))
+	reqPost.Header.Set("Content-Type", "application/json")
+	recPost := httptest.NewRecorder()
+	handler.ServeHTTP(recPost, reqPost)
+	if recPost.Code != http.StatusOK {
+		t.Fatalf("expected 200 from POST /api/settings/simkl, got %d: %s", recPost.Code, recPost.Body.String())
+	}
+
+	// 3. GET /api/settings/simkl again (should be connected)
+	recGet2 := httptest.NewRecorder()
+	handler.ServeHTTP(recGet2, reqGet)
+	if recGet2.Code != http.StatusOK {
+		t.Fatalf("expected 200 from GET /api/settings/simkl after save, got %d", recGet2.Code)
+	}
+	var getResp2 map[string]any
+	_ = json.NewDecoder(recGet2.Body).Decode(&getResp2)
+	if getResp2["is_connected"] != true {
+		t.Errorf("expected is_connected=true after saving token, got %v", getResp2["is_connected"])
+	}
+	if getResp2["client_id"] != "simkl_test_client" {
+		t.Errorf("expected client_id=simkl_test_client, got %v", getResp2["client_id"])
+	}
+
+	// 4. GET /api/simkl/history (empty)
+	reqHist := httptest.NewRequest(http.MethodGet, "/api/simkl/history", nil)
+	recHist := httptest.NewRecorder()
+	handler.ServeHTTP(recHist, reqHist)
+	if recHist.Code != http.StatusOK {
+		t.Fatalf("expected 200 from GET /api/simkl/history, got %d", recHist.Code)
+	}
+
+	// 5. POST /api/sync/simkl
+	reqSync := httptest.NewRequest(http.MethodPost, "/api/sync/simkl", nil)
+	recSync := httptest.NewRecorder()
+	handler.ServeHTTP(recSync, reqSync)
+	if recSync.Code != http.StatusOK {
+		t.Fatalf("expected 200 from POST /api/sync/simkl, got %d: %s", recSync.Code, recSync.Body.String())
+	}
+
+	// 6. POST /api/sync/simkl immediate repeat -> 429 Cooldown
+	recSync2 := httptest.NewRecorder()
+	handler.ServeHTTP(recSync2, reqSync)
+	if recSync2.Code != http.StatusTooManyRequests {
+		t.Fatalf("expected 429 from repeat POST /api/sync/simkl, got %d", recSync2.Code)
+	}
 }
 
 

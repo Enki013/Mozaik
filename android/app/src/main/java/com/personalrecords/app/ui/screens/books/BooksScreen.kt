@@ -50,21 +50,25 @@ fun BooksScreen(
     var showDatePicker by remember { mutableStateOf(false) }
     var selectedBook by remember { mutableStateOf<BookDto?>(null) }
 
-    val booksColor = domainBooksColor()
+    val booksColor = recordCategoryColors(RecordCategory.Books).accent
     val ratingColor = domainRatingColor()
-    val booksStatCards = remember(booksColor, ratingColor) {
+    val booksTotalTitle = stringResource(R.string.stats_card_books_total_title)
+    val booksTotalDesc = stringResource(R.string.stats_card_books_total_desc)
+    val booksToReadTitle = stringResource(R.string.stats_card_books_to_read_title)
+    val booksToReadDesc = stringResource(R.string.stats_card_books_to_read_desc)
+    val booksStatCards = remember(booksColor, ratingColor, booksTotalTitle, booksTotalDesc, booksToReadTitle, booksToReadDesc) {
         listOf(
             StatCardItem(
                 id = "books_total",
-                title = "Toplam Kitap",
-                description = "Okuma günlüğündeki tüm kitaplar",
+                title = booksTotalTitle,
+                description = booksTotalDesc,
                 icon = Icons.AutoMirrored.Filled.MenuBook,
                 iconTint = booksColor
             ),
             StatCardItem(
                 id = "books_to_read",
-                title = "Okunacaklar",
-                description = "Daha sonra okunacaklar listesi ve puan",
+                title = booksToReadTitle,
+                description = booksToReadDesc,
                 icon = Icons.Default.Bookmark,
                 iconTint = ratingColor
             )
@@ -89,9 +93,9 @@ fun BooksScreen(
     }
 
     val scrollBehavior = TopAppBarDefaults.enterAlwaysScrollBehavior(rememberTopAppBarState())
-    val configuration = LocalConfiguration.current
-    val isWideScreen = configuration.screenWidthDp >= 600
-    val isTwoPane = configuration.screenWidthDp >= 840
+    val adaptiveLayout = currentAdaptiveLayout()
+    val isWideScreen = adaptiveLayout.isWide
+    val isTwoPane = adaptiveLayout.showsDetailPane
     val gridState = rememberLazyGridState()
 
     Scaffold(
@@ -100,13 +104,8 @@ fun BooksScreen(
             .nestedScroll(scrollBehavior.nestedScrollConnection),
         contentWindowInsets = WindowInsets.statusBars,
         topBar = {
-            TopAppBar(
-                title = {
-                    Text(
-                        text = stringResource(R.string.title_books),
-                        style = MaterialTheme.typography.titleLargeEmphasized
-                    )
-                },
+            ExpressivePageTopAppBar(
+                title = stringResource(R.string.title_books),
                 scrollBehavior = scrollBehavior,
                 navigationIcon = {
                     if (onNavigateBack != null) {
@@ -129,9 +128,6 @@ fun BooksScreen(
                         }
                     )
                 },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.surface
-                )
             )
         }
     ) { innerPadding ->
@@ -152,9 +148,13 @@ fun BooksScreen(
                     columns = if (isWideScreen) GridCells.Adaptive(minSize = 340.dp) else GridCells.Fixed(1),
                     state = gridState,
                     modifier = Modifier
-                        .fillMaxSize()
-                        .padding(horizontal = 12.dp),
-                    contentPadding = PaddingValues(top = 10.dp, bottom = if (isWideScreen) 32.dp else 144.dp),
+                        .fillMaxSize(),
+                    contentPadding = PaddingValues(
+                        start = FilterGutter,
+                        end = FilterGutter,
+                        top = 10.dp,
+                        bottom = 24.dp + WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
+                    ),
                 horizontalArrangement = if (isWideScreen) Arrangement.spacedBy(8.dp) else Arrangement.Start,
                 verticalArrangement = if (isWideScreen) Arrangement.spacedBy(8.dp) else Arrangement.Top
             ) {
@@ -199,9 +199,9 @@ fun BooksScreen(
                                         badgeText = stringResource(R.string.books_badge_book),
                                         note = stringResource(R.string.books_stats_read, readBooks),
                                         valueIcon = Icons.AutoMirrored.Filled.MenuBook,
-                                        valueIconTint = domainBooksColor(),
-                                        badgeBg = domainBooksContainer(),
-                                        badgeColor = domainBooksOnContainer(),
+                                        valueIconTint = recordCategoryColors(RecordCategory.Books).accent,
+                                        badgeBg = recordCategoryColors(RecordCategory.Books).container,
+                                        badgeColor = recordCategoryColors(RecordCategory.Books).onContainer,
                                         onLongClick = { isEditMode = true }
                                     )
                                 }
@@ -237,170 +237,87 @@ fun BooksScreen(
                     }
                 }
 
+                state.error?.let { err ->
+                    item(key = "books_error_banner", span = { GridItemSpan(maxLineSpan) }, contentType = "error_banner") {
+                        ExpressiveErrorBanner(
+                            message = err,
+                            onRetry = { viewModel.loadData() },
+                            modifier = expressiveItemModifier().padding(bottom = 8.dp)
+                        )
+                    }
+                }
+
                 // Search Bar & Filter Header
-                item(key = "books_sticky_header", span = { GridItemSpan(maxLineSpan) }, contentType = "sticky_header") {
-                    Surface(
-                        color = MaterialTheme.colorScheme.surface,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(bottom = 8.dp)
-                    ) {
-                        Column(
+                stickyHeader(key = "books_sticky_header", contentType = "sticky_header") {
+                    ExpressiveFilterHeader {
+                        ExpressiveSearchField(
+                            value = state.searchQuery,
+                            onValueChange = { viewModel.setSearchQuery(it) },
+                            placeholder = stringResource(R.string.books_search_placeholder),
+                            clearContentDescription = stringResource(R.string.action_clear),
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(vertical = 4.dp),
-                            verticalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            OutlinedTextField(
-                                value = state.searchQuery,
-                                onValueChange = { viewModel.setSearchQuery(it) },
-                                modifier = Modifier.fillMaxWidth(),
-                                placeholder = {
-                                    Text(
-                                        text = stringResource(R.string.books_search_placeholder),
-                                        style = MaterialTheme.typography.bodyMedium,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                },
-                                leadingIcon = {
-                                    Icon(
-                                        Icons.Default.Search,
-                                        contentDescription = null,
-                                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                        modifier = Modifier.size(20.dp)
-                                    )
-                                },
-                                trailingIcon = {
-                                    if (state.searchQuery.isNotEmpty()) {
-                                        IconButton(onClick = {
-                                            viewModel.setSearchQuery("")
-                                        }) {
-                                            Icon(
-                                                Icons.Default.Clear,
-                                                contentDescription = stringResource(R.string.action_clear),
-                                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                                modifier = Modifier.size(18.dp)
-                                            )
-                                        }
+                                .filterHeaderItem()
+                        )
+                        ExpressiveFilterRow {
+                            ExpressiveConnectedButtonGroup(
+                                items = BookShelfKeys,
+                                selectedItem = state.selectedShelf,
+                                onItemSelected = { key -> viewModel.setShelf(key) },
+                                labelProvider = { key ->
+                                    when (key) {
+                                        "read" -> stringResource(R.string.books_shelf_read)
+                                        "to-read" -> stringResource(R.string.books_shelf_to_read)
+                                        "currently-reading" -> stringResource(R.string.books_shelf_currently_reading)
+                                        else -> stringResource(R.string.filter_all)
                                     }
                                 },
-                                shape = M3Shapes.CornerFull,
-                                colors = OutlinedTextFieldDefaults.colors(
-                                    focusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-                                    unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainerLow,
-                                    focusedBorderColor = MaterialTheme.colorScheme.primary,
-                                    unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant
-                                ),
-                                singleLine = true
+                                iconProvider = { key, _ ->
+                                    when (key) {
+                                        "read" -> Icons.AutoMirrored.Filled.LibraryBooks
+                                        "to-read" -> Icons.Default.HourglassEmpty
+                                        "currently-reading" -> Icons.AutoMirrored.Filled.MenuBook
+                                        else -> null
+                                    }
+                                }
                             )
-
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .horizontalScroll(rememberScrollState()),
-                                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                val hasActiveDate = state.selectedDateFilter != null || state.fromDateFilter != null
-                                val dateLabel = formatDateRangeChipLabel(
+                        }
+                        val hasActiveDate = state.selectedDateFilter != null || state.fromDateFilter != null
+                        val hasActiveFilters = state.searchQuery.isNotEmpty() || hasActiveDate || state.selectedShelf != "all"
+                        ExpressiveFilterRow {
+                            if (hasActiveFilters) {
+                                ExpressiveClearFiltersChip(onClick = { viewModel.resetFilters() })
+                            }
+                            ExpressiveDateFilterChip(
+                                label = formatDateRangeChipLabel(
                                     singleDate = state.selectedDateFilter,
                                     fromDate = state.fromDateFilter,
                                     toDate = state.toDateFilter,
                                     defaultText = stringResource(R.string.filter_pick_date)
-                                )
-
-                                ExpressiveFilterChip(
-                                    selected = hasActiveDate,
-                                    onClick = { showDatePicker = true },
-                                    leadingIcon = {
-                                        Icon(
-                                            imageVector = if (hasActiveDate) Icons.Default.DateRange else Icons.Default.CalendarMonth,
-                                            contentDescription = null,
-                                            modifier = Modifier.size(FilterChipDefaults.IconSize)
-                                        )
-                                    },
-                                    trailingIcon = if (hasActiveDate) {
-                                        {
-                                            Icon(
-                                                imageVector = Icons.Default.Close,
-                                                contentDescription = null,
-                                                modifier = Modifier
-                                                    .size(14.dp)
-                                                    .clickable {
-                                                        viewModel.clearDateFilter()
-                                                    }
-                                            )
-                                        }
-                                    } else null,
-                                    label = {
-                                        Text(
-                                            text = dateLabel,
-                                            style = MaterialTheme.typography.labelMedium
-                                        )
+                                ),
+                                isActive = hasActiveDate,
+                                onClick = { showDatePicker = true },
+                                onClear = { viewModel.clearDateFilter() }
+                            )
+                            ExpressiveDropdownFilterChip(
+                                options = listOf("date", "rating_desc", "rating_asc", "title"),
+                                selected = state.sortBy,
+                                onSelect = { viewModel.setSortBy(it) },
+                                optionLabel = { key ->
+                                    when (key) {
+                                        "date" -> stringResource(R.string.sort_date_read)
+                                        "rating_desc" -> stringResource(R.string.sort_rating_desc)
+                                        "rating_asc" -> stringResource(R.string.sort_rating_asc)
+                                        "title" -> stringResource(R.string.sort_title)
+                                        else -> stringResource(R.string.action_sort)
                                     }
-                                )
-
-                                ExpressiveConnectedButtonGroup(
-                                    items = BookShelfKeys,
-                                    selectedItem = state.selectedShelf,
-                                    onItemSelected = { shelf ->
-                                        if (state.selectedShelf != shelf) {
-                                            viewModel.setShelf(shelf)
-                                        }
-                                    },
-                                    labelProvider = { shelf ->
-                                        when (shelf) {
-                                            "read" -> stringResource(R.string.books_shelf_read)
-                                            "to-read" -> stringResource(R.string.books_shelf_to_read)
-                                            "currently-reading" -> stringResource(R.string.books_shelf_currently_reading)
-                                            else -> stringResource(R.string.books_shelf_all)
-                                        }
-                                    },
-                                    iconProvider = { shelf, _ ->
-                                        when (shelf) {
-                                            "read" -> Icons.Default.Check
-                                            "to-read" -> Icons.Default.HourglassEmpty
-                                            "currently-reading" -> Icons.AutoMirrored.Filled.MenuBook
-                                            else -> null
-                                        }
-                                    }
-                                )
-
-                                val (sortLabel, sortIcon) = when (state.sortBy) {
-                                    "rating_desc" -> stringResource(R.string.sort_rating_desc) to Icons.Default.ArrowDownward
-                                    "rating_asc" -> stringResource(R.string.sort_rating_asc) to Icons.Default.ArrowUpward
-                                    "title" -> stringResource(R.string.sort_title) to Icons.Default.SortByAlpha
-                                    "date" -> stringResource(R.string.sort_date_read) to Icons.Default.CalendarMonth
-                                    else -> stringResource(R.string.action_sort) to Icons.AutoMirrored.Filled.Sort
-                                }
-                                ExpressiveAssistChip(
-                                    onClick = {
-                                        val nextSort = when (state.sortBy) {
-                                            "rating_desc" -> "rating_asc"
-                                            "rating_asc" -> "title"
-                                            "title" -> "date"
-                                            else -> "rating_desc"
-                                        }
-                                        viewModel.setSortBy(nextSort)
-                                    },
-                                    leadingIcon = {
-                                        Icon(
-                                            imageVector = sortIcon,
-                                            contentDescription = null,
-                                            tint = MaterialTheme.colorScheme.primary,
-                                            modifier = Modifier.size(16.dp)
-                                        )
-                                    },
-                                    label = {
-                                        Text(
-                                            text = sortLabel,
-                                            style = MaterialTheme.typography.labelMediumEmphasized,
-                                            color = MaterialTheme.colorScheme.primary
-                                        )
-                                    },
-                                    colors = borderlessAssistChipColors()
-                                )
-                            }
+                                },
+                                leadingIcon = Icons.AutoMirrored.Filled.Sort,
+                                isActive = false
+                            )
+                        }
+                        if (hasActiveFilters) {
+                            ExpressiveFilterResultCount(count = state.filteredBooks.size)
                         }
                     }
                 }
@@ -414,24 +331,18 @@ fun BooksScreen(
                                     .height(200.dp),
                                 contentAlignment = Alignment.Center
                             ) {
-                                ContainedLoadingIndicator(size = 44.dp)
+                                AppContainedLoadingIndicator(size = 44.dp)
                             }
                         }
                     }
-                } else if (state.filteredBooks.isEmpty()) {
+                } else if (state.filteredBooks.isEmpty() && state.error == null) {
                     item(key = "books_empty", span = { GridItemSpan(maxLineSpan) }, contentType = "empty") {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(200.dp),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(
-                                text = stringResource(R.string.books_empty),
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
+                        ExpressiveEmptyState(
+                            title = stringResource(R.string.books_empty),
+                            icon = Icons.AutoMirrored.Filled.MenuBook,
+                            iconContainerColor = recordCategoryColors(RecordCategory.Books).container,
+                            iconContentColor = recordCategoryColors(RecordCategory.Books).onContainer
+                        )
                     }
                 } else {
                     itemsIndexed(
@@ -442,7 +353,7 @@ fun BooksScreen(
                         if (isWideScreen) {
                             Surface(
                                 modifier = expressiveItemModifier().fillMaxWidth(),
-                                shape = M3Shapes.CornerMedium,
+                                shape = M3Shapes.CornerLarge,
                                 color = MaterialTheme.colorScheme.surfaceContainerLow
                             ) {
                                 BookRowItem(
@@ -469,42 +380,24 @@ fun BooksScreen(
             }
         }
 
-        if (isTwoPane) {
-            Row(modifier = Modifier.fillMaxSize()) {
-                Box(
-                    modifier = Modifier
-                        .weight(1.15f)
-                        .fillMaxHeight()
-                ) {
-                    listContent()
+        ExpressiveListDetailLayout(
+            showDetailPane = isTwoPane,
+            detailPane = {
+                if (selectedBook != null) {
+                    BookDetailPaneCard(
+                        book = selectedBook!!,
+                        onClose = { selectedBook = null }
+                    )
+                } else {
+                    DetailPlaceholderPane(
+                        icon = Icons.AutoMirrored.Filled.MenuBook,
+                        title = stringResource(R.string.adaptive_select_item_title),
+                        subtitle = stringResource(R.string.adaptive_select_item_subtitle)
+                    )
                 }
-                VerticalDivider(
-                    modifier = Modifier.fillMaxHeight(),
-                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
-                )
-                Box(
-                    modifier = Modifier
-                        .weight(0.85f)
-                        .fillMaxHeight()
-                        .padding(top = 10.dp, end = 12.dp, bottom = 32.dp)
-                ) {
-                    if (selectedBook != null) {
-                        BookDetailPaneCard(
-                            book = selectedBook!!,
-                            onClose = { selectedBook = null }
-                        )
-                    } else {
-                        DetailPlaceholderPane(
-                            icon = Icons.AutoMirrored.Filled.MenuBook,
-                            title = stringResource(R.string.adaptive_select_item_title),
-                            subtitle = stringResource(R.string.adaptive_select_item_subtitle)
-                        )
-                    }
-                }
-            }
-        } else {
-            listContent()
-        }
+            },
+            list = listContent
+        )
     }
 }
 
@@ -586,12 +479,12 @@ fun BookRowItem(
             ) {
                 Surface(
                     shape = M3Shapes.CornerFull,
-                    color = domainBooksContainer()
+                    color = recordCategoryColors(RecordCategory.Books).container
                 ) {
                     Text(
                         text = shelfLabel,
                         style = MaterialTheme.typography.labelSmall,
-                        color = domainBooksOnContainer(),
+                        color = recordCategoryColors(RecordCategory.Books).onContainer,
                         modifier = Modifier.padding(horizontal = 6.dp, vertical = 1.5.dp),
                         maxLines = 1,
                         softWrap = false

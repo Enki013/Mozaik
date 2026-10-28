@@ -11,6 +11,8 @@ import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Podcasts
 import androidx.compose.material.icons.filled.Restaurant
+import androidx.compose.material.icons.filled.Tv
+import androidx.compose.material.icons.filled.VideoLibrary
 import androidx.compose.ui.graphics.vector.ImageVector
 import com.personalrecords.app.R
 
@@ -43,6 +45,7 @@ data class IntegrationPlugin(
     val longDescription: String = "",
     val isEnabled: Boolean = false,
     val isConfigured: Boolean = false,
+    val isInDevelopment: Boolean = false,
     val syncServiceKey: String? = null,
     val webhookPath: String? = null,
     val officialUrl: String? = null,
@@ -187,6 +190,7 @@ object PluginRegistry {
             setupSteps = listOf(
                 "Health Connect Webhook APK'sını kurun ve izinleri verin.",
                 "Hedef Webhook URL'sini yapıştırın.",
+                "Sunucunuzda API Anahtarı koruması aktifse, Header olarak 'X-Webhook-Secret' veya URL sonuna '?api_key=...' ekleyin.",
                 "Eşitleme sıklığını seçip arka plan aktarımını başlatın."
             ),
             tags = listOf("health", "steps", "heart", "sleep", "android", "fitness", "sağlık")
@@ -210,6 +214,7 @@ object PluginRegistry {
             setupSteps = listOf(
                 "Notification Relay APK'sını kurun ve Bildirim Erişimi verin.",
                 "Webhooks sekmesinde hedef URL'yi ekleyin.",
+                "Sunucunuzda API Anahtarı koruması aktifse, Header olarak 'X-Webhook-Secret' veya URL sonuna '?api_key=...' ekleyin.",
                 "Test bildirimini gönderip kaydı doğrulayın."
             ),
             tags = listOf("notifications", "system", "relay", "webhook", "android", "bildirim")
@@ -228,6 +233,7 @@ object PluginRegistry {
             badge = "Geliştirme Aşamasında",
             shortDescription = "Doğrudan Spotify Connect ve anlık çalan şarkı senkronizasyonu.",
             longDescription = "Spotify Developer API anahtarlarıyla çalma listeleri ve anlık çalan şarkı senkronizasyonu.",
+            isInDevelopment = true,
             syncServiceKey = "spotify",
             officialUrl = "https://developer.spotify.com",
             setupSteps = listOf(
@@ -280,6 +286,78 @@ object PluginRegistry {
                 "Eşitle butonuna basarak dinleme verilerinizi aktarın."
             ),
             tags = listOf("music", "spotify", "statsfm", "spotistats", "streams", "analytics")
+        ),
+
+        // 11. Trakt Plugin
+        IntegrationPlugin(
+            id = "trakt",
+            name = "Trakt.tv",
+            category = IntegrationCategory.MEDIA,
+            type = IntegrationType.API_SYNC,
+            icon = Icons.Default.Tv,
+            badgeRes = R.string.plugin_badge_trakt,
+            shortDescRes = R.string.plugin_desc_trakt,
+            longDescRes = R.string.plugin_long_desc_trakt,
+            badge = "Trakt.tv",
+            shortDescription = "Film ve dizi izleme geçmişi, scrobble ve puanlama senkronizasyonu.",
+            longDescription = "Trakt.tv API üzerinden izlenen filmler, dizi bölümleri, izleme listesi (watchlist) ve puanlama senkronizasyonu.",
+            isInDevelopment = false,
+            syncServiceKey = "trakt",
+            officialUrl = "https://trakt.tv",
+            setupSteps = listOf(
+                "Ayarlar sekmesinden Trakt.tv kullanıcı adınızı girin.",
+                "İsteğe bağlı olarak kendi Trakt API Client ID bilginizi ekleyin.",
+                "Senkronizasyonu başlatarak film ve dizi kayıtlarınızı tek tıkla çekin."
+            ),
+            tags = listOf("trakt", "tv", "movies", "shows", "series", "dizi", "film", "cinema", "scrobble")
+        ),
+
+        // 12. MDBList Plugin
+        IntegrationPlugin(
+            id = "mdblist",
+            name = "MDBList",
+            category = IntegrationCategory.MEDIA,
+            type = IntegrationType.API_SYNC,
+            icon = Icons.Default.VideoLibrary,
+            badgeRes = R.string.plugin_badge_mdblist,
+            shortDescRes = R.string.plugin_desc_mdblist,
+            longDescRes = R.string.plugin_long_desc_mdblist,
+            badge = "MDBList",
+            shortDescription = "Gelişmiş film/dizi listeleri ve çoklu platform puan agregatörü.",
+            longDescription = "MDBList API ile özel küratör listeleri, IMDb/Trakt/TMDB/Rotten Tomatoes/Metacritic puanlama senkronizasyonu.",
+            isInDevelopment = false,
+            syncServiceKey = "mdblist",
+            officialUrl = "https://mdblist.com",
+            setupSteps = listOf(
+                "mdblist.com/preferences sayfasından ücretsiz API anahtarınızı alın.",
+                "Ayarlar sekmesindeki MDBList alanına API anahtarını yapıştırıp kaydedin.",
+                "Filmleriniz için IMDb, Rotten Tomatoes, Metacritic ve Letterboxd puanları otomatik toplanır."
+            ),
+            tags = listOf("mdblist", "lists", "movies", "tv", "imdb", "trakt", "tmdb", "film", "dizi")
+        ),
+
+        // 13. Simkl Plugin
+        IntegrationPlugin(
+            id = "simkl",
+            name = "Simkl",
+            category = IntegrationCategory.MEDIA,
+            type = IntegrationType.API_SYNC,
+            icon = Icons.Default.Tv,
+            badgeRes = R.string.plugin_badge_simkl,
+            shortDescRes = R.string.plugin_desc_simkl,
+            longDescRes = R.string.plugin_long_desc_simkl,
+            badge = "Simkl",
+            shortDescription = "Film, dizi ve anime izleme geçmişi, son izlenen bölüm ve puanlama takibi.",
+            longDescription = "Simkl API üzerinden film, dizi ve anime izleme kayıtlarınızı (son izlenen bölüm, durum, puan ve posterler) tek merkezde toplayın.",
+            isInDevelopment = false,
+            syncServiceKey = "simkl",
+            officialUrl = "https://simkl.com",
+            setupSteps = listOf(
+                "simkl.com/settings/developer/ adresinden Client ID ve Access Token alın.",
+                "Ayarlar sekmesindeki Simkl alanına bilgilerinizi yapıştırıp kaydedin.",
+                "Film, dizi ve anime geçmişinizi otomatik veya manuel olarak senkronize edin."
+            ),
+            tags = listOf("simkl", "anime", "movies", "shows", "series", "dizi", "film", "scrobble")
         )
     )
 }

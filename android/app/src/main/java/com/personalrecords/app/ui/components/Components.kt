@@ -16,6 +16,8 @@ import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.grid.LazyGridItemScope
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.*
+import androidx.compose.material3.ContainedLoadingIndicator as Material3ContainedLoadingIndicator
+import androidx.compose.material3.LoadingIndicator as Material3LoadingIndicator
 import androidx.compose.material3.ripple
 import androidx.compose.runtime.Composable
 import com.personalrecords.app.core.theme.LocalReducedMotion
@@ -67,7 +69,6 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.pulltorefresh.PullToRefreshDefaults
 import androidx.compose.material3.pulltorefresh.PullToRefreshState
 import androidx.compose.material3.pulltorefresh.pullToRefresh
-import androidx.compose.material3.pulltorefresh.pullToRefreshIndicator
 import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableStateOf
@@ -84,16 +85,29 @@ import androidx.compose.material.icons.automirrored.filled.MenuBook
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontStyle
+import com.personalrecords.app.core.theme.M3ComponentSize
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
 import android.widget.Toast
+import androidx.compose.foundation.selection.selectableGroup
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.onClick
+import androidx.compose.ui.semantics.semantics
 import com.personalrecords.app.R
+import androidx.compose.foundation.horizontalScroll
+import com.personalrecords.app.PersonalRecordsApp
+import com.personalrecords.app.core.common.Resource
 import com.personalrecords.app.core.network.model.ActivityItemDto
 import com.personalrecords.app.core.network.model.BookDto
 import com.personalrecords.app.core.network.model.FilmDto
 import com.personalrecords.app.core.network.model.FoodEntryDto
 import com.personalrecords.app.core.network.model.HealthRecordDto
+import com.personalrecords.app.core.network.model.MdbListRatingsDto
 import com.personalrecords.app.core.network.model.MusicScrobbleDto
 import com.personalrecords.app.core.network.model.NotificationDto
 import com.personalrecords.app.ui.screens.music.MusicDetailBottomSheet
@@ -398,36 +412,12 @@ fun borderlessAssistChipColors(
     leadingIconContentColor = labelColor
 )
 
-/**
- * MD3 Expressive Interactive Button Shape helper (`ButtonDefaults.shapes()`).
- *
- * Morphs button corner radius between [restingCorner] and [pressedCorner] (sharper squircle)
- * while pressed using the M3 Expressive Fast Spatial spring (`damping = 0.6f, stiffness = 800f`).
- */
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
-fun rememberExpressiveButtonShape(
-    interactionSource: InteractionSource,
-    restingCorner: Dp = M3CornerRadius.Medium,
-    pressedCorner: Dp = M3CornerRadius.ExtraSmall
-): RoundedCornerShape {
-    val isPressed by interactionSource.collectIsPressedAsState()
-    val corner by animateDpAsState(
-        targetValue = if (isPressed) pressedCorner else restingCorner,
-        animationSpec = M3ExpressiveMotion.fastSpatial(),
-        label = "expressive_btn_corner"
-    )
-    return RoundedCornerShape(corner)
-}
+fun expressiveButtonShapes() = ButtonDefaults.shapes()
 
-/**
- * MD3 Expressive Filter Chip (`FilterChipDefaults.shapes()`).
- *
- * Implements authentic M3 Expressive 3-state corner morphing from `ChipSamples.kt`:
- * - Unselected resting: `CornerSmall` (8dp)
- * - Pressed (`isPressed`): `CornerExtraSmall` (4dp sharp squircle)
- * - Selected (`selected`): `CornerFull` (24dp full pill)
- * Accompanied by Fast Spatial spring scale physics and optional animated checkmark when no custom [leadingIcon] is supplied.
- */
+/** App-level color treatment around the official M3 expressive filter chip. */
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun ExpressiveFilterChip(
     selected: Boolean,
@@ -438,57 +428,30 @@ fun ExpressiveFilterChip(
     trailingIcon: (@Composable () -> Unit)? = null,
     colors: SelectableChipColors = borderlessFilterChipColors()
 ) {
-    val haptic = LocalHapticFeedback.current
-    val interactionSource = remember { MutableInteractionSource() }
-    val isPressed by interactionSource.collectIsPressedAsState()
-
-    val targetCorner = when {
-        isPressed -> M3CornerRadius.ExtraSmall
-        selected -> M3CornerRadius.Full
-        else -> M3CornerRadius.Small
-    }
-    val animatedCorner by animateDpAsState(
-        targetValue = targetCorner,
-        animationSpec = M3ExpressiveMotion.fastSpatial(),
-        label = "chip_corner_morph"
-    )
-    val animatedScaleState = animateFloatAsState(
-        targetValue = when {
-            isPressed -> 0.95f
-            selected -> 1.03f
-            else -> 1f
-        },
-        animationSpec = M3ExpressiveMotion.fastSpatial(),
-        label = "chip_scale_morph"
-    )
-
+    // M3 filter chips mark selection with a checkmark when they have no icon of their own.
+    val resolvedLeadingIcon = leadingIcon ?: if (selected) {
+        {
+            Icon(
+                imageVector = Icons.Default.Check,
+                contentDescription = null,
+                modifier = Modifier.size(FilterChipDefaults.IconSize)
+            )
+        }
+    } else null
     FilterChip(
         selected = selected,
-        onClick = {
-            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-            onClick()
-        },
+        onClick = onClick,
         label = label,
-        shape = RoundedCornerShape(animatedCorner),
-        interactionSource = interactionSource,
-        modifier = modifier.graphicsLayer {
-            val s = animatedScaleState.value
-            scaleX = s
-            scaleY = s
-        },
+        modifier = modifier.heightIn(min = M3ComponentSize.FilterControlHeight),
+        shapes = FilterChipDefaults.shapes(),
         border = null,
         colors = colors,
-        leadingIcon = leadingIcon,
+        leadingIcon = resolvedLeadingIcon,
         trailingIcon = trailingIcon
     )
 }
 
-/**
- * MD3 Expressive Assist Chip (`AssistChipDefaults` with interactive press corner morphing).
- *
- * Morphs corner curvature from `CornerSmall` (8dp) to `CornerExtraSmall` (4dp) on press
- * with M3 Expressive Fast Spatial spring bounce and tactile feedback.
- */
+/** Keeps the app's tonal AssistChip colors while using the official M3 component behavior. */
 @Composable
 fun ExpressiveAssistChip(
     onClick: () -> Unit,
@@ -498,51 +461,19 @@ fun ExpressiveAssistChip(
     trailingIcon: (@Composable () -> Unit)? = null,
     colors: ChipColors = borderlessAssistChipColors()
 ) {
-    val haptic = LocalHapticFeedback.current
-    val interactionSource = remember { MutableInteractionSource() }
-    val isPressed by interactionSource.collectIsPressedAsState()
-
-    val animatedCorner by animateDpAsState(
-        targetValue = if (isPressed) M3CornerRadius.ExtraSmall else M3CornerRadius.Small,
-        animationSpec = M3ExpressiveMotion.fastSpatial(),
-        label = "assist_chip_corner"
-    )
-    val animatedScaleState = animateFloatAsState(
-        targetValue = if (isPressed) 0.95f else 1f,
-        animationSpec = M3ExpressiveMotion.fastSpatial(),
-        label = "assist_chip_scale"
-    )
-
     AssistChip(
-        onClick = {
-            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-            onClick()
-        },
+        onClick = onClick,
         label = label,
         leadingIcon = leadingIcon,
         trailingIcon = trailingIcon,
-        interactionSource = interactionSource,
-        shape = RoundedCornerShape(animatedCorner),
         border = null,
         colors = colors,
-        modifier = modifier.graphicsLayer {
-            val s = animatedScaleState.value
-            scaleX = s
-            scaleY = s
-        }
+        modifier = modifier.heightIn(min = M3ComponentSize.FilterControlHeight)
     )
 }
 
-/**
- * MD3 Expressive Connected Button Group (`SingleSelectConnectedButtonGroupSample` from `ButtonGroupSamples.kt`).
- *
- * Implements `ButtonGroupDefaults.connectedLeadingButtonShapes()`, `connectedMiddleButtonShapes()`,
- * and `connectedTrailingButtonShapes()`:
- * - Outer group ends have `CornerFull` (24dp)
- * - Inner adjacent edges have `CornerSmall` (8dp) when unselected
- * - Selected button (`checked = true`) morphs all 4 corners to `CornerFull` (24dp pill)
- * - Pressed button (`isPressed = true`) morphs inner corners to `CornerExtraSmall` (4dp)
- */
+/** Single-select group composed from the official expressive M3 ToggleButton APIs. */
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun <T> ExpressiveConnectedButtonGroup(
     items: List<T>,
@@ -553,90 +484,64 @@ fun <T> ExpressiveConnectedButtonGroup(
     fillWidth: Boolean = false,
     iconProvider: (@Composable (T, Boolean) -> ImageVector?)? = null
 ) {
-    val haptic = LocalHapticFeedback.current
-    val selectedBg = MaterialTheme.colorScheme.secondaryContainer
-    val unselectedBg = MaterialTheme.colorScheme.surfaceContainer
-    val selectedFg = MaterialTheme.colorScheme.onSecondaryContainer
-    val unselectedFg = MaterialTheme.colorScheme.onSurfaceVariant
+    val buttonSize = ToggleButtonSize.Small
+    val buttonColors = ToggleButtonDefaults.colors(
+        containerColor = MaterialTheme.colorScheme.surfaceContainer,
+        contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+        checkedContainerColor = MaterialTheme.colorScheme.secondaryContainer,
+        checkedContentColor = MaterialTheme.colorScheme.onSecondaryContainer
+    )
 
+    // Single choice: exposed to screen readers as a radio group, not as independent toggles.
     Row(
-        modifier = modifier,
-        horizontalArrangement = Arrangement.spacedBy(2.dp),
+        modifier = modifier.selectableGroup(),
+        horizontalArrangement = Arrangement.spacedBy(ButtonGroupDefaults.ConnectedSpaceBetween),
         verticalAlignment = Alignment.CenterVertically
     ) {
         items.forEachIndexed { index, item ->
             val selected = item == selectedItem
-            val interactionSource = remember { MutableInteractionSource() }
-            val isPressed by interactionSource.collectIsPressedAsState()
-
-            val outerStart = index == 0
-            val outerEnd = index == items.lastIndex
-
-            val selectionProgress by animateFloatAsState(
-                targetValue = if (selected) 1f else 0f,
-                animationSpec = M3ExpressiveMotion.fastEffects(),
-                label = "connected_selection"
-            )
-
-            val baseStartCorner = if (outerStart) 20f else if (isPressed) 4f else 8f
-            val baseEndCorner = if (outerEnd) 20f else if (isPressed) 4f else 8f
-            val startCorner = (baseStartCorner + (20f - baseStartCorner) * selectionProgress).dp
-            val endCorner = (baseEndCorner + (20f - baseEndCorner) * selectionProgress).dp
-            val horizPad = (11f + 3f * selectionProgress).dp
-            val containerColor = lerp(unselectedBg, selectedBg, selectionProgress)
-            val contentColor = lerp(unselectedFg, selectedFg, selectionProgress)
-
-            val shape = RoundedCornerShape(
-                topStart = startCorner,
-                bottomStart = startCorner,
-                topEnd = endCorner,
-                bottomEnd = endCorner
-            )
-
             val itemModifier = if (fillWidth) {
-                Modifier.weight(1f + 0.12f * selectionProgress)
+                Modifier.weight(1f)
             } else {
                 Modifier
             }
+            val shapes = when {
+                items.size == 1 -> ToggleButtonDefaults.shapesFor(buttonSize)
+                index == 0 -> ButtonGroupDefaults.connectedLeadingButtonShapes()
+                index == items.lastIndex -> ButtonGroupDefaults.connectedTrailingButtonShapes()
+                else -> ButtonGroupDefaults.connectedMiddleButtonShapes()
+            }
+            val icon = iconProvider?.invoke(item, selected)
+            val label = labelProvider(item)
 
-            Surface(
-                shape = shape,
-                color = containerColor,
-                contentColor = contentColor,
-                modifier = itemModifier
-                    .height(32.dp)
-                    .graphicsLayer {
-                        val pressScale = if (isPressed) 0.95f else 1f
-                        scaleX = pressScale
-                        scaleY = pressScale
+            // Expose each option to screen readers as one radio item (label + selected state)
+            // instead of the toggle button's own checkbox-style semantics.
+            Box(
+                modifier = itemModifier.clearAndSetSemantics {
+                    role = Role.RadioButton
+                    this.selected = selected
+                    contentDescription = label
+                    onClick(label = label) {
+                        if (!selected) onItemSelected(item)
+                        true
                     }
-                    .clip(shape)
-                    .clickable(
-                        interactionSource = interactionSource,
-                        indication = ripple(),
-                        onClick = {
-                            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                            onItemSelected(item)
-                        }
-                    )
+                }
             ) {
-                Row(
-                    modifier = Modifier.padding(horizontal = horizPad),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.Center
-                ) {
-                    val icon = iconProvider?.invoke(item, selected)
-                    if (icon != null) {
-                        Icon(
-                            imageVector = icon,
-                            contentDescription = null,
-                            modifier = Modifier.size(15.dp)
-                        )
-                        Spacer(modifier = Modifier.width(5.dp))
+                ToggleButton(
+                    checked = selected,
+                    onCheckedChange = { checked -> if (checked) onItemSelected(item) },
+                    buttonSize = buttonSize,
+                    shapes = shapes,
+                    colors = buttonColors,
+                    modifier = if (fillWidth) Modifier.fillMaxWidth() else Modifier,
+                    icon = icon?.let { imageVector ->
+                        { Icon(imageVector = imageVector, contentDescription = null) }
                     }
+                ) {
                     Text(
-                        text = labelProvider(item),
-                        style = if (selected) MaterialTheme.typography.labelMediumEmphasized else MaterialTheme.typography.labelMedium,
+                        text = label,
+                        // Same weight in both states so the label width does not jump on selection.
+                        style = MaterialTheme.typography.labelLarge,
                         maxLines = 1,
                         softWrap = false
                     )
@@ -647,369 +552,53 @@ fun <T> ExpressiveConnectedButtonGroup(
 }
 
 /**
- * Evaluates the polar radius (normalized around `1.0f`) for each of the 7 official
- * Material 3 Expressive `LoadingIndicatorDefaults.IndeterminateIndicatorPolygons` shapes
- * from `MaterialShapes`:
- * 0 -> `SoftBurst` (10-pointed soft starburst)
- * 1 -> `Cookie9Sided` (9-sided scalloped cookie)
- * 2 -> `Pentagon` (rounded 5-sided regular polygon)
- * 3 -> `Pill` (tilted stadium / capsule)
- * 4 -> `Sunny` (8-pointed warm sun star)
- * 5 -> `Cookie4Sided` (4-lobed clover / squircle)
- * 6 -> `Cookie7Sided` (7-sided scalloped flower)
+ * Size and color adapter for Material 3's official shape-morphing loading indicator.
  */
-private fun m3ExpressivePolygonRadius(shapeIndex: Int, theta: Float): Float {
-    return when (shapeIndex % 7) {
-        0 -> {
-            // SoftBurst: 10-pointed soft starburst
-            1f + 0.14f * kotlin.math.cos(10f * theta) - 0.03f * kotlin.math.cos(20f * theta)
-        }
-        1 -> {
-            // Cookie9Sided: 9-sided rounded cookie
-            1f + 0.13f * kotlin.math.cos(9f * theta) + 0.02f * kotlin.math.cos(18f * theta)
-        }
-        2 -> {
-            // Pentagon: rounded 5-sided regular pentagon
-            1f + 0.15f * kotlin.math.cos(5f * theta) - 0.035f * kotlin.math.cos(10f * theta)
-        }
-        3 -> {
-            // Pill: stadium / elongated 2-lobe capsule
-            val c = kotlin.math.cos(theta)
-            val s = kotlin.math.sin(theta)
-            val rx = 1.18f
-            val ry = 0.78f
-            (rx * ry) / kotlin.math.sqrt((ry * c) * (ry * c) + (rx * s) * (rx * s))
-        }
-        4 -> {
-            // Sunny: 8-pointed sunny star
-            1f + 0.17f * kotlin.math.cos(8f * theta) - 0.025f * kotlin.math.cos(16f * theta)
-        }
-        5 -> {
-            // Cookie4Sided: 4-lobed clover / cookie
-            1f + 0.22f * kotlin.math.cos(4f * theta) - 0.03f * kotlin.math.cos(8f * theta)
-        }
-        else -> {
-            // Cookie7Sided: 7-sided scalloped flower
-            1f + 0.15f * kotlin.math.cos(7f * theta) + 0.02f * kotlin.math.cos(14f * theta)
-        }
-    }
-}
-
-/**
- * Spring-like morph curve for M3 Expressive polygon-to-polygon transitions:
- * Quickly snaps from 0 -> 1 with slight spatial spring overshoot (~1.08) in the first 68%
- * of each step, then settles cleanly to 1.0 so each polygon silhouette is crisp and legible.
- */
-private fun m3ExpressiveStepSpringProgress(rawT: Float): Float {
-    val t = rawT.coerceIn(0f, 1f)
-    return if (t < 0.68f) {
-        val u = t / 0.68f
-        val base = 1f - (1f - u) * (1f - u) * (1f - u)
-        val overshoot = 0.09f * kotlin.math.sin(u * Math.PI.toFloat())
-        base + overshoot
-    } else {
-        val v = (t - 0.68f) / 0.32f
-        1f + 0.03f * kotlin.math.sin(v * Math.PI.toFloat()) * (1f - v)
-    }
-}
-
-/**
- * MD3 Expressive Shape-Morphing Loading Indicator (`LoadingIndicator` & `ContainedLoadingIndicator`
- * from `LoadingIndicatorSamples.kt` + `MaterialShapesSamples.kt`).
- *
- * Defer all animation state reads and path construction to the Draw/GraphicsLayer phases so
- * zero recompositions occur while the indicator is animating.
- */
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun ExpressiveLoadingIndicator(
     modifier: Modifier = Modifier,
-    size: Dp = 48.dp,
-    @Suppress("UNUSED_PARAMETER") strokeWidth: Dp = (size / 10).coerceIn(2.dp, 4.dp),
+    size: Dp = LoadingIndicatorDefaults.IndicatorSize,
     color: Color = MaterialTheme.colorScheme.primary,
-    @Suppress("UNUSED_PARAMETER") secondaryColor: Color = MaterialTheme.colorScheme.tertiary,
-    @Suppress("UNUSED_PARAMETER") trackColor: Color = MaterialTheme.colorScheme.surfaceContainerHighest,
-    contained: Boolean = false,
-    containerColor: Color = MaterialTheme.colorScheme.primaryContainer,
+    strokeWidth: Dp = 2.dp,
     progress: (() -> Float)? = null
 ) {
-    val activePolygonColor = if (contained && color == MaterialTheme.colorScheme.primary) {
-        MaterialTheme.colorScheme.onPrimaryContainer
+    val indicatorModifier = modifier.size(size)
+    if (progress == null) {
+        Material3LoadingIndicator(modifier = indicatorModifier, color = color)
     } else {
-        color
-    }
-
-    val infiniteTransition = if (progress == null) {
-        rememberInfiniteTransition(label = "m3_expressive_loading")
-    } else {
-        null
-    }
-    val rawCycleState = infiniteTransition?.animateFloat(
-        initialValue = 0f,
-        targetValue = 7f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 4550, easing = LinearEasing),
-            repeatMode = RepeatMode.Restart
-        ),
-        label = "polygon_cycle"
-    )
-    val continuousSpinState = infiniteTransition?.animateFloat(
-        initialValue = 0f,
-        targetValue = 360f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 4550, easing = LinearEasing),
-            repeatMode = RepeatMode.Restart
-        ),
-        label = "continuous_spin"
-    )
-
-    val reusablePath = remember { Path() }
-
-    Box(
-        modifier = modifier
-            .size(size)
-            .then(
-                if (contained) {
-                    Modifier
-                        .clip(CircleShape)
-                        .background(containerColor)
-                } else {
-                    Modifier
-                }
-            ),
-        contentAlignment = Alignment.Center
-    ) {
-        val innerSize = if (contained) size * 0.74f else size
-        Canvas(
-            modifier = Modifier
-                .size(innerSize)
-                .padding((innerSize * 0.08f).coerceAtLeast(1.dp))
-                .graphicsLayer {
-                    val morphScale: Float
-                    val totalRotationDeg: Float
-                    if (progress != null) {
-                        val p = progress().coerceIn(0f, 1f)
-                        totalRotationDeg = p * 360f
-                        morphScale = (0.35f + 0.65f * LinearOutSlowInEasing.transform(p)).coerceIn(0.25f, 1f)
-                    } else {
-                        val rawCycle = rawCycleState?.value ?: 0f
-                        val continuousSpin = continuousSpinState?.value ?: 0f
-                        val stepIndex = rawCycle.toInt().coerceIn(0, 6)
-                        val localT = rawCycle - stepIndex
-                        val springAlpha = m3ExpressiveStepSpringProgress(localT)
-                        totalRotationDeg = (stepIndex + springAlpha.coerceIn(0f, 1.1f)) * 51.42857f + continuousSpin * 0.5f
-                        morphScale = 1f + 0.06f * kotlin.math.sin(localT.coerceIn(0f, 1f) * Math.PI.toFloat())
-                    }
-                    scaleX = morphScale
-                    scaleY = morphScale
-                    rotationZ = totalRotationDeg
-                }
-        ) {
-            val shapeStepProgress = if (progress != null) {
-                progress().coerceIn(0f, 1f) * 6f
-            } else {
-                val rawCycle = rawCycleState?.value ?: 0f
-                val stepIndex = rawCycle.toInt().coerceIn(0, 6)
-                val localT = rawCycle - stepIndex
-                stepIndex + m3ExpressiveStepSpringProgress(localT)
-            }
-
-            val fromIndex = shapeStepProgress.toInt().coerceAtLeast(0) % 7
-            val toIndex = (fromIndex + 1) % 7
-            val morphFraction = shapeStepProgress - shapeStepProgress.toInt()
-
-            val canvasW = this.size.width
-            val canvasH = this.size.height
-            val cx = canvasW / 2f
-            val cy = canvasH / 2f
-            val baseRadius = (minOf(canvasW, canvasH) / 2f) * 0.84f
-
-            reusablePath.rewind()
-            val points = 96
-            for (i in 0 until points) {
-                val theta = (i.toFloat() / points) * 2f * Math.PI.toFloat()
-                val rFrom = m3ExpressivePolygonRadius(fromIndex, theta)
-                val rTo = m3ExpressivePolygonRadius(toIndex, theta)
-                val rNorm = rFrom + (rTo - rFrom) * morphFraction
-                val r = baseRadius * rNorm
-                val x = cx + r * kotlin.math.cos(theta)
-                val y = cy + r * kotlin.math.sin(theta)
-                if (i == 0) {
-                    reusablePath.moveTo(x, y)
-                } else {
-                    reusablePath.lineTo(x, y)
-                }
-            }
-            reusablePath.close()
-
-            drawPath(
-                path = reusablePath,
-                color = activePolygonColor
-            )
-        }
+        Material3LoadingIndicator(
+            progress = progress,
+            modifier = indicatorModifier,
+            color = color
+        )
     }
 }
 
-/**
- * MD3 Expressive Contained Loading Indicator (`ContainedLoadingIndicatorSample` from `LoadingIndicatorSamples.kt`).
- *
- * Wraps the 7-polygon morphing [ExpressiveLoadingIndicator] inside a circular `primaryContainer` disc
- * with `onPrimaryContainer` polygon color for high-contrast list and screen loading states.
- */
+/** Size and palette adapter for Material 3's official contained loading indicator. */
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
-fun ContainedLoadingIndicator(
+fun AppContainedLoadingIndicator(
     modifier: Modifier = Modifier,
-    size: Dp = 48.dp,
+    size: Dp = LoadingIndicatorDefaults.ContainerWidth,
     containerColor: Color = MaterialTheme.colorScheme.primaryContainer,
     indicatorColor: Color = MaterialTheme.colorScheme.onPrimaryContainer,
     progress: (() -> Float)? = null
 ) {
-    ExpressiveLoadingIndicator(
-        modifier = modifier,
-        size = size,
-        color = indicatorColor,
-        contained = true,
-        containerColor = containerColor,
-        progress = progress
-    )
-}
-
-/**
- * MD3 Expressive Wavy Linear Progress Indicator (`LinearWavyProgressIndicatorSample` from `ProgressIndicatorSamples.kt`).
- *
- * Draws an animated sinusoidal wave along the active progress segment with rounded stroke caps,
- * a clean separation gap (`trackGap`), and a stop indicator dot at the end of the inactive track.
- */
-@Composable
-fun LinearWavyProgressIndicator(
-    progress: () -> Float,
-    modifier: Modifier = Modifier,
-    color: Color = MaterialTheme.colorScheme.primary,
-    trackColor: Color = MaterialTheme.colorScheme.surfaceContainerHighest,
-    segments: List<Pair<Float, Color>>? = null,
-    wavelength: Dp = 24.dp,
-    amplitude: Dp = 2.8.dp,
-    strokeWidth: Dp = 4.dp,
-    trackGap: Dp = 6.dp,
-    animateWave: Boolean = false
-) {
-    val phaseState = if (animateWave) {
-        val infiniteTransition = rememberInfiniteTransition(label = "wavy_progress_phase")
-        infiniteTransition.animateFloat(
-            initialValue = 0f,
-            targetValue = (2f * Math.PI).toFloat(),
-            animationSpec = infiniteRepeatable(
-                animation = tween(durationMillis = 1100, easing = LinearEasing),
-                repeatMode = RepeatMode.Restart
-            ),
-            label = "wave_phase"
+    val indicatorModifier = modifier.size(size)
+    if (progress == null) {
+        Material3ContainedLoadingIndicator(
+            modifier = indicatorModifier,
+            containerColor = containerColor,
+            indicatorColor = indicatorColor
         )
     } else {
-        null
-    }
-
-    val wavePath = remember { Path() }
-    val activeSegments = remember(segments) {
-        segments?.filter { it.first > 0f }.orEmpty()
-    }
-    val totalWeight = remember(activeSegments) {
-        activeSegments.sumOf { it.first.toDouble() }.toFloat()
-    }
-
-    Canvas(
-        modifier = modifier
-            .fillMaxWidth()
-            .height(14.dp)
-    ) {
-        val p = progress().coerceIn(0f, 1f)
-        // Smoothly ramp wave amplitude to 0 at 0% and 100% per M3 Expressive ProgressIndicatorDefaults
-        val edgeEnvelope = when {
-            p <= 0.01f || p >= 0.99f -> 0f
-            p < 0.08f -> (p - 0.01f) / 0.07f
-            p > 0.92f -> (0.99f - p) / 0.07f
-            else -> 1f
-        }
-
-        val w = size.width
-        val h = size.height
-        val cy = h / 2f
-        val strokePx = strokeWidth.toPx()
-        val halfStroke = strokePx / 2f
-        val gapPx = trackGap.toPx()
-        val waveLenPx = wavelength.toPx().coerceAtLeast(8f)
-        val ampPx = amplitude.toPx() * edgeEnvelope
-        val phase = phaseState?.value ?: 0f
-
-        val activeEndX = (w * p).coerceIn(0f, w)
-
-        // 1. Active Wavy Segment
-        if (p > 0.005f) {
-            val endX = (activeEndX - halfStroke).coerceAtLeast(halfStroke)
-            wavePath.rewind()
-            val stepPx = (waveLenPx / 16f).coerceIn(3.5f, 6f)
-            val steps = ((endX - halfStroke) / stepPx).toInt().coerceAtLeast(2)
-            for (i in 0..steps) {
-                val x = halfStroke + (endX - halfStroke) * (i.toFloat() / steps)
-                val angle = (x / waveLenPx) * (2f * Math.PI.toFloat()) + phase
-                val y = cy + ampPx * kotlin.math.sin(angle)
-                if (i == 0) {
-                    wavePath.moveTo(x, y)
-                } else {
-                    wavePath.lineTo(x, y)
-                }
-            }
-
-            val strokeStyle = Stroke(width = strokePx, cap = StrokeCap.Round)
-            if (activeSegments.isNotEmpty() && totalWeight > 0f) {
-                var cumulative = 0f
-                val span = endX - halfStroke
-                activeSegments.forEachIndexed { index, (weight, segColor) ->
-                    val segFraction = weight / totalWeight
-                    val segStartX = halfStroke + span * cumulative
-                    cumulative += segFraction
-                    val segEndX = halfStroke + span * cumulative
-
-                    val clipLeft = if (index == 0) 0f else segStartX
-                    val clipRight = if (index == activeSegments.lastIndex) w else segEndX
-
-                    clipRect(left = clipLeft, top = 0f, right = clipRight, bottom = h) {
-                        drawPath(
-                            path = wavePath,
-                            color = segColor,
-                            style = strokeStyle
-                        )
-                    }
-                }
-            } else {
-                drawPath(
-                    path = wavePath,
-                    color = color,
-                    style = strokeStyle
-                )
-            }
-        }
-
-        // 2. Inactive Track + Stop Indicator Dot
-        val trackStartX = if (p > 0.005f) {
-            (activeEndX + gapPx + halfStroke)
-        } else {
-            halfStroke
-        }
-        val trackEndX = w - halfStroke
-        if (trackStartX < trackEndX) {
-            drawLine(
-                color = trackColor,
-                start = Offset(trackStartX, cy),
-                end = Offset(trackEndX, cy),
-                strokeWidth = strokePx,
-                cap = StrokeCap.Round
-            )
-            // M3 Expressive stop indicator dot at end of track
-            drawCircle(
-                color = color,
-                radius = halfStroke,
-                center = Offset(trackEndX, cy)
-            )
-        }
+        Material3ContainedLoadingIndicator(
+            progress = progress,
+            modifier = indicatorModifier,
+            containerColor = containerColor,
+            indicatorColor = indicatorColor
+        )
     }
 }
 
@@ -1130,11 +719,10 @@ fun SegmentedLinearProgressIndicator(
 /**
  * MD3 Expressive Pull-To-Refresh Indicator (`PullToRefreshWithLoadingIndicatorSample` from `PullToRefreshSamples.kt`).
  *
- * Uses a circular container (`CircleShape`) that scales with `LinearOutSlowInEasing` during pull,
- * transitions to `primaryContainer` / `onPrimaryContainer` at threshold and during refresh, and
- * morphs determinately through the 7 M3 Expressive polygons as the user drags down.
+ * Uses Material 3's official shape-morphing pull-to-refresh indicator while keeping the app's
+ * threshold haptic and color treatment.
  */
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun ExpressivePullToRefreshIndicator(
     state: PullToRefreshState,
@@ -1148,68 +736,35 @@ fun ExpressivePullToRefreshIndicator(
     val isPastThreshold by remember(state) {
         derivedStateOf { state.distanceFraction >= 1f }
     }
-    val isDragging by remember(state) {
-        derivedStateOf { state.distanceFraction > 0.005f }
-    }
-
     LaunchedEffect(isPastThreshold) {
         if (isPastThreshold) {
             haptic.performHapticFeedback(HapticFeedbackType.LongPress)
         }
     }
 
-    val activeContainerColor by animateColorAsState(
-        targetValue = if (isRefreshing || isPastThreshold) {
+    PullToRefreshDefaults.LoadingIndicator(
+        state = state,
+        isRefreshing = isRefreshing,
+        modifier = modifier,
+        containerColor = if (isRefreshing || isPastThreshold) {
             containerColor
         } else {
             MaterialTheme.colorScheme.surfaceContainerHigh
         },
-        animationSpec = M3ExpressiveMotion.fastEffects(),
-        label = "ptr_container_color"
-    )
-
-    val activeIndicatorColor by animateColorAsState(
-        targetValue = if (isRefreshing || isPastThreshold) {
+        color = if (isRefreshing || isPastThreshold) {
             color
         } else {
             MaterialTheme.colorScheme.primary
         },
-        animationSpec = M3ExpressiveMotion.fastEffects(),
-        label = "ptr_indicator_color"
+        maxDistance = threshold
     )
-
-    Box(
-        modifier = modifier
-            .pullToRefreshIndicator(
-                state = state,
-                isRefreshing = isRefreshing,
-                containerColor = activeContainerColor,
-                threshold = threshold,
-                shape = CircleShape,
-                elevation = PullToRefreshDefaults.Elevation
-            ),
-        contentAlignment = Alignment.Center
-    ) {
-        if (isRefreshing) {
-            ExpressiveLoadingIndicator(
-                size = 28.dp,
-                color = activeIndicatorColor
-            )
-        } else if (isDragging) {
-            ExpressiveLoadingIndicator(
-                size = 28.dp,
-                color = activeIndicatorColor,
-                progress = { state.distanceFraction }
-            )
-        }
-    }
 }
 
 /**
  * MD3 Expressive PullToRefreshBox.
  *
  * Drop-in container supporting swipe-to-refresh with the Material 3 Expressive
- * 7-polygon determinate drag morph, haptic threshold pop, and ContainedLoadingIndicator refresh state.
+ * official shape-morphing loading indicator and threshold haptic.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -1420,7 +975,7 @@ private class ExpressivePressScaleNode(
         animJob = coroutineScope.launch {
             anim.animateTo(
                 targetValue = target,
-                animationSpec = M3ExpressiveMotion.fastSpatial()
+                animationSpec = spring(dampingRatio = Spring.DampingRatioNoBouncy, stiffness = Spring.StiffnessMediumLow)
             ) {
                 invalidateDraw()
             }
@@ -1506,6 +1061,7 @@ fun Modifier.expressiveShake(
  * fadeInSpec is disabled (null) on initial list entry to prevent heavy concurrent alpha animations
  * during screen navigation transitions, preserving pure 120 FPS hardware translation.
  */
+@Composable
 fun LazyItemScope.expressiveItemModifier(
     modifier: Modifier = Modifier
 ): Modifier = modifier.animateItem(
@@ -1518,6 +1074,7 @@ fun LazyItemScope.expressiveItemModifier(
  * fadeInSpec is disabled (null) on initial list entry to prevent heavy concurrent alpha animations
  * during screen navigation transitions, preserving pure 120 FPS hardware translation.
  */
+@Composable
 fun LazyGridItemScope.expressiveItemModifier(
     modifier: Modifier = Modifier
 ): Modifier = modifier.animateItem(
@@ -1968,7 +1525,7 @@ fun FoodEntryDetailContent(
             ) {
                 Surface(
                     shape = M3Shapes.CornerFull,
-                    color = domainNutritionContainer()
+                    color = recordCategoryColors(RecordCategory.Nutrition).container
                 ) {
                     Row(
                         modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
@@ -1978,13 +1535,13 @@ fun FoodEntryDetailContent(
                         Icon(
                             imageVector = mealIcon,
                             contentDescription = null,
-                            tint = domainNutritionOnContainer(),
+                            tint = recordCategoryColors(RecordCategory.Nutrition).onContainer,
                             modifier = Modifier.size(14.dp)
                         )
                         Text(
                             text = mealLabel,
                             style = MaterialTheme.typography.labelMediumEmphasized,
-                            color = domainNutritionOnContainer()
+                            color = recordCategoryColors(RecordCategory.Nutrition).onContainer
                         )
                     }
                 }
@@ -2037,12 +1594,12 @@ fun FoodEntryDetailContent(
                         Text(
                             text = "${item.calories.toInt()} kcal",
                             style = MaterialTheme.typography.headlineSmallEmphasized,
-                            color = domainNutritionColor()
+                            color = recordCategoryColors(RecordCategory.Nutrition).accent
                         )
                     }
 
-                    val carbColor = domainBooksColor()
-                    val protColor = domainNutritionColor()
+                    val carbColor = recordCategoryColors(RecordCategory.Books).accent
+                    val protColor = recordCategoryColors(RecordCategory.Nutrition).accent
                     val fatColor = domainRatingColor()
 
                     val segments = if (totalMacroKcal > 0) {
@@ -2080,13 +1637,13 @@ fun FoodEntryDetailContent(
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
                         MacroDetailStat(
-                            color = domainBooksColor(),
+                            color = recordCategoryColors(RecordCategory.Books).accent,
                             label = stringResource(R.string.nutrition_label_carb),
                             grams = item.carbohydrate,
                             pct = (carbPct * 100).toInt()
                         )
                         MacroDetailStat(
-                            color = domainNutritionColor(),
+                            color = recordCategoryColors(RecordCategory.Nutrition).accent,
                             label = stringResource(R.string.nutrition_label_protein),
                             grams = item.protein,
                             pct = (protPct * 100).toInt()
@@ -2118,10 +1675,10 @@ fun FoodEntryDetailContent(
                         }
                         copyToClipboard(context, item.displayName, copyStr)
                     },
-                    shape = M3Shapes.CornerSmall,
+                    shapes = expressiveButtonShapes(),
                     modifier = Modifier
                         .weight(1f)
-                        .height(42.dp),
+                        ,
                     contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp)
                 ) {
                     Icon(
@@ -2142,10 +1699,10 @@ fun FoodEntryDetailContent(
                 if (onClose != null) {
                     Button(
                         onClick = onClose,
-                        shape = M3Shapes.CornerSmall,
+                        shapes = expressiveButtonShapes(),
                         modifier = Modifier
                             .weight(1f)
-                            .height(42.dp),
+                            ,
                         contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp)
                     ) {
                         Text(
@@ -2169,7 +1726,10 @@ fun FoodEntryDetailBottomSheet(
     item: FoodEntryDto,
     onDismiss: () -> Unit
 ) {
-    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val sheetState = rememberBottomSheetState(
+        initialValue = SheetValue.Hidden,
+        enabledValues = setOf(SheetValue.Hidden, SheetValue.Expanded)
+    )
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
@@ -2240,6 +1800,141 @@ private fun MacroDetailStat(color: Color, label: String, grams: Double, pct: Int
 }
 
 @Composable
+fun MediaRatingBadges(
+    ratings: MdbListRatingsDto?,
+    isLoading: Boolean = false,
+    modifier: Modifier = Modifier
+) {
+    if (ratings == null && !isLoading) return
+
+    Surface(
+        shape = M3Shapes.CornerMedium,
+        color = MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.5f),
+        modifier = modifier.fillMaxWidth()
+    ) {
+        if (isLoading) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 8.dp, horizontal = 12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                ExpressiveLoadingIndicator(size = 14.dp, strokeWidth = 2.dp)
+                Text(
+                    text = "Puanlar yükleniyor...",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        } else if (ratings != null) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .horizontalScroll(rememberScrollState())
+                    .padding(horizontal = 10.dp, vertical = 7.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                // IMDb
+                ratings.score_imdb?.takeIf { it > 0 }?.let { score ->
+                    RatingPill(
+                        label = "IMDb",
+                        score = String.format(Locale.US, "%.1f", score),
+                        containerColor = Color(0xFFF5C518).copy(alpha = 0.2f),
+                        textColor = Color(0xFFD6A000)
+                    )
+                }
+
+                // Rotten Tomatoes
+                ratings.score_tomatoes?.takeIf { it > 0 }?.let { score ->
+                    RatingPill(
+                        label = "🍅",
+                        score = "$score%",
+                        containerColor = Color(0xFFFA320A).copy(alpha = 0.15f),
+                        textColor = Color(0xFFFA320A)
+                    )
+                }
+
+                // RT Audience
+                ratings.score_audience?.takeIf { it > 0 }?.let { score ->
+                    RatingPill(
+                        label = "🍿",
+                        score = "$score%",
+                        containerColor = Color(0xFFFF9800).copy(alpha = 0.15f),
+                        textColor = Color(0xFFFF9800)
+                    )
+                }
+
+                // Metacritic
+                ratings.score_metacritic?.takeIf { it > 0 }?.let { score ->
+                    RatingPill(
+                        label = "Metascore",
+                        score = "$score",
+                        containerColor = Color(0xFF00CE7A).copy(alpha = 0.15f),
+                        textColor = Color(0xFF00CE7A)
+                    )
+                }
+
+                // Trakt
+                ratings.score_trakt?.takeIf { it > 0 }?.let { score ->
+                    RatingPill(
+                        label = "Trakt",
+                        score = "$score%",
+                        containerColor = Color(0xFFED1C24).copy(alpha = 0.15f),
+                        textColor = Color(0xFFED1C24)
+                    )
+                }
+
+                // Letterboxd
+                ratings.score_letterboxd?.takeIf { it > 0 }?.let { score ->
+                    RatingPill(
+                        label = "Letterboxd",
+                        score = String.format(Locale.US, "%.1f", score),
+                        containerColor = Color(0xFF00E054).copy(alpha = 0.15f),
+                        textColor = Color(0xFF00E054)
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun RatingPill(
+    label: String,
+    score: String,
+    containerColor: Color,
+    textColor: Color,
+    modifier: Modifier = Modifier
+) {
+    Surface(
+        shape = M3Shapes.CornerFull,
+        color = containerColor,
+        modifier = modifier
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 7.dp, vertical = 2.5.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            Text(
+                text = label,
+                style = MaterialTheme.typography.labelSmallEmphasized,
+                color = textColor,
+                maxLines = 1
+            )
+            Text(
+                text = score,
+                style = MaterialTheme.typography.labelSmallEmphasized,
+                color = MaterialTheme.colorScheme.onSurface,
+                maxLines = 1
+            )
+        }
+    }
+}
+
+@Composable
 fun FilmDetailContent(
     film: FilmDto,
     onClose: (() -> Unit)? = null,
@@ -2276,16 +1971,32 @@ fun FilmDetailContent(
                     horizontalArrangement = Arrangement.spacedBy(6.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
+                    val isMdbList = film.source.equals("mdblist", ignoreCase = true)
+                    val sourceLabel = if (isMdbList) "MDBList" else stringResource(R.string.movies_badge_letterboxd)
+                    val sourceColor = if (isMdbList) MaterialTheme.colorScheme.tertiary else recordCategoryColors(RecordCategory.Movies).accent
                     Surface(
                         shape = M3Shapes.CornerFull,
-                        color = domainCinemaContainer()
+                        color = sourceColor.copy(alpha = 0.14f)
                     ) {
                         Text(
-                            text = stringResource(R.string.movies_badge_letterboxd),
+                            text = sourceLabel,
                             style = MaterialTheme.typography.labelSmallEmphasized,
-                            color = domainCinemaOnContainer(),
+                            color = sourceColor,
                             modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.5.dp)
                         )
+                    }
+                    if (film.isShow) {
+                        Surface(
+                            shape = M3Shapes.CornerFull,
+                            color = MaterialTheme.colorScheme.surfaceContainerHighest
+                        ) {
+                            Text(
+                                text = stringResource(R.string.movies_type_show),
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.padding(horizontal = 7.dp, vertical = 2.5.dp)
+                            )
+                        }
                     }
                     if (film.safeYear > 0) {
                         Surface(
@@ -2303,7 +2014,7 @@ fun FilmDetailContent(
                     if (film.rewatch) {
                         Surface(
                             shape = M3Shapes.CornerFull,
-                            color = domainCinemaContainer()
+                            color = recordCategoryColors(RecordCategory.Movies).container
                         ) {
                             Row(
                                 modifier = Modifier.padding(horizontal = 7.dp, vertical = 2.5.dp),
@@ -2313,13 +2024,13 @@ fun FilmDetailContent(
                                 Icon(
                                     imageVector = Icons.Default.Repeat,
                                     contentDescription = null,
-                                    tint = domainCinemaOnContainer(),
+                                    tint = recordCategoryColors(RecordCategory.Movies).onContainer,
                                     modifier = Modifier.size(11.dp)
                                 )
                                 Text(
                                     text = stringResource(R.string.movies_rewatch_badge),
                                     style = MaterialTheme.typography.labelSmallEmphasized,
-                                    color = domainCinemaOnContainer()
+                                    color = recordCategoryColors(RecordCategory.Movies).onContainer
                                 )
                             }
                         }
@@ -2391,10 +2102,10 @@ fun FilmDetailContent(
                     }
                     copyToClipboard(context, film.displayTitle, copyStr)
                 },
-                shape = M3Shapes.CornerSmall,
+                shapes = expressiveButtonShapes(),
                 modifier = Modifier
                     .weight(1f)
-                    .height(42.dp),
+                    ,
                 contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp)
             ) {
                 Icon(
@@ -2415,10 +2126,10 @@ fun FilmDetailContent(
             if (onClose != null) {
                 Button(
                     onClick = onClose,
-                    shape = M3Shapes.CornerSmall,
+                    shapes = expressiveButtonShapes(),
                     modifier = Modifier
                         .weight(1f)
-                        .height(42.dp),
+                        ,
                     contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp)
                 ) {
                     Text(
@@ -2442,7 +2153,10 @@ fun FilmDetailBottomSheet(
     film: FilmDto,
     onDismiss: () -> Unit
 ) {
-    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val sheetState = rememberBottomSheetState(
+        initialValue = SheetValue.Hidden,
+        enabledValues = setOf(SheetValue.Hidden, SheetValue.Expanded)
+    )
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
@@ -2524,12 +2238,12 @@ fun BookDetailContent(
                 ) {
                     Surface(
                         shape = M3Shapes.CornerFull,
-                        color = domainBooksContainer()
+                        color = recordCategoryColors(RecordCategory.Books).container
                     ) {
                         Text(
                             text = shelfLabel,
                             style = MaterialTheme.typography.labelSmallEmphasized,
-                            color = domainBooksOnContainer(),
+                            color = recordCategoryColors(RecordCategory.Books).onContainer,
                             modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.5.dp)
                         )
                     }
@@ -2602,7 +2316,7 @@ fun BookDetailContent(
                             Icon(
                                 imageVector = Icons.AutoMirrored.Filled.MenuBook,
                                 contentDescription = null,
-                                tint = domainBooksColor(),
+                                tint = recordCategoryColors(RecordCategory.Books).accent,
                                 modifier = Modifier.size(16.dp)
                             )
                             Text(
@@ -2650,10 +2364,10 @@ fun BookDetailContent(
                     }
                     copyToClipboard(context, book.title, copyStr)
                 },
-                shape = M3Shapes.CornerSmall,
+                shapes = expressiveButtonShapes(),
                 modifier = Modifier
                     .weight(1f)
-                    .height(42.dp),
+                    ,
                 contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp)
             ) {
                 Icon(
@@ -2674,10 +2388,10 @@ fun BookDetailContent(
             if (onClose != null) {
                 Button(
                     onClick = onClose,
-                    shape = M3Shapes.CornerSmall,
+                    shapes = expressiveButtonShapes(),
                     modifier = Modifier
                         .weight(1f)
-                        .height(42.dp),
+                        ,
                     contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp)
                 ) {
                     Text(
@@ -2701,7 +2415,10 @@ fun BookDetailBottomSheet(
     book: BookDto,
     onDismiss: () -> Unit
 ) {
-    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val sheetState = rememberBottomSheetState(
+        initialValue = SheetValue.Hidden,
+        enabledValues = setOf(SheetValue.Hidden, SheetValue.Expanded)
+    )
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
@@ -2842,10 +2559,10 @@ fun NotificationDetailContent(
                     val textToCopy = "${notif.displayTitle}\n${notif.displayBody}".trim()
                     copyToClipboard(context, "Bildirim", textToCopy)
                 },
-                shape = M3Shapes.CornerSmall,
+                shapes = expressiveButtonShapes(),
                 modifier = Modifier
                     .weight(1f)
-                    .height(42.dp),
+                    ,
                 contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp)
             ) {
                 Icon(
@@ -2866,10 +2583,10 @@ fun NotificationDetailContent(
             if (onClose != null) {
                 Button(
                     onClick = onClose,
-                    shape = M3Shapes.CornerSmall,
+                    shapes = expressiveButtonShapes(),
                     modifier = Modifier
                         .weight(1f)
-                        .height(42.dp),
+                        ,
                     contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp)
                 ) {
                     Text(
@@ -2893,7 +2610,10 @@ fun NotificationDetailBottomSheet(
     notif: NotificationDto,
     onDismiss: () -> Unit
 ) {
-    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val sheetState = rememberBottomSheetState(
+        initialValue = SheetValue.Hidden,
+        enabledValues = setOf(SheetValue.Hidden, SheetValue.Expanded)
+    )
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
@@ -2944,57 +2664,19 @@ fun DetailPlaceholderPane(
         shape = M3Shapes.CornerLarge,
         color = MaterialTheme.colorScheme.surfaceContainerLow
     ) {
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(32.dp),
-            contentAlignment = Alignment.Center
-        ) {
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.Center
-            ) {
-                Surface(
-                    shape = M3Shapes.CornerFull,
-                    color = MaterialTheme.colorScheme.surfaceContainerHighest,
-                    modifier = Modifier.size(72.dp)
-                ) {
-                    Box(contentAlignment = Alignment.Center) {
-                        Icon(
-                            imageVector = icon,
-                            contentDescription = null,
-                            modifier = Modifier.size(36.dp),
-                            tint = MaterialTheme.colorScheme.primary
-                        )
-                    }
-                }
-                Spacer(modifier = Modifier.height(16.dp))
-                Text(
-                    text = title,
-                    style = MaterialTheme.typography.titleMediumEmphasized,
-                    color = MaterialTheme.colorScheme.onSurface,
-                    textAlign = TextAlign.Center
-                )
-                Spacer(modifier = Modifier.height(6.dp))
-                Text(
-                    text = subtitle,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    textAlign = TextAlign.Center
-                )
-            }
+        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            ExpressiveEmptyState(title = title, message = subtitle, icon = icon)
         }
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun HealthRecordDetailBottomSheet(
+fun HealthRecordDetailContent(
     record: HealthRecordDto,
-    onDismiss: () -> Unit
+    onClose: () -> Unit,
+    modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
-    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val categoryLabel = when (record.category) {
         "activity" -> stringResource(R.string.health_cat_activity)
         "sleep" -> stringResource(R.string.health_cat_sleep)
@@ -3004,218 +2686,256 @@ fun HealthRecordDetailBottomSheet(
         else -> stringResource(R.string.title_health_connect)
     }
 
+    Column(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(horizontal = 20.dp, vertical = 8.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Surface(
+                shape = M3Shapes.CornerFull,
+                color = recordCategoryColors(RecordCategory.Health).container
+            ) {
+                Text(
+                    text = categoryLabel,
+                    style = MaterialTheme.typography.labelMediumEmphasized,
+                    color = recordCategoryColors(RecordCategory.Health).onContainer,
+                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
+                )
+            }
+            if (record.record_type.isNotBlank()) {
+                Surface(
+                    shape = M3Shapes.CornerFull,
+                    color = MaterialTheme.colorScheme.surfaceContainerHighest
+                ) {
+                    Text(
+                        text = record.record_type.replace('_', ' '),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(horizontal = 7.dp, vertical = 2.5.dp)
+                    )
+                }
+            }
+            Spacer(modifier = Modifier.weight(1f))
+            val dateTimeText = listOf(record.formattedDate, record.formattedTime)
+                .filter { it.isNotBlank() }
+                .joinToString(" · ")
+            if (dateTimeText.isNotBlank()) {
+                Text(
+                    text = dateTimeText,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
+
+        Text(
+            text = record.title,
+            style = MaterialTheme.typography.titleLargeEmphasized,
+            color = MaterialTheme.colorScheme.onSurface
+        )
+
+        if (record.subtitle.isNotBlank()) {
+            Text(
+                text = record.subtitle,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+
+        if (record.start_time.isNotBlank() || record.data_origin.isNotBlank()) {
+            Surface(
+                shape = M3Shapes.CornerMedium,
+                color = MaterialTheme.colorScheme.surfaceContainer,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(
+                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    if (record.start_time.isNotBlank()) {
+                        val startFormatted = record.start_time.replace('T', ' ').take(19)
+                        val endFormatted = record.end_time.replace('T', ' ').take(19)
+                        val windowStr = when {
+                            startFormatted.isBlank() -> endFormatted
+                            endFormatted.isBlank() || endFormatted == startFormatted -> startFormatted
+                            startFormatted.take(10) == endFormatted.take(10) -> {
+                                val date = startFormatted.take(10)
+                                val startTime = startFormatted.drop(11)
+                                val endTime = endFormatted.drop(11)
+                                "$date · $startTime → $endTime"
+                            }
+                            else -> "$startFormatted → $endFormatted"
+                        }
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(10.dp),
+                            verticalAlignment = Alignment.Top
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Schedule,
+                                contentDescription = null,
+                                modifier = Modifier
+                                    .size(16.dp)
+                                    .padding(top = 2.dp),
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = stringResource(R.string.health_detail_time_range),
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                                Spacer(modifier = Modifier.height(2.dp))
+                                Text(
+                                    text = windowStr,
+                                    style = MaterialTheme.typography.bodySmallEmphasized,
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                            }
+                        }
+                    }
+
+                    if (record.start_time.isNotBlank() && record.data_origin.isNotBlank()) {
+                        HorizontalDivider(
+                            color = MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.6f)
+                        )
+                    }
+
+                    if (record.data_origin.isNotBlank()) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(10.dp),
+                            verticalAlignment = Alignment.Top
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Apps,
+                                contentDescription = null,
+                                modifier = Modifier
+                                    .size(16.dp)
+                                    .padding(top = 2.dp),
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = stringResource(R.string.health_detail_source),
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                                Spacer(modifier = Modifier.height(2.dp))
+                                Text(
+                                    text = record.data_origin,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(4.dp))
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            OutlinedButton(
+                onClick = {
+                    val textToCopy = "${record.title}\n${record.subtitle}\n${record.formattedDate} ${record.formattedTime}".trim()
+                    copyToClipboard(context, "Health Connect", textToCopy)
+                },
+                shapes = expressiveButtonShapes(),
+                modifier = Modifier
+                    .weight(1f)
+                    ,
+                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.ContentCopy,
+                    contentDescription = null,
+                    modifier = Modifier.size(16.dp)
+                )
+                Spacer(modifier = Modifier.width(6.dp))
+                Text(
+                    text = stringResource(R.string.notifications_copy_text),
+                    style = MaterialTheme.typography.labelLargeEmphasized,
+                    maxLines = 1,
+                    softWrap = false,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+
+            Button(
+                onClick = onClose,
+                shapes = expressiveButtonShapes(),
+                modifier = Modifier
+                    .weight(1f)
+                    ,
+                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp)
+            ) {
+                Text(
+                    text = stringResource(R.string.action_close),
+                    style = MaterialTheme.typography.labelLargeEmphasized,
+                    maxLines = 1,
+                    softWrap = false,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(12.dp))
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun HealthRecordDetailBottomSheet(
+    record: HealthRecordDto,
+    onDismiss: () -> Unit
+) {
+    val sheetState = rememberBottomSheetState(
+        initialValue = SheetValue.Hidden,
+        enabledValues = setOf(SheetValue.Hidden, SheetValue.Expanded)
+    )
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
         shape = M3Shapes.CornerExtraLarge,
         containerColor = MaterialTheme.colorScheme.surfaceContainerLow
     ) {
+        HealthRecordDetailContent(
+            record = record,
+            onClose = onDismiss,
+            modifier = Modifier.navigationBarsPadding()
+        )
+    }
+}
+
+@Composable
+fun HealthRecordDetailPaneCard(
+    record: HealthRecordDto,
+    onClose: () -> Unit,
+    @SuppressLint("ModifierParameter") modifier: Modifier = Modifier
+) {
+    Surface(
+        modifier = modifier.fillMaxSize(),
+        shape = M3Shapes.CornerLarge,
+        color = MaterialTheme.colorScheme.surfaceContainerLow
+    ) {
         Column(
             modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 20.dp, vertical = 8.dp)
-                .navigationBarsPadding(),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+                .fillMaxSize()
+                .verticalScroll(rememberScrollState())
+                .padding(top = 12.dp)
         ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                Surface(
-                    shape = M3Shapes.CornerFull,
-                    color = domainHealthContainer()
-                ) {
-                    Text(
-                        text = categoryLabel,
-                        style = MaterialTheme.typography.labelMediumEmphasized,
-                        color = domainHealthOnContainer(),
-                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
-                    )
-                }
-                if (record.record_type.isNotBlank()) {
-                    Surface(
-                        shape = M3Shapes.CornerFull,
-                        color = MaterialTheme.colorScheme.surfaceContainerHighest
-                    ) {
-                        Text(
-                            text = record.record_type.replace('_', ' '),
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.padding(horizontal = 7.dp, vertical = 2.5.dp)
-                        )
-                    }
-                }
-                Spacer(modifier = Modifier.weight(1f))
-                val dateTimeText = listOf(record.formattedDate, record.formattedTime)
-                    .filter { it.isNotBlank() }
-                    .joinToString(" · ")
-                if (dateTimeText.isNotBlank()) {
-                    Text(
-                        text = dateTimeText,
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-            }
-
-            Text(
-                text = record.title,
-                style = MaterialTheme.typography.titleLargeEmphasized,
-                color = MaterialTheme.colorScheme.onSurface
-            )
-
-            if (record.subtitle.isNotBlank()) {
-                Text(
-                    text = record.subtitle,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-
-            if (record.start_time.isNotBlank() || record.data_origin.isNotBlank()) {
-                Surface(
-                    shape = M3Shapes.CornerMedium,
-                    color = MaterialTheme.colorScheme.surfaceContainer,
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Column(
-                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
-                        verticalArrangement = Arrangement.spacedBy(10.dp)
-                    ) {
-                        if (record.start_time.isNotBlank()) {
-                            val startFormatted = record.start_time.replace('T', ' ').take(19)
-                            val endFormatted = record.end_time.replace('T', ' ').take(19)
-                            val windowStr = when {
-                                startFormatted.isBlank() -> endFormatted
-                                endFormatted.isBlank() || endFormatted == startFormatted -> startFormatted
-                                startFormatted.take(10) == endFormatted.take(10) -> {
-                                    val date = startFormatted.take(10)
-                                    val startTime = startFormatted.drop(11)
-                                    val endTime = endFormatted.drop(11)
-                                    "$date · $startTime → $endTime"
-                                }
-                                else -> "$startFormatted → $endFormatted"
-                            }
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.spacedBy(10.dp),
-                                verticalAlignment = Alignment.Top
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.Schedule,
-                                    contentDescription = null,
-                                    modifier = Modifier
-                                        .size(16.dp)
-                                        .padding(top = 2.dp),
-                                    tint = MaterialTheme.colorScheme.primary
-                                )
-                                Column(modifier = Modifier.weight(1f)) {
-                                    Text(
-                                        text = stringResource(R.string.health_detail_time_range),
-                                        style = MaterialTheme.typography.labelSmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                    Spacer(modifier = Modifier.height(2.dp))
-                                    Text(
-                                        text = windowStr,
-                                        style = MaterialTheme.typography.bodySmallEmphasized,
-                                        color = MaterialTheme.colorScheme.onSurface
-                                    )
-                                }
-                            }
-                        }
-
-                        if (record.start_time.isNotBlank() && record.data_origin.isNotBlank()) {
-                            HorizontalDivider(
-                                color = MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.6f)
-                            )
-                        }
-
-                        if (record.data_origin.isNotBlank()) {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.spacedBy(10.dp),
-                                verticalAlignment = Alignment.Top
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.Apps,
-                                    contentDescription = null,
-                                    modifier = Modifier
-                                        .size(16.dp)
-                                        .padding(top = 2.dp),
-                                    tint = MaterialTheme.colorScheme.primary
-                                )
-                                Column(modifier = Modifier.weight(1f)) {
-                                    Text(
-                                        text = stringResource(R.string.health_detail_source),
-                                        style = MaterialTheme.typography.labelSmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                    Spacer(modifier = Modifier.height(2.dp))
-                                    Text(
-                                        text = record.data_origin,
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.onSurface
-                                    )
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-
-            Spacer(modifier = Modifier.height(4.dp))
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                OutlinedButton(
-                    onClick = {
-                        val textToCopy = "${record.title}\n${record.subtitle}\n${record.formattedDate} ${record.formattedTime}".trim()
-                        copyToClipboard(context, "Health Connect", textToCopy)
-                    },
-                    shape = M3Shapes.CornerSmall,
-                    modifier = Modifier
-                        .weight(1f)
-                        .height(42.dp),
-                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.ContentCopy,
-                        contentDescription = null,
-                        modifier = Modifier.size(16.dp)
-                    )
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text(
-                        text = stringResource(R.string.notifications_copy_text),
-                        style = MaterialTheme.typography.labelLargeEmphasized,
-                        maxLines = 1,
-                        softWrap = false,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                }
-
-                Button(
-                    onClick = onDismiss,
-                    shape = M3Shapes.CornerSmall,
-                    modifier = Modifier
-                        .weight(1f)
-                        .height(42.dp),
-                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp)
-                ) {
-                    Text(
-                        text = stringResource(R.string.action_close),
-                        style = MaterialTheme.typography.labelLargeEmphasized,
-                        maxLines = 1,
-                        softWrap = false,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.height(12.dp))
+            HealthRecordDetailContent(record = record, onClose = onClose)
         }
     }
 }
@@ -3333,40 +3053,24 @@ fun ActivityItemDetailBottomSheet(
 }
 
 
-private val LazyCardTopShape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp)
-private val LazyCardBottomShape = RoundedCornerShape(bottomStart = 16.dp, bottomEnd = 16.dp)
-
+/**
+ * Lazy-list row inside a segmented group. Thin wrapper over [GroupedListItemSurface]
+ * so every list screen shares the same corners and gap.
+ */
 @Composable
 fun LazyCardRowContainer(
     index: Int,
     totalCount: Int,
     modifier: Modifier = Modifier,
-    showDivider: Boolean = index > 0,
     content: @Composable () -> Unit
 ) {
-    val shape = when {
-        totalCount <= 1 -> M3Shapes.CornerLarge
-        index == 0 -> LazyCardTopShape
-        index == totalCount - 1 -> LazyCardBottomShape
-        else -> RectangleShape
-    }
-    Surface(
-        modifier = modifier.fillMaxWidth(),
-        shape = shape,
-        color = MaterialTheme.colorScheme.surfaceContainerLow
-    ) {
-        if (showDivider) {
-            Column {
-                HorizontalDivider(
-                    color = MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.5f),
-                    modifier = Modifier.padding(horizontal = 12.dp)
-                )
-                content()
-            }
-        } else {
-            content()
-        }
-    }
+    GroupedListItemSurface(
+        index = index,
+        itemCount = totalCount,
+        modifier = modifier,
+        addLeadingGap = true,
+        content = content
+    )
 }
 
 

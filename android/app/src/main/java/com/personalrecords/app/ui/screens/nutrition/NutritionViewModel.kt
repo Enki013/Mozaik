@@ -43,6 +43,7 @@ data class NutritionUiState(
     val toDateFilter: String? = null,
     val selectedMeal: String = "all", // "all", "Breakfast", "Lunch", "Dinner", "Other"
     val onlyHighProtein: Boolean = false,
+    val sortBy: String = "date_desc",
     val error: String? = null
 )
 
@@ -53,10 +54,11 @@ private fun filterFoodEntries(
     fromDate: String?,
     toDate: String?,
     meal: String,
-    highProt: Boolean
+    highProt: Boolean,
+    sortBy: String = "date_desc"
 ): List<FoodEntryDto> {
     if (entries.isEmpty()) return emptyList()
-    return entries.filter { item ->
+    val filtered = entries.filter { item ->
         val matchesSearch = query.isBlank() ||
             item.displayName.contains(query, ignoreCase = true) ||
             item.displayAmount.contains(query, ignoreCase = true)
@@ -70,6 +72,13 @@ private fun filterFoodEntries(
         val matchesMeal = meal == "all" || item.meal.equals(meal, ignoreCase = true)
         val matchesProtein = !highProt || item.protein >= 20.0
         matchesSearch && matchesDate && matchesMeal && matchesProtein
+    }
+
+    return when (sortBy) {
+        "date_asc" -> filtered.sortedBy { it.displayDate }
+        "calories_desc" -> filtered.sortedByDescending { it.calories }
+        "protein_desc" -> filtered.sortedByDescending { it.protein }
+        else -> filtered.sortedByDescending { it.displayDate }
     }
 }
 
@@ -118,7 +127,8 @@ class NutritionViewModel(
                 fromDate = snap.fromDateFilter,
                 toDate = snap.toDateFilter,
                 meal = snap.selectedMeal,
-                highProt = snap.onlyHighProtein
+                highProt = snap.onlyHighProtein,
+                sortBy = snap.sortBy
             )
 
             NutritionComputedResult(
@@ -274,6 +284,12 @@ class NutritionViewModel(
         recomputeFilter(debounceMs = 0L)
     }
 
+    fun setSortBy(sort: String) {
+        if (_uiState.value.sortBy == sort) return
+        _uiState.update { it.copy(sortBy = sort, isFiltering = true) }
+        recomputeFilter(debounceMs = 0L)
+    }
+
     fun resetFilters() {
         _uiState.update {
             it.copy(
@@ -302,7 +318,8 @@ class NutritionViewModel(
                     fromDate = snap.fromDateFilter,
                     toDate = snap.toDateFilter,
                     meal = snap.selectedMeal,
-                    highProt = snap.onlyHighProtein
+                    highProt = snap.onlyHighProtein,
+                    sortBy = snap.sortBy
                 )
             }
             _uiState.update {

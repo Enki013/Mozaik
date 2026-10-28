@@ -138,6 +138,14 @@ val MusicAccentDark = Color(0xFFEF9A9A)
 val MusicAccentDarkContainer = Color(0xFFB71C1C)
 val MusicAccentDarkOnContainer = Color(0xFFFFCDD2)
 
+// Semantic success tone, kept separate from category accents.
+val StatusSuccess = Color(0xFF2E7D32)
+val StatusSuccessContainer = Color(0xFFE4F3E7)
+val StatusSuccessOnContainer = Color(0xFF1B5E20)
+val StatusSuccessDark = Color(0xFF8FD49A)
+val StatusSuccessDarkContainer = Color(0xFF1B3B23)
+val StatusSuccessDarkOnContainer = Color(0xFFC5EACB)
+
 // Backward compatibility references for existing code
 val PrimaryViolet = md_theme_light_primary
 val PrimaryVioletDark = md_theme_light_primaryContainer

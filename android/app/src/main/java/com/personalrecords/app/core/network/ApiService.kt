@@ -7,6 +7,9 @@ interface ApiService {
     @GET("api/health")
     suspend fun checkHealth(): HealthResponse
 
+    @GET("api/auth/verify")
+    suspend fun verifyAuth(): AuthVerifyDto
+
     @GET("api/dashboard")
     suspend fun getDashboard(): DashboardDto
 
@@ -153,5 +156,71 @@ interface ApiService {
     suspend fun syncEnabledPlugins(
         @Body request: PluginsSyncRequest
     ): PluginSettingsResponse
+
+    // Trakt.tv Integration
+    @GET("api/settings/trakt")
+    suspend fun getTraktSettings(): TraktSettingsDto
+
+    @POST("api/settings/trakt")
+    suspend fun saveTraktSettings(
+        @Body request: SaveTraktSettingsRequest
+    ): SyncResultDto
+
+    @POST("api/sync/trakt")
+    suspend fun syncTrakt(
+        @Query("force") force: Boolean = false
+    ): SyncResultDto
+
+    @GET("api/trakt/history")
+    suspend fun getTraktHistory(
+        @Query("type") type: String? = null,
+        @Query("limit") limit: Int = 50,
+        @Query("page") page: Int = 1
+    ): TraktHistoryResponseDto
+
+    // MDBList Integration
+    @GET("api/settings/mdblist")
+    suspend fun getMdbListSettings(): MdbListSettingsDto
+
+    @POST("api/settings/mdblist")
+    suspend fun saveMdbListSettings(
+        @Body request: SaveMdbListSettingsRequest
+    ): SyncResultDto
+
+    @GET("api/media/ratings")
+    suspend fun getMediaRatings(
+        @Query("imdb_id") imdbId: String? = null,
+        @Query("tmdb_id") tmdbId: Long? = null,
+        @Query("title") title: String? = null,
+        @Query("year") year: Int? = null,
+        @Query("type") type: String? = null
+    ): MediaRatingsResponseDto
+
+    @POST("api/sync/mdblist")
+    suspend fun syncMdbList(
+        @Query("force") force: Boolean = false
+    ): SyncResultDto
+
+    // Simkl Integration
+    @GET("api/settings/simkl")
+    suspend fun getSimklSettings(): SimklSettingsDto
+
+    @POST("api/settings/simkl")
+    suspend fun saveSimklSettings(
+        @Body request: SaveSimklSettingsRequest
+    ): SyncResultDto
+
+    @POST("api/sync/simkl")
+    suspend fun syncSimkl(
+        @Query("force") force: Boolean = false
+    ): SyncResultDto
+
+    @GET("api/simkl/history")
+    suspend fun getSimklHistory(
+        @Query("type") type: String? = null,
+        @Query("status") status: String? = null,
+        @Query("limit") limit: Int = 50,
+        @Query("page") page: Int = 1
+    ): SimklHistoryResponseDto
 }
 

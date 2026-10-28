@@ -27,8 +27,6 @@ object M3CornerRadius {
     val ExtraLargeIncreased: Dp = 32.dp
     /** Added in M3 Expressive (May 2025) */
     val ExtraExtraLarge: Dp = 48.dp
-    /** Full pill corner radius for 32dp–48dp height chips and buttons */
-    val Full: Dp = 24.dp
 }
 
 object M3Shapes {
@@ -56,6 +54,27 @@ object M3Shapes {
 
     fun nestedShape(outerRadius: Dp, padding: Dp, minRadius: Dp = M3CornerRadius.ExtraSmall): RoundedCornerShape =
         RoundedCornerShape(nestedRadius(outerRadius, padding, minRadius))
+
+    fun groupedListItem(index: Int, count: Int): RoundedCornerShape {
+        val outer = M3CornerRadius.Large
+        val inner = M3CornerRadius.ExtraSmall
+        return when {
+            count <= 1 -> RoundedCornerShape(outer)
+            index == 0 -> RoundedCornerShape(
+                topStart = outer,
+                topEnd = outer,
+                bottomEnd = inner,
+                bottomStart = inner
+            )
+            index == count - 1 -> RoundedCornerShape(
+                topStart = inner,
+                topEnd = inner,
+                bottomEnd = outer,
+                bottomStart = outer
+            )
+            else -> RoundedCornerShape(inner)
+        }
+    }
 }
 
 val Shapes = Shapes(

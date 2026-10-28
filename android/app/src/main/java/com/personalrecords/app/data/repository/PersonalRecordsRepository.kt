@@ -1,6 +1,7 @@
 package com.personalrecords.app.data.repository
 
 import com.personalrecords.app.core.common.Resource
+import com.personalrecords.app.core.common.decodeHtmlEntities
 import com.personalrecords.app.core.database.PersonalRecordsDatabase
 import com.personalrecords.app.core.database.entity.*
 import com.personalrecords.app.core.network.ApiService
@@ -68,8 +69,8 @@ class PersonalRecordsRepository(
                 val dtos = cached.map {
                     BookDto(
                         book_id = it.bookId,
-                        title = it.title,
-                        author = it.author,
+                        title = it.title.decodeHtmlEntities(),
+                        author = it.author.decodeHtmlEntities(),
                         my_rating = it.myRating,
                         average_rating = it.averageRating,
                         number_of_pages = it.numberOfPages,
@@ -146,6 +147,15 @@ class PersonalRecordsRepository(
         }
     }
 
+    suspend fun verifyAuth(): Resource<AuthVerifyDto> = withContext(Dispatchers.IO) {
+        try {
+            val res = api.verifyAuth()
+            Resource.Success(res)
+        } catch (e: Exception) {
+            Resource.Error(e.localizedMessage ?: "Yetkilendirme doğrulanamadı", e)
+        }
+    }
+
     suspend fun getDashboard(): Resource<DashboardDto> = withContext(Dispatchers.IO) {
         try {
             val response = api.getDashboard()
@@ -165,7 +175,12 @@ class PersonalRecordsRepository(
         limit: Int? = 100
     ): Resource<ActivityResponseDto> = withContext(Dispatchers.IO) {
         try {
-            val response = api.getActivity(days, from, to, date, limit)
+            val response = api.getActivity(days, from, to, date, limit).let { r ->
+                r.copy(
+                    items = r.items.map { it.withDecodedText() },
+                    groups = r.groups.map { g -> g.copy(items = g.items.map { it.withDecodedText() }) }
+                )
+            }
             if (days == 14 && from == null && to == null && date == null && (limit ?: 0) >= 100) {
                 cachedDefaultActivity = response
             }
@@ -247,7 +262,10 @@ class PersonalRecordsRepository(
 
     suspend fun getBooks(query: String? = null, shelf: String? = null, limit: Int = 500): Resource<List<BookDto>> = withContext(Dispatchers.IO) {
         try {
-            val response = api.getBooks(query, shelf, limit)
+            // Older Goodreads syncs stored titles with raw XML entities (&apos;); clean them once here.
+            val response = api.getBooks(query, shelf, limit).let { r ->
+                r.copy(items = r.items.map { it.withDecodedText() })
+            }
             if (query == null && shelf == null) {
                 cachedBooks = response.items
             }
@@ -681,6 +699,123 @@ class PersonalRecordsRepository(
         }
     }
 
+    // Trakt.tv Integration
+    suspend fun getTraktSettings(): Resource<TraktSettingsDto> = withContext(Dispatchers.IO) {
+        try {
+            val response = api.getTraktSettings()
+            Resource.Success(response)
+        } catch (e: Exception) {
+            Resource.Error(extractErrorMessage(e, "Trakt ayarları alınamadı"), e)
+        }
+    }
+
+    suspend fun saveTraktSettings(request: SaveTraktSettingsRequest): Resource<SyncResultDto> = withContext(Dispatchers.IO) {
+        try {
+            val response = api.saveTraktSettings(request)
+            Resource.Success(response)
+        } catch (e: Exception) {
+            Resource.Error(extractErrorMessage(e, "Trakt ayarları kaydedilemedi"), e)
+        }
+    }
+
+    suspend fun syncTrakt(force: Boolean = false): Resource<SyncResultDto> = withContext(Dispatchers.IO) {
+        try {
+            val response = api.syncTrakt(force)
+            Resource.Success(response)
+        } catch (e: Exception) {
+            Resource.Error(extractErrorMessage(e, "Trakt senkronizasyonu başarısız"), e)
+        }
+    }
+
+    suspend fun getTraktHistory(type: String? = null, limit: Int = 50, page: Int = 1): Resource<TraktHistoryResponseDto> = withContext(Dispatchers.IO) {
+        try {
+            val response = api.getTraktHistory(type, limit, page)
+            Resource.Success(response)
+        } catch (e: Exception) {
+            Resource.Error(extractErrorMessage(e, "Trakt geçmişi alınamadı"), e)
+        }
+    }
+
+    // MDBList Integration
+    suspend fun getMdbListSettings(): Resource<MdbListSettingsDto> = withContext(Dispatchers.IO) {
+        try {
+            val response = api.getMdbListSettings()
+            Resource.Success(response)
+        } catch (e: Exception) {
+            Resource.Error(extractErrorMessage(e, "MDBList ayarları alınamadı"), e)
+        }
+    }
+
+    suspend fun saveMdbListSettings(request: SaveMdbListSettingsRequest): Resource<SyncResultDto> = withContext(Dispatchers.IO) {
+        try {
+            val response = api.saveMdbListSettings(request)
+            Resource.Success(response)
+        } catch (e: Exception) {
+            Resource.Error(extractErrorMessage(e, "MDBList ayarları kaydedilemedi"), e)
+        }
+    }
+
+    suspend fun getMediaRatings(
+        imdbId: String? = null,
+        tmdbId: Long? = null,
+        title: String? = null,
+        year: Int? = null,
+        type: String? = null
+    ): Resource<MediaRatingsResponseDto> = withContext(Dispatchers.IO) {
+        try {
+            val response = api.getMediaRatings(imdbId = imdbId, tmdbId = tmdbId, title = title, year = year, type = type)
+            Resource.Success(response)
+        } catch (e: Exception) {
+            Resource.Error(extractErrorMessage(e, "Medya puanları alınamadı"), e)
+        }
+    }
+
+    suspend fun syncMdbList(force: Boolean = false): Resource<SyncResultDto> = withContext(Dispatchers.IO) {
+        try {
+            val response = api.syncMdbList(force)
+            Resource.Success(response)
+        } catch (e: Exception) {
+            Resource.Error(extractErrorMessage(e, "MDBList senkronizasyonu başarısız"), e)
+        }
+    }
+
+    // Simkl Integration
+    suspend fun getSimklSettings(): Resource<SimklSettingsDto> = withContext(Dispatchers.IO) {
+        try {
+            val response = api.getSimklSettings()
+            Resource.Success(response)
+        } catch (e: Exception) {
+            Resource.Error(extractErrorMessage(e, "Simkl ayarları alınamadı"), e)
+        }
+    }
+
+    suspend fun saveSimklSettings(request: SaveSimklSettingsRequest): Resource<SyncResultDto> = withContext(Dispatchers.IO) {
+        try {
+            val response = api.saveSimklSettings(request)
+            Resource.Success(response)
+        } catch (e: Exception) {
+            Resource.Error(extractErrorMessage(e, "Simkl ayarları kaydedilemedi"), e)
+        }
+    }
+
+    suspend fun syncSimkl(force: Boolean = false): Resource<SyncResultDto> = withContext(Dispatchers.IO) {
+        try {
+            val response = api.syncSimkl(force)
+            Resource.Success(response)
+        } catch (e: Exception) {
+            Resource.Error(extractErrorMessage(e, "Simkl senkronizasyonu başarısız"), e)
+        }
+    }
+
+    suspend fun getSimklHistory(type: String? = null, status: String? = null, limit: Int = 50, page: Int = 1): Resource<SimklHistoryResponseDto> = withContext(Dispatchers.IO) {
+        try {
+            val response = api.getSimklHistory(type, status, limit, page)
+            Resource.Success(response)
+        } catch (e: Exception) {
+            Resource.Error(extractErrorMessage(e, "Simkl geçmişi alınamadı"), e)
+        }
+    }
+
     private fun extractErrorMessage(e: Exception, defaultMessage: String): String {
         if (e is HttpException) {
             val errorJson = try {
@@ -706,3 +841,8 @@ class PersonalRecordsRepository(
     }
 }
 
+private fun BookDto.withDecodedText(): BookDto =
+    copy(title = title.decodeHtmlEntities(), author = author.decodeHtmlEntities())
+
+private fun ActivityItemDto.withDecodedText(): ActivityItemDto =
+    copy(title = title.decodeHtmlEntities(), subtitle = subtitle.decodeHtmlEntities())

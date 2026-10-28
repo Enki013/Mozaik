@@ -68,10 +68,11 @@ private fun computeTimelineFlatEntries(
     searchQuery: String
 ): List<TimelineFlatEntry> {
     if (groups.isEmpty()) return emptyList()
+    val orderedGroups = groups.sortedByDescending { it.date }
     val filteredGroups = if (selectedSource == "all" && searchQuery.isBlank()) {
-        groups
+        orderedGroups
     } else {
-        groups.mapNotNull { group ->
+        orderedGroups.mapNotNull { group ->
             val filteredItems = group.items.filter { item ->
                 val matchesSource = selectedSource == "all" || item.source == selectedSource
                 val matchesSearch = searchQuery.isBlank() ||

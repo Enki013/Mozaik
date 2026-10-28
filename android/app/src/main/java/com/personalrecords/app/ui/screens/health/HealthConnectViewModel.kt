@@ -29,6 +29,7 @@ data class HealthConnectUiState(
     val selectedDateFilter: String? = null,
     val fromDateFilter: String? = null,
     val toDateFilter: String? = null,
+    val sortBy: String = "date_desc",
     val error: String? = null
 )
 
@@ -38,10 +39,11 @@ private fun filterHealthRecords(
     searchQuery: String,
     selectedDateFilter: String?,
     fromDateFilter: String?,
-    toDateFilter: String?
+    toDateFilter: String?,
+    sortBy: String = "date_desc"
 ): List<HealthRecordDto> {
     if (records.isEmpty()) return emptyList()
-    return records.filter { item ->
+    val filtered = records.filter { item ->
         val matchesCategory = selectedCategory == "all" || item.category.equals(selectedCategory, ignoreCase = true)
         val matchesSearch = searchQuery.isBlank() ||
             item.title.contains(searchQuery, ignoreCase = true) ||
@@ -59,6 +61,8 @@ private fun filterHealthRecords(
         }
         matchesCategory && matchesSearch && matchesDate
     }
+
+    return if (sortBy == "date_asc") filtered.asReversed() else filtered
 }
 
 private fun computeFallbackSummary(
@@ -115,23 +119,29 @@ class HealthConnectViewModel(
         summary: HealthConnectSummaryDto?
     ) {
         val snap = _uiState.value
-        val (filtered, resolvedSummary) = withContext(Dispatchers.Default) {
+        val (orderedRecords, filtered, resolvedSummary) = withContext(Dispatchers.Default) {
+            val ordered = records.sortedWith(
+                compareByDescending<HealthRecordDto> { it.formattedDate }
+                    .thenByDescending { it.start_time }
+                    .thenByDescending { it.updated_at }
+            )
             val list = filterHealthRecords(
-                records = records,
+                records = ordered,
                 selectedCategory = snap.selectedCategory,
                 searchQuery = snap.searchQuery,
                 selectedDateFilter = snap.selectedDateFilter,
                 fromDateFilter = snap.fromDateFilter,
-                toDateFilter = snap.toDateFilter
+                toDateFilter = snap.toDateFilter,
+                sortBy = snap.sortBy
             )
-            val sum = computeFallbackSummary(records, summary)
-            list to sum
+            val sum = computeFallbackSummary(ordered, summary)
+            Triple(ordered, list, sum)
         }
         _uiState.update {
             it.copy(
                 isLoading = false,
                 isFiltering = false,
-                records = records,
+                records = orderedRecords,
                 filteredRecords = filtered,
                 summary = resolvedSummary,
                 error = null
@@ -228,6 +238,12 @@ class HealthConnectViewModel(
         recomputeFilter(debounceMs = 0L)
     }
 
+    fun setSortBy(sort: String) {
+        if (_uiState.value.sortBy == sort) return
+        _uiState.update { it.copy(sortBy = sort, isFiltering = true) }
+        recomputeFilter(debounceMs = 0L)
+    }
+
     fun resetFilters() {
         _uiState.update {
             it.copy(
@@ -254,7 +270,8 @@ class HealthConnectViewModel(
                     searchQuery = snap.searchQuery,
                     selectedDateFilter = snap.selectedDateFilter,
                     fromDateFilter = snap.fromDateFilter,
-                    toDateFilter = snap.toDateFilter
+                    toDateFilter = snap.toDateFilter,
+                    sortBy = snap.sortBy
                 )
             }
             _uiState.update {

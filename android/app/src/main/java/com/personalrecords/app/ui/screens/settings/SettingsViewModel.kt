@@ -16,6 +16,8 @@ import kotlinx.coroutines.launch
 @Immutable
 data class SettingsUiState(
     val serverUrl: String = "",
+    val serverApiKey: String = "",
+    val authStatusMessage: String? = null,
     val isTestingConnection: Boolean = false,
     val connectionSuccess: Boolean? = null,
     val isSyncing: String? = null,
@@ -58,6 +60,34 @@ data class SettingsUiState(
     val statsfmUsername: String = "",
     val isSavingStatsFm: Boolean = false,
     val statsfmSaveMessage: String? = null,
+    // Trakt.tv
+    val traktUsername: String = "",
+    val traktClientId: String = "",
+    val traktSyncMovies: Boolean = true,
+    val traktSyncEpisodes: Boolean = true,
+    val traktSyncRatings: Boolean = true,
+    val isLoadingTrakt: Boolean = false,
+    val isSavingTrakt: Boolean = false,
+    val traktSaveMessage: String? = null,
+    // MDBList
+    val mdblistApiKey: String = "",
+    val mdblistSyncRatings: Boolean = true,
+    val mdblistSyncLists: Boolean = false,
+    val isLoadingMdbList: Boolean = false,
+    val isSavingMdbList: Boolean = false,
+    val mdblistSaveMessage: String? = null,
+    // Simkl
+    val simklClientId: String = "",
+    val simklAccessToken: String = "",
+    val simklMaskedToken: String = "",
+    val isSimklConnected: Boolean = false,
+    val simklSyncMovies: Boolean = true,
+    val simklSyncShows: Boolean = true,
+    val simklSyncAnime: Boolean = true,
+    val simklSyncRatings: Boolean = true,
+    val isLoadingSimkl: Boolean = false,
+    val isSavingSimkl: Boolean = false,
+    val simklSaveMessage: String? = null,
     // Language
     val appLanguage: String = "system",
     // Integration Plugins
@@ -77,6 +107,11 @@ class SettingsViewModel(
         viewModelScope.launch {
             preferences.serverBaseUrl.collect { url ->
                 _uiState.update { it.copy(serverUrl = url) }
+            }
+        }
+        viewModelScope.launch {
+            preferences.serverApiKey.collect { key ->
+                _uiState.update { it.copy(serverApiKey = key) }
             }
         }
         viewModelScope.launch {
@@ -109,6 +144,9 @@ class SettingsViewModel(
         loadLetterboxdSettings()
         loadGoodreadsSettings()
         loadMusicSettings()
+        loadTraktSettings()
+        loadMdbListSettings()
+        loadSimklSettings()
     }
 
     fun loadFatSecretSettings() {
@@ -178,25 +216,81 @@ class SettingsViewModel(
     }
 
     fun updateServerUrlInput(url: String) {
-        _uiState.update { it.copy(serverUrl = url, connectionSuccess = null) }
+        _uiState.update { it.copy(serverUrl = url, connectionSuccess = null, authStatusMessage = null) }
+    }
+
+    fun updateServerApiKeyInput(apiKey: String) {
+        _uiState.update { it.copy(serverApiKey = apiKey, connectionSuccess = null, authStatusMessage = null) }
     }
 
     fun saveServerUrl() {
         viewModelScope.launch {
             preferences.setServerBaseUrl(_uiState.value.serverUrl)
+            preferences.setServerApiKey(_uiState.value.serverApiKey)
             testConnection()
         }
     }
 
     fun testConnection() {
         viewModelScope.launch {
-            _uiState.update { it.copy(isTestingConnection = true, connectionSuccess = null) }
+            _uiState.update { it.copy(isTestingConnection = true, connectionSuccess = null, authStatusMessage = null) }
             val ok = repository.checkHealth()
-            _uiState.update {
-                it.copy(
-                    isTestingConnection = false,
-                    connectionSuccess = ok
-                )
+            if (!ok) {
+                _uiState.update {
+                    it.copy(
+                        isTestingConnection = false,
+                        connectionSuccess = false,
+                        authStatusMessage = "Sunucuya ulaşılamadı. Adresi kontrol edin."
+                    )
+                }
+                return@launch
+            }
+
+            val authResult = repository.verifyAuth()
+            when (authResult) {
+                is Resource.Success -> {
+                    val auth = authResult.data
+                    if (auth.required && !auth.authenticated) {
+                        _uiState.update {
+                            it.copy(
+                                isTestingConnection = false,
+                                connectionSuccess = false,
+                                authStatusMessage = "Sunucu korumalı: API Anahtarı eksik veya geçersiz!"
+                            )
+                        }
+                    } else if (auth.required) {
+                        _uiState.update {
+                            it.copy(
+                                isTestingConnection = false,
+                                connectionSuccess = true,
+                                authStatusMessage = "Bağlantı ve API Anahtarı doğrulandı (Korumalı)."
+                            )
+                        }
+                    } else {
+                        _uiState.update {
+                            it.copy(
+                                isTestingConnection = false,
+                                connectionSuccess = true,
+                                authStatusMessage = "Bağlantı başarılı (Açık mod)."
+                            )
+                        }
+                    }
+                }
+                is Resource.Error -> {
+                    val is401 = authResult.message.contains("401") || authResult.cause?.message?.contains("401") == true
+                    _uiState.update {
+                        it.copy(
+                            isTestingConnection = false,
+                            connectionSuccess = !is401,
+                            authStatusMessage = if (is401) "Yetkisiz: API Anahtarınız sunucu tarafından reddedildi." else "Bağlantı sağlandı."
+                        )
+                    }
+                }
+                else -> {
+                    _uiState.update {
+                        it.copy(isTestingConnection = false, connectionSuccess = true)
+                    }
+                }
             }
         }
     }
@@ -636,5 +730,304 @@ class SettingsViewModel(
 
     fun clearMusicSaveMessage() {
         _uiState.update { it.copy(musicSaveMessage = null) }
+    }
+
+    // ==========================================
+    // Trakt.tv Methods
+    // ==========================================
+
+    fun loadTraktSettings() {
+        viewModelScope.launch {
+            _uiState.update { it.copy(isLoadingTrakt = true) }
+            when (val result = repository.getTraktSettings()) {
+                is Resource.Success -> {
+                    _uiState.update {
+                        it.copy(
+                            isLoadingTrakt = false,
+                            traktUsername = result.data.username,
+                            traktClientId = result.data.client_id,
+                            traktSyncMovies = result.data.sync_movies,
+                            traktSyncEpisodes = result.data.sync_episodes,
+                            traktSyncRatings = result.data.sync_ratings
+                        )
+                    }
+                }
+                else -> _uiState.update { it.copy(isLoadingTrakt = false) }
+            }
+        }
+    }
+
+    fun saveTraktSettings(
+        username: String,
+        clientId: String,
+        syncMovies: Boolean = true,
+        syncEpisodes: Boolean = true,
+        syncRatings: Boolean = true
+    ) {
+        viewModelScope.launch {
+            _uiState.update { it.copy(isSavingTrakt = true, traktSaveMessage = null) }
+            val req = com.personalrecords.app.core.network.model.SaveTraktSettingsRequest(
+                username = username.trim(),
+                client_id = clientId.trim().ifEmpty { null },
+                sync_movies = syncMovies,
+                sync_episodes = syncEpisodes,
+                sync_ratings = syncRatings
+            )
+            when (val result = repository.saveTraktSettings(req)) {
+                is Resource.Success -> {
+                    _uiState.update {
+                        it.copy(
+                            isSavingTrakt = false,
+                            traktUsername = username.trim(),
+                            traktClientId = clientId.trim(),
+                            traktSyncMovies = syncMovies,
+                            traktSyncEpisodes = syncEpisodes,
+                            traktSyncRatings = syncRatings,
+                            traktSaveMessage = "Trakt ayarları kaydedildi"
+                        )
+                    }
+                    if (username.isNotBlank()) {
+                        preferences.toggleIntegrationPlugin("trakt", true)
+                    }
+                }
+                is Resource.Error -> {
+                    _uiState.update {
+                        it.copy(
+                            isSavingTrakt = false,
+                            traktSaveMessage = "Hata: ${result.message}"
+                        )
+                    }
+                }
+                else -> _uiState.update { it.copy(isSavingTrakt = false) }
+            }
+        }
+    }
+
+    fun syncTrakt() {
+        viewModelScope.launch {
+            _uiState.update { it.copy(isSyncing = "trakt", syncStatusMessage = null) }
+            when (val result = repository.syncTrakt(force = true)) {
+                is Resource.Success -> {
+                    val count = result.data.inserted + result.data.updated
+                    _uiState.update {
+                        it.copy(
+                            isSyncing = null,
+                            syncStatusMessage = "Trakt.tv eşitlendi: $count kayıt aktarıldı!"
+                        )
+                    }
+                }
+                is Resource.Error -> {
+                    _uiState.update {
+                        it.copy(
+                            isSyncing = null,
+                            syncStatusMessage = "Hata: ${result.message}"
+                        )
+                    }
+                }
+                else -> _uiState.update { it.copy(isSyncing = null) }
+            }
+        }
+    }
+
+    fun clearTraktSaveMessage() {
+        _uiState.update { it.copy(traktSaveMessage = null) }
+    }
+
+    // ==========================================
+    // MDBList Methods
+    // ==========================================
+
+    fun loadMdbListSettings() {
+        viewModelScope.launch {
+            _uiState.update { it.copy(isLoadingMdbList = true) }
+            when (val result = repository.getMdbListSettings()) {
+                is Resource.Success -> {
+                    _uiState.update {
+                        it.copy(
+                            isLoadingMdbList = false,
+                            mdblistApiKey = result.data.api_key,
+                            mdblistSyncRatings = result.data.sync_ratings_enabled,
+                            mdblistSyncLists = result.data.sync_lists_enabled
+                        )
+                    }
+                }
+                else -> _uiState.update { it.copy(isLoadingMdbList = false) }
+            }
+        }
+    }
+
+    fun saveMdbListSettings(
+        apiKey: String,
+        syncRatings: Boolean = true,
+        syncLists: Boolean = false
+    ) {
+        viewModelScope.launch {
+            _uiState.update { it.copy(isSavingMdbList = true, mdblistSaveMessage = null) }
+            val req = com.personalrecords.app.core.network.model.SaveMdbListSettingsRequest(
+                api_key = apiKey.trim(),
+                sync_ratings_enabled = syncRatings,
+                sync_lists_enabled = syncLists
+            )
+            when (val result = repository.saveMdbListSettings(req)) {
+                is Resource.Success -> {
+                    _uiState.update {
+                        it.copy(
+                            isSavingMdbList = false,
+                            mdblistApiKey = apiKey.trim(),
+                            mdblistSyncRatings = syncRatings,
+                            mdblistSyncLists = syncLists,
+                            mdblistSaveMessage = "MDBList ayarları kaydedildi"
+                        )
+                    }
+                    if (apiKey.isNotBlank()) {
+                        preferences.toggleIntegrationPlugin("mdblist", true)
+                    }
+                }
+                is Resource.Error -> {
+                    _uiState.update {
+                        it.copy(
+                            isSavingMdbList = false,
+                            mdblistSaveMessage = "Hata: ${result.message}"
+                        )
+                    }
+                }
+                else -> _uiState.update { it.copy(isSavingMdbList = false) }
+            }
+        }
+    }
+
+    fun syncMdbList() {
+        viewModelScope.launch {
+            _uiState.update { it.copy(isSyncing = "mdblist", syncStatusMessage = null) }
+            when (val result = repository.syncMdbList(force = true)) {
+                is Resource.Success -> {
+                    _uiState.update {
+                        it.copy(
+                            isSyncing = null,
+                            syncStatusMessage = "MDBList eşitlendi: Medya puanları güncellendi!"
+                        )
+                    }
+                }
+                is Resource.Error -> {
+                    _uiState.update {
+                        it.copy(
+                            isSyncing = null,
+                            syncStatusMessage = "Hata: ${result.message}"
+                        )
+                    }
+                }
+                else -> _uiState.update { it.copy(isSyncing = null) }
+            }
+        }
+    }
+
+    fun clearMdbListSaveMessage() {
+        _uiState.update { it.copy(mdblistSaveMessage = null) }
+    }
+
+    // ==========================================
+    // Simkl Methods
+    // ==========================================
+
+    fun loadSimklSettings() {
+        viewModelScope.launch {
+            _uiState.update { it.copy(isLoadingSimkl = true) }
+            when (val result = repository.getSimklSettings()) {
+                is Resource.Success -> {
+                    _uiState.update {
+                        it.copy(
+                            isLoadingSimkl = false,
+                            simklClientId = result.data.client_id,
+                            simklMaskedToken = result.data.masked_token,
+                            isSimklConnected = result.data.is_connected,
+                            simklSyncMovies = result.data.sync_movies,
+                            simklSyncShows = result.data.sync_shows,
+                            simklSyncAnime = result.data.sync_anime,
+                            simklSyncRatings = result.data.sync_ratings
+                        )
+                    }
+                }
+                else -> _uiState.update { it.copy(isLoadingSimkl = false) }
+            }
+        }
+    }
+
+    fun saveSimklSettings(
+        clientId: String,
+        accessToken: String,
+        syncMovies: Boolean = true,
+        syncShows: Boolean = true,
+        syncAnime: Boolean = true,
+        syncRatings: Boolean = true
+    ) {
+        viewModelScope.launch {
+            _uiState.update { it.copy(isSavingSimkl = true, simklSaveMessage = null) }
+            val req = com.personalrecords.app.core.network.model.SaveSimklSettingsRequest(
+                client_id = clientId.trim().ifEmpty { null },
+                access_token = accessToken.trim().ifEmpty { null },
+                sync_movies = syncMovies,
+                sync_shows = syncShows,
+                sync_anime = syncAnime,
+                sync_ratings = syncRatings
+            )
+            when (val result = repository.saveSimklSettings(req)) {
+                is Resource.Success -> {
+                    _uiState.update {
+                        it.copy(
+                            isSavingSimkl = false,
+                            simklClientId = clientId.trim(),
+                            simklSyncMovies = syncMovies,
+                            simklSyncShows = syncShows,
+                            simklSyncAnime = syncAnime,
+                            simklSyncRatings = syncRatings,
+                            isSimklConnected = accessToken.isNotBlank() || it.isSimklConnected,
+                            simklSaveMessage = "Simkl ayarları kaydedildi"
+                        )
+                    }
+                    if (accessToken.isNotBlank()) {
+                        preferences.toggleIntegrationPlugin("simkl", true)
+                    }
+                }
+                is Resource.Error -> {
+                    _uiState.update {
+                        it.copy(
+                            isSavingSimkl = false,
+                            simklSaveMessage = "Hata: ${result.message}"
+                        )
+                    }
+                }
+                else -> _uiState.update { it.copy(isSavingSimkl = false) }
+            }
+        }
+    }
+
+    fun syncSimkl() {
+        viewModelScope.launch {
+            _uiState.update { it.copy(isSyncing = "simkl", syncStatusMessage = null) }
+            when (val result = repository.syncSimkl(force = true)) {
+                is Resource.Success -> {
+                    val count = result.data.inserted + result.data.updated
+                    _uiState.update {
+                        it.copy(
+                            isSyncing = null,
+                            syncStatusMessage = "Simkl eşitlendi: $count kayıt aktarıldı!"
+                        )
+                    }
+                }
+                is Resource.Error -> {
+                    _uiState.update {
+                        it.copy(
+                            isSyncing = null,
+                            syncStatusMessage = "Simkl senkronizasyon hatası: ${result.message}"
+                        )
+                    }
+                }
+                else -> _uiState.update { it.copy(isSyncing = null) }
+            }
+        }
+    }
+
+    fun clearSimklSaveMessage() {
+        _uiState.update { it.copy(simklSaveMessage = null) }
     }
 }

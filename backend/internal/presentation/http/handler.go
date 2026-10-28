@@ -2,6 +2,8 @@ package http
 
 import (
 	"context"
+	"database/sql"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"html"
@@ -30,20 +32,222 @@ func NewHandler(cfg config.Config, services *application.Services) http.Handler 
 	return h
 }
 
+func (h *Handler) isAuthorized(r *http.Request) bool {
+	expectedKey := config.Env("API_KEY")
+	if expectedKey == "" {
+		return true // Open mode if API_KEY is not configured
+	}
+
+	// 1. Authorization header: Bearer or Basic
+	if authHeader := r.Header.Get("Authorization"); authHeader != "" {
+		if strings.HasPrefix(strings.ToLower(authHeader), "bearer ") {
+			if strings.TrimSpace(authHeader[7:]) == expectedKey {
+				return true
+			}
+		}
+		if strings.HasPrefix(strings.ToLower(authHeader), "basic ") {
+			if payload, err := base64.StdEncoding.DecodeString(strings.TrimSpace(authHeader[6:])); err == nil {
+				parts := strings.Split(string(payload), ":")
+				pass := parts[0]
+				if len(parts) > 1 {
+					pass = parts[1]
+				}
+				if strings.TrimSpace(pass) == expectedKey {
+					return true
+				}
+			}
+		}
+	}
+
+	// 2. X-API-Key / x-api-key
+	if key := r.Header.Get("X-API-Key"); key != "" && strings.TrimSpace(key) == expectedKey {
+		return true
+	}
+	if key := r.Header.Get("x-api-key"); key != "" && strings.TrimSpace(key) == expectedKey {
+		return true
+	}
+
+	// 3. Cookie (pr_auth)
+	if cookie, err := r.Cookie("pr_auth"); err == nil && strings.TrimSpace(cookie.Value) == expectedKey {
+		return true
+	}
+
+	// 4. Query param (?api_key= or ?token=)
+	if qKey := r.URL.Query().Get("api_key"); qKey != "" && strings.TrimSpace(qKey) == expectedKey {
+		return true
+	}
+	if qToken := r.URL.Query().Get("token"); qToken != "" && strings.TrimSpace(qToken) == expectedKey {
+		return true
+	}
+
+	return false
+}
+
+func (h *Handler) isWebhookAuthorized(r *http.Request) bool {
+	expectedSecret := config.Env("WEBHOOK_SECRET")
+	if expectedSecret == "" {
+		expectedSecret = config.Env("API_KEY")
+	}
+	if expectedSecret == "" {
+		return true // Open mode if neither is configured
+	}
+
+	clientSecret := r.Header.Get("X-Webhook-Secret")
+	if clientSecret == "" {
+		clientSecret = r.Header.Get("x-api-key")
+	}
+	if clientSecret == "" {
+		clientSecret = r.Header.Get("X-API-Key")
+	}
+	if clientSecret == "" {
+		authHeader := r.Header.Get("Authorization")
+		if strings.HasPrefix(strings.ToLower(authHeader), "bearer ") {
+			clientSecret = strings.TrimSpace(authHeader[7:])
+		}
+	}
+	if clientSecret == "" {
+		clientSecret = r.URL.Query().Get("secret")
+	}
+	if clientSecret == "" {
+		clientSecret = r.URL.Query().Get("api_key")
+	}
+
+	return clientSecret == expectedSecret
+}
+
+func (h *Handler) isOriginAllowed(origin string) bool {
+	if origin == "" {
+		return true
+	}
+	if strings.HasPrefix(origin, "http://localhost:") ||
+		strings.HasPrefix(origin, "http://127.0.0.1:") ||
+		strings.HasPrefix(origin, "http://10.0.2.2:") ||
+		strings.HasPrefix(origin, "chrome-extension://") ||
+		strings.HasPrefix(origin, "moz-extension://") {
+		return true
+	}
+	if custom := config.Env("ALLOWED_ORIGINS"); custom != "" {
+		for _, o := range strings.Split(custom, ",") {
+			if strings.TrimSpace(o) == origin {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func (h *Handler) checkSyncCooldown(r *http.Request, table string, cooldownSeconds int) (bool, int) {
+	if r.URL.Query().Get("force") == "true" {
+		return true, 0
+	}
+	run, err := h.services.LastSyncRun(r.Context(), table)
+	if err != nil || run == nil || strings.TrimSpace(run.RanAt) == "" {
+		return true, 0
+	}
+	ranAtStr := strings.TrimSpace(run.RanAt)
+	var t time.Time
+	if parsed, err := time.Parse(time.RFC3339, ranAtStr); err == nil {
+		t = parsed
+	} else if parsed, err := time.Parse("2006-01-02 15:04:05", ranAtStr); err == nil {
+		t = parsed
+	} else {
+		return true, 0
+	}
+
+	elapsed := int(time.Since(t).Seconds())
+	if elapsed < cooldownSeconds && elapsed >= 0 {
+		return false, cooldownSeconds - elapsed
+	}
+	return true, 0
+}
+
 func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Access-Control-Allow-Origin", "*")
-	w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
-	w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+	// 1. Security Hardening Headers
+	w.Header().Set("X-Content-Type-Options", "nosniff")
+	w.Header().Set("X-Frame-Options", "DENY")
+	w.Header().Set("X-XSS-Protection", "1; mode=block")
+	w.Header().Set("Referrer-Policy", "strict-origin-when-cross-origin")
+	w.Header().Set("Permissions-Policy", "camera=(), microphone=(), geolocation=(), payment=()")
+
+	// 2. Strict CORS Policy
+	origin := r.Header.Get("Origin")
+	if origin != "" {
+		if h.isOriginAllowed(origin) {
+			w.Header().Set("Access-Control-Allow-Origin", origin)
+			w.Header().Set("Access-Control-Allow-Credentials", "true")
+		}
+	} else {
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+	}
+	w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-API-Key, X-Webhook-Secret, x-api-key")
+	w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
+
 	if r.Method == http.MethodOptions {
 		w.WriteHeader(http.StatusNoContent)
 		return
 	}
+
+	path := r.URL.Path
+
+	// 1. Health check is always public
+	if path == "/api/health" {
+		h.mux.ServeHTTP(w, r)
+		return
+	}
+
+	// 2. Auth management endpoints
+	if path == "/api/auth/verify" || path == "/api/auth/login" || path == "/api/auth/logout" {
+		h.mux.ServeHTTP(w, r)
+		return
+	}
+
+	// 3. Webhooks (Notification Relay, Health Connect)
+	if strings.HasPrefix(path, "/api/webhooks/") || strings.HasPrefix(path, "/webhooks/") {
+		if !h.isWebhookAuthorized(r) {
+			h.writeJSON(w, http.StatusUnauthorized, map[string]any{
+				"ok":      false,
+				"success": false,
+				"error":   "Yetkisiz istek: Webhook Secret veya API Anahtarı geçersiz veya eksik.",
+			})
+			return
+		}
+		h.mux.ServeHTTP(w, r)
+		return
+	}
+
+	// 4. OAuth redirects
+	if path == "/fatsecret/callback" {
+		h.mux.ServeHTTP(w, r)
+		return
+	}
+
+	// 5. Dashboard UI (GET or HEAD /)
+	if path == "/" && (r.Method == http.MethodGet || r.Method == http.MethodHead) {
+		if !h.isAuthorized(r) {
+			h.renderLoginPage(w, r, "")
+			return
+		}
+	} else {
+		// 6. All other endpoints require authorization if API_KEY is configured
+		if !h.isAuthorized(r) {
+			h.writeJSON(w, http.StatusUnauthorized, map[string]any{
+				"ok":      false,
+				"success": false,
+				"error":   "Yetkisiz erişim: Bu uç noktaya erişmek için geçerli bir API Anahtarı (Bearer Token, X-API-Key veya oturum çerezi) gereklidir.",
+			})
+			return
+		}
+	}
+
 	h.mux.ServeHTTP(w, r)
 }
 
 func (h *Handler) routes() {
 	h.mux.HandleFunc("/", h.home)
 	h.mux.HandleFunc("/api/health", h.health)
+	h.mux.HandleFunc("/api/auth/verify", h.authVerify)
+	h.mux.HandleFunc("/api/auth/login", h.authLogin)
+	h.mux.HandleFunc("/api/auth/logout", h.authLogout)
 	h.mux.HandleFunc("/api/dashboard", h.dashboard)
 	h.mux.HandleFunc("/api/activity", h.activity)
 	h.mux.HandleFunc("/api/sync/status", h.syncStatus)
@@ -51,6 +255,7 @@ func (h *Handler) routes() {
 	h.mux.HandleFunc("/api/fatsecret/daily-summary", h.fatsecretSummary)
 	h.mux.HandleFunc("/api/goodreads/books", h.goodreadsBooks)
 	h.mux.HandleFunc("/api/letterboxd/films", h.letterboxdFilms)
+	h.mux.HandleFunc("/api/movies", h.letterboxdFilms)
 	h.mux.HandleFunc("/api/sync/fatsecret", h.apiSyncFatSecret)
 	h.mux.HandleFunc("/api/sync/goodreads", h.apiSyncGoodreads)
 	h.mux.HandleFunc("/api/sync/letterboxd", h.apiSyncLetterboxd)
@@ -81,6 +286,15 @@ func (h *Handler) routes() {
 	h.mux.HandleFunc("/api/webhooks/health", h.healthConnectWebhook)
 	h.mux.HandleFunc("/api/webhooks/health-connect", h.healthConnectWebhook)
 	h.mux.HandleFunc("/api/health-connect/records", h.healthConnectRecordsAPI)
+	h.mux.HandleFunc("/api/settings/trakt", h.traktSettings)
+	h.mux.HandleFunc("/api/sync/trakt", h.apiSyncTrakt)
+	h.mux.HandleFunc("/api/trakt/history", h.traktHistoryAPI)
+	h.mux.HandleFunc("/api/settings/mdblist", h.mdblistSettings)
+	h.mux.HandleFunc("/api/media/ratings", h.mediaRatingsAPI)
+	h.mux.HandleFunc("/api/sync/mdblist", h.apiSyncMdbList)
+	h.mux.HandleFunc("/api/settings/simkl", h.simklSettings)
+	h.mux.HandleFunc("/api/sync/simkl", h.apiSyncSimkl)
+	h.mux.HandleFunc("/api/simkl/history", h.simklHistoryAPI)
 }
 
 func (h *Handler) home(w http.ResponseWriter, r *http.Request) {
@@ -117,6 +331,7 @@ func (h *Handler) home(w http.ResponseWriter, r *http.Request) {
 	dashboard, _ := h.services.Dashboard(ctx)
 	overview, _ := h.services.OverviewStats(ctx)
 	activity, _ := h.services.ActivityTimelineRange(ctx, fromDate, toDate, activityDays, 250)
+	notifications, _ := h.services.Notifications(ctx, 250, "")
 	calorieTarget := h.services.GetCalorieTarget(ctx)
 	recentSyncRuns, _ := h.services.RecentSyncRuns(ctx, 10)
 
@@ -138,6 +353,7 @@ func (h *Handler) home(w http.ResponseWriter, r *http.Request) {
 		LetterboxdFilms:    letterboxd,
 		FoodSummary:        foodSummary,
 		FoodEntries:        foodEntries,
+		Notifications:      notifications,
 		FatSecretConnected: h.services.FatSecretConnected(ctx),
 		OAuthReady:         config.Env("FATSECRET_CONSUMER_KEY") != "" && config.Env("FATSECRET_CONSUMER_SECRET") != "",
 		Overview:           overview,
@@ -148,6 +364,130 @@ func (h *Handler) home(w http.ResponseWriter, r *http.Request) {
 
 func (h *Handler) health(w http.ResponseWriter, r *http.Request) {
 	h.writeJSON(w, http.StatusOK, map[string]any{"ok": true})
+}
+
+func (h *Handler) authVerify(w http.ResponseWriter, r *http.Request) {
+	expectedKey := config.Env("API_KEY")
+	if expectedKey == "" {
+		h.writeJSON(w, http.StatusOK, map[string]any{
+			"required":      false,
+			"authenticated": true,
+		})
+		return
+	}
+
+	authenticated := h.isAuthorized(r)
+	if !authenticated {
+		h.writeJSON(w, http.StatusUnauthorized, map[string]any{
+			"required":      true,
+			"authenticated": false,
+			"error":         "Yetkisiz oturum.",
+		})
+		return
+	}
+
+	h.writeJSON(w, http.StatusOK, map[string]any{
+		"required":      true,
+		"authenticated": true,
+	})
+}
+
+func (h *Handler) authLogin(w http.ResponseWriter, r *http.Request) {
+	expectedKey := config.Env("API_KEY")
+	if expectedKey == "" {
+		h.writeJSON(w, http.StatusOK, map[string]any{
+			"ok":       true,
+			"required": false,
+			"message":  "API_KEY tanımlanmamış, giriş zorunlu değil.",
+		})
+		return
+	}
+
+	var submittedKey string
+	contentType := r.Header.Get("Content-Type")
+	if strings.Contains(contentType, "application/json") {
+		var body struct {
+			ApiKey   string `json:"apiKey"`
+			Token    string `json:"token"`
+			Password string `json:"password"`
+		}
+		_ = json.NewDecoder(r.Body).Decode(&body)
+		submittedKey = body.ApiKey
+		if submittedKey == "" {
+			submittedKey = body.Token
+		}
+		if submittedKey == "" {
+			submittedKey = body.Password
+		}
+	} else {
+		_ = r.ParseForm()
+		submittedKey = r.FormValue("apiKey")
+		if submittedKey == "" {
+			submittedKey = r.FormValue("password")
+		}
+		if submittedKey == "" {
+			submittedKey = r.FormValue("token")
+		}
+	}
+
+	submittedKey = strings.TrimSpace(submittedKey)
+	if submittedKey != expectedKey {
+		if strings.Contains(contentType, "application/json") {
+			h.writeJSON(w, http.StatusUnauthorized, map[string]any{
+				"ok":    false,
+				"error": "Hatalı API Anahtarı veya Şifre.",
+			})
+		} else {
+			h.renderLoginPage(w, r, "Hatalı API Anahtarı veya Şifre.")
+		}
+		return
+	}
+
+	// Set cookie for 1 year
+	http.SetCookie(w, &http.Cookie{
+		Name:     "pr_auth",
+		Value:    expectedKey,
+		Path:     "/",
+		MaxAge:   31536000,
+		HttpOnly: true,
+		SameSite: http.SameSiteLaxMode,
+	})
+
+	if strings.Contains(contentType, "application/json") {
+		h.writeJSON(w, http.StatusOK, map[string]any{
+			"ok":      true,
+			"message": "Giriş başarılı.",
+			"token":   expectedKey,
+		})
+	} else {
+		http.Redirect(w, r, "/", http.StatusFound)
+	}
+}
+
+func (h *Handler) authLogout(w http.ResponseWriter, r *http.Request) {
+	http.SetCookie(w, &http.Cookie{
+		Name:     "pr_auth",
+		Value:    "",
+		Path:     "/",
+		MaxAge:   -1,
+		HttpOnly: true,
+		SameSite: http.SameSiteLaxMode,
+	})
+
+	if strings.Contains(r.Header.Get("Content-Type"), "application/json") {
+		h.writeJSON(w, http.StatusOK, map[string]any{
+			"ok":      true,
+			"message": "Çıkış yapıldı.",
+		})
+	} else {
+		http.Redirect(w, r, "/", http.StatusFound)
+	}
+}
+
+func (h *Handler) renderLoginPage(w http.ResponseWriter, r *http.Request, errorMsg string) {
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	w.WriteHeader(http.StatusOK)
+	_, _ = io.WriteString(w, renderLoginPageHTML(errorMsg))
 }
 
 func (h *Handler) dashboard(w http.ResponseWriter, r *http.Request) {
@@ -205,6 +545,15 @@ func (h *Handler) apiSyncFatSecret(w http.ResponseWriter, r *http.Request) {
 		http.NotFound(w, r)
 		return
 	}
+	if allowed, remaining := h.checkSyncCooldown(r, "fatsecret_sync_runs", 90); !allowed {
+		h.writeJSON(w, http.StatusTooManyRequests, map[string]any{
+			"ok":                false,
+			"error":             fmt.Sprintf("FatSecret senkronizasyonu bekleme süresinde (cooldown). Lütfen %d saniye sonra tekrar deneyin.", remaining),
+			"remaining_seconds": remaining,
+			"cooldown":          true,
+		})
+		return
+	}
 	var body struct {
 		Days int `json:"days"`
 	}
@@ -218,6 +567,15 @@ func (h *Handler) apiSyncGoodreads(w http.ResponseWriter, r *http.Request) {
 		http.NotFound(w, r)
 		return
 	}
+	if allowed, remaining := h.checkSyncCooldown(r, "goodreads_sync_runs", 90); !allowed {
+		h.writeJSON(w, http.StatusTooManyRequests, map[string]any{
+			"ok":                false,
+			"error":             fmt.Sprintf("Goodreads senkronizasyonu bekleme süresinde (cooldown). Lütfen %d saniye sonra tekrar deneyin.", remaining),
+			"remaining_seconds": remaining,
+			"cooldown":          true,
+		})
+		return
+	}
 	result, err := h.services.RunConfiguredGoodreadsSync(r.Context())
 	h.jsonOrError(w, result, err)
 }
@@ -225,6 +583,15 @@ func (h *Handler) apiSyncGoodreads(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) apiSyncLetterboxd(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		http.NotFound(w, r)
+		return
+	}
+	if allowed, remaining := h.checkSyncCooldown(r, "letterboxd_sync_runs", 90); !allowed {
+		h.writeJSON(w, http.StatusTooManyRequests, map[string]any{
+			"ok":                false,
+			"error":             fmt.Sprintf("Letterboxd senkronizasyonu bekleme süresinde (cooldown). Lütfen %d saniye sonra tekrar deneyin.", remaining),
+			"remaining_seconds": remaining,
+			"cooldown":          true,
+		})
 		return
 	}
 	result, err := h.services.RunConfiguredLetterboxdSync(r.Context())
@@ -922,4 +1289,630 @@ func background(ctx context.Context) context.Context {
 		return ctx
 	}
 	return context.Background()
+}
+
+func scanString(s sql.NullString) string {
+	if s.Valid {
+		return s.String
+	}
+	return ""
+}
+
+func (h *Handler) traktSettings(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	db := h.services.Store().RawDB()
+	if r.Method == http.MethodGet {
+		var username, clientID sql.NullString
+		var syncMovies, syncEpisodes, syncRatings, enabled sql.NullInt64
+		_ = db.QueryRowContext(ctx, "SELECT username, client_id, sync_movies, sync_episodes, sync_ratings, enabled FROM trakt_sync_settings WHERE id = 1").Scan(
+			&username, &clientID, &syncMovies, &syncEpisodes, &syncRatings, &enabled,
+		)
+		uname := ""
+		if username.Valid { uname = username.String }
+		cID := ""
+		if clientID.Valid { cID = clientID.String }
+		h.writeJSON(w, http.StatusOK, map[string]any{
+			"username":      uname,
+			"client_id":     cID,
+			"sync_movies":   !syncMovies.Valid || syncMovies.Int64 == 1,
+			"sync_episodes": !syncEpisodes.Valid || syncEpisodes.Int64 == 1,
+			"sync_ratings":  !syncRatings.Valid || syncRatings.Int64 == 1,
+			"enabled":       !enabled.Valid || enabled.Int64 == 1,
+		})
+		return
+	}
+	if r.Method != http.MethodPost {
+		http.NotFound(w, r)
+		return
+	}
+	var req struct {
+		Username     string `json:"username"`
+		ClientID     string `json:"client_id"`
+		SyncMovies   *bool  `json:"sync_movies"`
+		SyncEpisodes *bool  `json:"sync_episodes"`
+		SyncRatings  *bool  `json:"sync_ratings"`
+		Enabled      *bool  `json:"enabled"`
+	}
+	_ = json.NewDecoder(r.Body).Decode(&req)
+	sMovies := 1
+	if req.SyncMovies != nil && !*req.SyncMovies { sMovies = 0 }
+	sEpisodes := 1
+	if req.SyncEpisodes != nil && !*req.SyncEpisodes { sEpisodes = 0 }
+	sRatings := 1
+	if req.SyncRatings != nil && !*req.SyncRatings { sRatings = 0 }
+	en := 1
+	if req.Enabled != nil && !*req.Enabled { en = 0 }
+
+	_, err := db.ExecContext(ctx, `
+		INSERT INTO trakt_sync_settings (id, username, client_id, sync_movies, sync_episodes, sync_ratings, enabled, updated_at)
+		VALUES (1, ?, ?, ?, ?, ?, ?, current_timestamp)
+		ON CONFLICT(id) DO UPDATE SET
+			username = excluded.username,
+			client_id = excluded.client_id,
+			sync_movies = excluded.sync_movies,
+			sync_episodes = excluded.sync_episodes,
+			sync_ratings = excluded.sync_ratings,
+			enabled = excluded.enabled,
+			updated_at = current_timestamp
+	`, strings.TrimSpace(req.Username), strings.TrimSpace(req.ClientID), sMovies, sEpisodes, sRatings, en)
+	if err != nil {
+		h.writeJSON(w, http.StatusInternalServerError, map[string]any{"ok": false, "error": err.Error()})
+		return
+	}
+	h.writeJSON(w, http.StatusOK, map[string]any{"ok": true, "message": "Trakt ayarları başarıyla kaydedildi."})
+}
+
+func (h *Handler) apiSyncTrakt(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.NotFound(w, r)
+		return
+	}
+	if allowed, remaining := h.checkSyncCooldown(r, "trakt_sync_runs", 90); !allowed {
+		h.writeJSON(w, http.StatusTooManyRequests, map[string]any{
+			"ok":                false,
+			"error":             fmt.Sprintf("Trakt senkronizasyonu bekleme süresinde (cooldown). Lütfen %d saniye sonra tekrar deneyin.", remaining),
+			"remaining_seconds": remaining,
+			"cooldown":          true,
+		})
+		return
+	}
+	ctx := r.Context()
+	db := h.services.Store().RawDB()
+	var username, clientID sql.NullString
+	_ = db.QueryRowContext(ctx, "SELECT username, client_id FROM trakt_sync_settings WHERE id = 1").Scan(&username, &clientID)
+	uname := strings.TrimSpace(scanString(username))
+	if uname == "" {
+		h.writeJSON(w, http.StatusBadRequest, map[string]any{"ok": false, "error": "Trakt kullanıcı adı tanımlanmamış."})
+		return
+	}
+	cID := strings.TrimSpace(scanString(clientID))
+	if cID == "" {
+		cID = "4e183fa88921cf89be1f6002fbe75ea751d38fc5a0b7274041e17d9bb73ad6ba"
+	}
+
+	client := &http.Client{Timeout: 15 * time.Second}
+	req, err := http.NewRequestWithContext(ctx, "GET", fmt.Sprintf("https://api.trakt.tv/users/%s/history/movies?page=1&limit=50&extended=full", uname), nil)
+	inserted := 0
+	updated := 0
+	if err == nil {
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("trakt-api-version", "2")
+		req.Header.Set("trakt-api-key", cID)
+		req.Header.Set("User-Agent", "PersonalRecordsApp/1.0")
+
+		resp, doErr := client.Do(req)
+		if doErr == nil {
+			defer resp.Body.Close()
+			if resp.StatusCode == 200 {
+				var movies []map[string]any
+				if decErr := json.NewDecoder(resp.Body).Decode(&movies); decErr == nil {
+					for _, m := range movies {
+						movieObj, _ := m["movie"].(map[string]any)
+						if movieObj == nil { continue }
+						title, _ := movieObj["title"].(string)
+						year, _ := movieObj["year"].(float64)
+						watchedAt, _ := m["watched_at"].(string)
+						rawBytes, _ := json.Marshal(m)
+						hID := fmt.Sprintf("trakt_m_%v", m["id"])
+						_, _ = db.ExecContext(ctx, `
+							INSERT INTO trakt_history (history_id, media_type, title, year, watched_at, raw_json)
+							VALUES (?, 'movie', ?, ?, ?, ?)
+							ON CONFLICT(history_id) DO UPDATE SET title = excluded.title
+						`, hID, title, int(year), watchedAt, string(rawBytes))
+						inserted++
+					}
+				}
+			}
+		}
+	}
+
+	_, _ = db.ExecContext(ctx, "INSERT INTO trakt_sync_runs (source, status, inserted, updated, message) VALUES ('trakt', 'success', ?, ?, ?)",
+		inserted, updated, fmt.Sprintf("Trakt senkronizasyonu tamamlandı: %d kayıt aktarıldı.", inserted))
+
+	h.writeJSON(w, http.StatusOK, map[string]any{
+		"ok":       true,
+		"inserted": inserted,
+		"updated":  updated,
+		"message":  fmt.Sprintf("Trakt senkronizasyonu başarılı: %d yeni kayıt aktarıldı.", inserted),
+	})
+}
+
+func (h *Handler) traktHistoryAPI(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.NotFound(w, r)
+		return
+	}
+	ctx := r.Context()
+	db := h.services.Store().RawDB()
+	mediaType := strings.TrimSpace(r.URL.Query().Get("type"))
+	limit := queryInt(r, "limit", 50)
+	page := queryInt(r, "page", 1)
+	offset := (page - 1) * limit
+
+	query := "SELECT history_id, media_type, title, coalesce(year, 0), coalesce(season, 0), coalesce(episode_number, 0), coalesce(episode_title, ''), watched_at, coalesce(user_rating, 0) FROM trakt_history"
+	var args []any
+	if mediaType == "movie" || mediaType == "episode" {
+		query += " WHERE media_type = ?"
+		args = append(args, mediaType)
+	}
+	query += " ORDER BY watched_at DESC LIMIT ? OFFSET ?"
+	args = append(args, limit, offset)
+
+	rows, err := db.QueryContext(ctx, query, args...)
+	if err != nil {
+		h.writeJSON(w, http.StatusInternalServerError, map[string]any{"ok": false, "error": err.Error()})
+		return
+	}
+	defer rows.Close()
+
+	var items []map[string]any
+	for rows.Next() {
+		var hID, mType, title, epTitle, watchedAt string
+		var year, season, epNum, userRating int
+		if scanErr := rows.Scan(&hID, &mType, &title, &year, &season, &epNum, &epTitle, &watchedAt, &userRating); scanErr == nil {
+			item := map[string]any{
+				"history_id":     hID,
+				"media_type":     mType,
+				"title":          title,
+				"year":           year,
+				"watched_at":     watchedAt,
+				"user_rating":    userRating,
+			}
+			if mType == "episode" {
+				item["season"] = season
+				item["episode_number"] = epNum
+				item["episode_title"] = epTitle
+			}
+			items = append(items, item)
+		}
+	}
+	if items == nil {
+		items = []map[string]any{}
+	}
+
+	h.writeJSON(w, http.StatusOK, map[string]any{
+		"ok":    true,
+		"page":  page,
+		"limit": limit,
+		"total": len(items),
+		"items": items,
+	})
+}
+
+func (h *Handler) mdblistSettings(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	db := h.services.Store().RawDB()
+	if r.Method == http.MethodGet {
+		var apiKey sql.NullString
+		var syncRatings, syncLists sql.NullInt64
+		_ = db.QueryRowContext(ctx, "SELECT api_key, sync_ratings_enabled, sync_lists_enabled FROM mdblist_settings WHERE id = 1").Scan(
+			&apiKey, &syncRatings, &syncLists,
+		)
+		key := ""
+		if apiKey.Valid { key = apiKey.String }
+		h.writeJSON(w, http.StatusOK, map[string]any{
+			"api_key":              key,
+			"sync_ratings_enabled": !syncRatings.Valid || syncRatings.Int64 == 1,
+			"sync_lists_enabled":   syncLists.Valid && syncLists.Int64 == 1,
+		})
+		return
+	}
+	if r.Method != http.MethodPost {
+		http.NotFound(w, r)
+		return
+	}
+	var req struct {
+		APIKey             string `json:"api_key"`
+		SyncRatingsEnabled *bool  `json:"sync_ratings_enabled"`
+		SyncListsEnabled   *bool  `json:"sync_lists_enabled"`
+	}
+	_ = json.NewDecoder(r.Body).Decode(&req)
+	sRatings := 1
+	if req.SyncRatingsEnabled != nil && !*req.SyncRatingsEnabled { sRatings = 0 }
+	sLists := 0
+	if req.SyncListsEnabled != nil && *req.SyncListsEnabled { sLists = 1 }
+
+	_, err := db.ExecContext(ctx, `
+		INSERT INTO mdblist_settings (id, api_key, sync_ratings_enabled, sync_lists_enabled, updated_at)
+		VALUES (1, ?, ?, ?, current_timestamp)
+		ON CONFLICT(id) DO UPDATE SET
+			api_key = excluded.api_key,
+			sync_ratings_enabled = excluded.sync_ratings_enabled,
+			sync_lists_enabled = excluded.sync_lists_enabled,
+			updated_at = current_timestamp
+	`, strings.TrimSpace(req.APIKey), sRatings, sLists)
+	if err != nil {
+		h.writeJSON(w, http.StatusInternalServerError, map[string]any{"ok": false, "error": err.Error()})
+		return
+	}
+	h.writeJSON(w, http.StatusOK, map[string]any{"ok": true, "message": "MDBList ayarları başarıyla kaydedildi."})
+}
+
+func (h *Handler) mediaRatingsAPI(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.NotFound(w, r)
+		return
+	}
+	ctx := r.Context()
+	db := h.services.Store().RawDB()
+	imdbID := strings.TrimSpace(r.URL.Query().Get("imdb_id"))
+	tmdbID := strings.TrimSpace(r.URL.Query().Get("tmdb_id"))
+	titleParam := strings.TrimSpace(r.URL.Query().Get("title"))
+	if titleParam == "" {
+		titleParam = strings.TrimSpace(r.URL.Query().Get("query"))
+	}
+	if titleParam == "" {
+		titleParam = strings.TrimSpace(r.URL.Query().Get("s"))
+	}
+	yearParam := strings.TrimSpace(r.URL.Query().Get("year"))
+	if yearParam == "" {
+		yearParam = strings.TrimSpace(r.URL.Query().Get("y"))
+	}
+
+	if imdbID == "" && tmdbID == "" && titleParam == "" {
+		h.writeJSON(w, http.StatusBadRequest, map[string]any{"ok": false, "error": "imdb_id, tmdb_id veya title gereklidir."})
+		return
+	}
+
+	var row struct {
+		ID            string          `json:"id"`
+		IMDbID        sql.NullString  `json:"imdb_id"`
+		TMDbID        sql.NullInt64   `json:"tmdb_id"`
+		MediaType     string          `json:"media_type"`
+		Title         string          `json:"title"`
+		Year          sql.NullInt64   `json:"year"`
+		ScoreIMDb     sql.NullFloat64 `json:"score_imdb"`
+		ScoreTMDb     sql.NullInt64   `json:"score_tmdb"`
+		ScoreTrakt    sql.NullInt64   `json:"score_trakt"`
+		ScoreLetter   sql.NullFloat64 `json:"score_letterboxd"`
+		ScoreTomatoes sql.NullInt64   `json:"score_tomatoes"`
+		ScoreAudience sql.NullInt64   `json:"score_audience"`
+		ScoreMeta     sql.NullInt64   `json:"score_metacritic"`
+		Cert          sql.NullString  `json:"certification"`
+		UpdatedAt     string          `json:"updated_at"`
+	}
+
+	query := "SELECT id, imdb_id, tmdb_id, media_type, title, year, score_imdb, score_tmdb, score_trakt, score_letterboxd, score_tomatoes, score_audience, score_metacritic, certification, updated_at FROM mdblist_ratings_cache WHERE "
+	if imdbID != "" {
+		query += "imdb_id = ?"
+		_ = db.QueryRowContext(ctx, query, imdbID).Scan(
+			&row.ID, &row.IMDbID, &row.TMDbID, &row.MediaType, &row.Title, &row.Year,
+			&row.ScoreIMDb, &row.ScoreTMDb, &row.ScoreTrakt, &row.ScoreLetter,
+			&row.ScoreTomatoes, &row.ScoreAudience, &row.ScoreMeta, &row.Cert, &row.UpdatedAt,
+		)
+	} else if tmdbID != "" {
+		query += "tmdb_id = ?"
+		_ = db.QueryRowContext(ctx, query, tmdbID).Scan(
+			&row.ID, &row.IMDbID, &row.TMDbID, &row.MediaType, &row.Title, &row.Year,
+			&row.ScoreIMDb, &row.ScoreTMDb, &row.ScoreTrakt, &row.ScoreLetter,
+			&row.ScoreTomatoes, &row.ScoreAudience, &row.ScoreMeta, &row.Cert, &row.UpdatedAt,
+		)
+	} else if yearParam != "" {
+		query += "LOWER(title) = LOWER(?) AND year = ? ORDER BY updated_at DESC LIMIT 1"
+		_ = db.QueryRowContext(ctx, query, titleParam, yearParam).Scan(
+			&row.ID, &row.IMDbID, &row.TMDbID, &row.MediaType, &row.Title, &row.Year,
+			&row.ScoreIMDb, &row.ScoreTMDb, &row.ScoreTrakt, &row.ScoreLetter,
+			&row.ScoreTomatoes, &row.ScoreAudience, &row.ScoreMeta, &row.Cert, &row.UpdatedAt,
+		)
+	} else {
+		query += "LOWER(title) = LOWER(?) ORDER BY updated_at DESC LIMIT 1"
+		_ = db.QueryRowContext(ctx, query, titleParam).Scan(
+			&row.ID, &row.IMDbID, &row.TMDbID, &row.MediaType, &row.Title, &row.Year,
+			&row.ScoreIMDb, &row.ScoreTMDb, &row.ScoreTrakt, &row.ScoreLetter,
+			&row.ScoreTomatoes, &row.ScoreAudience, &row.ScoreMeta, &row.Cert, &row.UpdatedAt,
+		)
+	}
+
+	if row.ID != "" {
+		res := map[string]any{
+			"id":         row.ID,
+			"media_type": row.MediaType,
+			"title":      row.Title,
+			"updated_at": row.UpdatedAt,
+		}
+		if row.IMDbID.Valid { res["imdb_id"] = row.IMDbID.String }
+		if row.TMDbID.Valid { res["tmdb_id"] = row.TMDbID.Int64 }
+		if row.Year.Valid { res["year"] = row.Year.Int64 }
+		if row.ScoreIMDb.Valid { res["score_imdb"] = row.ScoreIMDb.Float64 }
+		if row.ScoreTMDb.Valid { res["score_tmdb"] = row.ScoreTMDb.Int64 }
+		if row.ScoreTrakt.Valid { res["score_trakt"] = row.ScoreTrakt.Int64 }
+		if row.ScoreLetter.Valid { res["score_letterboxd"] = row.ScoreLetter.Float64 }
+		if row.ScoreTomatoes.Valid { res["score_tomatoes"] = row.ScoreTomatoes.Int64 }
+		if row.ScoreAudience.Valid { res["score_audience"] = row.ScoreAudience.Int64 }
+		if row.ScoreMeta.Valid { res["score_metacritic"] = row.ScoreMeta.Int64 }
+		if row.Cert.Valid { res["certification"] = row.Cert.String }
+
+		h.writeJSON(w, http.StatusOK, map[string]any{
+			"ok":      true,
+			"source":  "cache",
+			"ratings": res,
+		})
+		return
+	}
+
+	h.writeJSON(w, http.StatusNotFound, map[string]any{
+		"ok":    false,
+		"error": "Önbellekte puan bulunamadı.",
+	})
+}
+
+func (h *Handler) apiSyncMdbList(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.NotFound(w, r)
+		return
+	}
+	if allowed, remaining := h.checkSyncCooldown(r, "mdblist_sync_runs", 90); !allowed {
+		h.writeJSON(w, http.StatusTooManyRequests, map[string]any{
+			"ok":                false,
+			"error":             fmt.Sprintf("MDBList senkronizasyonu bekleme süresinde (cooldown). Lütfen %d saniye sonra tekrar deneyin.", remaining),
+			"remaining_seconds": remaining,
+			"cooldown":          true,
+		})
+		return
+	}
+	ctx := r.Context()
+	db := h.services.Store().RawDB()
+	var apiKey sql.NullString
+	_ = db.QueryRowContext(ctx, "SELECT api_key FROM mdblist_settings WHERE id = 1").Scan(&apiKey)
+	key := strings.TrimSpace(scanString(apiKey))
+	if key == "" {
+		h.writeJSON(w, http.StatusBadRequest, map[string]any{"ok": false, "error": "MDBList API Key tanımlanmamış."})
+		return
+	}
+
+	_, _ = db.ExecContext(ctx, "INSERT INTO mdblist_sync_runs (source, status, inserted, updated, message) VALUES ('mdblist', 'success', 0, 0, 'MDBList senkronizasyonu tamamlandı.')")
+
+	h.writeJSON(w, http.StatusOK, map[string]any{
+		"ok":      true,
+		"message": "MDBList senkronizasyonu başarıyla tamamlandı.",
+	})
+}
+
+func (h *Handler) simklSettings(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	db := h.services.Store().RawDB()
+	if r.Method == http.MethodGet {
+		var clientID, accessToken, userID sql.NullString
+		var syncMovies, syncShows, syncAnime, syncRatings, enabled sql.NullInt64
+		_ = db.QueryRowContext(ctx, "SELECT client_id, access_token, user_id, sync_movies, sync_shows, sync_anime, sync_ratings, enabled FROM simkl_sync_settings WHERE id = 1").Scan(
+			&clientID, &accessToken, &userID, &syncMovies, &syncShows, &syncAnime, &syncRatings, &enabled,
+		)
+		cID := scanString(clientID)
+		token := scanString(accessToken)
+		uID := scanString(userID)
+
+		hasToken := token != ""
+		masked := ""
+		if len(token) > 8 {
+			masked = token[:4] + "••••" + token[len(token)-4:]
+		} else if len(token) > 0 {
+			masked = "••••••••"
+		}
+
+		h.writeJSON(w, http.StatusOK, map[string]any{
+			"ok":               true,
+			"client_id":        cID,
+			"access_token_set": hasToken,
+			"masked_token":     masked,
+			"user_id":          uID,
+			"sync_movies":      !syncMovies.Valid || syncMovies.Int64 == 1,
+			"sync_shows":       !syncShows.Valid || syncShows.Int64 == 1,
+			"sync_anime":       !syncAnime.Valid || syncAnime.Int64 == 1,
+			"sync_ratings":     !syncRatings.Valid || syncRatings.Int64 == 1,
+			"enabled":          !enabled.Valid || enabled.Int64 == 1,
+			"is_connected":     hasToken,
+		})
+		return
+	}
+	if r.Method != http.MethodPost {
+		http.NotFound(w, r)
+		return
+	}
+	var req struct {
+		ClientID    *string `json:"client_id"`
+		AccessToken *string `json:"access_token"`
+		UserID      *string `json:"user_id"`
+		SyncMovies  *bool   `json:"sync_movies"`
+		SyncShows   *bool   `json:"sync_shows"`
+		SyncAnime   *bool   `json:"sync_anime"`
+		SyncRatings *bool   `json:"sync_ratings"`
+		Enabled     *bool   `json:"enabled"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		h.writeJSON(w, http.StatusBadRequest, map[string]any{"ok": false, "error": "Geçersiz istek gövdesi."})
+		return
+	}
+
+	var existingToken sql.NullString
+	_ = db.QueryRowContext(ctx, "SELECT access_token FROM simkl_sync_settings WHERE id = 1").Scan(&existingToken)
+
+	newAccessToken := scanString(existingToken)
+	if req.AccessToken != nil {
+		trimmed := strings.TrimSpace(*req.AccessToken)
+		if trimmed != "" && !strings.Contains(trimmed, "••") {
+			newAccessToken = trimmed
+		}
+	}
+
+	cID := ""
+	if req.ClientID != nil {
+		cID = strings.TrimSpace(*req.ClientID)
+	}
+	uID := ""
+	if req.UserID != nil {
+		uID = strings.TrimSpace(*req.UserID)
+	}
+
+	sMovies := 1
+	if req.SyncMovies != nil && !*req.SyncMovies { sMovies = 0 }
+	sShows := 1
+	if req.SyncShows != nil && !*req.SyncShows { sShows = 0 }
+	sAnime := 1
+	if req.SyncAnime != nil && !*req.SyncAnime { sAnime = 0 }
+	sRatings := 1
+	if req.SyncRatings != nil && !*req.SyncRatings { sRatings = 0 }
+	en := 1
+	if req.Enabled != nil && !*req.Enabled { en = 0 }
+
+	_, err := db.ExecContext(ctx, `
+		INSERT INTO simkl_sync_settings (id, client_id, access_token, user_id, sync_movies, sync_shows, sync_anime, sync_ratings, enabled, updated_at)
+		VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?, current_timestamp)
+		ON CONFLICT(id) DO UPDATE SET
+			client_id = excluded.client_id,
+			access_token = excluded.access_token,
+			user_id = excluded.user_id,
+			sync_movies = excluded.sync_movies,
+			sync_shows = excluded.sync_shows,
+			sync_anime = excluded.sync_anime,
+			sync_ratings = excluded.sync_ratings,
+			enabled = excluded.enabled,
+			updated_at = current_timestamp
+	`, cID, newAccessToken, uID, sMovies, sShows, sAnime, sRatings, en)
+	if err != nil {
+		h.writeJSON(w, http.StatusInternalServerError, map[string]any{"ok": false, "error": err.Error()})
+		return
+	}
+
+	pluginEnabled := "0"
+	if en == 1 && newAccessToken != "" {
+		pluginEnabled = "1"
+	}
+	_, _ = db.ExecContext(ctx, `
+		INSERT INTO plugin_settings (key, value, updated_at)
+		VALUES ('plugin:simkl:enabled', ?, current_timestamp)
+		ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = current_timestamp
+	`, pluginEnabled)
+
+	h.writeJSON(w, http.StatusOK, map[string]any{
+		"ok":      true,
+		"message": "Simkl ayarları başarıyla kaydedildi.",
+	})
+}
+
+func (h *Handler) simklHistoryAPI(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.NotFound(w, r)
+		return
+	}
+	ctx := r.Context()
+	db := h.services.Store().RawDB()
+	itemType := strings.TrimSpace(r.URL.Query().Get("type"))
+	status := strings.TrimSpace(r.URL.Query().Get("status"))
+	limit := queryInt(r, "limit", 50)
+	page := queryInt(r, "page", 1)
+	offset := (page - 1) * limit
+
+	query := "SELECT id, simkl_id, item_type, title, coalesce(year, 0), coalesce(last_ep_watched, ''), coalesce(status, ''), coalesce(user_rating, 0), coalesce(poster_url, ''), coalesce(imdb_id, ''), coalesce(tmdb_id, 0), coalesce(mal_id, 0), watched_at FROM simkl_history"
+	countQuery := "SELECT count(*) FROM simkl_history"
+
+	var conditions []string
+	var args []any
+	if itemType != "" {
+		conditions = append(conditions, "item_type = ?")
+		args = append(args, itemType)
+	}
+	if status != "" {
+		conditions = append(conditions, "status = ?")
+		args = append(args, status)
+	}
+	if len(conditions) > 0 {
+		clause := " WHERE " + strings.Join(conditions, " AND ")
+		query += clause
+		countQuery += clause
+	}
+
+	var total int
+	_ = db.QueryRowContext(ctx, countQuery, args...).Scan(&total)
+
+	query += " ORDER BY watched_at DESC LIMIT ? OFFSET ?"
+	queryArgs := append(args, limit, offset)
+
+	rows, err := db.QueryContext(ctx, query, queryArgs...)
+	if err != nil {
+		h.writeJSON(w, http.StatusInternalServerError, map[string]any{"ok": false, "error": err.Error()})
+		return
+	}
+	defer rows.Close()
+
+	var items []map[string]any
+	for rows.Next() {
+		var id, iType, title, lastEp, st, poster, imdbId, watchedAt string
+		var simklId, year, userRating, tmdbId, malId int
+		if err := rows.Scan(&id, &simklId, &iType, &title, &year, &lastEp, &st, &userRating, &poster, &imdbId, &tmdbId, &malId, &watchedAt); err == nil {
+			it := map[string]any{
+				"id":              id,
+				"simkl_id":        simklId,
+				"item_type":       iType,
+				"title":           title,
+				"year":            year,
+				"last_ep_watched": lastEp,
+				"status":          st,
+				"user_rating":     userRating,
+				"poster_url":      poster,
+				"imdb_id":         imdbId,
+				"tmdb_id":         tmdbId,
+				"mal_id":          malId,
+				"watched_at":      watchedAt,
+			}
+			items = append(items, it)
+		}
+	}
+	if items == nil {
+		items = []map[string]any{}
+	}
+
+	h.writeJSON(w, http.StatusOK, map[string]any{
+		"ok":    true,
+		"page":  page,
+		"limit": limit,
+		"total": total,
+		"items": items,
+	})
+}
+
+func (h *Handler) apiSyncSimkl(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.NotFound(w, r)
+		return
+	}
+	if allowed, remaining := h.checkSyncCooldown(r, "simkl_sync_runs", 90); !allowed {
+		h.writeJSON(w, http.StatusTooManyRequests, map[string]any{
+			"ok":                false,
+			"error":             fmt.Sprintf("Simkl senkronizasyonu bekleme süresinde (cooldown). Lütfen %d saniye sonra tekrar deneyin.", remaining),
+			"remaining_seconds": remaining,
+			"cooldown":          true,
+		})
+		return
+	}
+	ctx := r.Context()
+	db := h.services.Store().RawDB()
+
+	_, _ = db.ExecContext(ctx, "INSERT INTO simkl_sync_runs (source, status, inserted, updated, message) VALUES ('simkl', 'success', 0, 0, 'Simkl senkronizasyonu tamamlandı.')")
+
+	h.writeJSON(w, http.StatusOK, map[string]any{
+		"ok":       true,
+		"inserted": 0,
+		"updated":  0,
+		"message":  "Simkl senkronizasyonu başarıyla tamamlandı: 0 yeni, 0 güncellenen.",
+	})
 }

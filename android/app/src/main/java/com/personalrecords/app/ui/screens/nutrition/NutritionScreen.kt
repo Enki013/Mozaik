@@ -55,36 +55,44 @@ fun NutritionScreen(
     var selectedFood by remember { mutableStateOf<FoodEntryDto?>(null) }
     var animationStarted by remember { mutableStateOf(false) }
 
-    val nutritionColor = domainNutritionColor()
-    val booksColor = domainBooksColor()
+    val nutritionColor = recordCategoryColors(RecordCategory.Nutrition).accent
+    val booksColor = recordCategoryColors(RecordCategory.Books).accent
     val secondaryColor = MaterialTheme.colorScheme.secondary
-    val nutritionStatCards = remember(nutritionColor, booksColor, secondaryColor) {
+    val nutritionCaloriesTitle = stringResource(R.string.stats_card_nutrition_calories_title)
+    val nutritionCaloriesDesc = stringResource(R.string.stats_card_nutrition_calories_desc)
+    val nutritionMealsTitle = stringResource(R.string.stats_card_nutrition_meals_title)
+    val nutritionMealsDesc = stringResource(R.string.stats_card_nutrition_meals_desc)
+    val nutritionProteinTitle = stringResource(R.string.stats_card_nutrition_protein_title)
+    val nutritionProteinDesc = stringResource(R.string.stats_card_nutrition_protein_desc)
+    val nutritionCarbfatTitle = stringResource(R.string.stats_card_nutrition_carbfat_title)
+    val nutritionCarbfatDesc = stringResource(R.string.stats_card_nutrition_carbfat_desc)
+    val nutritionStatCards = remember(nutritionColor, booksColor, secondaryColor, nutritionCaloriesTitle, nutritionCaloriesDesc, nutritionMealsTitle, nutritionMealsDesc, nutritionProteinTitle, nutritionProteinDesc, nutritionCarbfatTitle, nutritionCarbfatDesc) {
         listOf(
             StatCardItem(
                 id = "nutrition_calories",
-                title = "Bugünkü Kalori",
-                description = "Tüketilen kalori ve kalan hedef",
+                title = nutritionCaloriesTitle,
+                description = nutritionCaloriesDesc,
                 icon = Icons.Default.LocalFireDepartment,
                 iconTint = nutritionColor
             ),
             StatCardItem(
                 id = "nutrition_meals",
-                title = "Öğün Kayıtları",
-                description = "Bugünkü öğün sayısı ve toplam kayıt",
+                title = nutritionMealsTitle,
+                description = nutritionMealsDesc,
                 icon = Icons.Default.Restaurant,
                 iconTint = secondaryColor
             ),
             StatCardItem(
                 id = "nutrition_protein",
-                title = "Protein",
-                description = "Günlük protein gramı ve yüzdesi",
+                title = nutritionProteinTitle,
+                description = nutritionProteinDesc,
                 icon = Icons.Default.FitnessCenter,
                 iconTint = nutritionColor
             ),
             StatCardItem(
                 id = "nutrition_carbfat",
-                title = "Karbonhidrat & Yağ",
-                description = "Karb ve yağ dengesi ve yüzdeleri",
+                title = nutritionCarbfatTitle,
+                description = nutritionCarbfatDesc,
                 icon = Icons.Default.PieChart,
                 iconTint = booksColor
             )
@@ -95,9 +103,9 @@ fun NutritionScreen(
         kotlinx.coroutines.delay(360L) // Wait for NavHost slide-in transition to finish before animating gauge
         animationStarted = true
     }
-    val configuration = LocalConfiguration.current
-    val isWideScreen = configuration.screenWidthDp >= 600
-    val isTwoPane = configuration.screenWidthDp >= 840
+    val adaptiveLayout = currentAdaptiveLayout()
+    val isWideScreen = adaptiveLayout.isWide
+    val isTwoPane = adaptiveLayout.showsDetailPane
     val scrollBehavior = TopAppBarDefaults.enterAlwaysScrollBehavior(rememberTopAppBarState())
 
     if (showDatePicker) {
@@ -164,13 +172,9 @@ fun NutritionScreen(
             .nestedScroll(scrollBehavior.nestedScrollConnection),
         contentWindowInsets = WindowInsets.statusBars,
         topBar = {
-            TopAppBar(
-                title = {
-                    Text(
-                        text = stringResource(R.string.title_nutrition),
-                        style = MaterialTheme.typography.titleLargeEmphasized
-                    )
-                },
+            ExpressivePageTopAppBar(
+                title = stringResource(R.string.title_nutrition),
+                scrollBehavior = scrollBehavior,
                 navigationIcon = {
                     if (onNavigateBack != null) {
                         IconButton(onClick = onNavigateBack) {
@@ -192,11 +196,6 @@ fun NutritionScreen(
                         }
                     )
                 },
-                scrollBehavior = scrollBehavior,
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.surface,
-                    scrolledContainerColor = MaterialTheme.colorScheme.surfaceContainer
-                )
             )
         }
     ) { innerPadding ->
@@ -218,9 +217,13 @@ fun NutritionScreen(
                     columns = if (isWideScreen) GridCells.Adaptive(minSize = 340.dp) else GridCells.Fixed(1),
                     state = gridState,
                     modifier = Modifier
-                        .fillMaxSize()
-                        .padding(horizontal = 12.dp),
-                    contentPadding = PaddingValues(top = 10.dp, bottom = if (isWideScreen) 32.dp else 144.dp),
+                        .fillMaxSize(),
+                    contentPadding = PaddingValues(
+                        start = FilterGutter,
+                        end = FilterGutter,
+                        top = 10.dp,
+                        bottom = 24.dp + WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
+                    ),
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalArrangement = Arrangement.spacedBy(if (isWideScreen) 8.dp else 0.dp)
                 ) {
@@ -283,9 +286,9 @@ fun NutritionScreen(
                                             badgeText = targetBadge,
                                             note = remNote,
                                             valueIcon = Icons.Default.LocalFireDepartment,
-                                            valueIconTint = domainNutritionColor(),
-                                            badgeBg = domainNutritionContainer(),
-                                            badgeColor = domainNutritionOnContainer(),
+                                            valueIconTint = recordCategoryColors(RecordCategory.Nutrition).accent,
+                                            badgeBg = recordCategoryColors(RecordCategory.Nutrition).container,
+                                            badgeColor = recordCategoryColors(RecordCategory.Nutrition).onContainer,
                                             onLongClick = { isEditMode = true }
                                         )
                                     }
@@ -340,9 +343,9 @@ fun NutritionScreen(
                                             badgeText = "$protPct%",
                                             note = stringResource(R.string.badge_daily) + " protein",
                                             valueIcon = Icons.Default.FitnessCenter,
-                                            valueIconTint = domainNutritionColor(),
-                                            badgeBg = domainNutritionContainer(),
-                                            badgeColor = domainNutritionOnContainer(),
+                                            valueIconTint = recordCategoryColors(RecordCategory.Nutrition).accent,
+                                            badgeBg = recordCategoryColors(RecordCategory.Nutrition).container,
+                                            badgeColor = recordCategoryColors(RecordCategory.Nutrition).onContainer,
                                             onLongClick = { isEditMode = true }
                                         )
                                     }
@@ -365,9 +368,9 @@ fun NutritionScreen(
                                             badgeText = "$carbPct% / $fatPct%",
                                             note = "Karb / Yağ dengesi",
                                             valueIcon = Icons.Default.PieChart,
-                                            valueIconTint = domainBooksColor(),
-                                            badgeBg = domainBooksContainer(),
-                                            badgeColor = domainBooksOnContainer(),
+                                            valueIconTint = recordCategoryColors(RecordCategory.Books).accent,
+                                            badgeBg = recordCategoryColors(RecordCategory.Books).container,
+                                            badgeColor = recordCategoryColors(RecordCategory.Books).onContainer,
                                             onLongClick = { isEditMode = true }
                                         )
                                     }
@@ -404,7 +407,7 @@ fun NutritionScreen(
                                 Icon(
                                     imageVector = Icons.Default.LocalFireDepartment,
                                     contentDescription = null,
-                                    tint = domainNutritionColor(),
+                                    tint = recordCategoryColors(RecordCategory.Nutrition).accent,
                                     modifier = Modifier.size(18.dp)
                                 )
                                 Text(
@@ -417,14 +420,10 @@ fun NutritionScreen(
                             FilledTonalButton(
                                 onClick = { showTargetDialog = true },
                                 interactionSource = targetBtnInteraction,
-                                shape = rememberExpressiveButtonShape(
-                                    interactionSource = targetBtnInteraction,
-                                    restingCorner = M3CornerRadius.Full,
-                                    pressedCorner = M3CornerRadius.ExtraSmall
-                                ),
+                                shapes = expressiveButtonShapes(),
                                 contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
                                 modifier = Modifier
-                                    .height(30.dp)
+
                                     .expressivePressScale(targetBtnInteraction)
                             ) {
                                 Row(
@@ -460,8 +459,8 @@ fun NutritionScreen(
                         val todayFatKcal = state.todayFat * 9
                         val todayTotalMacroKcal = todayCarbKcal + todayProtKcal + todayFatKcal
 
-                        val carbColor = domainBooksColor()
-                        val protColor = domainNutritionColor()
+                        val carbColor = recordCategoryColors(RecordCategory.Books).accent
+                        val protColor = recordCategoryColors(RecordCategory.Nutrition).accent
                         val fatColor = domainRatingColor()
 
                         val macroSegments = if (todayTotalMacroKcal > 0) {
@@ -572,7 +571,7 @@ fun NutritionScreen(
                             Icon(
                                 imageVector = Icons.Default.PieChart,
                                 contentDescription = null,
-                                tint = domainNutritionColor(),
+                                tint = recordCategoryColors(RecordCategory.Nutrition).accent,
                                 modifier = Modifier.size(18.dp)
                             )
                             Text(
@@ -597,8 +596,8 @@ fun NutritionScreen(
                         val protPct = if (totalKcal > 0) (protKcal / totalKcal).toFloat() else 0.33f
                         val fatPct = if (totalKcal > 0) (fatKcal / totalKcal).toFloat() else 0.34f
 
-                        val carbColor = domainBooksColor()
-                        val protColor = domainNutritionColor()
+                        val carbColor = recordCategoryColors(RecordCategory.Books).accent
+                        val protColor = recordCategoryColors(RecordCategory.Nutrition).accent
                         val fatColor = domainRatingColor()
 
                         val breakdownSegments = if (totalKcal > 0) {
@@ -639,175 +638,101 @@ fun NutritionScreen(
                 }
             }
 
+            state.error?.let { err ->
+                item(key = "nutrition_error_banner", span = { GridItemSpan(maxLineSpan) }, contentType = "error_banner") {
+                    ExpressiveErrorBanner(
+                        message = err,
+                        onRetry = { viewModel.loadData() },
+                        modifier = expressiveItemModifier().padding(bottom = 8.dp)
+                    )
+                }
+            }
+
             // Food Entries Log Header & Filters
-            item(key = "nutrition_sticky_header", span = { GridItemSpan(maxLineSpan) }, contentType = "sticky_header") {
-                Surface(
-                    color = MaterialTheme.colorScheme.surface,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(bottom = 8.dp)
-                ) {
-                    Column(
+            stickyHeader(key = "nutrition_sticky_header", contentType = "sticky_header") {
+                ExpressiveFilterHeader {
+                    ExpressiveSearchField(
+                        value = state.searchQuery,
+                        onValueChange = { viewModel.setSearchQuery(it) },
+                        placeholder = stringResource(R.string.nutrition_search_placeholder),
+                        clearContentDescription = stringResource(R.string.action_clear),
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(vertical = 4.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        // Search input
-                        OutlinedTextField(
-                            value = state.searchQuery,
-                            onValueChange = { viewModel.setSearchQuery(it) },
-                            modifier = Modifier.fillMaxWidth(),
-                            placeholder = {
-                                Text(
-                                    text = stringResource(R.string.nutrition_search_placeholder),
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            },
-                            leadingIcon = {
-                                Icon(
-                                    Icons.Default.Search,
-                                    contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    modifier = Modifier.size(20.dp)
-                                )
-                            },
-                            trailingIcon = {
-                                if (state.searchQuery.isNotEmpty()) {
-                                    IconButton(onClick = {
-                                        viewModel.setSearchQuery("")
-                                    }) {
-                                        Icon(
-                                            Icons.Default.Clear,
-                                            contentDescription = stringResource(R.string.action_clear),
-                                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                            modifier = Modifier.size(18.dp)
-                                        )
-                                    }
+                            .filterHeaderItem()
+                    )
+                    ExpressiveFilterRow {
+                        ExpressiveConnectedButtonGroup(
+                            items = NutritionMealKeys,
+                            selectedItem = state.selectedMeal,
+                            onItemSelected = { key -> viewModel.setMeal(key) },
+                            labelProvider = { key ->
+                                when (key) {
+                                    "Breakfast" -> stringResource(R.string.nutrition_filter_breakfast)
+                                    "Lunch" -> stringResource(R.string.nutrition_filter_lunch)
+                                    "Dinner" -> stringResource(R.string.nutrition_filter_dinner)
+                                    "Other" -> stringResource(R.string.nutrition_filter_snack)
+                                    else -> stringResource(R.string.filter_all)
                                 }
                             },
-                            shape = M3Shapes.CornerFull,
-                            colors = OutlinedTextFieldDefaults.colors(
-                                focusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-                                unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainerLow,
-                                focusedBorderColor = MaterialTheme.colorScheme.primary,
-                                unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant
-                            ),
-                            singleLine = true
+                            iconProvider = { key, _ ->
+                                when (key) {
+                                    "Breakfast" -> Icons.Default.BakeryDining
+                                    "Lunch" -> Icons.Default.LunchDining
+                                    "Dinner" -> Icons.Default.DinnerDining
+                                    "Other" -> Icons.Default.Fastfood
+                                    else -> null
+                                }
+                            }
                         )
-
-                        // Date & Meal filter chips row
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .horizontalScroll(rememberScrollState()),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            val hasActiveDate = state.selectedDateFilter != null || state.fromDateFilter != null
-                            val dateLabel = formatDateRangeChipLabel(
+                    }
+                    val hasActiveDate = state.selectedDateFilter != null || state.fromDateFilter != null
+                    val hasActiveFilters = state.searchQuery.isNotEmpty() || hasActiveDate || state.selectedMeal != "all" || state.onlyHighProtein
+                    ExpressiveFilterRow {
+                        if (hasActiveFilters) {
+                            ExpressiveClearFiltersChip(onClick = { viewModel.resetFilters() })
+                        }
+                        ExpressiveDateFilterChip(
+                            label = formatDateRangeChipLabel(
                                 singleDate = state.selectedDateFilter,
                                 fromDate = state.fromDateFilter,
                                 toDate = state.toDateFilter,
-                                defaultText = stringResource(R.string.nutrition_pick_date)
-                            )
-
-                            ExpressiveFilterChip(
-                                selected = hasActiveDate,
-                                onClick = { showDatePicker = true },
-                                leadingIcon = {
-                                    Icon(
-                                        imageVector = if (hasActiveDate) Icons.Default.DateRange else Icons.Default.CalendarMonth,
-                                        contentDescription = null,
-                                        modifier = Modifier.size(16.dp)
-                                    )
-                                },
-                                trailingIcon = if (hasActiveDate) {
-                                    {
-                                        Icon(
-                                            imageVector = Icons.Default.Close,
-                                            contentDescription = null,
-                                            modifier = Modifier
-                                                .size(14.dp)
-                                                .clickable {
-                                                    viewModel.clearDateFilter()
-                                                }
-                                        )
-                                    }
-                                } else null,
-                                label = {
-                                    Text(
-                                        text = dateLabel,
-                                        style = MaterialTheme.typography.labelMedium
-                                    )
-                                }
-                            )
-
-                            // Meals (M3 Expressive Connected Button Group)
-                            ExpressiveConnectedButtonGroup(
-                                items = NutritionMealKeys,
-                                selectedItem = state.selectedMeal,
-                                onItemSelected = { mealKey ->
-                                    if (state.selectedMeal != mealKey) {
-                                        viewModel.setMeal(mealKey)
-                                    }
-                                },
-                                labelProvider = { mealKey ->
-                                    when (mealKey) {
-                                        "Breakfast" -> stringResource(R.string.nutrition_filter_breakfast)
-                                        "Lunch" -> stringResource(R.string.nutrition_filter_lunch)
-                                        "Dinner" -> stringResource(R.string.nutrition_filter_dinner)
-                                        "Other" -> stringResource(R.string.nutrition_filter_snack)
-                                        else -> stringResource(R.string.nutrition_filter_all_meals)
-                                    }
-                                },
-                                iconProvider = { mealKey, _ ->
-                                    when (mealKey) {
-                                        "Breakfast" -> Icons.Default.BakeryDining
-                                        "Lunch" -> Icons.Default.LunchDining
-                                        "Dinner" -> Icons.Default.DinnerDining
-                                        "Other" -> Icons.Default.Fastfood
-                                        else -> null
-                                    }
-                                }
-                            )
-
-                            // High protein
-                            ExpressiveFilterChip(
-                                selected = state.onlyHighProtein,
-                                onClick = {
-                                    viewModel.toggleHighProtein()
-                                },
-                                leadingIcon = {
-                                    Icon(
-                                        imageVector = Icons.Default.FitnessCenter,
-                                        contentDescription = null,
-                                        modifier = Modifier.size(16.dp)
-                                    )
-                                },
-                                label = { Text(">20g Protein", style = MaterialTheme.typography.labelMedium) }
-                            )
-
-                            // Clear filter button
-                            if (state.selectedDateFilter != null || state.fromDateFilter != null || state.selectedMeal != "all" || state.onlyHighProtein || state.searchQuery.isNotEmpty()) {
-                                ExpressiveAssistChip(
-                                    onClick = {
-                                        viewModel.resetFilters()
-                                    },
-                                    label = {
-                                        Text(
-                                            text = stringResource(R.string.action_clear),
-                                            style = MaterialTheme.typography.labelMediumEmphasized,
-                                            color = MaterialTheme.colorScheme.error
-                                        )
-                                    },
-                                    colors = borderlessAssistChipColors(
-                                        labelColor = MaterialTheme.colorScheme.error
-                                    )
+                                defaultText = stringResource(R.string.filter_pick_date)
+                            ),
+                            isActive = hasActiveDate,
+                            onClick = { showDatePicker = true },
+                            onClear = { viewModel.clearDateFilter() }
+                        )
+                        ExpressiveFilterChip(
+                            selected = state.onlyHighProtein,
+                            onClick = { viewModel.toggleHighProtein() },
+                            leadingIcon = {
+                                Icon(
+                                    imageVector = Icons.Default.FitnessCenter,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(FilterChipDefaults.IconSize)
                                 )
-                            }
-                        }
+                            },
+                            label = { Text(text = stringResource(R.string.nutrition_filter_high_protein), style = MaterialTheme.typography.labelLarge) }
+                        )
+                        ExpressiveDropdownFilterChip(
+                            options = listOf("date_desc", "date_asc", "calories_desc", "protein_desc"),
+                            selected = state.sortBy,
+                            onSelect = { viewModel.setSortBy(it) },
+                            optionLabel = { key ->
+                                when (key) {
+                                    "date_desc" -> stringResource(R.string.sort_newest)
+                                    "date_asc" -> stringResource(R.string.sort_oldest)
+                                    "calories_desc" -> stringResource(R.string.sort_calories)
+                                    "protein_desc" -> stringResource(R.string.sort_protein)
+                                    else -> stringResource(R.string.action_sort)
+                                }
+                            },
+                            leadingIcon = Icons.AutoMirrored.Filled.Sort,
+                            isActive = false
+                        )
+                    }
+                    if (hasActiveFilters) {
+                        ExpressiveFilterResultCount(count = state.filteredFoods.size)
                     }
                 }
             }
@@ -822,24 +747,18 @@ fun NutritionScreen(
                                 .padding(48.dp),
                             contentAlignment = Alignment.Center
                         ) {
-                            ContainedLoadingIndicator(size = 44.dp)
+                            AppContainedLoadingIndicator(size = 44.dp)
                         }
                     }
                 }
-            } else if (state.filteredFoods.isEmpty()) {
+            } else if (state.filteredFoods.isEmpty() && state.error == null) {
                 item(key = "nutrition_empty", span = { GridItemSpan(maxLineSpan) }, contentType = "empty") {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(32.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            text = stringResource(R.string.nutrition_empty),
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
+                    ExpressiveEmptyState(
+                        title = stringResource(R.string.nutrition_empty),
+                        icon = Icons.Default.Restaurant,
+                        iconContainerColor = recordCategoryColors(RecordCategory.Nutrition).container,
+                        iconContentColor = recordCategoryColors(RecordCategory.Nutrition).onContainer
+                    )
                 }
             } else {
                 itemsIndexed(
@@ -850,7 +769,7 @@ fun NutritionScreen(
                     if (isWideScreen) {
                         Surface(
                             modifier = expressiveItemModifier().fillMaxWidth(),
-                            shape = M3Shapes.CornerMedium,
+                            shape = M3Shapes.CornerLarge,
                             color = MaterialTheme.colorScheme.surfaceContainerLow
                         ) {
                             FoodEntryRowItem(
@@ -877,41 +796,23 @@ fun NutritionScreen(
           }
         }
 
-        if (isTwoPane) {
-            Row(modifier = Modifier.fillMaxSize()) {
-                Box(
-                    modifier = Modifier
-                        .weight(1.15f)
-                        .fillMaxHeight()
-                ) {
-                    listContent()
+        ExpressiveListDetailLayout(
+            showDetailPane = isTwoPane,
+            detailPane = {
+                if (selectedFood != null) {
+                    Modifier.FoodEntryDetailPaneCard(
+                        item = selectedFood!!
+                    ) { selectedFood = null }
+                } else {
+                    DetailPlaceholderPane(
+                        icon = Icons.Default.Restaurant,
+                        title = stringResource(R.string.adaptive_select_item_title),
+                        subtitle = stringResource(R.string.adaptive_select_item_subtitle)
+                    )
                 }
-                VerticalDivider(
-                    modifier = Modifier.fillMaxHeight(),
-                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
-                )
-                Box(
-                    modifier = Modifier
-                        .weight(0.85f)
-                        .fillMaxHeight()
-                        .padding(top = 10.dp, end = 12.dp, bottom = 32.dp)
-                ) {
-                    if (selectedFood != null) {
-                        Modifier.FoodEntryDetailPaneCard(
-                            item = selectedFood!!
-                        ) { selectedFood = null }
-                    } else {
-                        DetailPlaceholderPane(
-                            icon = Icons.Default.Restaurant,
-                            title = stringResource(R.string.adaptive_select_item_title),
-                            subtitle = stringResource(R.string.adaptive_select_item_subtitle)
-                        )
-                    }
-                }
-            }
-        } else {
-            listContent()
-        }
+            },
+            list = listContent
+        )
     }
 }
 
@@ -1025,13 +926,13 @@ fun FoodEntryRowItem(
             modifier = Modifier
                 .size(40.dp)
                 .clip(M3Shapes.CornerSmall)
-                .background(domainNutritionContainer()),
+                .background(recordCategoryColors(RecordCategory.Nutrition).container),
             contentAlignment = Alignment.Center
         ) {
             Icon(
                 imageVector = mealIcon,
                 contentDescription = null,
-                tint = domainNutritionOnContainer(),
+                tint = recordCategoryColors(RecordCategory.Nutrition).onContainer,
                 modifier = Modifier.size(20.dp)
             )
         }
@@ -1081,7 +982,7 @@ fun FoodEntryRowItem(
             Text(
                 text = "${item.calories.toInt()} kcal",
                 style = MaterialTheme.typography.titleSmallEmphasized,
-                color = domainNutritionColor(),
+                color = recordCategoryColors(RecordCategory.Nutrition).accent,
                 maxLines = 1,
                 softWrap = false
             )

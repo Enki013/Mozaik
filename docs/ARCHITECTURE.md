@@ -68,6 +68,8 @@ The server acts as a centralized personal records collector with three distinct 
 - **Contract:** Direct token exchange endpoints (`/fatsecret/connect`, `/fatsecret/callback`) and credential management (`/api/settings/fatsecret`).
 - **Implementations:**
   - **FatSecret BYOK:** Allows users to input their own `Consumer Key` and `Consumer Secret` via the mobile app, authenticate in their phone's browser, and sync nutrition logs.
+  - **Trakt.tv (Planned):** Movies & TV shows watch history, episode tracking, scrobble, and ratings via Trakt API.
+  - **MDBList (Planned):** Smart curated lists, multi-source rating aggregation (IMDb, Trakt, TMDB, Letterboxd), and watchlist filter syncing.
   - **Future Plugins:** Spotify listening history, Steam library & achievements.
 
 ---

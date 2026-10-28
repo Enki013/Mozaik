@@ -72,7 +72,10 @@ class IntegrationsCatalogViewModel(
                         isEnabled = enabledIds.contains(plugin.id),
                         isConfigured = enabledIds.contains(plugin.id)
                     )
-                }
+                }.sortedWith(
+                    compareByDescending<IntegrationPlugin> { it.isEnabled }
+                        .thenBy { it.name.lowercase() }
+                )
 
                 IntegrationsCatalogUiState(
                     plugins = filtered,
@@ -98,6 +101,9 @@ class IntegrationsCatalogViewModel(
     }
 
     fun togglePlugin(pluginId: String, isEnabled: Boolean) {
+        val plugin = PluginRegistry.defaultPlugins.firstOrNull { it.id == pluginId } ?: return
+        if (plugin.isInDevelopment && isEnabled) return
+
         viewModelScope.launch {
             preferences.toggleIntegrationPlugin(pluginId, isEnabled)
             _toastMessage.value = if (isEnabled) {
@@ -114,6 +120,7 @@ class IntegrationsCatalogViewModel(
     }
 
     fun syncPlugin(plugin: IntegrationPlugin) {
+        if (plugin.isInDevelopment) return
         val serviceKey = plugin.syncServiceKey ?: return
         viewModelScope.launch {
             _syncingPluginId.value = plugin.id
@@ -174,6 +181,9 @@ class IntegrationsCatalogViewModel(
                             else -> Resource.Error("Stats.fm eşitlenemedi")
                         }
                     }
+                    "trakt" -> repository.syncTrakt(force = true)
+                    "mdblist" -> repository.syncMdbList(force = true)
+                    "simkl" -> repository.syncSimkl(force = true)
                     else -> Resource.Error("Bilinmeyen servis: $serviceKey")
                 }
 

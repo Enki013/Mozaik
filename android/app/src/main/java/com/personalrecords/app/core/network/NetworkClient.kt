@@ -25,11 +25,17 @@ class DynamicHostInterceptor(
     coroutineScope: CoroutineScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
 ) : Interceptor {
     private val cachedBaseUrl = AtomicReference<String>("")
+    private val cachedApiKey = AtomicReference<String>("")
 
     init {
         coroutineScope.launch {
             preferences.serverBaseUrl.collect { url ->
                 cachedBaseUrl.set(url)
+            }
+        }
+        coroutineScope.launch {
+            preferences.serverApiKey.collect { key ->
+                cachedApiKey.set(key)
             }
         }
     }
@@ -49,7 +55,17 @@ class DynamicHostInterceptor(
                 .host(newHttpUrl.host)
                 .port(newHttpUrl.port)
                 .build()
-            request = request.newBuilder().url(newRequestUrl).build()
+            val requestBuilder = request.newBuilder().url(newRequestUrl)
+
+            val currentApiKey = cachedApiKey.get().ifBlank {
+                runBlocking { preferences.serverApiKey.first() }.also { cachedApiKey.set(it) }
+            }
+            if (currentApiKey.isNotBlank()) {
+                requestBuilder.header("Authorization", "Bearer $currentApiKey")
+                requestBuilder.header("X-API-Key", currentApiKey)
+            }
+
+            request = requestBuilder.build()
         }
         return chain.proceed(request)
     }

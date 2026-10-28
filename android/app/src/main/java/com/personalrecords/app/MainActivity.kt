@@ -18,11 +18,15 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
+import androidx.compose.ui.input.nestedscroll.NestedScrollSource
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.stringResource
@@ -42,6 +46,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation3.runtime.entryProvider
 import androidx.navigation3.ui.NavDisplay
 import com.personalrecords.app.core.theme.M3ExpressiveMotion
+import com.personalrecords.app.core.theme.M3NavigationMetrics
 import com.personalrecords.app.core.theme.M3Shapes
 import com.personalrecords.app.core.theme.PersonalRecordsTheme
 import com.personalrecords.app.core.theme.labelLargeEmphasized
@@ -101,17 +106,22 @@ fun ProvideLocalizedApp(
 ) {
     val context = androidx.compose.ui.platform.LocalContext.current
     val localizedContext = remember(language, context) {
-        if (language == "system") {
-            context
+        val locale = if (language == "system") {
+            android.content.res.Resources.getSystem().configuration.locales[0]
         } else {
-            val locale = java.util.Locale(language)
-            java.util.Locale.setDefault(locale)
-            val config = android.content.res.Configuration(context.resources.configuration).apply {
-                setLocale(locale)
-                setLayoutDirection(locale)
-            }
-            context.createConfigurationContext(config)
+            java.util.Locale.forLanguageTag(language)
         }
+        java.util.Locale.setDefault(locale)
+        val config = android.content.res.Configuration(context.resources.configuration).apply {
+            setLocale(locale)
+            setLayoutDirection(locale)
+        }
+        // Menus, bottom sheets and dialogs open in their own windows and read the activity's
+        // resources directly, not these composition locals. Update the activity resources too,
+        // otherwise they fall back to the system language.
+        @Suppress("DEPRECATION")
+        context.resources.updateConfiguration(config, context.resources.displayMetrics)
+        context.createConfigurationContext(config)
     }
 
     CompositionLocalProvider(
@@ -230,8 +240,40 @@ fun MainAppHost() {
         isSettingsWarm = true
     }
 
-    val configuration = androidx.compose.ui.platform.LocalConfiguration.current
-    val isWideScreen = configuration.screenWidthDp >= 600
+    val isWideScreen = com.personalrecords.app.core.theme.currentAdaptiveLayout().isWide
+    val navHideThresholdPx = with(androidx.compose.ui.platform.LocalDensity.current) { 16.dp.toPx() }
+    val bottomNavVisible = remember { mutableStateOf(true) }
+    val accumulatedScroll = remember { mutableFloatStateOf(0f) }
+    val bottomNavScrollConnection = remember(navHideThresholdPx, isWideScreen) {
+        object : NestedScrollConnection {
+            override fun onPostScroll(
+                consumed: Offset,
+                available: Offset,
+                source: NestedScrollSource
+            ): Offset {
+                val scrollDelta = consumed.y + available.y
+                if (isWideScreen || scrollDelta == 0f) return Offset.Zero
+
+                accumulatedScroll.floatValue += scrollDelta
+                when {
+                    accumulatedScroll.floatValue <= -navHideThresholdPx -> {
+                        bottomNavVisible.value = false
+                        accumulatedScroll.floatValue = 0f
+                    }
+                    accumulatedScroll.floatValue >= navHideThresholdPx -> {
+                        bottomNavVisible.value = true
+                        accumulatedScroll.floatValue = 0f
+                    }
+                }
+                return Offset.Zero
+            }
+        }
+    }
+
+    LaunchedEffect(topLevelRoute, currentRoute) {
+        bottomNavVisible.value = true
+        accumulatedScroll.floatValue = 0f
+    }
 
     val entryProvider = entryProvider<androidx.navigation3.runtime.NavKey> {
         entry<Screen.Overview> {
@@ -314,87 +356,101 @@ fun MainAppHost() {
         navigator.goBack()
     }
 
-    val showFloatingNav = !isDetailRoute
+    val showFloatingNav = !isDetailRoute && (isWideScreen || bottomNavVisible.value)
 
-    Box(modifier = Modifier.fillMaxSize()) {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .nestedScroll(bottomNavScrollConnection)
+    ) {
         Box(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(start = if (isWideScreen && showFloatingNav) 88.dp else 0.dp)
         ) {
-            // Persistent Peer Tabs Layer: keeps Overview, Timeline, Records, and Settings
-            // warm in memory (measured once, unplaced when inactive so 0 GPU/touch/recomposition cost).
-            // Keeping the active peer tab placed during detail route transitions prevents a Frame-1
-            // layout invalidation and blank background flash while the detail screen slides/fades in.
             Box(
                 modifier = Modifier
-                    .fillMaxSize()
-                    .keepWarmTab(visible = lastActivePeerTab == Screen.Overview)
+                    .fillMaxHeight()
+                    .widthIn(max = 1200.dp)
+                    .fillMaxWidth()
+                    .align(Alignment.TopCenter)
             ) {
-                OverviewScreen(
-                    viewModel = overviewVm,
-                    scrollToTopFlow = overviewScrollFlow,
-                    refreshFlow = overviewRefreshFlow,
-                    onNavigateToTimeline = { navigator.navigate(Screen.Timeline) },
-                    onNavigateToNutrition = { navigator.navigate(Screen.Nutrition) },
-                    onNavigateToBooks = { navigator.navigate(Screen.Books) },
-                    onNavigateToMovies = { navigator.navigate(Screen.Movies) },
-                    onNavigateToMusic = { navigator.navigate(Screen.Music) },
-                    onNavigateToSettings = { navigator.navigate(Screen.Settings) },
-                    onNavigateToIntegrationsCatalog = { navigator.navigate(Screen.IntegrationsCatalog) }
-                )
-            }
-
-            if (isTimelineWarm || lastActivePeerTab == Screen.Timeline) {
+                // Persistent Peer Tabs Layer: keeps Overview, Timeline, Records, and Settings
+                // warm in memory (measured once, unplaced when inactive so 0 GPU/touch/recomposition cost).
+                // Keeping the active peer tab placed during detail route transitions prevents a Frame-1
+                // layout invalidation and blank background flash while the detail screen slides/fades in.
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
-                        .keepWarmTab(visible = lastActivePeerTab == Screen.Timeline)
+                        .keepWarmTab(visible = lastActivePeerTab == Screen.Overview)
                 ) {
-                    TimelineScreen(
-                        viewModel = timelineVm,
-                        scrollToTopFlow = timelineScrollFlow,
-                        refreshFlow = timelineRefreshFlow,
-                        onNavigateToNutrition = { navigator.navigate(Screen.Nutrition) },
-                        onNavigateToBooks = { navigator.navigate(Screen.Books) },
-                        onNavigateToMovies = { navigator.navigate(Screen.Movies) }
-                    )
-                }
-            }
-
-            if (isRecordsWarm || lastActivePeerTab == Screen.Records) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .keepWarmTab(visible = lastActivePeerTab == Screen.Records)
-                ) {
-                    RecordsScreen(
-                        viewModel = recordsVm,
-                        scrollToTopFlow = recordsScrollFlow,
-                        refreshFlow = recordsRefreshFlow,
+                    OverviewScreen(
+                        viewModel = overviewVm,
+                        scrollToTopFlow = overviewScrollFlow,
+                        refreshFlow = overviewRefreshFlow,
+                        onNavigateToTimeline = { navigator.navigate(Screen.Timeline) },
                         onNavigateToNutrition = { navigator.navigate(Screen.Nutrition) },
                         onNavigateToBooks = { navigator.navigate(Screen.Books) },
                         onNavigateToMovies = { navigator.navigate(Screen.Movies) },
-                        onNavigateToNotifications = { navigator.navigate(Screen.Notifications) },
+                        onNavigateToMusic = { navigator.navigate(Screen.Music) },
                         onNavigateToHealthConnect = { navigator.navigate(Screen.HealthConnect) },
-                        onNavigateToMusic = { navigator.navigate(Screen.Music) }
-                    )
-                }
-            }
-
-            if (isSettingsWarm || lastActivePeerTab == Screen.Settings) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .keepWarmTab(visible = lastActivePeerTab == Screen.Settings)
-                ) {
-                    SettingsScreen(
-                        viewModel = settingsVm,
-                        scrollToTopFlow = settingsScrollFlow,
-                        refreshFlow = settingsRefreshFlow,
-                        onNavigateToLanguage = { navigator.navigate(Screen.Language) },
+                        onNavigateToNotifications = { navigator.navigate(Screen.Notifications) },
+                        onNavigateToSettings = { navigator.navigate(Screen.Settings) },
                         onNavigateToIntegrationsCatalog = { navigator.navigate(Screen.IntegrationsCatalog) }
                     )
+                }
+
+                if (isTimelineWarm || lastActivePeerTab == Screen.Timeline) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .keepWarmTab(visible = lastActivePeerTab == Screen.Timeline)
+                    ) {
+                        TimelineScreen(
+                            viewModel = timelineVm,
+                            scrollToTopFlow = timelineScrollFlow,
+                            refreshFlow = timelineRefreshFlow,
+                            onNavigateToNutrition = { navigator.navigate(Screen.Nutrition) },
+                            onNavigateToBooks = { navigator.navigate(Screen.Books) },
+                            onNavigateToMovies = { navigator.navigate(Screen.Movies) }
+                        )
+                    }
+                }
+
+                if (isRecordsWarm || lastActivePeerTab == Screen.Records) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .keepWarmTab(visible = lastActivePeerTab == Screen.Records)
+                    ) {
+                        RecordsScreen(
+                            viewModel = recordsVm,
+                            scrollToTopFlow = recordsScrollFlow,
+                            refreshFlow = recordsRefreshFlow,
+                            onNavigateToNutrition = { navigator.navigate(Screen.Nutrition) },
+                            onNavigateToBooks = { navigator.navigate(Screen.Books) },
+                            onNavigateToMovies = { navigator.navigate(Screen.Movies) },
+                            onNavigateToNotifications = { navigator.navigate(Screen.Notifications) },
+                            onNavigateToHealthConnect = { navigator.navigate(Screen.HealthConnect) },
+                            onNavigateToMusic = { navigator.navigate(Screen.Music) }
+                        )
+                    }
+                }
+
+                if (isSettingsWarm || lastActivePeerTab == Screen.Settings) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .keepWarmTab(visible = lastActivePeerTab == Screen.Settings)
+                    ) {
+                        SettingsScreen(
+                            viewModel = settingsVm,
+                            scrollToTopFlow = settingsScrollFlow,
+                            refreshFlow = settingsRefreshFlow,
+                            onNavigateToLanguage = { navigator.navigate(Screen.Language) },
+                            onNavigateToIntegrationsCatalog = { navigator.navigate(Screen.IntegrationsCatalog) }
+                        )
+                    }
                 }
             }
 
@@ -509,12 +565,34 @@ fun MainAppHost() {
         }
 
         AnimatedVisibility(
+            visible = showFloatingNav && !isWideScreen,
+            enter = fadeIn(animationSpec = M3ExpressiveMotion.fastEffects()),
+            exit = fadeOut(animationSpec = M3ExpressiveMotion.fastEffects()),
+            modifier = Modifier.align(Alignment.BottomCenter)
+        ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(M3NavigationMetrics.BottomFadeHeight)
+                    .background(
+                        androidx.compose.ui.graphics.Brush.verticalGradient(
+                            colors = listOf(
+                                androidx.compose.ui.graphics.Color.Transparent,
+                                MaterialTheme.colorScheme.surface.copy(alpha = 0.75f),
+                                MaterialTheme.colorScheme.surface
+                            )
+                        )
+                    )
+            )
+        }
+
+        AnimatedVisibility(
             visible = showFloatingNav,
-            enter = fadeIn(animationSpec = M3ExpressiveMotion.fastSpatial()) + slideInVertically(
+            enter = fadeIn(animationSpec = M3ExpressiveMotion.fastEffects()) + slideInVertically(
                 initialOffsetY = { it },
                 animationSpec = M3ExpressiveMotion.fastSpatial()
             ),
-            exit = fadeOut(animationSpec = M3ExpressiveMotion.fastSpatial()) + slideOutVertically(
+            exit = fadeOut(animationSpec = M3ExpressiveMotion.fastEffects()) + slideOutVertically(
                 targetOffsetY = { it },
                 animationSpec = M3ExpressiveMotion.fastSpatial()
             ),
@@ -809,7 +887,7 @@ private fun ExpressiveAdaptiveNavigation(
             modifier = modifier
                 .fillMaxWidth()
                 .navigationBarsPadding()
-                .padding(start = 16.dp, end = 16.dp, bottom = 12.dp),
+                .padding(start = 16.dp, end = 16.dp, bottom = M3NavigationMetrics.FloatingBarBottomOffset),
             contentAlignment = Alignment.Center
         ) {
             Row(
@@ -822,7 +900,7 @@ private fun ExpressiveAdaptiveNavigation(
                     color = MaterialTheme.colorScheme.surfaceContainer,
                     tonalElevation = 3.dp,
                     shadowElevation = 4.dp,
-                    modifier = Modifier.height(64.dp)
+                    modifier = Modifier.height(M3NavigationMetrics.FloatingBarHeight)
                 ) {
                     Row(
                         modifier = Modifier

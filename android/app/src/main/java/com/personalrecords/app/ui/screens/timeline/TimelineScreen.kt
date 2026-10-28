@@ -13,6 +13,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.*
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -27,9 +28,10 @@ import com.personalrecords.app.core.network.model.ActivityItemDto
 import com.personalrecords.app.core.theme.*
 import com.personalrecords.app.ui.components.*
 
-private val DayCardTopShape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp)
-private val DayCardMiddleShape = androidx.compose.ui.graphics.RectangleShape
-private val DayCardBottomShape = RoundedCornerShape(bottomStart = 16.dp, bottomEnd = 16.dp)
+// Each day is one segmented group: header on top, sections and rows below, 2dp apart.
+private val DayCardTopShape = M3Shapes.groupedListItem(index = 0, count = 2)
+private val DayCardMiddleShape = M3Shapes.groupedListItem(index = 1, count = 3)
+private val DayCardBottomShape = M3Shapes.groupedListItem(index = 1, count = 2)
 private val TimelineDayOptions = listOf(7, 14, 30, 90)
 private val TimelineSourceKeys = listOf("all", "fatsecret", "health_connect", "music", "goodreads", "letterboxd", "notification")
 
@@ -65,8 +67,17 @@ fun TimelineScreen(
         )
     }
 
+    val scrollBehavior = TopAppBarDefaults.enterAlwaysScrollBehavior(rememberTopAppBarState())
     Scaffold(
-        modifier = Modifier.fillMaxSize(),
+        modifier = Modifier
+            .fillMaxSize()
+            .nestedScroll(scrollBehavior.nestedScrollConnection),
+        topBar = {
+            ExpressivePageTopAppBar(
+                title = stringResource(R.string.title_timeline),
+                scrollBehavior = scrollBehavior
+            )
+        },
         contentWindowInsets = WindowInsets.statusBars
     ) { innerPadding ->
         val listState = androidx.compose.foundation.lazy.rememberLazyListState()
@@ -108,156 +119,99 @@ fun TimelineScreen(
             LazyColumn(
                 state = listState,
                 modifier = Modifier
-                    .fillMaxSize()
-                    .padding(horizontal = 12.dp),
-                contentPadding = PaddingValues(top = 10.dp, bottom = 144.dp),
+                    .fillMaxSize(),
+                contentPadding = PaddingValues(
+                    start = FilterGutter,
+                    end = FilterGutter,
+                    top = 10.dp,
+                    bottom = floatingBottomNavigationContentPadding()
+                ),
                 verticalArrangement = Arrangement.Top
             ) {
-                // MD3 Search Bar (scrollable)
-                item(key = "timeline_search_bar", contentType = "search_bar") {
-                    OutlinedTextField(
-                        value = state.searchQuery,
-                        onValueChange = { viewModel.setSearchQuery(it) },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(bottom = 8.dp),
-                        placeholder = {
-                            Text(
-                                text = stringResource(R.string.timeline_search_placeholder),
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        },
-                        leadingIcon = {
-                            Icon(
-                                Icons.Default.Search,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.size(20.dp)
-                            )
-                        },
-                        trailingIcon = {
-                            if (state.searchQuery.isNotEmpty()) {
-                                IconButton(onClick = {
-                                    viewModel.setSearchQuery("")
-                                }) {
-                                    Icon(
-                                        Icons.Default.Clear,
-                                        contentDescription = stringResource(R.string.action_clear),
-                                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                        modifier = Modifier.size(18.dp)
-                                    )
-                                }
-                            }
-                        },
-                        shape = CircleShape,
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-                            unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainerLow,
-                            focusedBorderColor = MaterialTheme.colorScheme.primary,
-                            unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant
-                        ),
-                        singleLine = true
-                    )
+                state.error?.let { err ->
+                    item(key = "timeline_error_banner", contentType = "error_banner") {
+                        ExpressiveErrorBanner(
+                            message = err,
+                            onRetry = { viewModel.loadData() },
+                            modifier = expressiveItemModifier().padding(bottom = 8.dp)
+                        )
+                    }
                 }
 
-                // Date Range & Quick Chips Bar (scrollable)
-                item(key = "timeline_date_chips", contentType = "date_chips") {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .horizontalScroll(rememberScrollState())
-                            .padding(bottom = 8.dp),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        val activeDayOption = if (state.selectedDate == null && state.fromDate == null) state.selectedDays else -1
-                        ExpressiveConnectedButtonGroup(
-                            items = TimelineDayOptions,
-                            selectedItem = activeDayOption,
-                            onItemSelected = { days -> viewModel.setDays(days) },
-                            labelProvider = { days -> "${days}G" }
+                // Layer 1: Search stays pinned until the date controls reach it.
+                stickyHeader(key = "timeline_search_header", contentType = "search_header") {
+                    ExpressiveFilterHeader {
+                        ExpressiveSearchField(
+                            value = state.searchQuery,
+                            onValueChange = { viewModel.setSearchQuery(it) },
+                            placeholder = stringResource(R.string.timeline_search_placeholder),
+                            clearContentDescription = stringResource(R.string.action_clear),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .filterHeaderItem()
                         )
+                    }
+                }
 
-                        val hasCustomDate = state.selectedDate != null || state.fromDate != null
-                        val dateLabel = formatDateRangeChipLabel(
-                            singleDate = state.selectedDate,
-                            fromDate = state.fromDate,
-                            toDate = state.toDate,
-                            defaultText = stringResource(R.string.nutrition_pick_date)
-                        )
-
-                        ExpressiveFilterChip(
-                            selected = hasCustomDate,
-                            onClick = { showDatePicker = true },
-                            leadingIcon = {
-                                Icon(
-                                    imageVector = if (hasCustomDate) Icons.Default.DateRange else Icons.Default.CalendarMonth,
-                                    contentDescription = null,
-                                    modifier = Modifier.size(16.dp)
-                                )
-                            },
-                            trailingIcon = if (hasCustomDate) {
-                                {
+                // Layer 2: Day range and date filters replace the search field as scrolling continues.
+                stickyHeader(key = "timeline_date_header", contentType = "date_header") {
+                    val hasCustomDate = state.selectedDate != null || state.fromDate != null
+                    val hasActiveFilters = hasCustomDate || state.selectedDays != 14 ||
+                        state.selectedSource != "all" || state.searchQuery.isNotEmpty()
+                    ExpressiveFilterHeader {
+                        ExpressiveFilterRow {
+                            ExpressiveConnectedButtonGroup(
+                                items = TimelineDayOptions,
+                                selectedItem = if (hasCustomDate) -1 else state.selectedDays,
+                                onItemSelected = { days -> viewModel.setDays(days) },
+                                labelProvider = { days -> stringResource(R.string.timeline_days_short, days) }
+                            )
+                        }
+                        ExpressiveFilterRow {
+                            if (hasActiveFilters) {
+                                ExpressiveClearFiltersChip(onClick = { viewModel.resetFilters() })
+                            }
+                            ExpressiveDateFilterChip(
+                                label = formatDateRangeChipLabel(
+                                    singleDate = state.selectedDate,
+                                    fromDate = state.fromDate,
+                                    toDate = state.toDate,
+                                    defaultText = stringResource(R.string.filter_pick_date)
+                                ),
+                                isActive = hasCustomDate,
+                                onClick = { showDatePicker = true },
+                                // Clearing the date returns to the selected day range, not a full reset.
+                                onClear = { viewModel.setDays(state.selectedDays) }
+                            )
+                            ExpressiveFilterChip(
+                                selected = state.selectedDate == java.time.LocalDate.now().toString(),
+                                onClick = { viewModel.setToday() },
+                                leadingIcon = {
                                     Icon(
-                                        imageVector = Icons.Default.Close,
+                                        imageVector = Icons.Default.Today,
                                         contentDescription = null,
-                                        modifier = Modifier
-                                            .size(14.dp)
-                                            .clickable { viewModel.resetFilters() }
-                                    )
-                                }
-                            } else null,
-                            label = { Text(dateLabel, style = MaterialTheme.typography.labelMedium) }
-                        )
-
-                        ExpressiveAssistChip(
-                            onClick = { viewModel.setToday() },
-                            label = { Text(stringResource(R.string.timeline_today), style = MaterialTheme.typography.labelMedium) },
-                            colors = borderlessAssistChipColors()
-                        )
-
-                        if (state.selectedDate != null || state.fromDate != null || state.selectedDays != 14) {
-                            ExpressiveAssistChip(
-                                onClick = { viewModel.resetFilters() },
-                                label = {
-                                    Text(
-                                        text = stringResource(R.string.timeline_filter_reset),
-                                        style = MaterialTheme.typography.labelMediumEmphasized,
-                                        color = MaterialTheme.colorScheme.error
+                                        modifier = Modifier.size(FilterChipDefaults.IconSize)
                                     )
                                 },
-                                colors = borderlessAssistChipColors(
-                                    labelColor = MaterialTheme.colorScheme.error
-                                )
+                                label = {
+                                    Text(
+                                        text = stringResource(R.string.timeline_today),
+                                        style = MaterialTheme.typography.labelLarge
+                                    )
+                                }
                             )
                         }
                     }
                 }
 
-                // Source Filter Chips Bar (Sticky Header)
-                stickyHeader(key = "timeline_source_sticky_header", contentType = "sticky_header") {
-                    Surface(
-                        color = MaterialTheme.colorScheme.surface,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(bottom = 8.dp)
-                    ) {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .horizontalScroll(rememberScrollState())
-                                .padding(vertical = 6.dp),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
+                // Layer 3: Source filters remain after the search and date layers have scrolled away.
+                stickyHeader(key = "timeline_source_header", contentType = "source_header") {
+                    ExpressiveFilterHeader {
+                        ExpressiveFilterRow {
                             ExpressiveConnectedButtonGroup(
                                 items = TimelineSourceKeys,
                                 selectedItem = state.selectedSource,
-                                onItemSelected = { key ->
-                                    if (state.selectedSource != key) {
-                                        viewModel.setSource(key)
-                                    }
-                                },
+                                onItemSelected = { key -> viewModel.setSource(key) },
                                 labelProvider = { key ->
                                     when (key) {
                                         "fatsecret" -> stringResource(R.string.timeline_filter_nutrition)
@@ -323,24 +277,17 @@ fun TimelineScreen(
                                     .height(240.dp),
                                 contentAlignment = Alignment.Center
                             ) {
-                                ContainedLoadingIndicator(size = 44.dp)
+                                AppContainedLoadingIndicator(size = 44.dp)
                             }
                         }
                     }
-                } else if (state.flatEntries.isEmpty()) {
+                } else if (state.flatEntries.isEmpty() && state.error == null) {
                     item(key = "empty_state", contentType = "empty") {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(200.dp),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(
-                                text = stringResource(R.string.timeline_empty_desc),
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
+                        ExpressiveEmptyState(
+                            title = stringResource(R.string.timeline_empty_title),
+                            message = stringResource(R.string.timeline_empty_desc),
+                            icon = Icons.Default.SearchOff
+                        )
                     }
                 } else {
                     items(
@@ -427,11 +374,11 @@ private fun TimelineDayHeaderItem(
             if (isOnlyFood && entry.totalCal != null && entry.totalCal != "0") {
                 Surface(
                     shape = M3Shapes.CornerFull,
-                    color = domainNutritionContainer()
+                    color = recordCategoryColors(RecordCategory.Nutrition).container
                 ) {
                     Text(
                         text = "${entry.totalCal} kcal",
-                        color = domainNutritionOnContainer(),
+                        color = recordCategoryColors(RecordCategory.Nutrition).onContainer,
                         style = MaterialTheme.typography.labelSmallEmphasized,
                         modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
                     )
@@ -455,23 +402,28 @@ private fun TimelineDayHeaderItem(
                 when (entry.singleSource) {
                     "health_connect" -> {
                         badgeText = stringResource(R.string.timeline_count_health, entry.totalItemCount)
-                        badgeBg = domainHealthContainer()
-                        badgeFg = domainHealthOnContainer()
+                        badgeBg = recordCategoryColors(RecordCategory.Health).container
+                        badgeFg = recordCategoryColors(RecordCategory.Health).onContainer
                     }
                     "notification" -> {
                         badgeText = stringResource(R.string.timeline_count_notifications, entry.totalItemCount)
-                        badgeBg = MaterialTheme.colorScheme.secondaryContainer
-                        badgeFg = MaterialTheme.colorScheme.onSecondaryContainer
+                        badgeBg = recordCategoryColors(RecordCategory.Notifications).container
+                        badgeFg = recordCategoryColors(RecordCategory.Notifications).onContainer
+                    }
+                    "music" -> {
+                        badgeText = stringResource(R.string.timeline_count_music, entry.totalItemCount)
+                        badgeBg = recordCategoryColors(RecordCategory.Music).container
+                        badgeFg = recordCategoryColors(RecordCategory.Music).onContainer
                     }
                     "letterboxd" -> {
                         badgeText = stringResource(R.string.timeline_count_films, entry.totalItemCount)
-                        badgeBg = domainCinemaContainer()
-                        badgeFg = domainCinemaOnContainer()
+                        badgeBg = recordCategoryColors(RecordCategory.Movies).container
+                        badgeFg = recordCategoryColors(RecordCategory.Movies).onContainer
                     }
                     "goodreads" -> {
                         badgeText = stringResource(R.string.timeline_count_books, entry.totalItemCount)
-                        badgeBg = domainBooksContainer()
-                        badgeFg = domainBooksOnContainer()
+                        badgeBg = recordCategoryColors(RecordCategory.Books).container
+                        badgeFg = recordCategoryColors(RecordCategory.Books).onContainer
                     }
                     else -> {
                         badgeText = stringResource(R.string.timeline_items_count, entry.totalItemCount)
@@ -501,15 +453,13 @@ private fun TimelineSectionHeaderItem(
     modifier: Modifier = Modifier
 ) {
     Surface(
-        modifier = modifier.fillMaxWidth(),
+        modifier = modifier
+            .padding(top = M3ListMetrics.SegmentGap)
+            .fillMaxWidth(),
         shape = DayCardMiddleShape,
         color = MaterialTheme.colorScheme.surfaceContainerLow
     ) {
         Column {
-            HorizontalDivider(
-                color = MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.5f),
-                modifier = Modifier.padding(horizontal = 12.dp)
-            )
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -524,27 +474,32 @@ private fun TimelineSectionHeaderItem(
                     "fatsecret" -> {
                         icon = Icons.Default.Restaurant
                         title = stringResource(R.string.timeline_filter_nutrition)
-                        color = domainNutritionColor()
+                        color = recordCategoryColors(RecordCategory.Nutrition).accent
                     }
                     "health_connect" -> {
                         icon = Icons.Default.Favorite
                         title = stringResource(R.string.title_health_connect)
-                        color = domainHealthColor()
+                        color = recordCategoryColors(RecordCategory.Health).accent
                     }
                     "notification" -> {
                         icon = Icons.Default.Notifications
                         title = stringResource(R.string.timeline_filter_notifications)
-                        color = MaterialTheme.colorScheme.secondary
+                        color = recordCategoryColors(RecordCategory.Notifications).accent
+                    }
+                    "music" -> {
+                        icon = Icons.Default.MusicNote
+                        title = stringResource(R.string.timeline_filter_music)
+                        color = recordCategoryColors(RecordCategory.Music).accent
                     }
                     "letterboxd" -> {
                         icon = Icons.Default.Movie
                         title = stringResource(R.string.timeline_filter_movies)
-                        color = domainCinemaColor()
+                        color = recordCategoryColors(RecordCategory.Movies).accent
                     }
                     "goodreads" -> {
                         icon = Icons.AutoMirrored.Filled.MenuBook
                         title = stringResource(R.string.timeline_filter_books)
-                        color = domainBooksColor()
+                        color = recordCategoryColors(RecordCategory.Books).accent
                     }
                     else -> {
                         icon = Icons.Default.Bookmark
@@ -573,11 +528,11 @@ private fun TimelineSectionHeaderItem(
                 if (entry.source == "fatsecret" && entry.totalCal != null && entry.totalCal != "0") {
                     Surface(
                         shape = M3Shapes.CornerFull,
-                        color = domainNutritionContainer()
+                        color = recordCategoryColors(RecordCategory.Nutrition).container
                     ) {
                         Text(
                             text = "${entry.totalCal} kcal",
-                            color = domainNutritionOnContainer(),
+                            color = recordCategoryColors(RecordCategory.Nutrition).onContainer,
                             style = MaterialTheme.typography.labelSmallEmphasized,
                             modifier = Modifier.padding(horizontal = 7.dp, vertical = 2.dp)
                         )
@@ -585,11 +540,11 @@ private fun TimelineSectionHeaderItem(
                 } else if (entry.source == "health_connect") {
                     Surface(
                         shape = M3Shapes.CornerFull,
-                        color = domainHealthContainer()
+                        color = recordCategoryColors(RecordCategory.Health).container
                     ) {
                         Text(
                             text = stringResource(R.string.timeline_count_health, entry.itemCount),
-                            color = domainHealthOnContainer(),
+                            color = recordCategoryColors(RecordCategory.Health).onContainer,
                             style = MaterialTheme.typography.labelSmall,
                             modifier = Modifier.padding(horizontal = 7.dp, vertical = 2.dp)
                         )
@@ -597,11 +552,11 @@ private fun TimelineSectionHeaderItem(
                 } else if (entry.source == "notification") {
                     Surface(
                         shape = M3Shapes.CornerFull,
-                        color = MaterialTheme.colorScheme.secondaryContainer
+                        color = recordCategoryColors(RecordCategory.Notifications).container
                     ) {
                         Text(
                             text = stringResource(R.string.timeline_count_notifications, entry.itemCount),
-                            color = MaterialTheme.colorScheme.onSecondaryContainer,
+                            color = recordCategoryColors(RecordCategory.Notifications).onContainer,
                             style = MaterialTheme.typography.labelSmall,
                             modifier = Modifier.padding(horizontal = 7.dp, vertical = 2.dp)
                         )
@@ -609,11 +564,11 @@ private fun TimelineSectionHeaderItem(
                 } else if (entry.source == "letterboxd") {
                     Surface(
                         shape = M3Shapes.CornerFull,
-                        color = domainCinemaContainer()
+                        color = recordCategoryColors(RecordCategory.Movies).container
                     ) {
                         Text(
                             text = stringResource(R.string.timeline_count_films, entry.itemCount),
-                            color = domainCinemaOnContainer(),
+                            color = recordCategoryColors(RecordCategory.Movies).onContainer,
                             style = MaterialTheme.typography.labelSmall,
                             modifier = Modifier.padding(horizontal = 7.dp, vertical = 2.dp)
                         )
@@ -621,11 +576,11 @@ private fun TimelineSectionHeaderItem(
                 } else if (entry.source == "goodreads") {
                     Surface(
                         shape = M3Shapes.CornerFull,
-                        color = domainBooksContainer()
+                        color = recordCategoryColors(RecordCategory.Books).container
                     ) {
                         Text(
                             text = stringResource(R.string.timeline_count_books, entry.itemCount),
-                            color = domainBooksOnContainer(),
+                            color = recordCategoryColors(RecordCategory.Books).onContainer,
                             style = MaterialTheme.typography.labelSmall,
                             modifier = Modifier.padding(horizontal = 7.dp, vertical = 2.dp)
                         )
@@ -633,11 +588,11 @@ private fun TimelineSectionHeaderItem(
                 } else if (entry.source == "music") {
                     Surface(
                         shape = M3Shapes.CornerFull,
-                        color = MaterialTheme.colorScheme.primaryContainer
+                        color = recordCategoryColors(RecordCategory.Music).container
                     ) {
                         Text(
                             text = stringResource(R.string.timeline_count_music, entry.itemCount),
-                            color = MaterialTheme.colorScheme.onPrimaryContainer,
+                            color = recordCategoryColors(RecordCategory.Music).onContainer,
                             style = MaterialTheme.typography.labelSmall,
                             modifier = Modifier.padding(horizontal = 7.dp, vertical = 2.dp)
                         )
@@ -658,16 +613,13 @@ private fun TimelineActivityRowItem(
 
     Surface(
         modifier = modifier
+            .padding(top = M3ListMetrics.SegmentGap)
             .fillMaxWidth()
             .then(if (entry.isLastInDay) Modifier.padding(bottom = 8.dp) else Modifier),
         shape = shape,
         color = MaterialTheme.colorScheme.surfaceContainerLow
     ) {
         Column {
-            HorizontalDivider(
-                color = MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.5f),
-                modifier = Modifier.padding(horizontal = 12.dp)
-            )
             TimelineItemCard(
                 item = entry.item,
                 rating = entry.rating,
@@ -711,13 +663,13 @@ fun TimelineItemCard(
                     modifier = Modifier
                         .size(38.dp)
                         .clip(M3Shapes.CornerFull)
-                        .background(MaterialTheme.colorScheme.secondaryContainer),
+                        .background(recordCategoryColors(RecordCategory.Notifications).container),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
                         imageVector = Icons.Default.Notifications,
                         contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onSecondaryContainer,
+                        tint = recordCategoryColors(RecordCategory.Notifications).onContainer,
                         modifier = Modifier.size(18.dp)
                     )
                 }
@@ -727,13 +679,13 @@ fun TimelineItemCard(
                     modifier = Modifier
                         .size(38.dp)
                         .clip(M3Shapes.CornerSmall)
-                        .background(domainNutritionContainer()),
+                        .background(recordCategoryColors(RecordCategory.Nutrition).container),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
                         imageVector = Icons.Default.Restaurant,
                         contentDescription = null,
-                        tint = domainNutritionOnContainer(),
+                        tint = recordCategoryColors(RecordCategory.Nutrition).onContainer,
                         modifier = Modifier.size(18.dp)
                     )
                 }
@@ -749,13 +701,13 @@ fun TimelineItemCard(
                     modifier = Modifier
                         .size(38.dp)
                         .clip(M3Shapes.CornerSmall)
-                        .background(domainHealthContainer()),
+                        .background(recordCategoryColors(RecordCategory.Health).container),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
                         imageVector = hcIcon,
                         contentDescription = null,
-                        tint = domainHealthOnContainer(),
+                        tint = recordCategoryColors(RecordCategory.Health).onContainer,
                         modifier = Modifier.size(18.dp)
                     )
                 }
@@ -765,7 +717,7 @@ fun TimelineItemCard(
                     modifier = Modifier
                         .size(38.dp)
                         .clip(M3Shapes.CornerSmall)
-                        .background(MaterialTheme.colorScheme.primaryContainer),
+                        .background(recordCategoryColors(RecordCategory.Music).container),
                     contentAlignment = Alignment.Center
                 ) {
                     if (item.image_url?.isNotBlank() == true) {
@@ -779,7 +731,7 @@ fun TimelineItemCard(
                         Icon(
                             imageVector = Icons.Default.MusicNote,
                             contentDescription = null,
-                            tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                            tint = recordCategoryColors(RecordCategory.Music).onContainer,
                             modifier = Modifier.size(18.dp)
                         )
                     }
@@ -827,7 +779,7 @@ fun TimelineItemCard(
             if (item.rewatch) {
                 Surface(
                     shape = M3Shapes.CornerFull,
-                    color = domainCinemaContainer()
+                    color = recordCategoryColors(RecordCategory.Movies).container
                 ) {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
@@ -837,12 +789,12 @@ fun TimelineItemCard(
                         Icon(
                             imageVector = Icons.Default.Repeat,
                             contentDescription = null,
-                            tint = domainCinemaOnContainer(),
+                            tint = recordCategoryColors(RecordCategory.Movies).onContainer,
                             modifier = Modifier.size(10.dp)
                         )
                         Text(
                             text = "Tekrar",
-                            color = domainCinemaOnContainer(),
+                            color = recordCategoryColors(RecordCategory.Movies).onContainer,
                             style = MaterialTheme.typography.labelSmallEmphasized,
                             maxLines = 1,
                             softWrap = false
