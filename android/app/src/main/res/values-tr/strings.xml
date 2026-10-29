@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">Personal Records</string>
+    <string name="app_name">Mozaik</string>
     <string name="app_version_info">v1.1.0 · Material 3 Expressive Design</string>
     <string name="app_description">Kişisel veri egemenliği &amp; yaşam günlüğü paneli</string>
 
@@ -14,7 +14,7 @@
     <string name="nav_movies">Filmler</string>
     <string name="nav_notifications">Bildirimler</string>
 
-    <string name="title_overview">Personal Records</string>
+    <string name="title_overview">Mozaik</string>
     <string name="title_timeline">Zaman Çizelgesi</string>
     <string name="title_records">Kayıtlar</string>
     <string name="title_settings">Ayarlar</string>
@@ -209,7 +209,7 @@
     <string name="settings_section_webhook">Bildirim Webhook Entegrasyonu</string>
     <string name="settings_webhook_title">Notification Relay Webhook</string>
     <string name="settings_webhook_desc">Android bildirimlerini sunucuya aktarın</string>
-    <string name="settings_webhook_relay_summary">Kişisel Kayıtlar verileri harici webhook ile toplar. Harici Notification Relay Webhook uygulaması bildirimlerinizi doğrudan sunucunuza iletir:</string>
+    <string name="settings_webhook_relay_summary">Mozaik verileri harici webhook ile toplar. Harici Notification Relay Webhook uygulaması bildirimlerinizi doğrudan sunucunuza iletir:</string>
     <string name="settings_target_webhook_url">Hedef Webhook URL\'niz:</string>
     <string name="settings_setup_guide_title">3 Adımda Kolay Kurulum</string>
     <string name="settings_setup_step_1">1. Notification Relay APK\'sını kurun ve Bildirim Erişimi iznini açın.</string>
@@ -273,7 +273,7 @@
     <string name="settings_section_architecture">Hibrit Mimari &amp; Eklentiler</string>
     <string name="settings_architecture_title">Genişletilebilir Veri Havuzu</string>
     <string name="settings_architecture_subtitle">3 kanaldan toplanan merkezi kişisel veriler</string>
-    <string name="settings_architecture_desc">Kişisel Kayıtlar tüm verilerinizi merkezi bir sunucu havuzunda toplar. Android uygulaması yalnızca okuyucu ve yönetim paneli olarak çalışır. Gelecekte eklenecek her servis modüler bir eklenti (plugin) olarak bağlanır:</string>
+    <string name="settings_architecture_desc">Mozaik tüm verilerinizi merkezi bir sunucu havuzunda toplar. Android uygulaması yalnızca okuyucu ve yönetim paneli olarak çalışır. Gelecekte eklenecek her servis modüler bir eklenti (plugin) olarak bağlanır:</string>
     <string name="settings_plugin_webhook_title">1. Webhook Eklentileri (Push)</string>
     <string name="settings_plugin_webhook_desc">Notification Relay APK, Tasker veya Home Assistant ile gelen anlık bildirim ve sensör verileri.</string>
     <string name="settings_plugin_rss_title">2. RSS Eklentileri (Pull / Polling)</string>
@@ -289,7 +289,7 @@
     <string name="settings_export_note">Dosyalar Downloads klasörünüze kaydedilir.</string>
 
     <string name="settings_section_app_info">Uygulama Bilgisi</string>
-    <string name="settings_app_name">Personal Records</string>
+    <string name="settings_app_name">Mozaik</string>
 
     <!-- Nutrition Screen -->
     <string name="nutrition_calorie_target_title">Günlük Kalori Hedefi</string>

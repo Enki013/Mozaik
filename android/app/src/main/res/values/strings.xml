@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">Personal Records</string>
+    <string name="app_name">Mozaik</string>
     <string name="app_version_info">v1.1.0 · Material 3 Expressive Design</string>
     <string name="app_description">Personal data sovereignty &amp; life log dashboard</string>
 
@@ -14,7 +14,7 @@
     <string name="nav_movies">Movies</string>
     <string name="nav_notifications">Notifications</string>
 
-    <string name="title_overview">Personal Records</string>
+    <string name="title_overview">Mozaik</string>
     <string name="title_timeline">Timeline</string>
     <string name="title_records">Records</string>
     <string name="title_settings">Settings</string>
@@ -209,7 +209,7 @@
     <string name="settings_section_webhook">Notification Webhook Integration</string>
     <string name="settings_webhook_title">Notification Relay Webhook</string>
     <string name="settings_webhook_desc">Forward Android notifications to your server</string>
-    <string name="settings_webhook_relay_summary">Personal Records gathers data through an external webhook relay. The companion Notification Relay Webhook app automatically pushes your notifications to your server:</string>
+    <string name="settings_webhook_relay_summary">Mozaik gathers data through an external webhook relay. The companion Notification Relay Webhook app automatically pushes your notifications to your server:</string>
     <string name="settings_target_webhook_url">Target Webhook URL:</string>
     <string name="settings_setup_guide_title">3-Step Easy Setup</string>
     <string name="settings_setup_step_1">1. Install Notification Relay APK and grant Notification Access permission.</string>
@@ -273,7 +273,7 @@
     <string name="settings_section_architecture">Hybrid Architecture &amp; Plugins</string>
     <string name="settings_architecture_title">Extensible Data Hub</string>
     <string name="settings_architecture_subtitle">Central personal data gathered from 3 pipelines</string>
-    <string name="settings_architecture_desc">Personal Records pools all records into a central server repository. The Android app acts as a reader and control panel. Future services attach as modular plugins:</string>
+    <string name="settings_architecture_desc">Mozaik pools all records into a central server repository. The Android app acts as a reader and control panel. Future services attach as modular plugins:</string>
     <string name="settings_plugin_webhook_title">1. Webhook Plugins (Push)</string>
     <string name="settings_plugin_webhook_desc">Instant notification and sensor data via Notification Relay APK, Tasker, or Home Assistant.</string>
     <string name="settings_plugin_rss_title">2. RSS Plugins (Pull / Polling)</string>
@@ -289,7 +289,7 @@
     <string name="settings_export_note">Files are saved to your Downloads folder.</string>
 
     <string name="settings_section_app_info">Application Information</string>
-    <string name="settings_app_name">Personal Records</string>
+    <string name="settings_app_name">Mozaik</string>
 
     <!-- Nutrition Screen -->
     <string name="nutrition_calorie_target_title">Daily Calorie Target</string>

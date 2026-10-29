@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Themed icon layer: same tiles in one color; the gaps keep them readable when tinted. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M39,33 H46 A6,6 0 0 1 52,39 V46 A6,6 0 0 1 46,52 H39 A6,6 0 0 1 33,46 V39 A6,6 0 0 1 39,33 Z" />
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M56,42.5 a9.5,9.5 0 1 0 19,0 a9.5,9.5 0 1 0 -19,0 Z" />
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M39,56 H46 A6,6 0 0 1 52,62 V69 A6,6 0 0 1 46,75 H39 A6,6 0 0 1 33,69 V62 A6,6 0 0 1 39,56 Z" />
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M65.5,56 H72 A3,3 0 0 1 75,59 V65.5 A9.5,9.5 0 0 1 65.5,75 H59 A3,3 0 0 1 56,72 V65.5 A9.5,9.5 0 0 1 65.5,56 Z" />
+</vector>
