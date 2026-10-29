@@ -74,6 +74,7 @@ fun BooksScreen(
             )
         )
     }
+    val statCardOrder = rememberStatCardOrder("books", booksStatCards.map { it.id })
 
     if (showDatePicker) {
         ExpressiveDateFilterDialog(
@@ -174,64 +175,42 @@ fun BooksScreen(
                         }
                     }
 
-                    if (isTotalVisible || isToReadVisible) {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(bottom = 8.dp),
-                            horizontalArrangement = Arrangement.spacedBy(6.dp)
-                        ) {
-                            if (isTotalVisible) {
-                                StatCardContainer(
-                                    cardId = "books_total",
-                                    isEditMode = isEditMode,
-                                    onHideCard = {
-                                        coroutineScope.launch {
-                                            preferences.toggleStatCardVisibility("books_total", false)
-                                        }
-                                    },
-                                    index = 0,
-                                    modifier = Modifier.weight(1f)
-                                ) {
-                                    MetricCard(
-                                        title = stringResource(R.string.books_stats_total),
-                                        value = "$totalBooks",
-                                        badgeText = stringResource(R.string.books_badge_book),
-                                        note = stringResource(R.string.books_stats_read, readBooks),
-                                        valueIcon = Icons.AutoMirrored.Filled.MenuBook,
-                                        valueIconTint = recordCategoryColors(RecordCategory.Books).accent,
-                                        badgeBg = recordCategoryColors(RecordCategory.Books).container,
-                                        badgeColor = recordCategoryColors(RecordCategory.Books).onContainer,
-                                        onLongClick = { isEditMode = true }
-                                    )
-                                }
+                    StatCardGrid(
+                        cardIds = statCardOrder.orderedIds.filter { it !in hiddenCardIds },
+                        isEditMode = isEditMode,
+                        onHideCard = { id ->
+                            coroutineScope.launch { preferences.toggleStatCardVisibility(id, false) }
+                        },
+                        modifier = Modifier.padding(bottom = 8.dp)
+                    ) { cardId ->
+                        when (cardId) {
+                            "books_total" -> {
+                                MetricCard(
+                                    title = stringResource(R.string.books_stats_total),
+                                    value = "$totalBooks",
+                                    badgeText = stringResource(R.string.books_badge_book),
+                                    note = stringResource(R.string.books_stats_read, readBooks),
+                                    valueIcon = Icons.AutoMirrored.Filled.MenuBook,
+                                    valueIconTint = recordCategoryColors(RecordCategory.Books).accent,
+                                    badgeBg = recordCategoryColors(RecordCategory.Books).container,
+                                    badgeColor = recordCategoryColors(RecordCategory.Books).onContainer,
+                                    onLongClick = { isEditMode = true }
+                                )
                             }
-                            if (isToReadVisible) {
-                                StatCardContainer(
-                                    cardId = "books_to_read",
-                                    isEditMode = isEditMode,
-                                    onHideCard = {
-                                        coroutineScope.launch {
-                                            preferences.toggleStatCardVisibility("books_to_read", false)
-                                        }
-                                    },
-                                    index = 1,
-                                    modifier = Modifier.weight(1f)
-                                ) {
-                                    MetricCard(
-                                        title = stringResource(R.string.books_stats_to_read),
-                                        value = "$toReadBooks",
-                                        badgeText = stringResource(R.string.badge_list),
-                                        note = stringResource(R.string.books_stats_avg_rating, avgRating),
-                                        valueIcon = Icons.Default.Bookmark,
-                                        valueIconTint = domainRatingColor(),
-                                        noteIcon = Icons.Filled.Star,
-                                        noteIconTint = domainRatingOnContainer(),
-                                        badgeBg = domainRatingContainer(),
-                                        badgeColor = domainRatingOnContainer(),
-                                        onLongClick = { isEditMode = true }
-                                    )
-                                }
+                            "books_to_read" -> {
+                                MetricCard(
+                                    title = stringResource(R.string.books_stats_to_read),
+                                    value = "$toReadBooks",
+                                    badgeText = stringResource(R.string.badge_list),
+                                    note = stringResource(R.string.books_stats_avg_rating, avgRating),
+                                    valueIcon = Icons.Default.Bookmark,
+                                    valueIconTint = domainRatingColor(),
+                                    noteIcon = Icons.Filled.Star,
+                                    noteIconTint = domainRatingOnContainer(),
+                                    badgeBg = domainRatingContainer(),
+                                    badgeColor = domainRatingOnContainer(),
+                                    onLongClick = { isEditMode = true }
+                                )
                             }
                         }
                     }
@@ -412,7 +391,8 @@ fun BooksScreen(
     if (showCustomizationSheet) {
         StatsCustomizationBottomSheet(
             sheetTitle = stringResource(R.string.stats_customization_title),
-            cards = booksStatCards,
+            cards = statCardOrder.sort(booksStatCards),
+            onMoveCard = { cardId, direction -> statCardOrder.move(cardId, direction) },
             hiddenCardIds = hiddenCardIds,
             targetCardId = targetCardId,
             onToggleCard = { cardId, visible ->
@@ -423,6 +403,7 @@ fun BooksScreen(
             onResetDefault = {
                 coroutineScope.launch {
                     preferences.resetHiddenStatsCards(booksStatCards.map { it.id })
+                    statCardOrder.reset()
                 }
             },
             onDismissRequest = {

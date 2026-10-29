@@ -303,7 +303,7 @@ fun SettingsScreen(
             )
         },
         contentWindowInsets = WindowInsets.statusBars,
-        snackbarHost = { SnackbarHost(snackbarHostState, modifier = Modifier.padding(bottom = floatingBottomNavigationContentPadding())) }
+        snackbarHost = { SnackbarHost(snackbarHostState, modifier = Modifier.padding(bottom = floatingNavSnackbarPadding())) }
     ) { innerPadding ->
         ExpressivePullToRefreshBox(
             isRefreshing = isRefreshing,

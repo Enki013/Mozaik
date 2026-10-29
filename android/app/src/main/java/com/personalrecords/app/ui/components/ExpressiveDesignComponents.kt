@@ -70,6 +70,20 @@ fun floatingBottomNavigationContentPadding(): androidx.compose.ui.unit.Dp {
         M3NavigationMetrics.BottomContentClearance
 }
 
+/**
+ * Bottom padding for snackbars on top-level tabs: just above the floating navigation bar
+ * on phones, and just above the system bar when the navigation is a side rail.
+ */
+@Composable
+fun floatingNavSnackbarPadding(): androidx.compose.ui.unit.Dp {
+    val navigationInset = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
+    if (currentAdaptiveLayout().isWide) return navigationInset + 16.dp
+    return navigationInset +
+        M3NavigationMetrics.FloatingBarBottomOffset +
+        M3NavigationMetrics.FloatingBarHeight +
+        12.dp
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ExpressivePageTopAppBar(

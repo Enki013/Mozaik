@@ -10,6 +10,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import kotlinx.coroutines.launch
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -445,6 +446,91 @@ fun StatsCustomizationBottomSheet(
                         text = stringResource(R.string.action_close),
                         style = MaterialTheme.typography.labelMedium
                     )
+                }
+            }
+        }
+    }
+}
+
+/**
+ * Saved order of a screen's stat cards plus the actions the customization sheet needs.
+ * Every screen uses this, so cards can be moved up and down the same way everywhere.
+ */
+@Stable
+class StatCardOrder internal constructor(
+    val orderedIds: List<String>,
+    private val onMove: (cardId: String, direction: Int) -> Unit,
+    private val onReset: () -> Unit
+) {
+    fun move(cardId: String, direction: Int) = onMove(cardId, direction)
+    fun reset() = onReset()
+
+    /** The given cards sorted into the saved order. */
+    fun sort(cards: List<StatCardItem>): List<StatCardItem> {
+        val byId = cards.associateBy { it.id }
+        return orderedIds.mapNotNull { byId[it] }
+    }
+}
+
+@Composable
+fun rememberStatCardOrder(screenKey: String, defaultOrder: List<String>): StatCardOrder {
+    val preferences = remember { com.personalrecords.app.PersonalRecordsApp.instance.preferences }
+    val scope = rememberCoroutineScope()
+    val stored by preferences.getStatsCardsOrder(screenKey, defaultOrder)
+        .collectAsState(initial = defaultOrder)
+    // Drop ids that no longer exist and append cards added after the order was saved.
+    val resolved = remember(stored, defaultOrder) {
+        stored.filter { it in defaultOrder } + defaultOrder.filter { it !in stored }
+    }
+    return remember(resolved, screenKey) {
+        StatCardOrder(
+            orderedIds = resolved,
+            onMove = { cardId, direction ->
+                val current = resolved.toMutableList()
+                val index = current.indexOf(cardId)
+                val target = index + direction
+                if (index != -1 && target in current.indices) {
+                    current.add(target, current.removeAt(index))
+                    scope.launch { preferences.setStatsCardsOrder(screenKey, current) }
+                }
+            },
+            onReset = { scope.launch { preferences.resetStatsCardsOrder(screenKey) } }
+        )
+    }
+}
+
+/**
+ * Two-column grid of customizable stat cards in the given order. A lone card on the last row
+ * takes the full width, as before.
+ */
+@Composable
+fun StatCardGrid(
+    cardIds: List<String>,
+    isEditMode: Boolean,
+    onHideCard: (String) -> Unit,
+    modifier: Modifier = Modifier,
+    card: @Composable (cardId: String) -> Unit
+) {
+    if (cardIds.isEmpty()) return
+    Column(
+        modifier = modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(6.dp)
+    ) {
+        cardIds.chunked(2).forEachIndexed { rowIndex, rowIds ->
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                rowIds.forEachIndexed { colIndex, cardId ->
+                    StatCardContainer(
+                        cardId = cardId,
+                        isEditMode = isEditMode,
+                        onHideCard = { onHideCard(cardId) },
+                        index = rowIndex * 2 + colIndex,
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        card(cardId)
+                    }
                 }
             }
         }

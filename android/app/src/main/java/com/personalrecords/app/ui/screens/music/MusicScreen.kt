@@ -116,6 +116,7 @@ fun MusicScreen(
             )
         )
     }
+    val statCardOrder = rememberStatCardOrder("music", musicStatCards.map { it.id })
 
     val availableSources = remember(state.scrobbles) {
         val presentSources = state.scrobbles
@@ -258,6 +259,7 @@ fun MusicScreen(
                                 uniqueArtists = state.stats.uniqueArtists,
                                 uniqueAlbums = state.stats.uniqueAlbums,
                                 hiddenCardIds = hiddenCardIds,
+                                cardOrder = statCardOrder.orderedIds,
                                 isEditMode = isEditMode,
                                 onHideCard = { cardId ->
                                     coroutineScope.launch {
@@ -442,7 +444,8 @@ fun MusicScreen(
     if (showCustomizationSheet) {
         StatsCustomizationBottomSheet(
             sheetTitle = stringResource(R.string.stats_customization_title),
-            cards = musicStatCards,
+            cards = statCardOrder.sort(musicStatCards),
+            onMoveCard = { cardId, direction -> statCardOrder.move(cardId, direction) },
             hiddenCardIds = hiddenCardIds,
             targetCardId = targetCardId,
             onToggleCard = { cardId, visible ->
@@ -453,6 +456,7 @@ fun MusicScreen(
             onResetDefault = {
                 coroutineScope.launch {
                     preferences.resetHiddenStatsCards(musicStatCards.map { it.id })
+                    statCardOrder.reset()
                 }
             },
             onDismissRequest = {
@@ -523,6 +527,7 @@ private fun MusicMetricsHeader(
     uniqueArtists: Int,
     uniqueAlbums: Int,
     hiddenCardIds: Set<String>,
+    cardOrder: List<String>,
     isEditMode: Boolean,
     onHideCard: (String) -> Unit,
     onStartEditMode: () -> Unit,
@@ -543,110 +548,64 @@ private fun MusicMetricsHeader(
         }
     }
 
-    if (hasRow1 || hasRow2) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(vertical = 8.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            if (hasRow1) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    if (isTotalVisible) {
-                        StatCardContainer(
-                            cardId = "music_total",
-                            isEditMode = isEditMode,
-                            onHideCard = { onHideCard("music_total") },
-                            index = 0,
-                            modifier = Modifier.weight(1f)
-                        ) {
-                            MetricCard(
-                                title = stringResource(R.string.music_stats_total),
-                                value = totalScrobbles.toString(),
-                                badgeText = "All Time",
-                                note = "Scrobbles",
-                                valueIcon = Icons.Default.MusicNote,
-                                valueIconTint = recordCategoryColors(RecordCategory.Music).accent,
-                                badgeBg = recordCategoryColors(RecordCategory.Music).container,
-                                badgeColor = recordCategoryColors(RecordCategory.Music).onContainer,
-                                onLongClick = onStartEditMode
-                            )
-                        }
-                    }
-                    if (isTodayVisible) {
-                        StatCardContainer(
-                            cardId = "music_today",
-                            isEditMode = isEditMode,
-                            onHideCard = { onHideCard("music_today") },
-                            index = 1,
-                            modifier = Modifier.weight(1f)
-                        ) {
-                            MetricCard(
-                                title = stringResource(R.string.music_stats_today),
-                                value = todayScrobbles.toString(),
-                                badgeText = "Today",
-                                note = "Tracks",
-                                valueIcon = Icons.Default.Today,
-                                valueIconTint = MaterialTheme.colorScheme.secondary,
-                                badgeBg = MaterialTheme.colorScheme.secondaryContainer,
-                                badgeColor = MaterialTheme.colorScheme.onSecondaryContainer,
-                                onLongClick = onStartEditMode
-                            )
-                        }
-                    }
-                }
+    StatCardGrid(
+        cardIds = cardOrder.filter { it !in hiddenCardIds },
+        isEditMode = isEditMode,
+        onHideCard = onHideCard,
+        modifier = Modifier.padding(vertical = 8.dp)
+    ) { cardId ->
+        when (cardId) {
+            "music_total" -> {
+                MetricCard(
+                    title = stringResource(R.string.music_stats_total),
+                    value = totalScrobbles.toString(),
+                    badgeText = "All Time",
+                    note = "Scrobbles",
+                    valueIcon = Icons.Default.MusicNote,
+                    valueIconTint = recordCategoryColors(RecordCategory.Music).accent,
+                    badgeBg = recordCategoryColors(RecordCategory.Music).container,
+                    badgeColor = recordCategoryColors(RecordCategory.Music).onContainer,
+                    onLongClick = onStartEditMode
+                )
             }
-            if (hasRow2) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    if (isArtistsVisible) {
-                        StatCardContainer(
-                            cardId = "music_artists",
-                            isEditMode = isEditMode,
-                            onHideCard = { onHideCard("music_artists") },
-                            index = 2,
-                            modifier = Modifier.weight(1f)
-                        ) {
-                            MetricCard(
-                                title = stringResource(R.string.music_stats_artists),
-                                value = uniqueArtists.toString(),
-                                badgeText = "Artists",
-                                note = "Unique",
-                                valueIcon = Icons.Default.Person,
-                                valueIconTint = MaterialTheme.colorScheme.tertiary,
-                                badgeBg = MaterialTheme.colorScheme.tertiaryContainer,
-                                badgeColor = MaterialTheme.colorScheme.onTertiaryContainer,
-                                onLongClick = onStartEditMode
-                            )
-                        }
-                    }
-                    if (isAlbumsVisible) {
-                        StatCardContainer(
-                            cardId = "music_albums",
-                            isEditMode = isEditMode,
-                            onHideCard = { onHideCard("music_albums") },
-                            index = 3,
-                            modifier = Modifier.weight(1f)
-                        ) {
-                            MetricCard(
-                                title = stringResource(R.string.music_stats_albums),
-                                value = uniqueAlbums.toString(),
-                                badgeText = "Albums",
-                                note = "Unique",
-                                valueIcon = Icons.Default.Album,
-                                valueIconTint = recordCategoryColors(RecordCategory.Movies).accent,
-                                badgeBg = recordCategoryColors(RecordCategory.Movies).container,
-                                badgeColor = recordCategoryColors(RecordCategory.Movies).onContainer,
-                                onLongClick = onStartEditMode
-                            )
-                        }
-                    }
-                }
+            "music_today" -> {
+                MetricCard(
+                    title = stringResource(R.string.music_stats_today),
+                    value = todayScrobbles.toString(),
+                    badgeText = "Today",
+                    note = "Tracks",
+                    valueIcon = Icons.Default.Today,
+                    valueIconTint = MaterialTheme.colorScheme.secondary,
+                    badgeBg = MaterialTheme.colorScheme.secondaryContainer,
+                    badgeColor = MaterialTheme.colorScheme.onSecondaryContainer,
+                    onLongClick = onStartEditMode
+                )
+            }
+            "music_artists" -> {
+                MetricCard(
+                    title = stringResource(R.string.music_stats_artists),
+                    value = uniqueArtists.toString(),
+                    badgeText = "Artists",
+                    note = "Unique",
+                    valueIcon = Icons.Default.Person,
+                    valueIconTint = MaterialTheme.colorScheme.tertiary,
+                    badgeBg = MaterialTheme.colorScheme.tertiaryContainer,
+                    badgeColor = MaterialTheme.colorScheme.onTertiaryContainer,
+                    onLongClick = onStartEditMode
+                )
+            }
+            "music_albums" -> {
+                MetricCard(
+                    title = stringResource(R.string.music_stats_albums),
+                    value = uniqueAlbums.toString(),
+                    badgeText = "Albums",
+                    note = "Unique",
+                    valueIcon = Icons.Default.Album,
+                    valueIconTint = recordCategoryColors(RecordCategory.Movies).accent,
+                    badgeBg = recordCategoryColors(RecordCategory.Movies).container,
+                    badgeColor = recordCategoryColors(RecordCategory.Movies).onContainer,
+                    onLongClick = onStartEditMode
+                )
             }
         }
     }
@@ -903,7 +862,10 @@ fun MusicDetailContent(
                     val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
                     val clip = ClipData.newPlainText("Track", "${scrobble.artist} - ${scrobble.track}")
                     clipboard.setPrimaryClip(clip)
-                    notify(context.getString(R.string.music_copied, "${scrobble.artist} - ${scrobble.track}"))
+                    // Without a snackbar host, Android 13+ already confirms the copy itself.
+                    if (onShowSnackbar != null || android.os.Build.VERSION.SDK_INT < android.os.Build.VERSION_CODES.TIRAMISU) {
+                        notify(context.getString(R.string.music_copied, "${scrobble.artist} - ${scrobble.track}"))
+                    }
                 },
                 shapes = expressiveButtonShapes(),
                 modifier = Modifier.weight(1f)

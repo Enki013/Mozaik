@@ -1470,7 +1470,10 @@ private fun copyToClipboard(context: Context, label: String, text: String) {
     val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
     val clip = ClipData.newPlainText(label, text.trim())
     clipboard.setPrimaryClip(clip)
-    Toast.makeText(context, context.getString(R.string.action_copied), Toast.LENGTH_SHORT).show()
+    // Android 13+ shows its own copy confirmation; a toast there just lands under the floating bar.
+    if (android.os.Build.VERSION.SDK_INT < android.os.Build.VERSION_CODES.TIRAMISU) {
+        Toast.makeText(context, context.getString(R.string.action_copied), Toast.LENGTH_SHORT).show()
+    }
 }
 
 @Composable

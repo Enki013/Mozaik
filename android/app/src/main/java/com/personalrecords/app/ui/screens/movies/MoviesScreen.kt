@@ -71,6 +71,7 @@ fun MoviesScreen(
             )
         )
     }
+    val statCardOrder = rememberStatCardOrder("movies", moviesStatCards.map { it.id })
 
     if (showDatePicker) {
         ExpressiveDateFilterDialog(
@@ -171,62 +172,40 @@ fun MoviesScreen(
                         }
                     }
 
-                    if (isTotalVisible || isAvgVisible) {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(bottom = 8.dp),
-                            horizontalArrangement = Arrangement.spacedBy(6.dp)
-                        ) {
-                            if (isTotalVisible) {
-                                StatCardContainer(
-                                    cardId = "movies_total",
-                                    isEditMode = isEditMode,
-                                    onHideCard = {
-                                        coroutineScope.launch {
-                                            preferences.toggleStatCardVisibility("movies_total", false)
-                                        }
-                                    },
-                                    index = 0,
-                                    modifier = Modifier.weight(1f)
-                                ) {
-                                    MetricCard(
-                                        title = stringResource(R.string.movies_stats_total),
-                                        value = "$totalFilms",
-                                        badgeText = stringResource(R.string.movies_badge_watched),
-                                        note = stringResource(R.string.movies_stats_rated, ratedFilms),
-                                        valueIcon = Icons.Default.Movie,
-                                        valueIconTint = recordCategoryColors(RecordCategory.Movies).accent,
-                                        badgeBg = recordCategoryColors(RecordCategory.Movies).container,
-                                        badgeColor = recordCategoryColors(RecordCategory.Movies).onContainer,
-                                        onLongClick = { isEditMode = true }
-                                    )
-                                }
+                    StatCardGrid(
+                        cardIds = statCardOrder.orderedIds.filter { it !in hiddenCardIds },
+                        isEditMode = isEditMode,
+                        onHideCard = { id ->
+                            coroutineScope.launch { preferences.toggleStatCardVisibility(id, false) }
+                        },
+                        modifier = Modifier.padding(bottom = 8.dp)
+                    ) { cardId ->
+                        when (cardId) {
+                            "movies_total" -> {
+                                MetricCard(
+                                    title = stringResource(R.string.movies_stats_total),
+                                    value = "$totalFilms",
+                                    badgeText = stringResource(R.string.movies_badge_watched),
+                                    note = stringResource(R.string.movies_stats_rated, ratedFilms),
+                                    valueIcon = Icons.Default.Movie,
+                                    valueIconTint = recordCategoryColors(RecordCategory.Movies).accent,
+                                    badgeBg = recordCategoryColors(RecordCategory.Movies).container,
+                                    badgeColor = recordCategoryColors(RecordCategory.Movies).onContainer,
+                                    onLongClick = { isEditMode = true }
+                                )
                             }
-                            if (isAvgVisible) {
-                                StatCardContainer(
-                                    cardId = "movies_avg_rating",
-                                    isEditMode = isEditMode,
-                                    onHideCard = {
-                                        coroutineScope.launch {
-                                            preferences.toggleStatCardVisibility("movies_avg_rating", false)
-                                        }
-                                    },
-                                    index = 1,
-                                    modifier = Modifier.weight(1f)
-                                ) {
-                                    MetricCard(
-                                        title = stringResource(R.string.movies_stats_avg_rating),
-                                        value = avgRating,
-                                        valueIcon = Icons.Filled.Star,
-                                        valueIconTint = domainRatingOnContainer(),
-                                        badgeText = stringResource(R.string.badge_avg),
-                                        note = stringResource(R.string.movies_stats_rewatch, rewatchFilms),
-                                        badgeBg = domainRatingContainer(),
-                                        badgeColor = domainRatingOnContainer(),
-                                        onLongClick = { isEditMode = true }
-                                    )
-                                }
+                            "movies_avg_rating" -> {
+                                MetricCard(
+                                    title = stringResource(R.string.movies_stats_avg_rating),
+                                    value = avgRating,
+                                    valueIcon = Icons.Filled.Star,
+                                    valueIconTint = domainRatingOnContainer(),
+                                    badgeText = stringResource(R.string.badge_avg),
+                                    note = stringResource(R.string.movies_stats_rewatch, rewatchFilms),
+                                    badgeBg = domainRatingContainer(),
+                                    badgeColor = domainRatingOnContainer(),
+                                    onLongClick = { isEditMode = true }
+                                )
                             }
                         }
                     }
@@ -422,7 +401,8 @@ fun MoviesScreen(
     if (showCustomizationSheet) {
         StatsCustomizationBottomSheet(
             sheetTitle = stringResource(R.string.stats_customization_title),
-            cards = moviesStatCards,
+            cards = statCardOrder.sort(moviesStatCards),
+            onMoveCard = { cardId, direction -> statCardOrder.move(cardId, direction) },
             hiddenCardIds = hiddenCardIds,
             targetCardId = targetCardId,
             onToggleCard = { cardId, visible ->
@@ -433,6 +413,7 @@ fun MoviesScreen(
             onResetDefault = {
                 coroutineScope.launch {
                     preferences.resetHiddenStatsCards(moviesStatCards.map { it.id })
+                    statCardOrder.reset()
                 }
             },
             onDismissRequest = {

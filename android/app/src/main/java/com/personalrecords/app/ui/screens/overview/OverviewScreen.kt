@@ -114,6 +114,7 @@ fun OverviewScreen(
             iconTint = recordCategoryColors(RecordCategory.Notifications).accent
         )
     )
+    val statCardOrder = rememberStatCardOrder("overview", overviewStatCards.map { it.id })
     val visibleOverviewCardCount = overviewStatCards.count { it.id !in hiddenStatsCards }
     val snackbarHostState = remember { SnackbarHostState() }
     var selectedActivity by remember { mutableStateOf<com.personalrecords.app.core.network.model.ActivityItemDto?>(null) }
@@ -180,7 +181,7 @@ fun OverviewScreen(
             SnackbarHost(
                 snackbarHostState,
                 modifier = Modifier
-                    .padding(bottom = 16.dp)
+                    .padding(bottom = floatingNavSnackbarPadding())
             )
         }
     ) { innerPadding ->
@@ -562,6 +563,7 @@ fun OverviewScreen(
 
                         val slides = listOf(nutritionSlide, booksSlide, moviesSlide, musicSlide, healthSlide, notificationsSlide)
                             .filterNot { slide -> "overview_${slide.id}" in hiddenStatsCards }
+                            .sortedBy { slide -> statCardOrder.orderedIds.indexOf("overview_${slide.id}") }
 
                         Column(
                             modifier = expressiveItemModifier()
@@ -971,7 +973,8 @@ fun OverviewScreen(
     if (showStatsCustomization) {
         StatsCustomizationBottomSheet(
             sheetTitle = stringResource(R.string.stats_customization_title),
-            cards = overviewStatCards,
+            cards = statCardOrder.sort(overviewStatCards),
+            onMoveCard = { cardId, direction -> statCardOrder.move(cardId, direction) },
             hiddenCardIds = hiddenStatsCards,
             onToggleCard = { cardId, visible ->
                 coroutineScope.launch {
@@ -981,6 +984,7 @@ fun OverviewScreen(
             onResetDefault = {
                 coroutineScope.launch {
                     preferences.resetHiddenStatsCards(overviewStatCards.map { it.id })
+                    statCardOrder.reset()
                 }
             },
             onDismissRequest = { showStatsCustomization = false }
