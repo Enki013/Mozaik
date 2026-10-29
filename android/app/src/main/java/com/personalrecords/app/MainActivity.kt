@@ -625,103 +625,6 @@ fun MainAppHost() {
 }
 
 @Composable
-private fun CompanionSettingsButton(
-    isSelected: Boolean,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    val interactionSource = remember { MutableInteractionSource() }
-    val isPressed by interactionSource.collectIsPressedAsState()
-
-    val outerCorner by animateDpAsState(
-        targetValue = if (isPressed) 20.dp else 32.dp,
-        animationSpec = M3ExpressiveMotion.fastSpatial(),
-        label = "settings_outer_corner"
-    )
-    val innerCornerState = animateDpAsState(
-        targetValue = if (isPressed) 16.dp else 24.dp,
-        animationSpec = M3ExpressiveMotion.fastSpatial(),
-        label = "settings_inner_corner"
-    )
-    val indicatorAlphaState = animateFloatAsState(
-        targetValue = if (isSelected) 1f else 0f,
-        animationSpec = M3ExpressiveMotion.fastEffects(),
-        label = "settings_indicator_alpha"
-    )
-    val indicatorScaleState = animateFloatAsState(
-        targetValue = if (isSelected) 1f else 0.7f,
-        animationSpec = M3ExpressiveMotion.defaultSpatial(),
-        label = "settings_indicator_scale"
-    )
-    val iconRotationState = animateFloatAsState(
-        targetValue = if (isSelected) 60f else 0f,
-        animationSpec = M3ExpressiveMotion.defaultSpatial(),
-        label = "settings_icon_rotation"
-    )
-    val iconColor = if (isSelected) {
-        MaterialTheme.colorScheme.onSecondaryContainer
-    } else {
-        MaterialTheme.colorScheme.onSurfaceVariant
-    }
-    val secondaryContainerColor = MaterialTheme.colorScheme.secondaryContainer
-
-    Surface(
-        shape = RoundedCornerShape(outerCorner),
-        color = MaterialTheme.colorScheme.surfaceContainer,
-        tonalElevation = 3.dp,
-        shadowElevation = 4.dp,
-        modifier = modifier
-            .size(64.dp)
-            .expressivePressScale(interactionSource, scaleDown = 0.92f)
-    ) {
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .clickable(
-                    interactionSource = interactionSource,
-                    indication = null,
-                    role = Role.Tab,
-                    onClick = onClick
-                )
-                .semantics { this.selected = isSelected }
-                .padding(8.dp),
-            contentAlignment = Alignment.Center
-        ) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .graphicsLayer {
-                        val s = indicatorScaleState.value
-                        scaleX = s
-                        scaleY = s
-                        alpha = indicatorAlphaState.value
-                    }
-                    .drawBehind {
-                        if (indicatorAlphaState.value > 0.005f) {
-                            val r = innerCornerState.value.toPx()
-                            drawRoundRect(
-                                color = secondaryContainerColor,
-                                cornerRadius = CornerRadius(r, r)
-                            )
-                        }
-                    }
-            )
-
-            Icon(
-                imageVector = if (isSelected) Screen.Settings.selectedIcon else Screen.Settings.icon,
-                contentDescription = stringResource(Screen.Settings.titleRes),
-                tint = iconColor,
-                modifier = Modifier
-                    .size(24.dp)
-                    .graphicsLayer {
-                        rotationZ = iconRotationState.value
-                    }
-            )
-        }
-    }
-}
-
-@Composable
 private fun ExpressiveAdaptiveNavigation(
     navigator: Navigator,
     onScrollToTop: (Screen) -> Unit,
@@ -733,9 +636,10 @@ private fun ExpressiveAdaptiveNavigation(
     var activeTabTapJob by remember { mutableStateOf<kotlinx.coroutines.Job?>(null) }
     val haptic = LocalHapticFeedback.current
     val mainNavScreens = remember {
-        listOf(Screen.Overview, Screen.Timeline, Screen.Records)
+        listOf(Screen.Overview, Screen.Timeline, Screen.Records, Screen.Settings)
     }
-    val secondaryContainerColor = MaterialTheme.colorScheme.secondaryContainer
+    // Selected tab: primary tonal pair, clearly stronger than the bar container.
+    val indicatorColor = MaterialTheme.colorScheme.primaryContainer
 
     val topLevelRoute = navigator.state.topLevelRoute
     val currentRoute = navigator.currentRoute()
@@ -765,10 +669,8 @@ private fun ExpressiveAdaptiveNavigation(
         }
     }
 
-    val settingsSelected = topLevelRoute == Screen.Settings || currentRoute == Screen.Language
-
     if (isWideScreen) {
-        // Floating NavRail — M3 Expressive Vertical Floating Toolbar + Companion Action
+        // Floating NavRail — M3 Expressive vertical floating toolbar with all four tabs
         Box(
             modifier = modifier
                 .fillMaxHeight()
@@ -781,12 +683,14 @@ private fun ExpressiveAdaptiveNavigation(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                // 1. Primary Compact Floating Toolbar (Overview, Timeline, Records)
+                // Overview, Timeline, Records, Settings
                 Surface(
                     shape = M3Shapes.CornerFull,
-                    color = MaterialTheme.colorScheme.surfaceContainer,
-                    tonalElevation = 3.dp,
-                    shadowElevation = 4.dp,
+                    // Darkest container tone: a greyish bar that keeps the theme's subtle tint and
+                    // stands apart from the page in both themes, like Google's floating toolbars.
+                    // (tonalElevation only tints the plain `surface` color, so it is not used.)
+                    color = MaterialTheme.colorScheme.surfaceContainerHighest,
+                    shadowElevation = 3.dp,
                     modifier = Modifier.width(64.dp)
                 ) {
                     Column(
@@ -800,6 +704,7 @@ private fun ExpressiveAdaptiveNavigation(
                             key(screen) {
                                 val selected = when (screen) {
                                     Screen.Records -> topLevelRoute == Screen.Records || currentRoute in recordsSubScreens
+                                    Screen.Settings -> topLevelRoute == Screen.Settings || currentRoute == Screen.Language
                                     else -> topLevelRoute == screen && currentRoute !in recordsSubScreens && currentRoute != Screen.Language
                                 }
 
@@ -828,7 +733,7 @@ private fun ExpressiveAdaptiveNavigation(
                                 )
 
                                 val contentColor = if (selected) {
-                                    MaterialTheme.colorScheme.onSecondaryContainer
+                                    MaterialTheme.colorScheme.onPrimaryContainer
                                 } else {
                                     MaterialTheme.colorScheme.onSurfaceVariant
                                 }
@@ -842,7 +747,7 @@ private fun ExpressiveAdaptiveNavigation(
                                             if (alpha > 0.005f) {
                                                 val r = indicatorCornerState.value.toPx()
                                                 drawRoundRect(
-                                                    color = secondaryContainerColor.copy(alpha = alpha),
+                                                    color = indicatorColor.copy(alpha = alpha),
                                                     cornerRadius = CornerRadius(r, r)
                                                 )
                                             }
@@ -873,16 +778,10 @@ private fun ExpressiveAdaptiveNavigation(
                         }
                     }
                 }
-
-                // 2. Companion Settings Button
-                CompanionSettingsButton(
-                    isSelected = settingsSelected,
-                    onClick = { handleNavClick(Screen.Settings, settingsSelected) }
-                )
             }
         }
     } else {
-        // Floating Bottom Bar — M3 Expressive HorizontalFloatingToolbar + Companion Action
+        // Floating Bottom Bar — M3 Expressive horizontal floating toolbar with all four tabs
         Box(
             modifier = modifier
                 .fillMaxWidth()
@@ -894,12 +793,14 @@ private fun ExpressiveAdaptiveNavigation(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                // 1. Primary Compact Floating Toolbar (Overview, Timeline, Records)
+                // Overview, Timeline, Records, Settings
                 Surface(
                     shape = M3Shapes.CornerFull,
-                    color = MaterialTheme.colorScheme.surfaceContainer,
-                    tonalElevation = 3.dp,
-                    shadowElevation = 4.dp,
+                    // Darkest container tone: a greyish bar that keeps the theme's subtle tint and
+                    // stands apart from the page in both themes, like Google's floating toolbars.
+                    // (tonalElevation only tints the plain `surface` color, so it is not used.)
+                    color = MaterialTheme.colorScheme.surfaceContainerHighest,
+                    shadowElevation = 3.dp,
                     modifier = Modifier.height(M3NavigationMetrics.FloatingBarHeight)
                 ) {
                     Row(
@@ -913,6 +814,7 @@ private fun ExpressiveAdaptiveNavigation(
                             key(screen) {
                                 val selected = when (screen) {
                                     Screen.Records -> topLevelRoute == Screen.Records || currentRoute in recordsSubScreens
+                                    Screen.Settings -> topLevelRoute == Screen.Settings || currentRoute == Screen.Language
                                     else -> topLevelRoute == screen && currentRoute !in recordsSubScreens && currentRoute != Screen.Language
                                 }
 
@@ -941,7 +843,7 @@ private fun ExpressiveAdaptiveNavigation(
                                 )
 
                                 val contentColor = if (selected) {
-                                    MaterialTheme.colorScheme.onSecondaryContainer
+                                    MaterialTheme.colorScheme.onPrimaryContainer
                                 } else {
                                     MaterialTheme.colorScheme.onSurfaceVariant
                                 }
@@ -955,7 +857,7 @@ private fun ExpressiveAdaptiveNavigation(
                                             if (alpha > 0.005f) {
                                                 val r = indicatorCornerState.value.toPx()
                                                 drawRoundRect(
-                                                    color = secondaryContainerColor.copy(alpha = alpha),
+                                                    color = indicatorColor.copy(alpha = alpha),
                                                     cornerRadius = CornerRadius(r, r)
                                                 )
                                             }
@@ -1013,7 +915,7 @@ private fun ExpressiveAdaptiveNavigation(
                                         Text(
                                             text = stringResource(screen.navLabelRes),
                                             style = MaterialTheme.typography.labelLargeEmphasized,
-                                            color = MaterialTheme.colorScheme.onSecondaryContainer,
+                                            color = MaterialTheme.colorScheme.onPrimaryContainer,
                                             maxLines = 1,
                                             softWrap = false,
                                             overflow = TextOverflow.Clip
@@ -1024,12 +926,6 @@ private fun ExpressiveAdaptiveNavigation(
                         }
                     }
                 }
-
-                // 2. Companion Settings Button
-                CompanionSettingsButton(
-                    isSelected = settingsSelected,
-                    onClick = { handleNavClick(Screen.Settings, settingsSelected) }
-                )
             }
         }
     }
