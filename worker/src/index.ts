@@ -2176,8 +2176,15 @@ const handleNotificationWebhook = async (c: any) => {
   const items = Array.isArray(body) ? body : [body];
   let inserted = 0;
   let updated = 0;
+  let skipped = 0;
 
   for (const item of items) {
+    // Group summaries ("3 new messages") repeat what the real notifications already say.
+    if (item.group_summary === true || item.groupSummary === true) {
+      skipped++;
+      continue;
+    }
+
     const packageName = item.package || item.packageName || "unknown";
     const appName = item.app || item.appName || packageName;
     const title = item.title || "";
@@ -2189,8 +2196,13 @@ const handleNotificationWebhook = async (c: any) => {
     const notifKey = item.key || item.notificationKey || "";
     const isOngoing = item.ongoing ? 1 : 0;
 
-    // Deterministic ID for idempotency & deduplication
-    const idBasis = notifKey || (packageName + "|" + title + "|" + text + "|" + postTime);
+    // Deterministic ID for deduplication. Messaging apps such as WhatsApp reuse one
+    // notification key for every message in a chat, so the key alone would make each new
+    // message overwrite the previous one. Ongoing notifications (players, downloads) keep
+    // one row per key and are updated in place.
+    const idBasis = notifKey
+      ? (isOngoing ? notifKey : `${notifKey}|${title}|${text}`)
+      : (packageName + "|" + title + "|" + text + "|" + postTime);
     const id = "notif_" + hashStr(idBasis);
 
     const existing = await c.env.DB
@@ -2204,9 +2216,12 @@ const handleNotificationWebhook = async (c: any) => {
         category, post_time, notification_key, is_ongoing, raw_json, created_at
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
       ON CONFLICT(id) DO UPDATE SET
+        title=excluded.title,
         text=excluded.text,
         sub_text=excluded.sub_text,
         big_text=excluded.big_text,
+        post_time=CASE WHEN excluded.is_ongoing = 1 THEN excluded.post_time ELSE notifications.post_time END,
+        is_ongoing=excluded.is_ongoing,
         raw_json=excluded.raw_json
     `).bind(
       id,
@@ -2231,8 +2246,9 @@ const handleNotificationWebhook = async (c: any) => {
     success: true,
     inserted,
     updated,
+    skipped,
     total: items.length,
-    message: `${items.length} bildirim başarıyla işlendi (${inserted} yeni, ${updated} güncellendi).`
+    message: `${items.length} bildirim başarıyla işlendi (${inserted} yeni, ${updated} güncellendi, ${skipped} grup özeti atlandı).`
   });
 };
 
