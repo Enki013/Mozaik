@@ -61,7 +61,7 @@ The server acts as a centralized personal records collector with three distinct 
 - **Implementations:**
   - **[Notification Relay Webhook](https://github.com/Enki013/notification-relay-webhook):** lightweight open-source Android listener that forwards device notifications to `/api/webhooks/notification`.
   - **[Health Connect Webhook](https://github.com/mcnaveen/health-connect-webhook):** sends steps, sleep, heart rate, workouts, weight and more to `/api/webhooks/health`.
-  - **[Web Scrobbler](https://web-scrobbler.com/):** browser extension that sends played tracks to `/api/webhooks/music` (Worker only).
+  - **[Web Scrobbler](https://web-scrobbler.com/):** browser extension that sends played tracks to `/api/webhooks/music`.
   - **Tasker / Home Assistant:** can send custom webhooks to the notification endpoint.
 
 ### B. RSS Plugins (Pull / Polling)
@@ -79,14 +79,14 @@ The server acts as a centralized personal records collector with three distinct 
   - **Trakt.tv:** film and TV episode watch history and ratings from a public profile.
   - **Simkl:** film, series and anime watch history with a Client ID and Access Token.
   - **MDBList:** multi-source ratings (IMDb, Rotten Tomatoes, Metacritic, Letterboxd, Trakt), cached for 14 days.
-  - **Last.fm, ListenBrainz, Stats.fm:** music listening history (Worker only).
+  - **Last.fm, ListenBrainz, Stats.fm:** music listening history.
   - **Planned:** Spotify listening history, Steam library and achievements.
 
 ---
 
 ## 3. Server engine parity
 
-Both engines share the same data model and most endpoints. Music features, plugin toggles and the SQL dump are only in the Cloudflare Worker so far.
+Both engines share the same data model and endpoints. Only the SQL dump is limited to the Cloudflare Worker so far.
 
 | Endpoint | Purpose | Supported by |
 | :--- | :--- | :--- |
@@ -106,9 +106,9 @@ Both engines share the same data model and most endpoints. Music features, plugi
 | `GET /api/export/all` | Export entire database as JSON | Worker D1 & Go Docker |
 | `GET /api/export/db` | Download SQLite database binary | Worker D1 & Go Docker |
 | `GET /api/export/sql` | SQL dump of every table | Worker D1 only |
-| `GET /api/music`, `/api/music/stats`, `/api/music/sync-*` | Music history, stats and Last.fm / ListenBrainz / Stats.fm sync | Worker D1 only |
-| `POST /api/webhooks/music` | Ingestion endpoint for Web Scrobbler | Worker D1 only |
-| `GET/POST /api/settings/music`, `/api/settings/plugins` | Music settings and integration toggles | Worker D1 only |
+| `GET /api/music`, `/api/music/stats`, `/api/music/sync-*`, `/api/music/import` | Music history, stats, import and Last.fm / ListenBrainz / Stats.fm sync | Worker D1 & Go Docker |
+| `POST /api/webhooks/music` | Ingestion endpoint for Web Scrobbler | Worker D1 & Go Docker |
+| `GET/POST /api/settings/music`, `/api/settings/plugins` | Music settings and integration toggles | Worker D1 & Go Docker |
 
 ---
 

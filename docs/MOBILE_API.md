@@ -1,6 +1,6 @@
 # Mobile API
 
-The REST API the Mozaik Android app uses. Both server engines serve it; the [parity table](ARCHITECTURE.md#3-server-engine-parity) lists the few endpoints that only the Cloudflare Worker has.
+The REST API the Mozaik Android app uses. Both server engines serve it; the [parity table](ARCHITECTURE.md#3-server-engine-parity) lists the one endpoint (the SQL dump) that only the Cloudflare Worker has.
 
 Base URL:
 
@@ -36,8 +36,8 @@ GET /api/simkl/history
 GET /api/media/ratings
 GET /api/health-connect/records
 GET /api/notifications?limit=50&package=com.whatsapp
-GET /api/music                       # Worker only
-GET /api/music/stats                 # Worker only
+GET /api/music?page=1&limit=50&search=&artist=&album=&source=&date=&from=&to=
+GET /api/music/stats
 ```
 
 ### Unified activity feed (`GET /api/activity`)
@@ -139,9 +139,9 @@ POST /api/sync/letterboxd
 POST /api/sync/trakt
 POST /api/sync/simkl
 POST /api/sync/mdblist
-POST /api/music/sync-lastfm          # Worker only
-POST /api/music/sync-listenbrainz    # Worker only
-POST /api/music/sync-statsfm         # Worker only
+POST /api/music/sync-lastfm
+POST /api/music/sync-listenbrainz
+POST /api/music/sync-statsfm
 ```
 
 Each source has a 90-second cooldown. A call inside the window returns `429 Too Many Requests` with the remaining seconds. Add `?force=true` to bypass it. See [FATSECRET_SYNC_STRATEGY.md](FATSECRET_SYNC_STRATEGY.md) for how the `days` range works.
@@ -185,7 +185,7 @@ POST /api/webhooks/health
 GET  /api/webhooks/health            # endpoint status and record count
 ```
 
-### Music (Worker only)
+### Music
 
 Receives scrobbles from the [Web Scrobbler](https://web-scrobbler.com/) browser extension.
 

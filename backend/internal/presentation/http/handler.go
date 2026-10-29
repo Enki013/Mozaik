@@ -295,6 +295,7 @@ func (h *Handler) routes() {
 	h.mux.HandleFunc("/api/settings/simkl", h.simklSettings)
 	h.mux.HandleFunc("/api/sync/simkl", h.apiSyncSimkl)
 	h.mux.HandleFunc("/api/simkl/history", h.simklHistoryAPI)
+	h.musicRoutes()
 }
 
 func (h *Handler) home(w http.ResponseWriter, r *http.Request) {
@@ -1026,7 +1027,7 @@ func (h *Handler) notificationWebhook(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	inserted, updated, err := h.services.SaveNotificationWebhook(r.Context(), body)
+	result, err := h.services.SaveNotificationWebhook(r.Context(), body)
 	if err != nil {
 		h.writeJSON(w, http.StatusBadRequest, map[string]any{
 			"success": false,
@@ -1037,9 +1038,12 @@ func (h *Handler) notificationWebhook(w http.ResponseWriter, r *http.Request) {
 
 	h.writeJSON(w, http.StatusOK, map[string]any{
 		"success":  true,
-		"inserted": inserted,
-		"updated":  updated,
-		"message":  fmt.Sprintf("%d bildirim basariyla islendi (%d yeni, %d guncellendi).", inserted+updated, inserted, updated),
+		"inserted": result.Inserted,
+		"updated":  result.Updated,
+		"skipped":  result.Skipped,
+		"total":    result.Total,
+		"message": fmt.Sprintf("%d bildirim başarıyla işlendi (%d yeni, %d güncellendi, %d grup özeti atlandı).",
+			result.Total, result.Inserted, result.Updated, result.Skipped),
 	})
 }
 

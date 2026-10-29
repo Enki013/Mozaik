@@ -35,6 +35,10 @@ type FatSecretClient interface {
 type Services struct {
 	store     *sqlite.Store
 	fatsecret FatSecretClient
+
+	// Music sync HTTP client and API base URLs; nil/empty means the real services.
+	musicHTTP      *http.Client
+	musicEndpoints MusicEndpoints
 }
 
 type ActivityItem struct {
@@ -104,6 +108,9 @@ func (s *Services) Dashboard(ctx context.Context) (Dashboard, error) {
 	fatRun, _ := s.store.LastSyncRun(ctx, "fatsecret_sync_runs")
 	goodreadsRun, _ := s.store.LastSyncRun(ctx, "goodreads_sync_runs")
 	letterboxdRun, _ := s.store.LastSyncRun(ctx, "letterboxd_sync_runs")
+	musicRun, _ := s.store.LastSyncRun(ctx, "music_sync_runs")
+	musicStats, _ := s.MusicStats(ctx, time.Now())
+	lastfmUser, _ := s.LastFMCredentials(ctx)
 	return Dashboard{
 		Counts: map[string]int{
 			"goodreads_books":        counts["goodreads_books"],
@@ -111,22 +118,26 @@ func (s *Services) Dashboard(ctx context.Context) (Dashboard, error) {
 			"fatsecret_food_entries": counts["fatsecret_food_entries"],
 			"notifications":          counts["notifications"],
 			"health_records":         counts["health_records"],
+			"music_scrobbles":        counts["music_scrobbles"],
 		},
 		Today: map[string]any{
 			"date":                  shared.DateIntToISO(today),
 			"fatsecret_entry_count": todayCount,
 			"fatsecret_calories":    todayCalories,
+			"music_scrobbles":       musicStats.TodayScrobbles,
 		},
 		Connections: map[string]any{
 			"fatsecret":      token != nil,
 			"goodreads_rss":  goodreads.FeedURL != "",
 			"letterboxd_rss": letterboxd.FeedURL != "",
 			"health_connect": counts["health_records"] > 0,
+			"music":          counts["music_scrobbles"] > 0 || lastfmUser != "",
 		},
 		LastSync: map[string]any{
 			"fatsecret":  fatRun,
 			"goodreads":  goodreadsRun,
 			"letterboxd": letterboxdRun,
+			"music":      musicRun,
 		},
 		CalorieTarget: s.GetCalorieTarget(ctx),
 	}, nil
@@ -485,6 +496,50 @@ func (s *Services) ActivityTimelineRange(ctx context.Context, fromDate, toDate s
 					"active_calories": kcal,
 					"distance_km":     distKm,
 					"avg_bpm":         avgBpm,
+				},
+			})
+		}
+	}
+
+	// 6. Music scrobbles (dates come from the UTC listened_at, as in the Worker)
+	musicItems, err := s.store.RecentMusicScrobbles(ctx, limit*3)
+	if err == nil {
+		for _, m := range musicItems {
+			if len(m.ListenedAt) < 10 {
+				continue
+			}
+			dateISO := m.ListenedAt[:10]
+			if (minDateISO != "" && dateISO < minDateISO) || (maxDateISO != "" && dateISO > maxDateISO) {
+				continue
+			}
+			timePart := ""
+			if len(m.ListenedAt) >= 16 {
+				timePart = m.ListenedAt[11:16]
+			}
+			subtitle := m.Artist
+			if m.Album != "" {
+				subtitle += " • " + m.Album
+			}
+			allItems = append(allItems, ActivityItem{
+				ID:        "music_" + m.ID,
+				Source:    "music",
+				Type:      "music",
+				Date:      dateISO,
+				Time:      timePart,
+				Timestamp: m.ListenedAt,
+				Title:     m.Track,
+				Subtitle:  subtitle,
+				Details: map[string]any{
+					"id":           m.ID,
+					"track":        m.Track,
+					"artist":       m.Artist,
+					"album":        m.Album,
+					"album_artist": m.AlbumArtist,
+					"duration":     m.Duration,
+					"image_url":    m.ImageURL,
+					"origin_url":   m.OriginURL,
+					"source":       m.Source,
+					"uts":          m.UTS,
 				},
 			})
 		}
@@ -1444,20 +1499,40 @@ type NotificationWebhookItem struct {
 	Key             string `json:"key"`
 	NotificationKey string `json:"notificationKey"`
 	Ongoing         bool   `json:"ongoing"`
+	GroupSummary    bool   `json:"group_summary"`
+	GroupSummaryAlt bool   `json:"groupSummary"`
 }
 
-func (s *Services) SaveNotificationWebhook(ctx context.Context, payload []byte) (int, int, error) {
-	var items []NotificationWebhookItem
-	if err := json.Unmarshal(payload, &items); err != nil {
-		var single NotificationWebhookItem
+// NotificationWebhookResult counts what one webhook delivery did. Skipped items are
+// group summaries ("3 new messages"), which repeat the real notifications.
+type NotificationWebhookResult struct {
+	Inserted int
+	Updated  int
+	Skipped  int
+	Total    int
+}
+
+func (s *Services) SaveNotificationWebhook(ctx context.Context, payload []byte) (NotificationWebhookResult, error) {
+	// Keep each item's own JSON so raw_json stores that item, not the whole batch.
+	var rawItems []json.RawMessage
+	if err := json.Unmarshal(payload, &rawItems); err != nil {
+		var single json.RawMessage
 		if err2 := json.Unmarshal(payload, &single); err2 != nil {
-			return 0, 0, fmt.Errorf("gecersiz json: %w", err)
+			return NotificationWebhookResult{}, fmt.Errorf("gecersiz json: %w", err)
 		}
-		items = []NotificationWebhookItem{single}
+		rawItems = []json.RawMessage{single}
 	}
 
-	inserted, updated := 0, 0
-	for _, item := range items {
+	result := NotificationWebhookResult{Total: len(rawItems)}
+	for _, raw := range rawItems {
+		var item NotificationWebhookItem
+		if err := json.Unmarshal(raw, &item); err != nil {
+			return result, fmt.Errorf("gecersiz json: %w", err)
+		}
+		if item.GroupSummary || item.GroupSummaryAlt {
+			result.Skipped++
+			continue
+		}
 		pkg := item.Package
 		if pkg == "" {
 			pkg = item.PackageName
@@ -1492,8 +1567,16 @@ func (s *Services) SaveNotificationWebhook(ctx context.Context, payload []byte) 
 			key = item.NotificationKey
 		}
 
-		basis := key
-		if basis == "" {
+		// Messaging apps such as WhatsApp reuse one notification key for every message in
+		// a chat, so the key alone would make each new message overwrite the previous one.
+		// Ongoing notifications (players, downloads) keep one row per key and update in place.
+		var basis string
+		switch {
+		case key != "" && item.Ongoing:
+			basis = key
+		case key != "":
+			basis = key + "|" + item.Title + "|" + item.Text
+		default:
 			basis = pkg + "|" + item.Title + "|" + item.Text + "|" + postTime
 		}
 		id := "notif_" + shared.Hash("notif:", basis, 24)
@@ -1510,20 +1593,20 @@ func (s *Services) SaveNotificationWebhook(ctx context.Context, payload []byte) 
 			PostTime:        postTime,
 			NotificationKey: key,
 			IsOngoing:       item.Ongoing,
-			RawJSON:         string(payload),
+			RawJSON:         string(raw),
 		}
 
 		status, err := s.store.UpsertNotification(ctx, n)
 		if err != nil {
-			return inserted, updated, err
+			return result, err
 		}
 		if status == "updated" {
-			updated++
+			result.Updated++
 		} else if status == "inserted" {
-			inserted++
+			result.Inserted++
 		}
 	}
-	return inserted, updated, nil
+	return result, nil
 }
 
 func (s *Services) Notifications(ctx context.Context, limit int, pkg string) ([]sqlite.Notification, error) {

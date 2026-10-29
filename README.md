@@ -53,9 +53,9 @@ Mozaik collects your meals, films, books, music, health data and phone notificat
 
 Mozaik has two parts:
 
-1. **A server** that stores everything. Pick one of two engines; both expose the same REST API, apart from a few Worker-only features:
+1. **A server** that stores everything. Pick one of two engines; both expose the same REST API:
    - **Cloudflare Worker + D1** (recommended): serverless, free tier, runs 24/7, pulls new data every 6 hours with a cron trigger.
-   - **Go + SQLite**: self-hosted on your own machine, a home server or a VPS, with Docker Compose. Music integrations are not available on this engine yet.
+   - **Go + SQLite**: self-hosted on your own machine, a home server or a VPS, with Docker Compose.
 2. **The Mozaik Android app**, which reads from your server. It does not run heavy background services itself.
 
 Data reaches the server in two ways:
@@ -112,15 +112,15 @@ flowchart LR
 | 🥗 Nutrition | [FatSecret](https://platform.fatsecret.com/) | API (bring your own key) |
 | 📚 Books | [Goodreads](https://www.goodreads.com/) | RSS |
 | 🎬 Films and series | [Letterboxd](https://letterboxd.com/), [Trakt.tv](https://trakt.tv/), [Simkl](https://simkl.com/), [MDBList](https://mdblist.com/) ratings | RSS / API |
-| 🎵 Music | [Last.fm](https://www.last.fm/), [ListenBrainz](https://listenbrainz.org/), [Stats.fm](https://stats.fm/), [Web Scrobbler](https://web-scrobbler.com/) | API / webhook (Cloudflare Worker only) |
+| 🎵 Music | [Last.fm](https://www.last.fm/), [ListenBrainz](https://listenbrainz.org/), [Stats.fm](https://stats.fm/), [Web Scrobbler](https://web-scrobbler.com/) | API / webhook |
 | ❤️ Health | Health Connect (Samsung Health, Google Fit, Fitbit and others) | Webhook, via [Health Connect Webhook](#companion-apps) |
 | 🔔 Notifications | Android notifications | Webhook, via [Notification Relay](#companion-apps) |
 
-Planned: Spotify Direct API, Steam, and music support on the Go engine. See the [roadmap](docs/ROADMAP.md).
+Planned: Spotify Direct API and Steam. See the [roadmap](docs/ROADMAP.md).
 
 ### Server
 
-- The same REST API on both engines, so the app works with either one. Music, integration toggles and the SQL dump are Worker-only for now (see the [parity table](docs/ARCHITECTURE.md#3-server-engine-parity)).
+- The same REST API on both engines, so the app works with either one. Only the SQL dump is Worker-only (see the [parity table](docs/ARCHITECTURE.md#3-server-engine-parity)).
 - A built-in **web dashboard** behind a password screen.
 - **Authentication** on every data, export and sync route.
 - A strict CORS allowlist, security headers and a sync cooldown that protects external services from too many requests.

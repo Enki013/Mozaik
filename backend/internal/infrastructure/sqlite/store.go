@@ -366,7 +366,7 @@ create table if not exists simkl_sync_runs (
   message text,
   ran_at text not null default current_timestamp
 );`)
-	return nil
+	return s.initMusic(ctx)
 }
 
 func (s *Store) RawDB() *sql.DB {
@@ -386,6 +386,7 @@ func (s *Store) Counts(ctx context.Context) (map[string]int, error) {
 		"letterboxd_rated_count": "select count(*) from letterboxd_films where coalesce(rating, 0) > 0",
 		"trakt_history":          "select count(*) from trakt_history",
 		"simkl_history":          "select count(*) from simkl_history",
+		"music_scrobbles":        "select count(*) from music_scrobbles",
 	}
 	result := map[string]int{}
 	for key, query := range queries {
@@ -824,9 +825,12 @@ insert into notifications (
   category, post_time, notification_key, is_ongoing, raw_json, created_at
 ) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, current_timestamp)
 on conflict(id) do update set
+  title=excluded.title,
   text=excluded.text,
   sub_text=excluded.sub_text,
   big_text=excluded.big_text,
+  post_time=case when excluded.is_ongoing = 1 then excluded.post_time else notifications.post_time end,
+  is_ongoing=excluded.is_ongoing,
   raw_json=excluded.raw_json`,
 		n.ID, n.PackageName, n.AppName, n.Title, n.Text, n.SubText, n.BigText,
 		n.Category, n.PostTime, n.NotificationKey, n.IsOngoing, n.RawJSON)
@@ -1278,7 +1282,7 @@ on conflict(id) do update set feed_url=excluded.feed_url, interval_minutes=exclu
 
 func (s *Store) RecordSyncRun(ctx context.Context, table, source, status string, inserted, updated int, message string) error {
 	switch table {
-	case "goodreads_sync_runs", "letterboxd_sync_runs", "fatsecret_sync_runs":
+	case "goodreads_sync_runs", "letterboxd_sync_runs", "fatsecret_sync_runs", "music_sync_runs":
 	default:
 		return fmt.Errorf("invalid sync table")
 	}
@@ -1288,7 +1292,7 @@ func (s *Store) RecordSyncRun(ctx context.Context, table, source, status string,
 
 func (s *Store) LastSyncRun(ctx context.Context, table string) (*SyncRun, error) {
 	switch table {
-	case "goodreads_sync_runs", "letterboxd_sync_runs", "fatsecret_sync_runs", "trakt_sync_runs", "mdblist_sync_runs", "simkl_sync_runs":
+	case "goodreads_sync_runs", "letterboxd_sync_runs", "fatsecret_sync_runs", "trakt_sync_runs", "mdblist_sync_runs", "simkl_sync_runs", "music_sync_runs":
 	default:
 		return nil, fmt.Errorf("invalid sync table")
 	}
@@ -1331,6 +1335,8 @@ from (
   select id, 'Goodreads (' || source || ')' as source, status, inserted, updated, message, ran_at from goodreads_sync_runs
   union all
   select id, 'Letterboxd (' || source || ')' as source, status, inserted, updated, message, ran_at from letterboxd_sync_runs
+  union all
+  select id, 'Music (' || source || ')' as source, status, inserted, updated, message, ran_at from music_sync_runs
 )
 order by ran_at desc
 limit ?`
@@ -1367,6 +1373,10 @@ func (s *Store) AllDataExport(ctx context.Context) (map[string]any, error) {
 	if err != nil {
 		return nil, err
 	}
+	music, _, err := s.QueryMusicScrobbles(ctx, MusicQuery{Limit: 100000, Page: 1})
+	if err != nil {
+		return nil, err
+	}
 	export := map[string]any{
 		"version":         "1.0",
 		"app":             "Personal Data Hub",
@@ -1375,6 +1385,7 @@ func (s *Store) AllDataExport(ctx context.Context) (map[string]any, error) {
 		"letterboxd_films": films,
 		"fatsecret_foods": foods,
 		"daily_summary":   summary,
+		"music_scrobbles": music,
 	}
 	return export, nil
 }

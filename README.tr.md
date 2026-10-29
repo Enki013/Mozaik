@@ -53,9 +53,9 @@ Mozaik; öğünlerini, filmlerini, kitaplarını, müziklerini, sağlık veriler
 
 Mozaik iki parçadan oluşur:
 
-1. Her şeyi saklayan bir **sunucu**. İki seçenekten birini kullanırsın. Yalnızca Worker'da olan birkaç özellik dışında ikisi de aynı REST API'yi sunar:
+1. Her şeyi saklayan bir **sunucu**. İki seçenekten birini kullanırsın, ikisi de aynı REST API'yi sunar:
    - **Cloudflare Worker + D1** (önerilen): sunucusuz, ücretsiz katmanda çalışır, 7/24 açıktır ve cron tetikleyicisiyle 6 saatte bir yeni verileri çeker.
-   - **Go + SQLite**: kendi bilgisayarında, ev sunucunda ya da VPS'te Docker Compose ile çalışır. Müzik entegrasyonları bu motorda henüz yok.
+   - **Go + SQLite**: kendi bilgisayarında, ev sunucunda ya da VPS'te Docker Compose ile çalışır.
 2. Verileri sunucundan okuyan **Mozaik Android uygulaması**. Uygulamanın kendisi ağır arka plan servisleri çalıştırmaz.
 
 Veriler sunucuya iki yolla gelir:
@@ -112,15 +112,15 @@ flowchart LR
 | 🥗 Beslenme | [FatSecret](https://platform.fatsecret.com/) | API (kendi anahtarınla) |
 | 📚 Kitaplar | [Goodreads](https://www.goodreads.com/) | RSS |
 | 🎬 Film ve dizi | [Letterboxd](https://letterboxd.com/), [Trakt.tv](https://trakt.tv/), [Simkl](https://simkl.com/), [MDBList](https://mdblist.com/) puanları | RSS / API |
-| 🎵 Müzik | [Last.fm](https://www.last.fm/), [ListenBrainz](https://listenbrainz.org/), [Stats.fm](https://stats.fm/), [Web Scrobbler](https://web-scrobbler.com/) | API / webhook (yalnızca Cloudflare Worker) |
+| 🎵 Müzik | [Last.fm](https://www.last.fm/), [ListenBrainz](https://listenbrainz.org/), [Stats.fm](https://stats.fm/), [Web Scrobbler](https://web-scrobbler.com/) | API / webhook |
 | ❤️ Sağlık | Health Connect (Samsung Health, Google Fit, Fitbit ve diğerleri) | Webhook, [Health Connect Webhook](#yardımcı-uygulamalar) ile |
 | 🔔 Bildirimler | Android bildirimleri | Webhook, [Notification Relay](#yardımcı-uygulamalar) ile |
 
-Planlananlar: Spotify Direct API, Steam ve Go motorunda müzik desteği. Ayrıntılar [yol haritasında](docs/ROADMAP.md).
+Planlananlar: Spotify Direct API ve Steam. Ayrıntılar [yol haritasında](docs/ROADMAP.md).
 
 ### Sunucu
 
-- İki motorda da aynı REST API, böylece uygulama ikisiyle de çalışır. Müzik, entegrasyon anahtarları ve SQL dökümü şimdilik yalnızca Worker'da var (bkz. [karşılaştırma tablosu](docs/ARCHITECTURE.md#3-server-engine-parity)).
+- İki motorda da aynı REST API, böylece uygulama ikisiyle de çalışır. Yalnızca SQL dökümü Worker'a özgü (bkz. [karşılaştırma tablosu](docs/ARCHITECTURE.md#3-server-engine-parity)).
 - Şifre ekranıyla korunan dahili **web paneli**.
 - Tüm veri, dışa aktarma ve eşitleme adreslerinde **kimlik doğrulama**.
 - Sıkı CORS izin listesi, güvenlik başlıkları ve dış servisleri aşırı istekten koruyan eşitleme bekleme süresi.

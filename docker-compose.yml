@@ -24,6 +24,9 @@ services:
       # Optional: your FatSecret diary (OAuth 1.0)
       - FATSECRET_CONSUMER_KEY=${FATSECRET_CONSUMER_KEY:-}
       - FATSECRET_CONSUMER_SECRET=${FATSECRET_CONSUMER_SECRET:-}
+      # Optional: Last.fm defaults (can also be set in the app)
+      - LASTFM_USERNAME=${LASTFM_USERNAME:-}
+      - LASTFM_API_KEY=${LASTFM_API_KEY:-}
     volumes:
       - ./data:/data
     healthcheck:

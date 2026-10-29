@@ -1,10 +1,10 @@
 # Mozaik: Go backend
 
-The self-hosted **Go + SQLite** server for Mozaik. It follows Clean Architecture and serves the same REST API contract as the Cloudflare Worker in `worker/`, except for the Worker-only music features (see the [parity table](../docs/ARCHITECTURE.md#3-server-engine-parity)).
+The self-hosted **Go + SQLite** server for Mozaik. It follows Clean Architecture and serves the same REST API contract as the Cloudflare Worker in `worker/`, so the Android app works with either one (see the [parity table](../docs/ARCHITECTURE.md#3-server-engine-parity)).
 
 ## Layout
 
-- `cmd/personal-records/main.go`: entry point, dependency wiring and the background sync loop.
+- `cmd/personal-records/main.go`: entry point, dependency wiring and the background sync loop (Goodreads, Letterboxd, FatSecret and Last.fm).
 - `internal/application/`: business rules, the unified activity timeline, and RSS and OAuth sync services.
 - `internal/infrastructure/sqlite/`: SQLite schema migrations and data access.
 - `internal/integrations/fatsecret/`: FatSecret OAuth 1.0a signing and API client.
@@ -26,6 +26,7 @@ Copy `.env.example` to `.env` and set at least `API_KEY`.
 | `ALLOWED_ORIGINS` | Extra CORS origins, comma separated |
 | `FATSECRET_CLIENT_ID`, `FATSECRET_CLIENT_SECRET` | Optional: public food database search (OAuth 2.0) |
 | `FATSECRET_CONSUMER_KEY`, `FATSECRET_CONSUMER_SECRET` | Optional: your FatSecret diary (OAuth 1.0) |
+| `LASTFM_USERNAME`, `LASTFM_API_KEY` | Optional: Last.fm defaults, used when none are saved in the app's settings |
 
 ## Running
 

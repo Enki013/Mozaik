@@ -37,7 +37,7 @@ The Mozaik app does not run a notification listener or a health sync service in 
 | **Reachable from** | Anywhere, 24/7 | Your local network, or the internet through a VPN or reverse proxy |
 | **Database** | Cloudflare D1 (SQLite) | Local `personal_records.sqlite3` file |
 | **Setup time** | About 5 minutes | About 1 minute |
-| **Music integrations** | Yes | Not yet (Last.fm, ListenBrainz, Stats.fm and Web Scrobbler are Worker-only) |
+| **Music integrations** | Yes | Yes |
 
 ---
 
@@ -196,7 +196,7 @@ Use this to archive notifications such as bank alerts, delivery updates or remin
 
 Turn services on in the **Integration catalog** (the `+` button next to **Integrations** on the Overview screen), then configure them in **Settings**:
 
-- **Last.fm, ListenBrainz, Stats.fm:** enter your username and sync. These need the Cloudflare Worker server.
+- **Last.fm, ListenBrainz, Stats.fm:** enter your username and sync. Both servers also sync Last.fm automatically in the background.
 - **Web Scrobbler:** install the [browser extension](https://web-scrobbler.com/), enable its **Webhook** service and use `https://…/api/webhooks/music` with the header `X-API-Key: <API_KEY>`.
 - **Trakt.tv:** enter your username. Public profiles need no password.
 - **Simkl:** create a Client ID and Access Token at [simkl.com/settings/developer](https://simkl.com/settings/developer/).

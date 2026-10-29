@@ -54,6 +54,7 @@ func syncLoop(ctx context.Context, services *application.Services) {
 		if services.FatSecretConnected(ctx) {
 			_, _ = services.SyncFatSecretFoodEntries(ctx, 3)
 		}
+		services.RunConfiguredLastFMSync(ctx)
 
 		timer := time.NewTimer(time.Duration(interval) * time.Minute)
 		select {
