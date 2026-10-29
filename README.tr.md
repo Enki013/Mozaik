@@ -53,9 +53,9 @@ Mozaik; öğünlerini, filmlerini, kitaplarını, müziklerini, sağlık veriler
 
 Mozaik iki parçadan oluşur:
 
-1. Her şeyi saklayan bir **sunucu**. İki seçenekten birini kullanırsın, ikisi de aynı REST API'yi sunar:
+1. Her şeyi saklayan bir **sunucu**. İki seçenekten birini kullanırsın. Yalnızca Worker'da olan birkaç özellik dışında ikisi de aynı REST API'yi sunar:
    - **Cloudflare Worker + D1** (önerilen): sunucusuz, ücretsiz katmanda çalışır, 7/24 açıktır ve cron tetikleyicisiyle 6 saatte bir yeni verileri çeker.
-   - **Go + SQLite**: kendi bilgisayarında, ev sunucunda ya da VPS'te Docker Compose ile çalışır.
+   - **Go + SQLite**: kendi bilgisayarında, ev sunucunda ya da VPS'te Docker Compose ile çalışır. Müzik entegrasyonları bu motorda henüz yok.
 2. Verileri sunucundan okuyan **Mozaik Android uygulaması**. Uygulamanın kendisi ağır arka plan servisleri çalıştırmaz.
 
 Veriler sunucuya iki yolla gelir:
@@ -78,7 +78,7 @@ flowchart LR
 
     subgraph Pull["Çekme"]
         RSS["Goodreads / Letterboxd RSS"]
-        API["FatSecret · Last.fm · Trakt<br/>ListenBrainz · Stats.fm · MDBList"]
+        API["FatSecret · Last.fm · Trakt · Simkl<br/>ListenBrainz · Stats.fm · MDBList"]
     end
 
     Push -->|"POST + API anahtarı"| Server
@@ -111,16 +111,16 @@ flowchart LR
 | :--- | :--- | :--- |
 | 🥗 Beslenme | [FatSecret](https://platform.fatsecret.com/) | API (kendi anahtarınla) |
 | 📚 Kitaplar | [Goodreads](https://www.goodreads.com/) | RSS |
-| 🎬 Film ve dizi | [Letterboxd](https://letterboxd.com/), [Trakt.tv](https://trakt.tv/), [MDBList](https://mdblist.com/) puanları | RSS / API |
-| 🎵 Müzik | [Last.fm](https://www.last.fm/), [ListenBrainz](https://listenbrainz.org/), [Stats.fm](https://stats.fm/), [Web Scrobbler](https://web-scrobbler.com/) | API / webhook |
+| 🎬 Film ve dizi | [Letterboxd](https://letterboxd.com/), [Trakt.tv](https://trakt.tv/), [Simkl](https://simkl.com/), [MDBList](https://mdblist.com/) puanları | RSS / API |
+| 🎵 Müzik | [Last.fm](https://www.last.fm/), [ListenBrainz](https://listenbrainz.org/), [Stats.fm](https://stats.fm/), [Web Scrobbler](https://web-scrobbler.com/) | API / webhook (yalnızca Cloudflare Worker) |
 | ❤️ Sağlık | Health Connect (Samsung Health, Google Fit, Fitbit ve diğerleri) | Webhook, [Health Connect Webhook](#yardımcı-uygulamalar) ile |
 | 🔔 Bildirimler | Android bildirimleri | Webhook, [Notification Relay](#yardımcı-uygulamalar) ile |
 
-Planlananlar: Spotify Direct API, Simkl, Steam. Ayrıntılar [yol haritasında](docs/ROADMAP.md).
+Planlananlar: Spotify Direct API, Steam ve Go motorunda müzik desteği. Ayrıntılar [yol haritasında](docs/ROADMAP.md).
 
 ### Sunucu
 
-- İki motorda da aynı REST API, böylece uygulama ikisiyle de çalışır.
+- İki motorda da aynı REST API, böylece uygulama ikisiyle de çalışır. Müzik, entegrasyon anahtarları ve SQL dökümü şimdilik yalnızca Worker'da var (bkz. [karşılaştırma tablosu](docs/ARCHITECTURE.md#3-server-engine-parity)).
 - Şifre ekranıyla korunan dahili **web paneli**.
 - Tüm veri, dışa aktarma ve eşitleme adreslerinde **kimlik doğrulama**.
 - Sıkı CORS izin listesi, güvenlik başlıkları ve dış servisleri aşırı istekten koruyan eşitleme bekleme süresi.
@@ -232,8 +232,8 @@ Yerelde geliştirmek için `worker/.dev.vars.example` dosyasını `worker/.dev.v
 Raspberry Pi, NAS, ev sunucusu ya da VPS için.
 
 ```bash
-cp backend/.env.example backend/.env
-# backend/.env dosyasını düzenleyip API_KEY değerini belirle
+# Docker Compose, API_KEY değerini kök dizindeki .env dosyasından okur
+echo "API_KEY=$(openssl rand -hex 32)" > .env
 
 docker compose up -d
 ```
@@ -241,6 +241,7 @@ docker compose up -d
 - API ve web paneli: `http://localhost:8787`
 - Veriler `./data/personal_records.sqlite3` dosyasında saklanır
 - Sağlık durumu: `docker compose ps`
+- Diğer ayarlar (`APP_BASE_URL`, FatSecret anahtarları, `ALLOWED_ORIGINS`) aynı kök `.env` dosyasına ya da `docker-compose.yml` içine yazılır. Konteyner `backend/.env` dosyasını okumaz.
 
 `docker-publish` iş akışı, hazır imajı GitHub Container Registry'ye yayınlar.
 
@@ -353,9 +354,10 @@ Ayrıntılar [docs/FATSECRET_SYNC_STRATEGY.md](docs/FATSECRET_SYNC_STRATEGY.md) 
 - **Goodreads:** sayısal kullanıcı ID'ni ya da profil adresini (`https://goodreads.com/user/show/<id>`) gir. Raflar (okunanlar, okunmakta olanlar, okunacaklar) RSS üzerinden eşitlenir.
 - **Letterboxd:** kullanıcı adını ya da RSS adresini (`https://letterboxd.com/<kullanıcı-adı>/rss/`) gir.
 
-### Film ve dizi: Trakt.tv, MDBList
+### Film ve dizi: Trakt.tv, Simkl, MDBList
 
 - **Trakt.tv:** kullanıcı adını gir (herkese açık profiller için şifre gerekmez). İstersen kendi Client ID'ni ekle. Filmler ve dizi bölümleri eşitlenir.
+- **Simkl:** [simkl.com/settings/developer](https://simkl.com/settings/developer/) adresinden Client ID ve Access Token oluştur, **Ayarlar**'a gir. Filmler, diziler ve animeler eşitlenir.
 - **MDBList:** [mdblist.com/preferences](https://mdblist.com/preferences) adresinden ücretsiz API anahtarı al. Film detaylarında IMDb, Rotten Tomatoes, Metacritic ve Letterboxd puanları görünür ve 14 gün önbellekte tutulur.
 
 ---
@@ -380,7 +382,7 @@ Verilerin hiçbir zaman kilitli kalmaz. Uygulamadan (**Ayarlar → Veri Dışa A
 | Uç nokta | Biçim |
 | :--- | :--- |
 | `GET /api/export/all` | Tam JSON arşivi |
-| `GET /api/export/sql` | SQLite uyumlu SQL dökümü (`CREATE TABLE` + `INSERT`) |
+| `GET /api/export/sql` | SQLite uyumlu SQL dökümü (`CREATE TABLE` + `INSERT`), yalnızca Worker |
 | `GET /api/export/db` | Ham SQLite veritabanı dosyası |
 
 ```bash

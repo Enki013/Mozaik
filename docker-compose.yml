@@ -12,20 +12,18 @@ services:
       - PORT=8787
       - HOST=0.0.0.0
       - DB_PATH=/data/personal_records.sqlite3
-      # Yerel ağdaki telefondan bağlanacaksanız ve FatSecret OAuth kullanacaksanız yerel IP'nizi yazın (Örn: http://192.168.1.50:8787)
-      - APP_BASE_URL=http://localhost:8787
-      # Güvenlik & Kimlik Doğrulama
+      # Using FatSecret OAuth from a phone on your local network? Set APP_BASE_URL in .env to your local IP (e.g. http://192.168.1.50:8787)
+      - APP_BASE_URL=${APP_BASE_URL:-http://localhost:8787}
+      # Security and authentication: set API_KEY in a .env file next to this file, or in your shell
       - API_KEY=${API_KEY:-}
       - WEBHOOK_SECRET=${WEBHOOK_SECRET:-}
       - ALLOWED_ORIGINS=${ALLOWED_ORIGINS:-}
-      # Opsiyonel: Public FatSecret Gıda Arama (OAuth 2.0)
-      # - FATSECRET_CLIENT_ID=
-      # - FATSECRET_CLIENT_SECRET=
-      # Opsiyonel: Kişisel FatSecret Günlükleri (OAuth 1.0)
-      # - FATSECRET_CONSUMER_KEY=
-      # - FATSECRET_CONSUMER_SECRET=
-      # Opsiyonel: Webhook Doğrulama Şifresi
-      # - WEBHOOK_SECRET=
+      # Optional: FatSecret public food search (OAuth 2.0)
+      - FATSECRET_CLIENT_ID=${FATSECRET_CLIENT_ID:-}
+      - FATSECRET_CLIENT_SECRET=${FATSECRET_CLIENT_SECRET:-}
+      # Optional: your FatSecret diary (OAuth 1.0)
+      - FATSECRET_CONSUMER_KEY=${FATSECRET_CONSUMER_KEY:-}
+      - FATSECRET_CONSUMER_SECRET=${FATSECRET_CONSUMER_SECRET:-}
     volumes:
       - ./data:/data
     healthcheck:

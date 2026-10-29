@@ -6,7 +6,7 @@ compatibility_flags = ["nodejs_compat"]
 [[d1_databases]]
 binding = "DB"
 database_name = "personal-records-db"
-# "npx wrangler d1 create personal-records-db" komutunun ürettiği database_id değerini buraya yapıştırın:
+# Paste the database_id printed by "npx wrangler d1 create personal-records-db":
 database_id = "YOUR_D1_DATABASE_ID"
 
 [triggers]

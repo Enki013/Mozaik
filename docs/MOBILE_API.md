@@ -1,10 +1,24 @@
 # Mobile API
 
-Local base URL:
+The REST API the Mozaik Android app uses. Both server engines serve it; the [parity table](ARCHITECTURE.md#3-server-engine-parity) lists the few endpoints that only the Cloudflare Worker has.
+
+Base URL:
 
 ```text
-http://localhost:8787
+https://personal-records-api.<your-subdomain>.workers.dev   # Cloudflare Worker
+http://localhost:8787                                       # Go backend / Docker
 ```
+
+## Authentication
+
+Every `/api/*` route except `GET /api/health` needs your API key. Send it with one of:
+
+```text
+Authorization: Bearer <API_KEY>
+X-API-Key: <API_KEY>
+```
+
+Webhooks also accept `X-Webhook-Secret: <API_KEY>` or a `?api_key=<API_KEY>` query string, for apps that cannot set headers. `GET /api/auth/verify` checks a key without returning data.
 
 ## Read endpoints
 
@@ -17,16 +31,24 @@ GET /api/fatsecret/food-entries?limit=100
 GET /api/fatsecret/daily-summary?limit=30
 GET /api/goodreads/books?q=&shelf=&limit=100
 GET /api/letterboxd/films?limit=100
+GET /api/trakt/history
+GET /api/simkl/history
+GET /api/media/ratings
+GET /api/health-connect/records
+GET /api/notifications?limit=50&package=com.whatsapp
+GET /api/music                       # Worker only
+GET /api/music/stats                 # Worker only
 ```
 
-### Unified Activity Endpoint (`GET /api/activity`)
+### Unified activity feed (`GET /api/activity`)
 
-Birleşik zaman çizelgesi (Activity Timeline) için Kotlin istemcisinin kullanacağı ana uç nokta:
+The main endpoint behind the app's **Timeline**.
 
-- **Query Parametreleri:**
-  - `days`: Kaç günlük geçmiş listelensin? (Varsayılan: `7`, Maks: `365`).
-  - `limit`: Toplam maksimum kayıt sayısı (Varsayılan: `50`, Maks: `500`).
-- **Örnek Yanıt Şeması (JSON):**
+- **Query parameters**
+  - `days`: how many days of history to include. Default `7`.
+  - `limit`: maximum number of items. Default `50`, maximum `1000` on the Worker.
+- **Example response**
+
   ```json
   {
     "days": 7,
@@ -99,8 +121,10 @@ Birleşik zaman çizelgesi (Activity Timeline) için Kotlin istemcisinin kullana
   }
   ```
 
+> [!NOTE]
+> `groups[].label` is always Turkish (`Bugün` for today, `Dün` for yesterday, otherwise the date). Clients should build their own localized label from `groups[].date`, as the Android app does.
 
-## Sync & Webhook endpoints
+## Sync endpoints
 
 ```text
 POST /api/sync/fatsecret
@@ -112,35 +136,73 @@ Content-Type: application/json
 ```text
 POST /api/sync/goodreads
 POST /api/sync/letterboxd
+POST /api/sync/trakt
+POST /api/sync/simkl
+POST /api/sync/mdblist
+POST /api/music/sync-lastfm          # Worker only
+POST /api/music/sync-listenbrainz    # Worker only
+POST /api/music/sync-statsfm         # Worker only
 ```
 
-### Notification Webhooks
+Each source has a 90-second cooldown. A call inside the window returns `429 Too Many Requests` with the remaining seconds. Add `?force=true` to bypass it. See [FATSECRET_SYNC_STRATEGY.md](FATSECRET_SYNC_STRATEGY.md) for how the `days` range works.
 
-Android bildirimlerini yakalamak için (`cobanov/notification-relay-webhook` ile uyumlu):
+## Webhooks
+
+### Notifications
+
+Receives Android notifications. Compatible with [Notification Relay Webhook](https://github.com/Enki013/notification-relay-webhook).
 
 ```text
 POST /api/webhooks/notification
 Content-Type: application/json
-Optional Header: X-Webhook-Secret: <secret>
+X-API-Key: <API_KEY>
 
 {
   "package": "com.whatsapp",
   "appName": "WhatsApp",
-  "title": "Ahmet",
-  "text": "Toplantı saat 15:00",
+  "title": "Alex",
+  "text": "Meeting at 3 pm",
   "category": "msg",
   "post_time": "2026-09-25T15:00:00Z",
   "key": "msg_123"
 }
 ```
 
-Kayıtlı bildirimleri listeleme:
+The endpoint accepts a single object or an array. IDs are derived from the content, so sending the same notification twice does not create a duplicate.
+
+List stored notifications:
+
 ```text
 GET /api/notifications?limit=50&package=com.whatsapp
 ```
 
+### Health Connect
+
+Receives data from [Health Connect Webhook](https://github.com/mcnaveen/health-connect-webhook). The payload has one array per data type, such as `steps`, `distance`, `active_calories`, `sleep`, `heart_rate`, `resting_heart_rate`, `exercise` and `weight`.
+
+```text
+POST /api/webhooks/health
+GET  /api/webhooks/health            # endpoint status and record count
+```
+
+### Music (Worker only)
+
+Receives scrobbles from the [Web Scrobbler](https://web-scrobbler.com/) browser extension.
+
+```text
+POST /api/webhooks/music
+GET  /api/webhooks/music             # endpoint status
+```
+
+## Export
+
+```text
+GET /api/export/all                  # full JSON archive
+GET /api/export/db                   # raw SQLite database
+GET /api/export/sql                  # SQL dump, Worker only
+```
+
 ## Notes
 
-- Secrets stay on the backend or are entered once via app settings (BYOK).
-- CSV imports are available via web UI and `/letterboxd/import`.
-
+- Third-party secrets stay on the server, or are entered once in the app's settings (bring your own key).
+- Letterboxd CSV exports can be imported from the web dashboard at `/letterboxd/import`.

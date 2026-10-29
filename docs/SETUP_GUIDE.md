@@ -1,168 +1,223 @@
-# 🚀 Kişisel Kayıtlar (Personal Records) - Kurulum ve Kullanım Rehberi
+# Setup guide
 
-Bu rehber, **Kişisel Kayıtlar** sistemini sıfırdan kurup kendi verilerinizle (FatSecret beslenme günlüğü, Letterboxd filmleri, Goodreads kitapları ve Android bildirimleri) kullanabilmeniz için hazırlanmıştır.
+This guide walks you through setting up Mozaik from scratch and connecting your own data: FatSecret meals, Letterboxd films, Goodreads books, music, Health Connect and Android notifications.
+
+For a shorter overview, see the [README](../README.md).
 
 ---
 
-## 🏛️ Hibrit Mimari ve Çalışma Prensibi
+## How the pieces fit together
 
-Kişisel Kayıtlar, **merkezi bir veri havuzu (hub)** ve bu havuzu dinleyen bir **Android istemcisi (dashboard)** mimarisine sahiptir:
+Mozaik has a **central server** that stores your data and an **Android app** that reads from it.
 
+```text
+[ Android notifications ] ──(webhook push)──┐
+[ Health Connect ]        ──(webhook push)──┤
+[ Web Scrobbler ]         ──(webhook push)──┤
+[ Letterboxd (films) ]    ──(RSS polling)───┼──► [ SERVER ] ◄──► [ MOZAIK ANDROID APP ]
+[ Goodreads (books) ]     ──(RSS polling)───┤    Cloudflare D1        Jetpack Compose,
+[ FatSecret (nutrition) ] ──(OAuth 1.0)─────┤    or SQLite (Go)       Material 3 Expressive
+[ Last.fm / Trakt / … ]   ──(API sync)──────┘
 ```
-[ Android Bildirimleri ] ──(Webhook Push)──┐
-[ Home Assistant / Tasker ] ──(Webhook)───┤
-[ Letterboxd (Filmler) ] ──(RSS Polling)──┼──► [ SUNUCU / VERİ HAVUZU ] ◄──► [ ANDROID İSTEMCİ ]
-[ Goodreads (Kitaplar) ] ──(RSS Polling)──┤    (Cloudflare D1 VEYA             (Jetpack Compose M3
-[ FatSecret (Beslenme) ] ──(OAuth 1.0)───┘     Docker SQLite)                  Okuyucu & Yönetim)
-```
 
-### 1. Neden Harici Bildirim Servisi?
-Android uygulamasının kendisi arka planda sürekli bildirim dinleyen hantal bir servis çalıştırmaz. Bunun yerine:
-- Telefonunuza hafif ve açık kaynaklı **Notification Relay Webhook** kurulur.
-- Bildirimler doğrudan sunucunuzun `/api/webhooks/notification` adresine iletilir ve veritabanına kaydedilir.
-- Android uygulaması yalnızca bu verileri görüntüleyen, filtreleyen ve istatistik çıkaran hızlı ve pil dostu bir istemci olarak çalışır.
+### Why separate companion apps?
 
-### 2. İki Farklı Sunucu Seçeneği (100% Uyumlu)
+The Mozaik app does not run a notification listener or a health sync service in the background. Instead:
 
-| Özellik | Seçenek A: Cloudflare Worker + D1 (Önerilen) | Seçenek B: Docker / Yerel Go Backend |
+- Small open-source companion apps ([Notification Relay Webhook](https://github.com/Enki013/notification-relay-webhook) and [Health Connect Webhook](https://github.com/mcnaveen/health-connect-webhook)) send data straight to your server.
+- The server stores it in the database.
+- The Mozaik app only displays, filters and summarizes the data, so it stays fast and light on battery.
+
+### Two server options
+
+| | Option A: Cloudflare Worker + D1 (recommended) | Option B: Docker / Go |
 | :--- | :--- | :--- |
-| **Maliyet** | **%100 Ücretsiz** (Cloudflare Free Tier) | Kendi sunucunuzda/bilgisayarınızda ücretsiz |
-| **Çalışma Şekli** | Sunucusuz (Serverless Bulut) | Docker Compose ile tek komutla konteyner |
-| **Erişilebilirlik** | 7/24 dünyanın her yerinden açık | Yerel ağda, VPN veya port yönlendirmeyle |
-| **Veritabanı** | Cloudflare D1 (Dağıtık SQLite) | Yerel `personal_records.sqlite3` dosyası |
-| **Kurulum Süresi** | ~4 dakika | ~1 dakika (Docker) |
+| **Cost** | Free (Cloudflare free tier) | Free on your own hardware |
+| **How it runs** | Serverless | One container with Docker Compose |
+| **Reachable from** | Anywhere, 24/7 | Your local network, or the internet through a VPN or reverse proxy |
+| **Database** | Cloudflare D1 (SQLite) | Local `personal_records.sqlite3` file |
+| **Setup time** | About 5 minutes | About 1 minute |
+| **Music integrations** | Yes | Not yet (Last.fm, ListenBrainz, Stats.fm and Web Scrobbler are Worker-only) |
 
 ---
 
-## 🔑 1. Adım: FatSecret API Anahtarlarını Alma (BYOK - 2 Dakika)
+## Step 1: Get FatSecret API keys (optional, 2 minutes)
 
-FatSecret beslenme verilerinizi otomatik çekebilmek için ücretsiz geliştirici anahtarı almanız gerekir:
+Skip this step if you do not use FatSecret.
 
-1. [platform.fatsecret.com](https://platform.fatsecret.com/) adresine gidin.
-2. Sağ üstten **Create Account** diyerek ücretsiz bir geliştirici hesabı açın.
-3. Hesabınıza giriş yaptıktan sonra **My App** veya **Create Application** butonuna tıklayın.
-4. Uygulama türü olarak **Basic** (Ücretsiz) seçeneğini işaretleyin.
-5. Uygulama oluştuktan sonra size iki değer verilecektir:
-   - `Consumer Key`
-   - `Consumer Secret`
-6. Bu iki değeri not edin. *(Sunucu koduna yazmanıza gerek yok; Android uygulamasındaki Ayarlar ekranından doğrudan gireceksiniz!)*
+1. Go to [platform.fatsecret.com](https://platform.fatsecret.com/) and create a free developer account.
+2. Create a new application and choose the free **Basic** tier.
+3. Note the two values you are given: **Consumer Key** and **Consumer Secret**.
+4. You do not need to put them in the server code. You can enter them later in the Mozaik app's **Settings**.
 
 ---
 
-## 🐳 2. Adım (Seçenek A): Docker Compose ile Kendi Sunucunu Kur (En Kolay Yerel Kurulum)
+## Step 2, option A: Cloudflare Worker + D1
 
-Eğer kendi sunucunuzda (Raspberry Pi, ev sunucusu, VPS veya yerel PC) çalıştırmak istiyorsanız:
+Use this if you want a server that is always on, with nothing to maintain.
 
-1. Bilgisayarınızda **Docker** ve **Docker Compose** kurulu olsun.
-2. Proje ana dizininde tek komutla sunucuyu başlatın:
-   ```bash
-   docker compose up -d
-   ```
-3. Sunucunuz hazır! Veritabanınız `./data/personal_records.sqlite3` konumunda güvenle saklanır.
-4. Tarayıcınızdan `http://localhost:8787` adresini açarak çalıştığını doğrulayabilirsiniz.
-5. Mobil uygulamadan erişmek için yerel ağdaki IP adresinizi kullanabilirsiniz (Örn: `http://192.168.1.50:8787`).
-   > 💡 **Önemli İpucu (Yerel Ağ & FatSecret):** Eğer Docker sunucunuza yerel ağınızdaki telefonunuzdan erişecekseniz ve FatSecret OAuth bağlayacaksanız, `docker-compose.yml` dosyasındaki `APP_BASE_URL` alanına yerel IP adresinizi (örn. `http://192.168.1.50:8787`) yazınız.
+1. Install the dependencies:
 
-*(Docker kullanmadan doğrudan Go ile çalıştırmak isterseniz: `cd backend && cp .env.example .env && go run ./cmd/personal-records`)*
-
----
-
-## ☁️ 2. Adım (Seçenek B): Cloudflare Worker & D1 Bulut Kurulumu (7/24 Ücretsiz)
-
-Eğer elektrik faturası ve sunucu yönetimi olmadan 7/24 çalışan bir altyapı istiyorsanız:
-
-1. Terminali açın ve `worker` klasörüne girin:
    ```bash
    cd worker
    npm install
    ```
-2. Cloudflare hesabınıza giriş yapın:
+
+2. Sign in to Cloudflare:
+
    ```bash
    npx wrangler login
    ```
-3. D1 veritabanınızı oluşturun:
+
+3. Create the database:
+
    ```bash
    npx wrangler d1 create personal-records-db
    ```
-4. `worker/wrangler.toml` dosyasını açın ve `database_id` alanına terminalde verilen ID'yi yapıştırın (Şablon için `worker/wrangler.toml.example` dosyasını inceleyebilirsiniz).
-5. Tabloları oluşturun:
+
+4. Copy `worker/wrangler.toml.example` to `worker/wrangler.toml` if it does not exist, and paste the `database_id` from the previous command into it.
+
+5. Create the tables:
+
    ```bash
    npx wrangler d1 execute personal-records-db --remote --file=./schema.sql
    ```
-6. Buluta yükleyin:
+
+6. Set an API key so only you can read your data:
+
+   ```bash
+   openssl rand -hex 32        # generates a strong key
+   npx wrangler secret put API_KEY
+   ```
+
+7. Deploy:
+
    ```bash
    npx wrangler deploy
    ```
-7. Terminalde verilen URL'yi kopyalayın (Örn: `https://personal-records-api.kullaniciadi.workers.dev`).
+
+8. Copy the URL printed at the end, for example `https://personal-records-api.<your-subdomain>.workers.dev`.
+
+More options (local development, migrating an existing SQLite database, backups) are in [worker/README.md](../worker/README.md).
 
 ---
 
-## 📱 3. Adım: Android Mobil Uygulamayı Bağlama
+## Step 2, option B: Docker Compose
 
-1. GitHub Releases sayfasından `app-release.apk` dosyasını telefonunuza indirin ve kurun.
-2. Uygulamayı açın ve alttaki gezinti çubuğundan **Ayarlar** sekmesine geçin.
+Use this to run Mozaik on a Raspberry Pi, a home server, a VPS or your own computer.
 
-### A. Sunucu Bağlantısı
-1. **Sunucu URL** alanına sunucu adresinizi yazın:
-   - Cloudflare için: `https://personal-records-api.xxxx.workers.dev`
-   - Docker / Yerel için: `http://192.168.1.xxx:8787`
-2. **Kaydet** butonuna basın ve ardından **Bağlantıyı Sına** butonuna dokunun. Yeşil **"Bağlı"** rozeti belirdiğinde bağlantı hazırdır.
+1. Install **Docker** with **Docker Compose**.
+2. Create a `.env` file **in the repository root** with your API key. Docker Compose reads it; the container does not read `backend/.env`.
 
-### B. FatSecret Bağlantısı (BYOK)
-1. **FatSecret API (BYOK)** kartına `Consumer Key` ve `Consumer Secret` değerlerinizi yazıp **Anahtarları Kaydet** butonuna dokunun.
-2. Beliren **"FatSecret ile Bağlan (OAuth)"** butonuna tıklayın. Tarayıcınızda açılan sayfada izin verin.
-3. Uygulamaya döndüğünüzde ekranda yeşil **"OAuth ✓"** rozetini göreceksiniz.
-4. "Son 30 Gün" veya "Tüm Zamanlar" butonuna dokunarak geçmiş besin kayıtlarınızı çekin.
+   ```bash
+   echo "API_KEY=$(openssl rand -hex 32)" > .env
+   ```
 
----
+3. Start the server from the repository root:
 
-## 🔔 4. Adım: Android Bildirimlerini İletme (Notification Relay)
+   ```bash
+   docker compose up -d
+   ```
 
-Telefonunuza gelen bildirimleri (banka harcamaları, sağlık uygulaması uyarıları, kargo takibi vb.) sunucunuza aktarmak için:
+4. Open `http://localhost:8787` in a browser to check that it works. Data is stored in `./data/personal_records.sqlite3`.
+5. To connect from your phone on the same network, use your computer's local IP address, for example `http://192.168.1.50:8787`.
 
-1. **Ayarlar** sekmesindeki **Bildirim Webhook Entegrasyonu** kartına bakın.
-2. Oradaki **URL'yi Kopyala** butonuna dokunun (Hedef URL otomatik hazırlanır: `https://.../api/webhooks/notification`).
-3. **APK İndir** butonuna dokunarak açık kaynaklı **[Notification Relay Webhook](https://github.com/cobanov/notification-relay-webhook)** uygulamasını kurun.
-4. Notification Relay uygulamasını açıp **Bildirim Erişimi** iznini onaylayın.
-5. **Webhooks** sekmesinde `+` simgesine dokunun ve kopyaladığınız Webhook URL'sini yapıştırıp kaydedin.
-6. **Test** butonuna basın. Başarılı olduğunda bildirimleriniz otomatik olarak Kişisel Kayıtlar veritabanına ve **Zaman Çizelgesi (Timeline)** akışına düşecektir!
-   > 💡 **Öneri:** Yalnızca ilgilendiğiniz bildirimlerin (banka harcamaları, kargo takibi, abonelikler vb.) aktarılması için Notification Relay ayarlarındaki filtre bölümünden istediğiniz paket adlarını seçebilirsiniz.
+> [!TIP]
+> **Local network and FatSecret:** if your phone connects to Docker over the local network and you want to link FatSecret, add `APP_BASE_URL=http://<your-local-ip>:8787` (for example `http://192.168.1.50:8787`) to the root `.env` file and run `docker compose up -d` again. FatSecret redirects back to this address after you sign in.
+
+To run without Docker: `cd backend && cp .env.example .env && go run ./cmd/personal-records`. See [backend/README.md](../backend/README.md).
 
 ---
 
-## 🎬 5. Adım: Letterboxd ve Goodreads Entegrasyonu
+## Step 3: Connect the Android app
 
-### Letterboxd (Filmler)
-1. **Ayarlar -> Kültür & Medya Senkronizasyonu** kartındaki Letterboxd alanına **sadece kullanıcı adınızı** yazın (Örn: `enesben_`).
-   - *Not: Tam URL yazmakla uğraşmanıza gerek yoktur, sistem otomatik olarak `https://letterboxd.com/enesben_/rss/` formatına dönüştürür.*
-2. **Kaydet** butonuna dokunun.
-3. **Senkronize Et** butonuna bastığınızda izlediğiniz filmler ve puanlarınız kütüphanenize eklenir.
-4. *Akıllı Eşleştirme:* Daha önce izlediğiniz bir filme sonradan puan verdiğinizde sistem mevcut filmi günceller, gereksiz mükerrer kayıt oluşturmaz.
+1. Download `app-release.apk` from the [latest release](https://github.com/Enki013/Mozaik/releases/latest) and install it.
+2. Open the app and go to the **Settings** tab.
 
-### Goodreads (Kitaplar)
-1. Goodreads profilinizden aldığınız kitap listenizin RSS besleme linkini yapıştırın.
-   > 💡 **Goodreads RSS Linkini Bulma:** Goodreads profil sayfanızın URL'sindeki kullanıcı numaranızı alın (Örn: `goodreads.com/user/show/12345678-ahmet`). RSS besleme adresiniz: `https://www.goodreads.com/review/list_rss/12345678?shelf=read` formatındadır.
-2. **Kaydet** ve **Senkronize Et** butonuna basarak kitaplarınızı eşitleyin.
+### A. Server connection
 
----
+1. In **Server URL**, enter your server address:
+   - Cloudflare: `https://personal-records-api.<your-subdomain>.workers.dev`
+   - Docker or local Go: `http://192.168.1.xxx:8787`
+2. In **API key**, enter the `API_KEY` you set on the server.
+3. Tap **Save**, then **Test Connection**. A green **Connected** badge means everything works.
 
-## 🧩 6. Adım: Modüler Eklenti (Plugin) Sistemi
+### B. FatSecret (bring your own key)
 
-Kişisel Kayıtlar, gelecekte eklenecek yeni veri kaynaklarını 3 ana eklenti kategorisinde kabul eder:
-
-1. **Webhook Eklentileri (Push):**
-   - Sunucunun `/api/webhooks/notification` ve benzeri uç noktalarına JSON verisi fırlatan harici istemciler.
-   - Örnekler: Notification Relay, Home Assistant otomasyonları, Tasker tetikleyicileri.
-2. **RSS Eklentileri (Pull / Polling):**
-   - Halka açık RSS/Atom beslemelerini periyodik olarak tarayıp veritabanına kaydeden yapılar.
-   - Örnekler: Letterboxd, Goodreads, blog veya haber beslemeleri.
-3. **OTT / OAuth Eklentileri (API Entegrasyonları):**
-   - İki taraflı token takası ile kullanıcı verilerine erişen servisler.
-   - Örnekler: FatSecret, yakında planlanan Spotify dinleme geçmişi ve Steam kütüphanesi.
+1. In the **FatSecret API (BYOK)** card, enter your **Consumer Key** and **Consumer Secret**, then tap **Save Keys**.
+2. Tap **Connect with OAuth** and allow access in the browser page that opens.
+3. Back in the app, the card shows **FatSecret Account Connected**.
+4. Under **Sync Nutrition History**, tap **Last 30 Days** or **All Time** to import your past meals. The [FatSecret sync strategy](FATSECRET_SYNC_STRATEGY.md) explains why later syncs are fast.
 
 ---
 
-## 🛡️ Veri Egemenliği ve Yedekleme
+## Step 4: Forward Android notifications (Notification Relay)
 
-- **JSON İndir:** Ayarlar ekranından tek dokunuşla tüm verilerinizi JSON olarak telefonunuzun `Downloads` klasörüne aktarabilirsiniz.
-- **SQLite (.db) İndir:** Ham veritabanı dosyasını doğrudan cihazınıza indirebilirsiniz.
+Use this to archive notifications such as bank alerts, delivery updates or reminders.
+
+1. In **Settings**, find the **Notification Webhook Integration** card.
+2. Tap **Copy URL**. The webhook URL (`https://…/api/webhooks/notification`) is prepared for you, with your API key attached.
+3. Tap **Download APK** to install [Notification Relay Webhook](https://github.com/Enki013/notification-relay-webhook). The fork includes a fix that keeps it connected on HyperOS (Xiaomi).
+4. Open Notification Relay and grant **Notification access**.
+5. In its **Webhooks** tab, tap `+`, paste the URL and save.
+6. Tap **Test**. Notifications now appear in Mozaik under **Records → Notifications** and in the **Timeline**.
+
+> [!TIP]
+> To forward only the notifications you care about, choose the apps you want in Notification Relay's filter settings.
+
+---
+
+## Step 5: Health Connect
+
+1. In **Settings**, find the **Health Connect Webhook Integration** card and copy the webhook URL (`https://…/api/webhooks/health`).
+2. Install [Health Connect Webhook](https://github.com/mcnaveen/health-connect-webhook/releases) and allow access to the data types you want to share (steps, sleep, heart rate, workouts, weight and more).
+3. Paste the URL as the webhook target. If you copied it without the key, add the header `X-Webhook-Secret: <API_KEY>`.
+4. Choose a sync interval and start the background sync. Data appears under **Records → Health Connect**.
+
+---
+
+## Step 6: Letterboxd and Goodreads
+
+### Letterboxd (films)
+
+1. In **Settings → Culture & Media Synchronization**, enter **just your username** in the Letterboxd field (for example `username`). Mozaik turns it into `https://letterboxd.com/username/rss/` for you.
+2. Tap **Save**, then sync.
+3. Your watched films and ratings are added to your library.
+4. If you rate a film you logged earlier, the existing entry is updated instead of creating a duplicate.
+
+### Goodreads (books)
+
+1. Enter your numeric Goodreads user ID or your profile URL. You can find the ID in your profile address, for example `goodreads.com/user/show/12345678-name`.
+2. Tap **Save**, then sync. Your shelves (read, currently reading, want to read) are imported from RSS.
+
+---
+
+## Step 7: Music, films and series (optional)
+
+Turn services on in the **Integration catalog** (the `+` button next to **Integrations** on the Overview screen), then configure them in **Settings**:
+
+- **Last.fm, ListenBrainz, Stats.fm:** enter your username and sync. These need the Cloudflare Worker server.
+- **Web Scrobbler:** install the [browser extension](https://web-scrobbler.com/), enable its **Webhook** service and use `https://…/api/webhooks/music` with the header `X-API-Key: <API_KEY>`.
+- **Trakt.tv:** enter your username. Public profiles need no password.
+- **Simkl:** create a Client ID and Access Token at [simkl.com/settings/developer](https://simkl.com/settings/developer/).
+- **MDBList:** add a free API key from [mdblist.com/preferences](https://mdblist.com/preferences) to show IMDb, Rotten Tomatoes, Metacritic and Letterboxd ratings on film details.
+
+---
+
+## How integrations are built
+
+Every data source fits one of three plugin types:
+
+1. **Webhook plugins (push):** external apps send JSON to `/api/webhooks/*`. Examples: Notification Relay, Health Connect Webhook, Web Scrobbler, and Home Assistant or Tasker automations.
+2. **RSS plugins (pull):** the server reads public RSS feeds on a schedule and stores new items. Examples: Letterboxd and Goodreads.
+3. **API plugins:** the server signs in to a service with your credentials or a token. Examples: FatSecret, Last.fm, Trakt.tv, Simkl and MDBList. Spotify and Steam are planned.
+
+See [ARCHITECTURE.md](ARCHITECTURE.md) for the details.
+
+---
+
+## Backups
+
+- **JSON:** **Settings → Data Export** saves all your records as JSON to your phone's Downloads folder.
+- **SQLite:** the same screen downloads the raw database file.
+- **Cloudflare:** `npx wrangler d1 export personal-records-db --remote --output=backup.sql` saves a full SQL dump.

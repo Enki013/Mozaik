@@ -1,8 +1,11 @@
-# Opsiyonel: FatSecret Gıda Arama (OAuth 2.0)
+# Required: the key the Android app and webhooks must send
+API_KEY=
+
+# Optional: FatSecret public food search (OAuth 2.0)
 FATSECRET_CLIENT_ID=
 FATSECRET_CLIENT_SECRET=
 
-# Opsiyonel: FatSecret Günlükleri (OAuth 1.0)
-# Not: Bunları Android uygulamasındaki Ayarlar ekranından da girebilirsiniz (BYOK)
+# Optional: your FatSecret diary (OAuth 1.0)
+# You can also enter these in the Android app's Settings (bring your own key)
 FATSECRET_CONSUMER_KEY=
 FATSECRET_CONSUMER_SECRET=

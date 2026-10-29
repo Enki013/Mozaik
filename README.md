@@ -53,9 +53,9 @@ Mozaik collects your meals, films, books, music, health data and phone notificat
 
 Mozaik has two parts:
 
-1. **A server** that stores everything. Pick one of two engines; both expose the same REST API:
+1. **A server** that stores everything. Pick one of two engines; both expose the same REST API, apart from a few Worker-only features:
    - **Cloudflare Worker + D1** (recommended): serverless, free tier, runs 24/7, pulls new data every 6 hours with a cron trigger.
-   - **Go + SQLite**: self-hosted on your own machine, a home server or a VPS, with Docker Compose.
+   - **Go + SQLite**: self-hosted on your own machine, a home server or a VPS, with Docker Compose. Music integrations are not available on this engine yet.
 2. **The Mozaik Android app**, which reads from your server. It does not run heavy background services itself.
 
 Data reaches the server in two ways:
@@ -78,7 +78,7 @@ flowchart LR
 
     subgraph Pull["Pull sync"]
         RSS["Goodreads / Letterboxd RSS"]
-        API["FatSecret · Last.fm · Trakt<br/>ListenBrainz · Stats.fm · MDBList"]
+        API["FatSecret · Last.fm · Trakt · Simkl<br/>ListenBrainz · Stats.fm · MDBList"]
     end
 
     Push -->|"POST + API key"| Server
@@ -111,16 +111,16 @@ flowchart LR
 | :--- | :--- | :--- |
 | 🥗 Nutrition | [FatSecret](https://platform.fatsecret.com/) | API (bring your own key) |
 | 📚 Books | [Goodreads](https://www.goodreads.com/) | RSS |
-| 🎬 Films and series | [Letterboxd](https://letterboxd.com/), [Trakt.tv](https://trakt.tv/), [MDBList](https://mdblist.com/) ratings | RSS / API |
-| 🎵 Music | [Last.fm](https://www.last.fm/), [ListenBrainz](https://listenbrainz.org/), [Stats.fm](https://stats.fm/), [Web Scrobbler](https://web-scrobbler.com/) | API / webhook |
+| 🎬 Films and series | [Letterboxd](https://letterboxd.com/), [Trakt.tv](https://trakt.tv/), [Simkl](https://simkl.com/), [MDBList](https://mdblist.com/) ratings | RSS / API |
+| 🎵 Music | [Last.fm](https://www.last.fm/), [ListenBrainz](https://listenbrainz.org/), [Stats.fm](https://stats.fm/), [Web Scrobbler](https://web-scrobbler.com/) | API / webhook (Cloudflare Worker only) |
 | ❤️ Health | Health Connect (Samsung Health, Google Fit, Fitbit and others) | Webhook, via [Health Connect Webhook](#companion-apps) |
 | 🔔 Notifications | Android notifications | Webhook, via [Notification Relay](#companion-apps) |
 
-Planned: Spotify Direct API, Simkl, Steam. See the [roadmap](docs/ROADMAP.md).
+Planned: Spotify Direct API, Steam, and music support on the Go engine. See the [roadmap](docs/ROADMAP.md).
 
 ### Server
 
-- The same REST API on both engines, so the app works with either one.
+- The same REST API on both engines, so the app works with either one. Music, integration toggles and the SQL dump are Worker-only for now (see the [parity table](docs/ARCHITECTURE.md#3-server-engine-parity)).
 - A built-in **web dashboard** behind a password screen.
 - **Authentication** on every data, export and sync route.
 - A strict CORS allowlist, security headers and a sync cooldown that protects external services from too many requests.
@@ -232,8 +232,8 @@ For local development, copy `worker/.dev.vars.example` to `worker/.dev.vars` and
 For a Raspberry Pi, NAS, home server or VPS.
 
 ```bash
-cp backend/.env.example backend/.env
-# Edit backend/.env and set API_KEY
+# Docker Compose reads API_KEY from a .env file in the repository root
+echo "API_KEY=$(openssl rand -hex 32)" > .env
 
 docker compose up -d
 ```
@@ -241,6 +241,7 @@ docker compose up -d
 - API and web dashboard: `http://localhost:8787`
 - Data is stored in `./data/personal_records.sqlite3`
 - Check health with `docker compose ps`
+- Other settings (`APP_BASE_URL`, FatSecret keys, `ALLOWED_ORIGINS`) go in the same root `.env` file or in `docker-compose.yml`. The container does not read `backend/.env`.
 
 A prebuilt image is published to the GitHub Container Registry by the `docker-publish` workflow.
 
@@ -353,9 +354,10 @@ More details are in [docs/FATSECRET_SYNC_STRATEGY.md](docs/FATSECRET_SYNC_STRATE
 - **Goodreads:** enter your numeric user ID or your profile URL (`https://goodreads.com/user/show/<id>`). Shelves (read, currently reading, want to read) sync from RSS.
 - **Letterboxd:** enter your username or your RSS URL (`https://letterboxd.com/<username>/rss/`).
 
-### Films and series: Trakt.tv, MDBList
+### Films and series: Trakt.tv, Simkl, MDBList
 
 - **Trakt.tv:** enter your username (public profiles need no password). Optionally set your own Client ID. Films and episodes are synced.
+- **Simkl:** create a Client ID and Access Token at [simkl.com/settings/developer](https://simkl.com/settings/developer/) and enter them in **Settings**. Films, series and anime are synced.
 - **MDBList:** add a free API key from [mdblist.com/preferences](https://mdblist.com/preferences). Film details then show IMDb, Rotten Tomatoes, Metacritic and Letterboxd ratings, cached for 14 days.
 
 ---
@@ -380,7 +382,7 @@ Your data is never locked in. Export it from the app (**Settings → Data export
 | Endpoint | Format |
 | :--- | :--- |
 | `GET /api/export/all` | Full JSON archive |
-| `GET /api/export/sql` | SQLite-compatible SQL dump (`CREATE TABLE` + `INSERT`) |
+| `GET /api/export/sql` | SQLite-compatible SQL dump (`CREATE TABLE` + `INSERT`), Worker only |
 | `GET /api/export/db` | Raw SQLite database file |
 
 ```bash

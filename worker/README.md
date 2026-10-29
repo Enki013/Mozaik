@@ -1,96 +1,128 @@
-# Personal Records - Cloudflare Worker & D1 Backend
+# Mozaik: Cloudflare Worker and D1 server
 
-Bu modül, Personal Records uygulamasının **Cloudflare Worker (Hono)** ve **Cloudflare D1 (Serverless SQLite)** altyapısında 7/24 ücretsiz ve sunucusuz çalışmasını sağlar.
-
----
-
-## Dizin Yapısı
-
-- `src/index.ts`: Tüm REST API uç noktaları, Hono yönlendiricisi ve Cron trigger senkronizasyon mantığı.
-- `schema.sql`: D1 veritabanı tablo şemaları.
-- `wrangler.toml`: Cloudflare Worker ve D1 bağlama yapılandırması.
-- `scripts/export_sqlite_to_sql.py`: Yerel `personal_records.sqlite3` dosyasından D1 uyumlu SQL dump üreten betik.
-- `scripts/migrate_sqlite_to_d1.sh`: Verileri D1'e (yerel veya uzak) aktaran ana göç betiği.
+This module runs the Mozaik server on **Cloudflare Workers** (with [Hono](https://hono.dev/)) and **Cloudflare D1** (serverless SQLite). It is free on the Cloudflare free tier and runs 24/7 without a server to maintain.
 
 ---
 
-## Yerel Geliştirme (Local Emulation)
+## Files
 
-Tüm sistemi bilgisayarınızda yerel D1 ile çalıştırmak için:
+- `src/index.ts`: every REST API route, the Hono router and the cron sync logic.
+- `src/html.ts`: the built-in web dashboard.
+- `schema.sql`: D1 table definitions.
+- `wrangler.toml`: Worker and D1 binding configuration. Start from `wrangler.toml.example`.
+- `.dev.vars.example`: template for local secrets. Copy it to `.dev.vars`.
+- `scripts/export_sqlite_to_sql.py`: turns a local `personal_records.sqlite3` file into a D1-compatible SQL dump.
+- `scripts/migrate_sqlite_to_d1.sh`: imports that dump into D1, locally or remotely.
+
+---
+
+## Local development
+
+Run the whole server on your computer with a local D1 database:
 
 ```bash
 cd worker
 
-# 1. Bağımlılıkları yükleyin
+# 1. Install dependencies
 npm install
 
-# 2. Yerel D1 veritabanını oluşturun ve verileri aktarın
+# 2. Create local secrets (set API_KEY at least)
+cp .dev.vars.example .dev.vars
+
+# 3. Create the local database
+npm run db:init:local
+# or import an existing Go/SQLite database instead:
 npm run db:migrate:local
 
-# 3. Yerel Worker sunucusunu başlatın
+# 4. Start the local server
 npm run dev
-# veya belirli bir portta çalıştırmak için:
+# or on a specific port, reachable from other devices on your network:
 npx wrangler dev --port 8788 --ip 0.0.0.0
 ```
 
+From the Android emulator, the local server is at `http://10.0.2.2:<port>`.
+
 ---
 
-## Cloudflare Bulutuna Canlı Dağıtım (Remote Deployment)
+## Deploying to Cloudflare
 
-Sistemi 7/24 dünyanın her yerinden erişilebilir yapmak için şu adımları izleyin:
+### 1. Sign in
 
-### 1. Cloudflare Girişi Yapın
-Terminalden Cloudflare hesabınıza giriş yapın:
 ```bash
 npx wrangler login
 ```
 
-### 2. Uzak D1 Veritabanını Oluşturun
+### 2. Create the D1 database
+
 ```bash
 npx wrangler d1 create personal-records-db
 ```
-Bu komutun çıktısında yer alan `database_id` değerini `worker/wrangler.toml` dosyasındaki `database_id` alanına yapıştırın:
+
+Paste the `database_id` from the output into `worker/wrangler.toml`:
+
 ```toml
 [[d1_databases]]
 binding = "DB"
 database_name = "personal-records-db"
-database_id = "BURAYA_DATABASE_ID_YAZILACAK"
+database_id = "YOUR_D1_DATABASE_ID"
 ```
 
-### 3. Mevcut Verilerinizi Cloudflare'e Yükleyin (Migration)
+### 3. Create the tables, or import existing data
+
 ```bash
+# New install
+npm run db:init:remote
+
+# Or move an existing Go/SQLite database to D1
 npm run db:migrate:remote
 ```
 
-### 4. Worker API'yi Canlıya Alın
+### 4. Set secrets
+
+```bash
+npx wrangler secret put API_KEY
+
+# Optional
+npx wrangler secret put FATSECRET_CONSUMER_KEY
+npx wrangler secret put FATSECRET_CONSUMER_SECRET
+npx wrangler secret put LASTFM_API_KEY
+npx wrangler secret put LASTFM_USERNAME
+```
+
+### 5. Deploy
+
 ```bash
 npm run deploy
 ```
-İşlem tamamlandığında Cloudflare size bir canlı URL verecektir (örn. `https://personal-records-api.<kullanici_adiniz>.workers.dev`).
 
-### 5. Mobil Uygulamada URL'yi Güncelleyin
-Android uygulamanızı açın:
-1. **Ayarlar** ekranına gidin.
-2. **Sunucu URL** kutusuna yukarıdaki canlı Cloudflare adresinizi girin:
-   ```text
-   https://personal-records-api.<kullanici_adiniz>.workers.dev
-   ```
-3. **Kaydet** ve **Bağlantıyı Sına** butonlarına basın.
+Cloudflare prints your live URL, for example `https://personal-records-api.<your-subdomain>.workers.dev`.
 
-Artık uygulamanız evde bilgisayarınız açık olmasa bile 7/24 kesintisiz çalışacaktır!
+### 6. Point the app at it
+
+In the Mozaik Android app:
+
+1. Open **Settings**.
+2. Enter the URL above in **Server URL** and your key in **API key**.
+3. Tap **Save**, then **Test Connection**.
+
+The app now works 24/7, even when your computer at home is off.
+
+The cron trigger in `wrangler.toml` (`0 */6 * * *`) syncs your sources every 6 hours.
 
 ---
 
-## D1'den Verileri Geri Yedekleme (Export)
+## Backups
 
-D1'deki verilerinizi istediğiniz zaman bilgisayarınıza SQL dosyası olarak indirebilirsiniz:
+Download everything in D1 as an SQL file at any time:
 
 ```bash
 npx wrangler d1 export personal-records-db --remote --output=backup.sql
 ```
 
-Bu yedeği yerel SQLite veritabanına dönüştürmek için:
+Turn the backup into a local SQLite database:
+
 ```bash
 sqlite3 local.db < backup.sql
 ```
-Ayrıca mobil uygulamadaki Ayarlar > "Veri Egemenliği" altındaki "JSON İndir" ve "SQLite (.db) İndir" butonları da canlı Cloudflare Worker üzerinden anlık yedek indirmeye devam eder.
+
+The app's **Settings → Data Export** screen can also download a JSON archive or the raw SQLite file from the live Worker.
