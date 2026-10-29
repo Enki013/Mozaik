@@ -638,7 +638,7 @@
     <string name="action_move_up">Move Up</string>
     <string name="action_move_down">Move Down</string>
     <string name="stats_customization_title">Customize Stat Cards</string>
-    <string name="stats_customization_subtitle">Choose the metrics you want to show or hide.</string>
+    <string name="stats_customization_subtitle">Turn on the cards you want; drag the handle to reorder them.</string>
     <string name="stats_hide_card_action">Hide \"%1$s\" Card</string>
     <string name="stats_hide_this_card">Hide Card</string>
     <string name="stats_reset_default">Reset to Default</string>
@@ -694,5 +694,6 @@
     <string name="catalog_official_site">Official site</string>
     <string name="filter_today">Today</string>
     <string name="filter_days_short">%1$dd</string>
+    <string name="stats_drag_to_reorder">Drag to reorder</string>
 </resources>
 

@@ -634,7 +634,7 @@
     <string name="action_move_up">Yukarı Taşı</string>
     <string name="action_move_down">Aşağı Taşı</string>
     <string name="stats_customization_title">İstatistik Kartlarını Düzenle</string>
-    <string name="stats_customization_subtitle">Görünmesini istediğiniz metrikleri seçin veya gizleyin.</string>
+    <string name="stats_customization_subtitle">İstediğin kartları aç; sıralamak için tutamaktan tutup sürükle.</string>
     <string name="stats_hide_card_action">\"%1$s\" Kartını Gizle</string>
     <string name="stats_hide_this_card">Kartı Gizle</string>
     <string name="stats_reset_default">Varsayılana Sıfırla</string>
@@ -690,5 +690,6 @@
     <string name="catalog_official_site">Resmi site</string>
     <string name="filter_today">Bugün</string>
     <string name="filter_days_short">%1$dG</string>
+    <string name="stats_drag_to_reorder">Sıralamak için sürükle</string>
 </resources>
 

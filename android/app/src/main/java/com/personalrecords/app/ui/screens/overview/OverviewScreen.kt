@@ -974,7 +974,7 @@ fun OverviewScreen(
         StatsCustomizationBottomSheet(
             sheetTitle = stringResource(R.string.stats_customization_title),
             cards = statCardOrder.sort(overviewStatCards),
-            onMoveCard = { cardId, direction -> statCardOrder.move(cardId, direction) },
+            onReorder = { ids -> statCardOrder.setOrder(ids) },
             hiddenCardIds = hiddenStatsCards,
             onToggleCard = { cardId, visible ->
                 coroutineScope.launch {

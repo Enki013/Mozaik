@@ -260,6 +260,7 @@ fun MusicScreen(
                                 uniqueAlbums = state.stats.uniqueAlbums,
                                 hiddenCardIds = hiddenCardIds,
                                 cardOrder = statCardOrder.orderedIds,
+                                onReorderCards = { statCardOrder.setVisibleOrder(it) },
                                 isEditMode = isEditMode,
                                 onHideCard = { cardId ->
                                     coroutineScope.launch {
@@ -445,7 +446,7 @@ fun MusicScreen(
         StatsCustomizationBottomSheet(
             sheetTitle = stringResource(R.string.stats_customization_title),
             cards = statCardOrder.sort(musicStatCards),
-            onMoveCard = { cardId, direction -> statCardOrder.move(cardId, direction) },
+            onReorder = { ids -> statCardOrder.setOrder(ids) },
             hiddenCardIds = hiddenCardIds,
             targetCardId = targetCardId,
             onToggleCard = { cardId, visible ->
@@ -528,6 +529,7 @@ private fun MusicMetricsHeader(
     uniqueAlbums: Int,
     hiddenCardIds: Set<String>,
     cardOrder: List<String>,
+    onReorderCards: (List<String>) -> Unit,
     isEditMode: Boolean,
     onHideCard: (String) -> Unit,
     onStartEditMode: () -> Unit,
@@ -552,6 +554,7 @@ private fun MusicMetricsHeader(
         cardIds = cardOrder.filter { it !in hiddenCardIds },
         isEditMode = isEditMode,
         onHideCard = onHideCard,
+        onReorder = onReorderCards,
         modifier = Modifier.padding(vertical = 8.dp)
     ) { cardId ->
         when (cardId) {

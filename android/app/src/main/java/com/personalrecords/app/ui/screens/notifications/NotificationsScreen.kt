@@ -188,6 +188,7 @@ fun NotificationsScreen(
                         onHideCard = { id ->
                             coroutineScope.launch { preferences.toggleStatCardVisibility(id, false) }
                         },
+                        onReorder = { statCardOrder.setVisibleOrder(it) },
                         modifier = Modifier.padding(bottom = 8.dp)
                     ) { cardId ->
                         when (cardId) {
@@ -390,7 +391,7 @@ fun NotificationsScreen(
         StatsCustomizationBottomSheet(
             sheetTitle = stringResource(R.string.stats_customization_title),
             cards = statCardOrder.sort(notificationsStatCards),
-            onMoveCard = { cardId, direction -> statCardOrder.move(cardId, direction) },
+            onReorder = { ids -> statCardOrder.setOrder(ids) },
             hiddenCardIds = hiddenCardIds,
             targetCardId = targetCardId,
             onToggleCard = { cardId, visible ->

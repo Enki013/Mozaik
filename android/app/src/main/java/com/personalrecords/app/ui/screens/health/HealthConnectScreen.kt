@@ -48,11 +48,11 @@ fun HealthConnectScreen(
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val preferences = remember { PersonalRecordsApp.instance.preferences }
     val hiddenCardIds by preferences.hiddenStatsCards.collectAsStateWithLifecycle(initialValue = emptySet())
-    val defaultHealthCardsOrder = remember {
-        listOf("health_steps", "health_hr", "health_sleep", "health_active")
-    }
-    val orderedCardIds by preferences.getStatsCardsOrder("health_connect", defaultHealthCardsOrder)
-        .collectAsStateWithLifecycle(initialValue = defaultHealthCardsOrder)
+    val statCardOrder = rememberStatCardOrder(
+        "health_connect",
+        remember { listOf("health_steps", "health_hr", "health_sleep", "health_active") }
+    )
+    val orderedCardIds = statCardOrder.orderedIds
     val coroutineScope = rememberCoroutineScope()
     val scrollBehavior = TopAppBarDefaults.enterAlwaysScrollBehavior(rememberTopAppBarState())
     var isEditMode by remember { mutableStateOf(false) }
@@ -232,42 +232,24 @@ fun HealthConnectScreen(
                             }
                         }
 
-                        if (visibleCardIds.isNotEmpty()) {
-                            val rows = visibleCardIds.chunked(2)
-                            Column(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(bottom = 8.dp),
-                                verticalArrangement = Arrangement.spacedBy(6.dp)
-                            ) {
-                                rows.forEachIndexed { rowIndex, rowCardIds ->
-                                    Row(
-                                        modifier = Modifier.fillMaxWidth(),
-                                        horizontalArrangement = Arrangement.spacedBy(6.dp)
-                                    ) {
-                                        rowCardIds.forEachIndexed { colIndex, cardId ->
-                                            val overallIndex = rowIndex * 2 + colIndex
-                                            HealthStatCardItemView(
-                                                cardId = cardId,
-                                                summary = summary,
-                                                stepsFormatted = stepsFormatted,
-                                                sleepFormatted = sleepFormatted,
-                                                hrFormatted = hrFormatted,
-                                                activeKcalFormatted = activeKcalFormatted,
-                                                isEditMode = isEditMode,
-                                                index = overallIndex,
-                                                onHideCard = {
-                                                    coroutineScope.launch {
-                                                        preferences.toggleStatCardVisibility(cardId, false)
-                                                    }
-                                                },
-                                                onLongClick = { isEditMode = true },
-                                                modifier = Modifier.weight(1f)
-                                            )
-                                        }
-                                    }
-                                }
-                            }
+                        StatCardGrid(
+                            cardIds = visibleCardIds,
+                            isEditMode = isEditMode,
+                            onHideCard = { id ->
+                                coroutineScope.launch { preferences.toggleStatCardVisibility(id, false) }
+                            },
+                            onReorder = { statCardOrder.setVisibleOrder(it) },
+                            modifier = Modifier.padding(bottom = 8.dp)
+                        ) { cardId ->
+                            HealthStatCardItemView(
+                                cardId = cardId,
+                                summary = summary,
+                                stepsFormatted = stepsFormatted,
+                                sleepFormatted = sleepFormatted,
+                                hrFormatted = hrFormatted,
+                                activeKcalFormatted = activeKcalFormatted,
+                                onLongClick = { isEditMode = true }
+                            )
                         }
                     }
 
@@ -434,22 +416,11 @@ fun HealthConnectScreen(
                     preferences.toggleStatCardVisibility(cardId, visible)
                 }
             },
-            onMoveCard = { cardId, direction ->
-                val currentOrder = orderedCardIds.toMutableList()
-                val index = currentOrder.indexOf(cardId)
-                val targetIndex = index + direction
-                if (index != -1 && targetIndex in 0..currentOrder.lastIndex) {
-                    val item = currentOrder.removeAt(index)
-                    currentOrder.add(targetIndex, item)
-                    coroutineScope.launch {
-                        preferences.setStatsCardsOrder("health_connect", currentOrder)
-                    }
-                }
-            },
+            onReorder = { ids -> statCardOrder.setOrder(ids) },
             onResetDefault = {
                 coroutineScope.launch {
                     preferences.resetHiddenStatsCards(healthStatCards.map { it.id })
-                    preferences.resetStatsCardsOrder("health_connect")
+                    statCardOrder.reset()
                 }
             },
             onDismissRequest = {
@@ -586,19 +557,10 @@ private fun HealthStatCardItemView(
     sleepFormatted: String,
     hrFormatted: String,
     activeKcalFormatted: String,
-    isEditMode: Boolean,
-    index: Int,
-    onHideCard: () -> Unit,
     onLongClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    StatCardContainer(
-        cardId = cardId,
-        isEditMode = isEditMode,
-        onHideCard = onHideCard,
-        index = index,
-        modifier = modifier
-    ) {
+    Box(modifier = modifier) {
         when (cardId) {
             "health_steps" -> {
                 MetricCard(
