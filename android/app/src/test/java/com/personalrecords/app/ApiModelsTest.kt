@@ -21,7 +21,7 @@ class ApiModelsTest {
           "items": [
             {
               "film_key": "lb:9d7969188a3ed8c4a2ae5a5680e7",
-              "letterboxd_uri": "https://letterboxd.com/enesben_/film/american-psycho/",
+              "letterboxd_uri": "https://letterboxd.com/example_user/film/american-psycho/",
               "name": "American Psycho",
               "year": 2000,
               "rating": 4.5,

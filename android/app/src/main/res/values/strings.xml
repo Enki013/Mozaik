@@ -479,7 +479,7 @@
     <string name="settings_lastfm_title">Last.fm</string>
     <string name="settings_lastfm_desc">Music scrobble history and automatic synchronization</string>
     <string name="settings_lastfm_user_label">Last.fm Username</string>
-    <string name="settings_lastfm_user_hint">enes832</string>
+    <string name="settings_lastfm_user_hint">username</string>
     <string name="settings_lastfm_key_label">Last.fm API Key (Optional)</string>
     <string name="settings_lastfm_key_saved">Last.fm API Key (Configured ✓)</string>
     <string name="settings_lastfm_key_hint">Last.fm 32-character API Key</string>

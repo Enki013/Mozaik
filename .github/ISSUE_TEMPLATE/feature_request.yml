@@ -1,0 +1,21 @@
+name: Feature or integration request
+description: Suggest an improvement or a new data source
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What would you like to do?
+      description: Describe the problem or the use case, not only the solution.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution
+  - type: input
+    id: service
+    attributes:
+      label: Service (for new integrations)
+      description: Link to the service and its API or RSS documentation.
+      placeholder: "https://…"

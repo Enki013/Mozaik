@@ -475,7 +475,7 @@
     <string name="settings_lastfm_title">Last.fm</string>
     <string name="settings_lastfm_desc">Müzik dinleme geçmişi ve otomatik senkronizasyon</string>
     <string name="settings_lastfm_user_label">Last.fm Kullanıcı Adı</string>
-    <string name="settings_lastfm_user_hint">enes832</string>
+    <string name="settings_lastfm_user_hint">kullaniciadi</string>
     <string name="settings_lastfm_key_label">Last.fm API Key (Opsiyonel)</string>
     <string name="settings_lastfm_key_saved">Last.fm API Key (Kayıtlı ✓)</string>
     <string name="settings_lastfm_key_hint">Last.fm 32 haneli API Key</string>

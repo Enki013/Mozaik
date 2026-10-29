@@ -1,411 +1,429 @@
-# 🏆 Kişisel Kayıtlar (Personal Records)
+<div align="center">
 
-Kişisel beslenme (**FatSecret**), film günlüğü (**Letterboxd**), kitap okuma (**Goodreads**), müzik scrobble geçmişi (**Last.fm & Web Scrobbler**), sağlık/fitness verileri (**Health Connect / Samsung Health**) ve Android bildirimlerinizi tek bir merkezi havuzda toplayan, veri egemenliğinizi koruyan açık kaynaklı, çift motorlu (**Cloudflare Worker** / **Go**) kişisel takip platformu ve modern Android istemcisi.
+<img src="android/app/src/main/ic_launcher-playstore.png" alt="Mozaik icon" width="112" />
 
-[![Kotlin](https://img.shields.io/badge/Kotlin-2.0+-7F52FF?style=flat&logo=kotlin&logoColor=white)](https://kotlinlang.org/)
-[![Jetpack Compose](https://img.shields.io/badge/Compose-Material_3_Expressive-4285F4?style=flat&logo=android&logoColor=white)](https://developer.android.com/jetpack/compose)
-[![Go](https://img.shields.io/badge/Go-1.22+-00ADD8?style=flat&logo=go&logoColor=white)](https://go.dev/)
-[![Cloudflare Workers](https://img.shields.io/badge/Cloudflare-Workers_%26_D1-F38020?style=flat&logo=cloudflare&logoColor=white)](https://workers.cloudflare.com/)
-[![Docker](https://img.shields.io/badge/Docker-Compose-2496ED?style=flat&logo=docker&logoColor=white)](https://www.docker.com/)
-[![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
+# Mozaik
 
----
+**A self-hosted hub for your personal records, with a Material 3 Expressive Android app.**
 
-## 📑 İçindekiler
+Mozaik collects your meals, films, books, music, health data and phone notifications in one database that you own, and shows them in a single timeline.
 
-- [Öne Çıkan Özellikler](#-öne-çıkan-özellikler)
-- [Mimari Genel Bakış](#-mimari-genel-bakış)
-- [Dizin Yapısı (Monorepo)](#-dizin-yapısı-monorepo)
-- [Kurulum Seçenekleri](#-kurulum-seçenekleri)
-  - [Seçenek 1: Cloudflare Worker + D1 (Önerilen - Ücretsiz & 7/24 Bulut)](#seçenek-1-cloudflare-worker--d1-önerilen---ücretsiz--724-bulut)
-  - [Seçenek 2: Docker Compose (Yerel / VPS Konteyner Kurulumu)](#seçenek-2-docker-compose-yerel--vps-konteyner-kurulumu)
-  - [Seçenek 3: Yerel Go Backend ile Geliştirme](#seçenek-3-yerel-go-backend-ile-geliştirme)
-- [Android İstemci Kurulumu & Yapılandırması](#-android-istemci-kurulumu--yapılandırması)
-- [Entegrasyonlar ve Webhook Ayarları](#-entegrasyonlar-ve-webhook-ayarları)
-- [Güvenlik, Kimlik Doğrulama & Sıkılaştırma](#-güvenlik-kimlik-doğrulama--sıkılaştırma)
-- [Veri Egemenliği & Yedekleme (Export)](#-veri-egemenliği--yedekleme-export)
-- [Test ve Doğrulama](#-test-ve-doğrulama)
-- [Detaylı Belgeler (Docs)](#-detaylı-belgeler-docs)
+[![Release](https://img.shields.io/github/v/release/Enki013/personal-records?label=APK&logo=android&logoColor=white)](https://github.com/Enki013/personal-records/releases/latest)
+[![Kotlin](https://img.shields.io/badge/Kotlin-2.2-7F52FF?logo=kotlin&logoColor=white)](https://kotlinlang.org/)
+[![Jetpack Compose](https://img.shields.io/badge/Compose-Material_3_Expressive-4285F4?logo=jetpackcompose&logoColor=white)](https://developer.android.com/jetpack/compose)
+[![Cloudflare Workers](https://img.shields.io/badge/Cloudflare-Workers_%2B_D1-F38020?logo=cloudflare&logoColor=white)](https://workers.cloudflare.com/)
+[![Go](https://img.shields.io/badge/Go-1.24-00ADD8?logo=go&logoColor=white)](https://go.dev/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
+
+**English** · [Türkçe](README.tr.md)
+
+</div>
 
 ---
 
-## ✨ Öne Çıkan Özellikler
+## Contents
 
-### 1. 🥗 Beslenme & Makro Takibi (FatSecret)
-- Günlük toplam kalori, protein, karbonhidrat ve yağ makroları.
-- Öğün bazlı (Kahvaltı, Öğle, Akşam, Ara Öğün) besin dökümü.
-- Dinamik kalori hedefi belirleme ve anlık güncelleme.
-- BYOK (Kendi API Anahtarını Getir) modeli ile OAuth 1.0/2.0 entegrasyonu.
-
-### 2. 🎬 Sinema, Dizi & Medya (Letterboxd, Trakt.tv & MDBList)
-- **Letterboxd RSS**: Film izleme günlüğü, afişler, izleme tarihleri, puanlama ve yeniden izleme (*rewatch*) durumu.
-- **Trakt.tv API v2**: Hem filmler hem de televizyon dizileri (sezon ve bölüm bazlı `S01E05 · Title` scrobble geçmişi), izleme tarihleri ve puanlar.
-- **MDBList Çoklu Platform Puan Agregatörü**: IMDb (⭐), Rotten Tomatoes (🍅 / 🍿), Metascore (Ⓜ️), Letterboxd (🟢) ve Trakt (📺) puanlarının tek birleşik kartta toplanması. 14 günlük akıllı önbellekleme ile API kota koruması.
-
-### 3. 📚 Kitap & Okuma Alışkanlığı (Goodreads)
-- Goodreads kullanıcı ID ile RSS üzerinden otomatik kitaplık senkronizasyonu.
-- Raflara göre sınıflandırma (*Okunanlar*, *Şu Anda Okunanlar*, *Okunacaklar*).
-- Kitap kapakları, yazar bilgileri, sayfa sayıları ve verilen puanlar.
-
-### 4. 🎵 Müzik & Scrobble Geçmişi (Last.fm, Web Scrobbler, ListenBrainz, Stats.fm)
-- **Web Scrobbler Webhook**: Tarayıcıda (YouTube, Spotify Web, SoundCloud vb.) dinlenen parçaları anında `/api/webhooks/music` ile kaydetme.
-- **Last.fm & ListenBrainz Sync**: Otomatik veya tetiklemeli geçmiş senkronizasyonu.
-- **Stats.fm (Spotistats)**: Spotify akışları ve dinleme analitikleri senkronizasyonu.
-- Albüm kapakları, sanatçı istatistikleri ve en çok dinlenen parçalar.
-
-### 5. 🏃 Sağlık & Fitness (Health Connect / Samsung Health / Google Fit)
-- Adım sayısı, aktif kalori, mesafe, egzersiz/antrenman, uyku analizi, nabız ve ağırlık takibi.
-- Android Health Connect verilerini periyodik olarak sunucuya aktaran `/api/webhooks/health` desteği.
-
-### 6. 🔔 Akıllı Bildirim Arşivi (Notification Relay)
-- Android bildirim dinleyicisi ile gelen bildirimleri `/api/webhooks/notification` üzerinden filtreleyip arşivleme.
-- Paket adı, başlık, metin ve zaman bilgisine göre anlık arama ve bildirim zaman tüneli.
-
-### 7. 📱 Modern Android İstemcisi
-- **Jetpack Compose + Material 3 Expressive**: Bento Grid yerleşimi, akıcı yay (*spring*) animasyonları, şekil dönüşümleri (*shape morphing*).
-- **Çift Motor Uyumlu**: Hem yerel Go sunucusuna (`http://192.168.x.x:8787`) hem de Cloudflare Worker bulutuna sorunsuz bağlanabilme.
-- **Güvenli Kimlik Yönetimi**: Ayarlar ekranından API anahtarı tanımlama, gizleme/gösterme ve anlık sunucu bağlantı testi.
-
-### 8. 🌐 Modern Web Gösterge Paneli
-- Cloudflare Worker ve Go backend üzerinde gömülü olarak sunulan **shadcn/ui Zinc** temalı web paneli.
-- Şifreli kilit ekranı, `HttpOnly` oturum yönetimi, karanlık/aydınlık tema ve tam veri yönetimi.
-
-### 9. 🔌 Genişletilebilir Eklenti Kataloğu & Yol Haritası
-Android istemcisinde yer alan Entegrasyon Kataloğu üzerinden tek tıkla açılıp kapatılabilen modüler servis mimarisi:
-- **Mevcut / Aktif Eklentiler**: Web Scrobbler (Tarayıcı), Last.fm, Goodreads RSS, Letterboxd RSS, FatSecret BYOK, Health Connect Webhook, Notification Relay, ListenBrainz, Stats.fm, **Trakt.tv** (Sinema & Dizi Scrobbler), **MDBList** (Çoklu Platform Puan Agregatörü).
-- **Planlanan / Geliştirme Aşamasındaki Eklentiler**:
-  - 🎧 **Spotify Direct API**: Doğrudan Spotify Connect ve anlık çalan şarkı senkronizasyonu.
-  - 🎮 **Steam**: Oyun kütüphanesi, oynama süreleri ve başarım (*achievement*) geçmişi.
+- [How it works](#how-it-works)
+- [Features](#features)
+- [Companion apps](#companion-apps)
+- [Quick start](#quick-start)
+- [Server setup](#server-setup)
+- [Android app](#android-app)
+- [Connecting integrations](#connecting-integrations)
+- [Security](#security)
+- [Backups and export](#backups-and-export)
+- [Development and tests](#development-and-tests)
+- [Project structure](#project-structure)
+- [Documentation](#documentation)
+- [Contributing](#contributing)
+- [Acknowledgements](#acknowledgements)
+- [License](#license)
 
 ---
 
-## 🏛️ Mimari Genel Bakış
+## How it works
 
-Proje, bağımsız iki sunucu motoru (Cloudflare Worker veya Go) ve modern bir Android istemcisinden oluşan **hibrit bir monorepo** olarak tasarlanmıştır:
+Mozaik has two parts:
+
+1. **A server** that stores everything. Pick one of two engines; both expose the same REST API:
+   - **Cloudflare Worker + D1** (recommended): serverless, free tier, runs 24/7, pulls new data every 6 hours with a cron trigger.
+   - **Go + SQLite**: self-hosted on your own machine, a home server or a VPS, with Docker Compose.
+2. **The Mozaik Android app**, which reads from your server. It does not run heavy background services itself.
+
+Data reaches the server in two ways:
+
+- **Pull sync:** the server fetches Goodreads and Letterboxd RSS feeds, and the FatSecret, Last.fm, Trakt and other APIs.
+- **Push webhooks:** small companion apps on your phone or browser send notifications, health data and scrobbles to the server.
 
 ```mermaid
-flowchart TD
-    subgraph Clients["📱 İstemciler & Kaynaklar"]
-        AndroidApp["Android Companion App (Compose M3 Expressive)"]
-        BrowserUI["Web Dashboard (shadcn/ui Zinc)"]
-        NotifRelay["Notification Relay APK (Webhook)"]
-        WebScrobbler["Web Scrobbler Eklentisi (Webhook)"]
-        CronTrigger["Cloudflare Cron Trigger (0 */6 * * *)"]
+flowchart LR
+    subgraph Push["Push (webhooks)"]
+        NR["Notification Relay<br/>(Android)"]
+        HC["Health Connect Webhook<br/>(Android)"]
+        WS["Web Scrobbler<br/>(browser extension)"]
     end
 
-    subgraph ServerEngines["⚙️ Sunucu Motorları (İkisinden Biri Seçilebilir)"]
-        direction TB
-        subgraph CFWorker["Seçenek 1: Cloudflare Worker (Sunucusuz Bulut)"]
-            WorkerHono["Hono API Framework (TypeScript)"]
-            SecurityLayer1["Auth Layer + CORS + Security Headers + Cooldown"]
-            D1DB[("Cloudflare D1 Database (SQLite Engine)")]
-            WorkerHono --> SecurityLayer1 --> D1DB
-        end
-
-        subgraph GoServer["Seçenek 2: Go Backend (Öz-Barındırılan Yerel/Docker)"]
-            GoChi["Go Clean Architecture (HTTP/REST)"]
-            SecurityLayer2["Auth Layer + CORS + Security Headers + Cooldown"]
-            LocalSQLite[("Local SQLite3 Database")]
-            GoChi --> SecurityLayer2 --> LocalSQLite
-        end
+    subgraph Server["Your server (pick one)"]
+        CF["Cloudflare Worker + D1"]
+        GO["Go + SQLite (Docker)"]
     end
 
-    subgraph ExternalSources["☁️ Harici Servisler"]
-        GoodreadsRSS["Goodreads RSS Beslemesi"]
-        LetterboxdRSS["Letterboxd RSS Beslemesi"]
-        FatSecretAPI["FatSecret REST API (OAuth 1.0)"]
-        LastFmAPI["Last.fm REST API"]
+    subgraph Pull["Pull sync"]
+        RSS["Goodreads / Letterboxd RSS"]
+        API["FatSecret · Last.fm · Trakt<br/>ListenBrainz · Stats.fm · MDBList"]
     end
 
-    AndroidApp <-->|REST API + Bearer / X-API-Key| SecurityLayer1
-    AndroidApp <-->|REST API + Bearer / X-API-Key| SecurityLayer2
-    BrowserUI <-->|Session Cookie / X-API-Key| SecurityLayer1
-    BrowserUI <-->|Session Cookie / X-API-Key| SecurityLayer2
-    NotifRelay -->|POST Webhook + API Key| SecurityLayer1
-    WebScrobbler -->|POST Webhook + API Key| SecurityLayer1
-
-    WorkerHono -->|Pull Sync| ExternalSources
-    GoChi -->|Pull Sync| ExternalSources
+    Push -->|"POST + API key"| Server
+    Server -->|"scheduled / on demand"| Pull
+    App["Mozaik Android app"] <-->|"REST + API key"| Server
+    Web["Web dashboard"] <-->|"session cookie"| Server
 ```
 
 ---
 
-## 📂 Dizin Yapısı (Monorepo)
+## Features
 
-```text
-personal-records/
-├── android/                  # Android İstemcisi (Kotlin 2.x, Jetpack Compose, M3 Expressive)
-│   ├── app/src/main/java/    # Clean Architecture: UI, ViewModel, Repository, Network
-│   └── app/build.gradle.kts  # Gradle yapılandırması
-├── backend/                  # Öz-Barındırılan Go Sunucusu
-│   ├── cmd/personal-records/ # Go ana giriş noktası (main.go)
-│   ├── internal/             # Application, Domain, Infrastructure (SQLite), Presentation
-│   ├── Dockerfile            # Multi-stage Go konteyner imajı
-│   └── .env.example          # Ortam değişkeni şablonu
-├── worker/                   # Sunucusuz Cloudflare Motoru
-│   ├── src/                  # Hono TypeScript yönlendiricileri ve HTML paneli
-│   ├── schema.sql            # Cloudflare D1 veritabanı şeması
-│   └── wrangler.toml         # Cloudflare Worker & D1 yapılandırması
-├── scripts/                  # Otomasyon ve test betikleri
-│   └── test_live_api.sh      # 49/49 kapsamlı canlı API test aracı
-├── docs/                     # Ayrıntılı mimari, kurulum ve API belgeleri
-│   ├── ARCHITECTURE.md       # Sistem ve eklenti mimarisi
-│   ├── SETUP_GUIDE.md        # Adım adım kurulum kılavuzu
-│   ├── MOBILE_API.md         # API sözleşmesi ve uç noktalar
-│   └── ROADMAP.md            # Geliştirme yol haritası
-└── docker-compose.yml        # Tek komutla Go + SQLite ayağa kaldırma
-```
+### Android app
+
+- **Material 3 Expressive** design: expressive motion, shape morphing, connected button groups, loading indicators and a floating navigation bar.
+- **Overview:** a swipeable carousel of stat cards (calories, books, films, music, health, notifications) and your connected integrations.
+- **Timeline:** every record from every source in one feed, with search, a source filter and quick date ranges (Today, 7, 14, 30, 90 days).
+- **Records:** a dedicated screen for each category: nutrition, books, films and series, music, health and notifications.
+- **Consistent filters on every screen:** search, sort, a custom date picker, quick date ranges and a result count.
+- **Customizable stats:** show or hide any stat card, and drag to reorder them. The order is saved per screen.
+- **Integration catalog:** turn services on or off, see setup steps, and copy webhook URLs.
+- **Adaptive layout:** list-detail panes and a navigation rail on tablets and foldables.
+- **English and Turkish**, switchable inside the app, independent of the system language.
+- **Dynamic color** (Material You) on Android 12+, and light and dark themes.
+- **Data export:** download a full JSON archive or the raw SQLite database to your phone.
+
+### Data sources
+
+| Category | Sources | How |
+| :--- | :--- | :--- |
+| 🥗 Nutrition | [FatSecret](https://platform.fatsecret.com/) | API (bring your own key) |
+| 📚 Books | [Goodreads](https://www.goodreads.com/) | RSS |
+| 🎬 Films and series | [Letterboxd](https://letterboxd.com/), [Trakt.tv](https://trakt.tv/), [MDBList](https://mdblist.com/) ratings | RSS / API |
+| 🎵 Music | [Last.fm](https://www.last.fm/), [ListenBrainz](https://listenbrainz.org/), [Stats.fm](https://stats.fm/), [Web Scrobbler](https://web-scrobbler.com/) | API / webhook |
+| ❤️ Health | Health Connect (Samsung Health, Google Fit, Fitbit and others) | Webhook, via [Health Connect Webhook](#companion-apps) |
+| 🔔 Notifications | Android notifications | Webhook, via [Notification Relay](#companion-apps) |
+
+Planned: Spotify Direct API, Simkl, Steam. See the [roadmap](docs/ROADMAP.md).
+
+### Server
+
+- The same REST API on both engines, so the app works with either one.
+- A built-in **web dashboard** behind a password screen.
+- **Authentication** on every data, export and sync route.
+- A strict CORS allowlist, security headers and a sync cooldown that protects external services from too many requests.
+- **Export** as SQL dump, SQLite file or JSON.
 
 ---
 
-## 🚀 Kurulum Seçenekleri
+## Companion apps
 
-Aşağıdaki üç sunucu seçeneğinden ihtiyacınıza en uygun olanı seçebilirsiniz:
+Mozaik does not read your notifications or health data itself. Two open-source Android apps send that data to your server.
 
-### Seçenek 1: Cloudflare Worker + D1 (Önerilen - Ücretsiz & 7/24 Bulut)
+| App | What it sends | Download |
+| :--- | :--- | :--- |
+| **[Notification Relay Webhook](https://github.com/Enki013/notification-relay-webhook)** | Your phone's notifications, to `/api/webhooks/notification` | [Releases](https://github.com/Enki013/notification-relay-webhook/releases) |
+| **[Health Connect Webhook](https://github.com/mcnaveen/health-connect-webhook)** | Steps, sleep, heart rate, workouts, weight and more from Health Connect, to `/api/webhooks/health` | [Releases](https://github.com/mcnaveen/health-connect-webhook/releases) |
 
-Cloudflare Workers ve D1 Serverless SQLite sayesinde sunucu yönetimi veya maliyet olmadan 7/24 kesintisiz çalışır.
+> [!NOTE]
+> **Notification Relay:** use [my fork](https://github.com/Enki013/notification-relay-webhook). It adds a fix that keeps the background service connected on HyperOS (Xiaomi) and improves onboarding. It is based on [cobanov/notification-relay-webhook](https://github.com/cobanov/notification-relay-webhook).
 
-#### 1. Gereksinimler
-- Node.js 18+ ve npm
-- Ücretsiz [Cloudflare Hesabı](https://dash.cloudflare.com/)
+Setup steps for both apps are in [Connecting integrations](#connecting-integrations).
 
-#### 2. Kurulum ve Dağıtım Adımları
+---
+
+## Quick start
+
+1. **Deploy a server.** The quickest way is [Cloudflare Worker + D1](#option-1-cloudflare-worker--d1-recommended). It takes about 10 minutes and is free.
+2. **Install the app.** Download the APK from the [latest release](https://github.com/Enki013/personal-records/releases/latest).
+3. **Connect.** In the app, open **Settings**, enter your server URL and API key, and tap **Test connection**.
+4. **Add sources.** Enter your Goodreads ID, Letterboxd username or Last.fm username, and install the [companion apps](#companion-apps) if you want notifications and health data.
+
+---
+
+## Server setup
+
+### Option 1: Cloudflare Worker + D1 (recommended)
+
+Free on the Cloudflare free tier, always on, nothing to maintain.
+
+**Requirements:** Node.js 18+ and a free [Cloudflare account](https://dash.cloudflare.com/sign-up).
+
 ```bash
-# 1. Worker dizinine geçin ve paketleri yükleyin
 cd worker
 npm install
-
-# 2. Cloudflare hesabınıza giriş yapın
 npx wrangler login
 
-# 3. D1 veritabanınızı oluşturun
+# Create the database
 npx wrangler d1 create personal-records-db
 ```
-> [!NOTE]
-> `npx wrangler d1 create` komutunun çıktısındaki `database_id` değerini `worker/wrangler.toml` dosyasındaki `database_id` alanına yapıştırın.
+
+Copy the `database_id` from the output into `worker/wrangler.toml` (start from `worker/wrangler.toml.example` if you prefer).
 
 ```bash
-# 4. Veritabanı tablolarını ve indeksleri oluşturun
+# Create the tables
 npx wrangler d1 execute personal-records-db --remote --file=./schema.sql
 
-# 5. Sunucu API Anahtarınızı güvenli secret olarak tanımlayın (Örn: YOUR_API_KEY)
+# Set your API key (choose a long random value)
 npx wrangler secret put API_KEY
 
-# (İsteğe Bağlı) FatSecret ve Last.fm anahtarları
+# Optional: FatSecret and Last.fm credentials
 npx wrangler secret put FATSECRET_CONSUMER_KEY
 npx wrangler secret put FATSECRET_CONSUMER_SECRET
 npx wrangler secret put LASTFM_API_KEY
 npx wrangler secret put LASTFM_USERNAME
 
-# 6. Worker'ı canlıya dağıtın (Deploy)
+# Deploy
 npx wrangler deploy
 ```
 
-Deploy tamamlandığında terminalde beliren URL'nizi not edin:
-`https://personal-records-api.<kullanici-adiniz>.workers.dev`
+Your server URL is printed at the end, for example `https://personal-records-api.<your-subdomain>.workers.dev`.
 
----
+> [!TIP]
+> Generate a strong key with `openssl rand -hex 32`.
 
-### Seçenek 2: Docker Compose (Yerel / VPS Konteyner Kurulumu)
+For local development, copy `worker/.dev.vars.example` to `worker/.dev.vars` and run `npm run dev`. More details are in [worker/README.md](worker/README.md).
 
-Ev sunucunuzda (Raspberry Pi, NAS, Unraid, VPS) çalıştırmak için tek komut yeterlidir:
+### Option 2: Docker Compose
+
+For a Raspberry Pi, NAS, home server or VPS.
 
 ```bash
-# 1. Ortam dosyasını oluşturun ve API Anahtarınızı belirleyin
-cd backend
-cp .env.example .env
-nano .env   # API_KEY=guclu_bir_sifre belirleyin
-cd ..
+cp backend/.env.example backend/.env
+# Edit backend/.env and set API_KEY
 
-# 2. Konteyneri başlatın
 docker compose up -d
 ```
 
-- **Web / API Adresi:** `http://localhost:8787`
-- **Kalıcı Veri Deposu:** `./data/personal_records.sqlite3`
-- **Sağlık Denetimi:** `docker compose ps` ile sağlık durumunu izleyebilirsiniz.
+- API and web dashboard: `http://localhost:8787`
+- Data is stored in `./data/personal_records.sqlite3`
+- Check health with `docker compose ps`
 
----
+A prebuilt image is published to the GitHub Container Registry by the `docker-publish` workflow.
 
-### Seçenek 3: Yerel Go Backend ile Geliştirme
+### Option 3: Go backend without Docker
 
 ```bash
-# 1. Go backend dizinine geçin
 cd backend
-
-# 2. .env dosyasını hazırlayın
 cp .env.example .env
-
-# 3. Bağımlılıkları kontrol edin ve çalıştırın
-go mod tidy
 go run ./cmd/personal-records
 ```
 
-Birim ve entegrasyon testlerini çalıştırmak için:
-```bash
-go test -v ./...
-```
+See [backend/README.md](backend/README.md).
 
 ---
 
-## 📱 Android İstemci Kurulumu & Yapılandırması
+## Android app
 
-Android uygulaması, telefonunuzun kaynaklarını tüketmeden sunucudaki tüm verilerinizi **Material 3 Expressive** arayüzüyle sunar.
+**Requirements:** Android 8.0 (API 26) or newer.
 
-### 1. APK'yı Derleme
-Android Studio kullanarak projeyi açabilir veya terminalden doğrudan derleyebilirsiniz:
+### Install
+
+Download `app-release.apk` from the [latest release](https://github.com/Enki013/personal-records/releases/latest). Each release includes a `SHA256SUMS.txt` file to verify the download.
+
+### Build from source
+
+You need JDK 17 or newer. Android Studio's bundled JDK works.
 
 ```bash
 cd android
-# Android Studio JDK yolunu kullanarak derleyin:
-export JAVA_HOME="/Applications/Android Studio.app/Contents/jbr/Contents/Home"  # macOS
 ./gradlew assembleDebug
 ```
-Üretilen APK dosyası: `android/app/build/outputs/apk/debug/app-debug.apk`
 
-### 2. Uygulama İçi Yapılandırma
-1. Uygulamayı açın ve sağ üstteki veya alt bardaki **Ayarlar** sekmesine gidin.
-2. **Sunucu Adresi (Base URL):**
-   - Cloudflare Worker kullanıyorsanız: `https://personal-records-api.xxxx.workers.dev`
-   - Yerel Go backend kullanıyorsanız: `http://192.168.1.50:8787` (Bilgisayarınızın yerel IP'si)
-3. **Sunucu API Anahtarı:** Sunucunuza tanımladığınız şifreyi (örneğin `YOUR_API_KEY`) girin.
-4. **Bağlantıyı Test Et:** Butona bastığınızda uygulama sunucuya bağlanır ve API anahtarınızın geçerliliğini anlık olarak doğrular (`✅ Bağlantı ve API Anahtarı Doğrulandı`).
-5. Ayarlar ekranından **Letterboxd Kullanıcı Adı**, **Goodreads Kullanıcı ID** ve **Günlük Kalori Hedefi** değerlerinizi kaydedin.
+The APK is written to `android/app/build/outputs/apk/debug/app-debug.apk`. On macOS, if Gradle cannot find Java, point it at Android Studio's JDK:
+
+```bash
+export JAVA_HOME="/Applications/Android Studio.app/Contents/jbr/Contents/Home"
+```
+
+### First run
+
+1. Open **Settings** from the navigation bar.
+2. **Server URL:**
+   - Cloudflare: `https://personal-records-api.<your-subdomain>.workers.dev`
+   - Local Go server: `http://<your-computer-ip>:8787` (from the Android emulator, use `http://10.0.2.2:8787`)
+3. **API key:** the `API_KEY` you set on the server.
+4. Tap **Test Connection**. A green badge confirms that the URL and key work.
+5. Enter your source accounts (Goodreads ID, Letterboxd username, Last.fm username, daily calorie goal) and sync.
 
 ---
 
-## 🔌 Entegrasyonlar ve Webhook Ayarları
+## Connecting integrations
 
-### 1. Android Bildirimleri (Notification Relay APK)
-Telefonunuza gelen bildirimleri otomatik olarak arşivlemek için:
-- Açık kaynaklı [Notification Relay APK](https://github.com/Enki013/personal-records) veya muadili (MacroDroid, Tasker) kullanın.
-- **Webhook URL:** `https://your-worker.workers.dev/api/webhooks/notification`
-- **HTTP Header:** `X-API-Key: YOUR_API_KEY`
-- **Payload Formatı:**
-  ```json
-  {
-    "packageName": "com.whatsapp",
-    "title": "Ahmet",
-    "text": "Toplantı saat 15:00'te.",
-    "postTime": 1710000000000
-  }
-  ```
+Every webhook needs your API key. Send it in one of these ways:
 
-### 2. Müzik Dinleme (Web Scrobbler Tarayıcı Eklentisi)
-Chrome veya Firefox'ta [Web Scrobbler](https://web-scrobbler.com/) eklentisini kurun:
-- Eklenti ayarlarından **Webhook** servisini aktif edin.
-- **Webhook URL:** `https://your-worker.workers.dev/api/webhooks/music`
-- **Secret / Header:** `X-API-Key: YOUR_API_KEY`
-- Artık YouTube, Soundcloud, Bandcamp veya web tabanlı oynatıcılarda çalan şarkılar anında zaman tünelinize scrobble edilir.
+- Header `X-API-Key: <API_KEY>`
+- Header `Authorization: Bearer <API_KEY>`
+- Header `X-Webhook-Secret: <API_KEY>`
+- Query string `?api_key=<API_KEY>`, for apps that cannot set headers
 
-### 3. FatSecret Beslenme Günlüğü
-1. [FatSecret Platform](https://platform.fatsecret.com/api/) üzerinden ücretsiz bir API anahtarı alın.
-2. Ayarlar ekranından Consumer Key ve Consumer Secret bilgilerinizi girin.
-3. OAuth 1.0 akışı ile profilinizi eşleştirerek geçmiş öğünlerinizi tek tıkla çekin.
+The app's **Settings** and **Integration catalog** screens show each webhook URL and can copy it with the key already attached.
 
-### 4. Trakt.tv Sinema ve Dizi Scrobbler
-1. Ayarlar > Trakt bölümüne Trakt.tv kullanıcı adınızı girin (herkese açık profiller için şifre gerekmez).
-2. İsteğe bağlı olarak kendi Trakt API Client ID bilginizi kaydedin (boş bırakılırsa varsayılan genel istemci kullanılır).
-3. "Filmleri Eşitle" ve "Dizi Bölümlerini Eşitle" seçeneklerini işaretleyip "Trakt'ı Eşitle" butonuna basın.
+### Notifications: Notification Relay
 
-### 5. MDBList Çoklu Platform Puan Agregatörü
-1. [mdblist.com/preferences](https://mdblist.com/preferences) adresinden ücretsiz API anahtarınızı alın.
-2. Ayarlar > MDBList alanına API anahtarınızı kaydedin.
-3. Letterboxd ve Trakt filmlerinizin detay sayfasında IMDb, Rotten Tomatoes, Metacritic ve Letterboxd puan rozetleri otomatik olarak belirecektir (14 gün önbelleklenir).
+1. Install [Notification Relay Webhook](https://github.com/Enki013/notification-relay-webhook/releases) and grant **Notification access**.
+2. Add a webhook with the URL `https://<your-server>/api/webhooks/notification`.
+3. Add the header `X-API-Key: <API_KEY>`, or append `?api_key=<API_KEY>` to the URL.
+4. Send a test notification. It appears in Mozaik under **Records → Notifications**.
+
+The payload looks like this:
+
+```json
+{
+  "packageName": "com.whatsapp",
+  "title": "Alex",
+  "text": "Meeting at 3 pm.",
+  "postTime": 1710000000000
+}
+```
+
+### Health: Health Connect Webhook
+
+1. Install [Health Connect Webhook](https://github.com/mcnaveen/health-connect-webhook/releases) and allow access to the data types you want to share.
+2. Set the webhook URL to `https://<your-server>/api/webhooks/health`.
+3. Add the header `X-Webhook-Secret: <API_KEY>`, or append `?api_key=<API_KEY>` to the URL.
+4. Choose a sync interval and start the background sync. Data appears under **Records → Health Connect**.
+
+Sending `GET` to the same URL returns the endpoint status, which is handy for checking the setup.
+
+### Music: Web Scrobbler
+
+1. Install the [Web Scrobbler](https://web-scrobbler.com/) extension for Chrome or Firefox.
+2. In its settings, enable the **Webhook** service.
+3. URL: `https://<your-server>/api/webhooks/music`, header `X-API-Key: <API_KEY>`.
+4. Songs played on YouTube, SoundCloud, Bandcamp and other web players now appear in your timeline.
+
+### Music: Last.fm, ListenBrainz, Stats.fm
+
+Turn the service on in the **Integration catalog**, then enter your username in **Settings** and sync. ListenBrainz and Stats.fm only need a public username. For Stats.fm, make sure *Recently played* is public. For Last.fm you can add your own [API key](https://www.last.fm/api/account/create); it is optional when the server has `LASTFM_API_KEY` set.
+
+### Nutrition: FatSecret
+
+1. Get a free API key from the [FatSecret Platform](https://platform.fatsecret.com/api/).
+2. Enter the consumer key and secret in **Settings → Nutrition integration (FatSecret)**, or set them as Worker secrets.
+3. Link your profile and sync your meal history.
+
+More details are in [docs/FATSECRET_SYNC_STRATEGY.md](docs/FATSECRET_SYNC_STRATEGY.md).
+
+### Books and films: Goodreads, Letterboxd
+
+- **Goodreads:** enter your numeric user ID or your profile URL (`https://goodreads.com/user/show/<id>`). Shelves (read, currently reading, want to read) sync from RSS.
+- **Letterboxd:** enter your username or your RSS URL (`https://letterboxd.com/<username>/rss/`).
+
+### Films and series: Trakt.tv, MDBList
+
+- **Trakt.tv:** enter your username (public profiles need no password). Optionally set your own Client ID. Films and episodes are synced.
+- **MDBList:** add a free API key from [mdblist.com/preferences](https://mdblist.com/preferences). Film details then show IMDb, Rotten Tomatoes, Metacritic and Letterboxd ratings, cached for 14 days.
 
 ---
 
-## 🛡️ Güvenlik, Kimlik Doğrulama & Sıkılaştırma
+## Security
 
-Platform, kişisel verilerinizi korumak için çok katmanlı savunma mimarisiyle donatılmıştır:
+Mozaik stores personal data, so every data route is protected.
 
-### 1. Çok Katmanlı Yetkilendirme
-Tüm veri uç noktaları (`/api/*`), dışa aktarma rotaları (`/api/export/*`) ve senkronizasyon tetikleyicileri koruma altındadır. İstemciler aşağıdaki yöntemlerden herhangi biriyle kimlik doğrulayabilir:
-- `Authorization: Bearer <API_KEY>`
-- `X-API-Key: <API_KEY>`
-- `Authorization: Basic <base64>`
-- Web Paneli için `HttpOnly; Secure; SameSite=Lax` oturum çerezi (`pr_auth`)
+- **Authentication** on `/api/*`, `/api/export/*` and sync triggers. Accepted methods: `Authorization: Bearer`, `X-API-Key`, HTTP Basic, and an `HttpOnly; Secure; SameSite=Lax` session cookie for the web dashboard.
+- **CORS allowlist:** only `localhost`, `10.0.2.2` (Android emulator), `*.workers.dev` and origins listed in `ALLOWED_ORIGINS`.
+- **Security headers** on every response: `X-Frame-Options`, `X-Content-Type-Options`, `Referrer-Policy`, `Permissions-Policy` and a Content Security Policy.
+- **Sync cooldown:** a 90-second window per source prevents hammering external services. Repeated calls return `429 Too Many Requests`. Add `?force=true` to bypass it.
 
-### 2. Sıkı CORS Politikası
-Eski joker (`*`) izinleri yerine katı beyaz liste uygulanır:
-- Yalnızca `localhost`, `10.0.2.2` (Android emülatörü), `*.workers.dev` ve `ALLOWED_ORIGINS` içinde tanımlanan kökenlere izin verilir.
-- Bilinmeyen/yabancı sitelerden (`evil.com` vb.) gelen isteklerde `Access-Control-Allow-Origin` başlığı verilmez ve tarayıcı düzeyinde engellenir.
-
-### 3. HTTP Güvenlik Başlıkları
-Tüm yanıtlarda otomatik olarak enjekte edilen güvenlik başlıkları:
-```http
-X-Frame-Options: DENY
-X-Content-Type-Options: nosniff
-X-XSS-Protection: 1; mode=block
-Referrer-Policy: strict-origin-when-cross-origin
-Permissions-Policy: camera=(), microphone=(), geolocation=(), payment=()
-Content-Security-Policy: default-src 'self' ...
-```
-
-### 4. Senkronizasyon Cooldown & Hız Kısıtlama (Rate Limiting)
-- Dış kaynakları (Goodreads, Letterboxd, FatSecret, Last.fm) aşırı sorgulamaktan ve IP ban riskinden korumak için **90 saniyelik bekleme penceresi** uygulanır.
-- Peş peşe çağrılarda sistem `HTTP 429 Too Many Requests` ve kalan saniye bilgisini döndürür.
-- Acil durumlar için `?force=true` parametresi ile bekleme aşılabilir.
+Keep your API key out of git. `.env`, `.dev.vars` and keystores are already ignored. To report a vulnerability, see [SECURITY.md](SECURITY.md).
 
 ---
 
-## 💾 Veri Egemenliği & Yedekleme (Export)
+## Backups and export
 
-Verileriniz hiçbir tescilli kapalı formatta hapsedilmez; dilediğiniz an tek tıkla dışa aktarabilirsiniz:
+Your data is never locked in. Export it from the app (**Settings → Data export**) or with the API:
 
-- **Ham SQL Dökümü:** `GET /api/export/sql`
-  *(Tüm tabloların `CREATE TABLE` ve `INSERT` komutlarını içeren tam SQLite uyumlu SQL dökümü)*
-- **Ham SQLite (.db) Dosyası:** `GET /api/export/db`
-- **Eksiksiz JSON Arşivi:** `GET /api/export/all`
+| Endpoint | Format |
+| :--- | :--- |
+| `GET /api/export/all` | Full JSON archive |
+| `GET /api/export/sql` | SQLite-compatible SQL dump (`CREATE TABLE` + `INSERT`) |
+| `GET /api/export/db` | Raw SQLite database file |
 
-Örnek curl ile yedek alma:
 ```bash
-curl -H "X-API-Key: YOUR_API_KEY" \
-  https://personal-records-api.xxxx.workers.dev/api/export/sql > backup_$(date +%F).sql
+curl -H "X-API-Key: $API_KEY" \
+  "https://<your-server>/api/export/sql" > "backup_$(date +%F).sql"
 ```
 
 ---
 
-## 🧪 Test ve Doğrulama
-
-Sistemdeki tüm API uç noktaları, güvenlik mekanizmaları ve istemci modelleri otomatik testlerle korunmaktadır:
-
-### 1. Kapsamlı Canlı API Test Süiti (49/49)
-Canlı Cloudflare Worker veya yerel backend üzerindeki tüm uç noktaları test eden hazır bash aracı:
+## Development and tests
 
 ```bash
-chmod +x scripts/test_live_api.sh
-./scripts/test_live_api.sh
-```
-> **Test Kapsamı:** Sağlık denetimi, yanlış/doğru API anahtarı, oturum çerezi ile giriş/çıkış, tüm korumalı veri rotaları (401 & 200 durumları), webhook doğrulama, CORS engelleme, güvenlik başlıkları, 429 senkronizasyon cooldown ve `?force=true` bypass.
-
-### 2. Go Backend Birim & Entegrasyon Testleri
-```bash
-cd backend
-go test -v ./...
-```
-
-### 3. Android Birim & Derleme Testleri
-```bash
+# Android unit tests and compile check
 cd android
-./gradlew testDebugUnitTest
-./gradlew compileDebugKotlin
+./gradlew testDebugUnitTest compileDebugKotlin
+
+# Go backend tests
+cd backend
+go test ./...
+
+# End-to-end test against a running server (Worker or Go)
+API_KEY=<your-key> BASE_URL=https://<your-server> ./scripts/test_live_api.sh
 ```
 
----
+The live test checks health, authentication (wrong and right keys, session login and logout), every protected route, webhooks, CORS blocking, security headers and the sync cooldown.
 
-## 📖 Detaylı Belgeler (Docs)
+### Releases
 
-Daha fazla teknik ayrıntı ve kılavuz için belgeler klasörüne göz atabilirsiniz:
-
-- 🏛️ **[Mimari Belgesi (docs/ARCHITECTURE.md)](docs/ARCHITECTURE.md)**: Temiz mimari, veri modelleri ve eklenti sözleşmesi.
-- 📖 **[Kurulum Kılavuzu (docs/SETUP_GUIDE.md)](docs/SETUP_GUIDE.md)**: Sıfırdan adım adım resimli ve açıklamalı kurulum.
-- 📱 **[Mobil REST API Sözleşmesi (docs/MOBILE_API.md)](docs/MOBILE_API.md)**: JSON modelleri, HTTP yanıt kodları ve uç nokta listesi.
-- 🗺️ **[Yol Haritası (docs/ROADMAP.md)](docs/ROADMAP.md)**: Tamamlanan ve gelecekte planlanan özellikler.
+The `android-release` workflow runs lint and unit tests, builds the release APK and AAB, writes SHA-256 checksums, and publishes a GitHub release with a changelog generated from [Conventional Commits](https://www.conventionalcommits.org/). It runs on pushes to `main`, on tags, and on demand.
 
 ---
 
-## 📄 Lisans
+## Project structure
 
-Bu proje [MIT Lisansı](LICENSE) kapsamında açık kaynak olarak geliştirilmektedir. Kendi kişisel sunucunuzda özgürce barındırabilir, değiştirebilir ve geliştirebilirsiniz.
+```text
+personal-records/
+├── android/            Mozaik Android app (Kotlin, Jetpack Compose, Material 3 Expressive)
+│   └── app/src/main/java/com/personalrecords/app/
+│       ├── core/       theme, networking, integrations catalog, preferences
+│       ├── data/       repository
+│       └── ui/         screens and shared components
+├── worker/             Cloudflare Worker engine (TypeScript, Hono, D1)
+│   ├── src/            API routes and web dashboard
+│   └── schema.sql      D1 schema
+├── backend/            Go engine (SQLite), Dockerfile
+├── docs/               architecture, setup guide, API contract, roadmap
+├── scripts/            test_live_api.sh
+└── docker-compose.yml
+```
+
+The repository and package are still named `personal-records` / `com.personalrecords.app`. Mozaik is the app's display name.
+
+---
+
+## Documentation
+
+- [Architecture](docs/ARCHITECTURE.md): system design, data models, integration plugin contract
+- [Setup guide](docs/SETUP_GUIDE.md): step-by-step setup (Turkish)
+- [Mobile API](docs/MOBILE_API.md): endpoints, JSON models and status codes
+- [Roadmap](docs/ROADMAP.md): done and planned work
+
+---
+
+## Contributing
+
+Issues and pull requests are welcome. Please read [CONTRIBUTING.md](CONTRIBUTING.md) first.
+
+---
+
+## Acknowledgements
+
+- [cobanov/notification-relay-webhook](https://github.com/cobanov/notification-relay-webhook), the original Notification Relay app that my fork builds on
+- [mcnaveen/health-connect-webhook](https://github.com/mcnaveen/health-connect-webhook), which sends Health Connect data to Mozaik
+- [Web Scrobbler](https://web-scrobbler.com/), the browser scrobbling extension
+- [Hono](https://hono.dev/), [Cloudflare D1](https://developers.cloudflare.com/d1/), [Jetpack Compose](https://developer.android.com/jetpack/compose) and [Material 3](https://m3.material.io/)
+
+Mozaik is not affiliated with Goodreads, Letterboxd, FatSecret, Last.fm, Trakt, MDBList, Google or Samsung. All trademarks belong to their owners.
+
+---
+
+## License
+
+Mozaik is released under the [MIT License](LICENSE).
+
+The companion apps are separate projects with their own licenses (both GNU AGPL v3.0). Mozaik only links to them and talks to them over HTTP. It does not include their code.

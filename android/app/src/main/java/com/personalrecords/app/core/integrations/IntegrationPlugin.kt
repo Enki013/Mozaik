@@ -186,7 +186,7 @@ object PluginRegistry {
             longDescription = "Açık kaynaklı Health Connect Webhook yardımcısı ile Android cihazınızdaki sağlık ve aktivite ölçümlerini sunucunuza iletir.",
             syncServiceKey = "health_connect",
             webhookPath = "/api/webhooks/health",
-            officialUrl = "https://github.com/Enki013/health-connect-webhook",
+            officialUrl = "https://github.com/mcnaveen/health-connect-webhook",
             setupSteps = listOf(
                 "Health Connect Webhook APK'sını kurun ve izinleri verin.",
                 "Hedef Webhook URL'sini yapıştırın.",
@@ -211,6 +211,7 @@ object PluginRegistry {
             longDescription = "Notification Relay uygulaması ile gelen cihaz bildirimlerini kategorize ederek zaman tünelinize kaydeder.",
             syncServiceKey = "notification_relay",
             webhookPath = "/api/webhooks/notification",
+            officialUrl = "https://github.com/Enki013/notification-relay-webhook",
             setupSteps = listOf(
                 "Notification Relay APK'sını kurun ve Bildirim Erişimi verin.",
                 "Webhooks sekmesinde hedef URL'yi ekleyin.",
