@@ -119,9 +119,12 @@ fun OverviewScreen(
     val snackbarHostState = remember { SnackbarHostState() }
     var selectedActivity by remember { mutableStateOf<com.personalrecords.app.core.network.model.ActivityItemDto?>(null) }
     val scrollBehavior = TopAppBarDefaults.enterAlwaysScrollBehavior(rememberTopAppBarState())
-    val formattedDate = remember {
+    // Keyed on the app locale: the saved language loads after the first frame, so a
+    // key-less remember would keep the date in the system language.
+    val appLocale = androidx.compose.ui.platform.LocalConfiguration.current.locales[0]
+    val formattedDate = remember(appLocale) {
         try {
-            val formatter = DateTimeFormatter.ofPattern("EEEE, d MMMM", Locale.getDefault())
+            val formatter = DateTimeFormatter.ofPattern("EEEE, d MMMM", appLocale)
             LocalDate.now().format(formatter)
         } catch (_: Exception) {
             ""
