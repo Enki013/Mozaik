@@ -623,10 +623,13 @@ fun OverviewScreen(
                                         statsPagerState.currentPage + 1,
                                         slides.size
                                     )
+                                    // The dots are not interactive, so the row is only as tall as a dot:
+                                    // 12dp from the card, and the list's section spacing below.
                                     Row(
                                         modifier = Modifier
                                             .fillMaxWidth()
-                                            .height(32.dp)
+                                            .padding(top = 12.dp)
+                                            .height(6.dp)
                                             .semantics {
                                                 contentDescription = pageIndicatorDescription
                                             },
@@ -650,17 +653,10 @@ fun OverviewScreen(
                                                 modifier = Modifier
                                                     .padding(horizontal = 2.dp)
                                                     .width(animatedWidth)
-                                                    .height(24.dp),
-                                                contentAlignment = Alignment.Center
-                                            ) {
-                                                Box(
-                                                    modifier = Modifier
-                                                        .height(6.dp)
-                                                        .fillMaxWidth()
-                                                        .clip(CircleShape)
-                                                        .background(indicatorColor)
-                                                )
-                                            }
+                                                    .height(6.dp)
+                                                    .clip(CircleShape)
+                                                    .background(indicatorColor)
+                                            )
                                         }
                                     }
                                 }
