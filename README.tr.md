@@ -20,8 +20,8 @@ Mozaik; öğünlerini, filmlerini, kitaplarını, müziklerini, sağlık veriler
 <p>
   <img src="docs/screenshots/overview.webp" alt="Overview" width="200" />
   <img src="docs/screenshots/timeline.webp" alt="Timeline" width="200" />
-  <img src="docs/screenshots/movies.webp" alt="Films" width="200" />
-  <img src="docs/screenshots/books.webp" alt="Books" width="200" />
+  <img src="docs/screenshots/music.webp" alt="Music" width="200" />
+  <img src="docs/screenshots/health.webp" alt="Health Connect" width="200" />
 </p>
 
 </div>
