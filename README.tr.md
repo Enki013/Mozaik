@@ -21,7 +21,7 @@ Mozaik; öğünlerini, filmlerini, kitaplarını, müziklerini, sağlık veriler
   <img src="docs/screenshots/overview.webp" alt="Overview" width="200" />
   <img src="docs/screenshots/timeline.webp" alt="Timeline" width="200" />
   <img src="docs/screenshots/movies.webp" alt="Films" width="200" />
-  <img src="docs/screenshots/overview-dark.webp" alt="Overview, dark theme" width="200" />
+  <img src="docs/screenshots/books.webp" alt="Books" width="200" />
 </p>
 
 </div>
