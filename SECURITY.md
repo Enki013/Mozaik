@@ -4,7 +4,7 @@ Mozaik stores personal data such as meals, health metrics and phone notification
 
 ## Supported versions
 
-Only the [latest release](https://github.com/Enki013/personal-records/releases/latest) and the `main` branch receive security fixes.
+Only the [latest release](https://github.com/Enki013/Mozaik/releases/latest) and the `main` branch receive security fixes.
 
 ## Reporting a vulnerability
 

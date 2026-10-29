@@ -8,7 +8,7 @@
 
 Mozaik collects your meals, films, books, music, health data and phone notifications in one database that you own, and shows them in a single timeline.
 
-[![Release](https://img.shields.io/github/v/release/Enki013/personal-records?label=APK&logo=android&logoColor=white)](https://github.com/Enki013/personal-records/releases/latest)
+[![Release](https://img.shields.io/github/v/release/Enki013/Mozaik?label=APK&logo=android&logoColor=white)](https://github.com/Enki013/Mozaik/releases/latest)
 [![Kotlin](https://img.shields.io/badge/Kotlin-2.2-7F52FF?logo=kotlin&logoColor=white)](https://kotlinlang.org/)
 [![Jetpack Compose](https://img.shields.io/badge/Compose-Material_3_Expressive-4285F4?logo=jetpackcompose&logoColor=white)](https://developer.android.com/jetpack/compose)
 [![Cloudflare Workers](https://img.shields.io/badge/Cloudflare-Workers_%2B_D1-F38020?logo=cloudflare&logoColor=white)](https://workers.cloudflare.com/)
@@ -178,7 +178,7 @@ Setup steps for both apps are in [Connecting integrations](#connecting-integrati
 ## Quick start
 
 1. **Deploy a server.** The quickest way is [Cloudflare Worker + D1](#option-1-cloudflare-worker--d1-recommended). It takes about 10 minutes and is free.
-2. **Install the app.** Download the APK from the [latest release](https://github.com/Enki013/personal-records/releases/latest).
+2. **Install the app.** Download the APK from the [latest release](https://github.com/Enki013/Mozaik/releases/latest).
 3. **Connect.** In the app, open **Settings**, enter your server URL and API key, and tap **Test connection**.
 4. **Add sources.** Enter your Goodreads ID, Letterboxd username or Last.fm username, and install the [companion apps](#companion-apps) if you want notifications and health data.
 
@@ -262,7 +262,7 @@ See [backend/README.md](backend/README.md).
 
 ### Install
 
-Download `app-release.apk` from the [latest release](https://github.com/Enki013/personal-records/releases/latest). Each release includes a `SHA256SUMS.txt` file to verify the download.
+Download `app-release.apk` from the [latest release](https://github.com/Enki013/Mozaik/releases/latest). Each release includes a `SHA256SUMS.txt` file to verify the download.
 
 ### Build from source
 
@@ -416,7 +416,7 @@ The `android-release` workflow runs lint and unit tests, builds the release APK 
 ## Project structure
 
 ```text
-personal-records/
+Mozaik/
 ├── android/            Mozaik Android app (Kotlin, Jetpack Compose, Material 3 Expressive)
 │   └── app/src/main/java/com/personalrecords/app/
 │       ├── core/       theme, networking, integrations catalog, preferences
@@ -431,7 +431,7 @@ personal-records/
 └── docker-compose.yml
 ```
 
-The repository and package are still named `personal-records` / `com.personalrecords.app`. Mozaik is the app's display name.
+The Android package is still `com.personalrecords.app`, and the Worker and database keep their `personal-records` names, so existing installs and deployments keep working.
 
 ---
 

@@ -1,7 +1,7 @@
 blank_issues_enabled: false
 contact_links:
   - name: Report a security vulnerability
-    url: https://github.com/Enki013/personal-records/security/advisories/new
+    url: https://github.com/Enki013/Mozaik/security/advisories/new
     about: Please report security problems privately.
   - name: Notification Relay app issues
     url: https://github.com/Enki013/notification-relay-webhook/issues

@@ -8,7 +8,7 @@
 
 Mozaik; öğünlerini, filmlerini, kitaplarını, müziklerini, sağlık verilerini ve telefon bildirimlerini sana ait tek bir veritabanında toplar ve hepsini tek bir zaman çizelgesinde gösterir.
 
-[![Release](https://img.shields.io/github/v/release/Enki013/personal-records?label=APK&logo=android&logoColor=white)](https://github.com/Enki013/personal-records/releases/latest)
+[![Release](https://img.shields.io/github/v/release/Enki013/Mozaik?label=APK&logo=android&logoColor=white)](https://github.com/Enki013/Mozaik/releases/latest)
 [![Kotlin](https://img.shields.io/badge/Kotlin-2.2-7F52FF?logo=kotlin&logoColor=white)](https://kotlinlang.org/)
 [![Jetpack Compose](https://img.shields.io/badge/Compose-Material_3_Expressive-4285F4?logo=jetpackcompose&logoColor=white)](https://developer.android.com/jetpack/compose)
 [![Cloudflare Workers](https://img.shields.io/badge/Cloudflare-Workers_%2B_D1-F38020?logo=cloudflare&logoColor=white)](https://workers.cloudflare.com/)
@@ -178,7 +178,7 @@ Mozaik bildirimlerini ya da sağlık verilerini kendisi okumaz. Bu verileri sunu
 ## Hızlı başlangıç
 
 1. **Sunucuyu kur.** En hızlı yol [Cloudflare Worker + D1](#seçenek-1-cloudflare-worker--d1-önerilen). Yaklaşık 10 dakika sürer ve ücretsizdir.
-2. **Uygulamayı kur.** APK dosyasını [son sürümden](https://github.com/Enki013/personal-records/releases/latest) indir.
+2. **Uygulamayı kur.** APK dosyasını [son sürümden](https://github.com/Enki013/Mozaik/releases/latest) indir.
 3. **Bağlan.** Uygulamada **Ayarlar**'ı aç, sunucu adresini ve API anahtarını gir, **Bağlantıyı Sına**'ya dokun.
 4. **Kaynak ekle.** Goodreads ID'ni, Letterboxd ya da Last.fm kullanıcı adını gir. Bildirim ve sağlık verisi istiyorsan [yardımcı uygulamaları](#yardımcı-uygulamalar) kur.
 
@@ -262,7 +262,7 @@ Ayrıntılar [backend/README.md](backend/README.md) dosyasında.
 
 ### Kurulum
 
-[Son sürümden](https://github.com/Enki013/personal-records/releases/latest) `app-release.apk` dosyasını indir. Her sürümde indirilen dosyayı doğrulamak için bir `SHA256SUMS.txt` dosyası bulunur.
+[Son sürümden](https://github.com/Enki013/Mozaik/releases/latest) `app-release.apk` dosyasını indir. Her sürümde indirilen dosyayı doğrulamak için bir `SHA256SUMS.txt` dosyası bulunur.
 
 ### Kaynaktan derleme
 
@@ -416,7 +416,7 @@ Canlı test şunları kontrol eder: sağlık denetimi, kimlik doğrulama (yanlı
 ## Proje yapısı
 
 ```text
-personal-records/
+Mozaik/
 ├── android/            Mozaik Android uygulaması (Kotlin, Jetpack Compose, Material 3 Expressive)
 │   └── app/src/main/java/com/personalrecords/app/
 │       ├── core/       tema, ağ, entegrasyon kataloğu, tercihler
@@ -431,7 +431,7 @@ personal-records/
 └── docker-compose.yml
 ```
 
-Repo ve paket adı hâlâ `personal-records` / `com.personalrecords.app`. Mozaik, uygulamanın görünen adıdır.
+Android paket adı hâlâ `com.personalrecords.app`; Worker ve veritabanı da `personal-records` adlarını koruyor. Böylece mevcut kurulumlar ve dağıtımlar çalışmaya devam eder.
 
 ---
 

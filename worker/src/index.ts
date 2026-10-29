@@ -3376,7 +3376,7 @@ app.post("/api/music/sync-listenbrainz", async (c) => {
     }
 
     const headers: Record<string, string> = {
-      "User-Agent": "PersonalRecordsApp/1.0 (https://github.com/Enki013/personal-records)",
+      "User-Agent": "PersonalRecordsApp/1.0 (https://github.com/Enki013/Mozaik)",
     };
     if (row?.listenbrainz_token) {
       headers["Authorization"] = `Token ${row.listenbrainz_token.trim()}`;
