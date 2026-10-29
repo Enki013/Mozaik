@@ -181,12 +181,13 @@ fun HealthConnectScreen(
                     NumberFormat.getIntegerInstance(Locale.getDefault()).format(summary.today_steps.toLong())
                 } else "0"
             }
-            val sleepFormatted = remember(summary.last_sleep_seconds) {
+            val sleepPattern = stringResource(R.string.health_duration_hours_minutes)
+            val sleepFormatted = remember(summary.last_sleep_seconds, sleepPattern) {
                 val sec = summary.last_sleep_seconds.toLong()
                 if (sec > 0L) {
                     val hrs = sec / 3600
                     val mins = (sec % 3600) / 60
-                    "${hrs}s ${mins}d"
+                    String.format(sleepPattern, hrs, mins)
                 } else "-"
             }
             val hrFormatted = remember(summary.latest_heart_rate_bpm) {

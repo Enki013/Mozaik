@@ -311,7 +311,7 @@ fun NutritionScreen(
                                 title = "${stringResource(R.string.nutrition_label_carb)} / ${stringResource(R.string.nutrition_label_fat)}",
                                 value = "${state.todayCarb.toInt()}g · ${state.todayFat.toInt()}g",
                                 badgeText = "$carbPct% / $fatPct%",
-                                note = "Karb / Yağ dengesi",
+                                note = stringResource(R.string.nutrition_carbfat_note),
                                 valueIcon = Icons.Default.PieChart,
                                 valueIconTint = recordCategoryColors(RecordCategory.Books).accent,
                                 badgeBg = recordCategoryColors(RecordCategory.Books).container,

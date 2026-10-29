@@ -325,13 +325,19 @@ private fun TimelineDayHeaderItem(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
+            // Build the label here: the server sends a Turkish "Bugün"/"Dün" label.
+            val dayLabel = when (entry.date) {
+                java.time.LocalDate.now().toString() -> stringResource(R.string.timeline_today)
+                java.time.LocalDate.now().minusDays(1).toString() -> stringResource(R.string.timeline_yesterday)
+                else -> ""
+            }
             Column {
                 Text(
-                    text = entry.label.ifBlank { entry.date },
+                    text = dayLabel.ifBlank { entry.date },
                     style = MaterialTheme.typography.titleMediumEmphasized,
                     color = MaterialTheme.colorScheme.onSurface
                 )
-                if (entry.label.isNotBlank() && entry.label != entry.date) {
+                if (dayLabel.isNotBlank()) {
                     Text(
                         text = entry.date,
                         style = MaterialTheme.typography.labelSmall,

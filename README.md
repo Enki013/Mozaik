@@ -17,6 +17,13 @@ Mozaik collects your meals, films, books, music, health data and phone notificat
 
 **English** · [Türkçe](README.tr.md)
 
+<p>
+  <img src="docs/screenshots/overview.webp" alt="Overview" width="200" />
+  <img src="docs/screenshots/timeline.webp" alt="Timeline" width="200" />
+  <img src="docs/screenshots/movies.webp" alt="Films" width="200" />
+  <img src="docs/screenshots/overview-dark.webp" alt="Overview, dark theme" width="200" />
+</p>
+
 </div>
 
 ---
@@ -25,6 +32,7 @@ Mozaik collects your meals, films, books, music, health data and phone notificat
 
 - [How it works](#how-it-works)
 - [Features](#features)
+- [Screenshots](#screenshots)
 - [Companion apps](#companion-apps)
 - [Quick start](#quick-start)
 - [Server setup](#server-setup)
@@ -117,6 +125,37 @@ Planned: Spotify Direct API, Simkl, Steam. See the [roadmap](docs/ROADMAP.md).
 - **Authentication** on every data, export and sync route.
 - A strict CORS allowlist, security headers and a sync cooldown that protects external services from too many requests.
 - **Export** as SQL dump, SQLite file or JSON.
+
+---
+
+## Screenshots
+
+<table>
+  <tr>
+    <td align="center"><img src="docs/screenshots/overview.webp" alt="Overview" width="180" /><br/><sub>Overview</sub></td>
+    <td align="center"><img src="docs/screenshots/timeline.webp" alt="Timeline" width="180" /><br/><sub>Timeline</sub></td>
+    <td align="center"><img src="docs/screenshots/records.webp" alt="Records" width="180" /><br/><sub>Records</sub></td>
+    <td align="center"><img src="docs/screenshots/catalog.webp" alt="Integration catalog" width="180" /><br/><sub>Integration catalog</sub></td>
+  </tr>
+  <tr>
+    <td align="center"><img src="docs/screenshots/books.webp" alt="Books" width="180" /><br/><sub>Books</sub></td>
+    <td align="center"><img src="docs/screenshots/movies.webp" alt="Films" width="180" /><br/><sub>Films</sub></td>
+    <td align="center"><img src="docs/screenshots/music.webp" alt="Music" width="180" /><br/><sub>Music</sub></td>
+    <td align="center"><img src="docs/screenshots/health.webp" alt="Health Connect" width="180" /><br/><sub>Health Connect</sub></td>
+  </tr>
+  <tr>
+    <td align="center"><img src="docs/screenshots/nutrition.webp" alt="Nutrition" width="180" /><br/><sub>Nutrition</sub></td>
+    <td align="center"><img src="docs/screenshots/notifications.webp" alt="Notifications" width="180" /><br/><sub>Notifications</sub></td>
+    <td align="center"><img src="docs/screenshots/overview-dark.webp" alt="Overview (dark)" width="180" /><br/><sub>Overview (dark)</sub></td>
+    <td align="center"><img src="docs/screenshots/timeline-dark.webp" alt="Timeline (dark)" width="180" /><br/><sub>Timeline (dark)</sub></td>
+  </tr>
+  <tr>
+    <td align="center"><img src="docs/screenshots/books-dark.webp" alt="Books (dark)" width="180" /><br/><sub>Books (dark)</sub></td>
+    <td align="center"><img src="docs/screenshots/movies-dark.webp" alt="Films (dark)" width="180" /><br/><sub>Films (dark)</sub></td>
+  </tr>
+</table>
+
+Screenshots use fictional demo data.
 
 ---
 

@@ -17,6 +17,13 @@ Mozaik; öğünlerini, filmlerini, kitaplarını, müziklerini, sağlık veriler
 
 [English](README.md) · **Türkçe**
 
+<p>
+  <img src="docs/screenshots/overview.webp" alt="Overview" width="200" />
+  <img src="docs/screenshots/timeline.webp" alt="Timeline" width="200" />
+  <img src="docs/screenshots/movies.webp" alt="Films" width="200" />
+  <img src="docs/screenshots/overview-dark.webp" alt="Overview, dark theme" width="200" />
+</p>
+
 </div>
 
 ---
@@ -25,6 +32,7 @@ Mozaik; öğünlerini, filmlerini, kitaplarını, müziklerini, sağlık veriler
 
 - [Nasıl çalışır](#nasıl-çalışır)
 - [Özellikler](#özellikler)
+- [Ekran görüntüleri](#ekran-görüntüleri)
 - [Yardımcı uygulamalar](#yardımcı-uygulamalar)
 - [Hızlı başlangıç](#hızlı-başlangıç)
 - [Sunucu kurulumu](#sunucu-kurulumu)
@@ -117,6 +125,37 @@ Planlananlar: Spotify Direct API, Simkl, Steam. Ayrıntılar [yol haritasında](
 - Tüm veri, dışa aktarma ve eşitleme adreslerinde **kimlik doğrulama**.
 - Sıkı CORS izin listesi, güvenlik başlıkları ve dış servisleri aşırı istekten koruyan eşitleme bekleme süresi.
 - SQL dökümü, SQLite dosyası ya da JSON olarak **dışa aktarma**.
+
+---
+
+## Ekran görüntüleri
+
+<table>
+  <tr>
+    <td align="center"><img src="docs/screenshots/overview.webp" alt="Özet" width="180" /><br/><sub>Özet</sub></td>
+    <td align="center"><img src="docs/screenshots/timeline.webp" alt="Zaman Çizelgesi" width="180" /><br/><sub>Zaman Çizelgesi</sub></td>
+    <td align="center"><img src="docs/screenshots/records.webp" alt="Kayıtlar" width="180" /><br/><sub>Kayıtlar</sub></td>
+    <td align="center"><img src="docs/screenshots/catalog.webp" alt="Entegrasyon Kataloğu" width="180" /><br/><sub>Entegrasyon Kataloğu</sub></td>
+  </tr>
+  <tr>
+    <td align="center"><img src="docs/screenshots/books.webp" alt="Kitaplar" width="180" /><br/><sub>Kitaplar</sub></td>
+    <td align="center"><img src="docs/screenshots/movies.webp" alt="Filmler" width="180" /><br/><sub>Filmler</sub></td>
+    <td align="center"><img src="docs/screenshots/music.webp" alt="Müzik" width="180" /><br/><sub>Müzik</sub></td>
+    <td align="center"><img src="docs/screenshots/health.webp" alt="Health Connect" width="180" /><br/><sub>Health Connect</sub></td>
+  </tr>
+  <tr>
+    <td align="center"><img src="docs/screenshots/nutrition.webp" alt="Beslenme" width="180" /><br/><sub>Beslenme</sub></td>
+    <td align="center"><img src="docs/screenshots/notifications.webp" alt="Bildirimler" width="180" /><br/><sub>Bildirimler</sub></td>
+    <td align="center"><img src="docs/screenshots/overview-dark.webp" alt="Özet (koyu)" width="180" /><br/><sub>Özet (koyu)</sub></td>
+    <td align="center"><img src="docs/screenshots/timeline-dark.webp" alt="Zaman Çizelgesi (koyu)" width="180" /><br/><sub>Zaman Çizelgesi (koyu)</sub></td>
+  </tr>
+  <tr>
+    <td align="center"><img src="docs/screenshots/books-dark.webp" alt="Kitaplar (koyu)" width="180" /><br/><sub>Kitaplar (koyu)</sub></td>
+    <td align="center"><img src="docs/screenshots/movies-dark.webp" alt="Filmler (koyu)" width="180" /><br/><sub>Filmler (koyu)</sub></td>
+  </tr>
+</table>
+
+Ekran görüntülerindeki veriler hayalidir (demo verisi). Uygulama arayüzü İngilizce gösterilmiştir; uygulama Türkçe de kullanılabilir.
 
 ---
 

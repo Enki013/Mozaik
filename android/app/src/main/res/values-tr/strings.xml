@@ -154,6 +154,8 @@
     <string name="timeline_filter_notifications">Bildirimler</string>
     <string name="timeline_today">Bugün</string>
     <string name="timeline_yesterday">Dün</string>
+    <string name="health_duration_hours_minutes">%1$d sa %2$d dk</string>
+    <string name="nutrition_carbfat_note">Karb / yağ dengesi</string>
     <string name="timeline_this_week">Bu Hafta</string>
     <string name="timeline_earlier">Daha Önce</string>
     <string name="timeline_items_count">%1$d aktivite</string>

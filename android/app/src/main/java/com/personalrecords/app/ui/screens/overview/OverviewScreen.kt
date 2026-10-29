@@ -319,7 +319,7 @@ fun OverviewScreen(
                                 label = stringResource(R.string.overview_hero_pill_remaining)
                             ),
                             HeroMetricPillData(
-                                value = "%${(calProgress * 100).toInt()}",
+                                value = java.text.NumberFormat.getPercentInstance(appLocale).format(calProgress.toDouble()),
                                 label = stringResource(R.string.overview_hero_pill_goal)
                             )
                         )

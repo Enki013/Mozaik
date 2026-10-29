@@ -310,7 +310,8 @@ fun MusicScreen(
                                                     "lastfm" -> stringResource(R.string.music_filter_lastfm)
                                                     "listenbrainz" -> stringResource(R.string.music_filter_listenbrainz)
                                                     "statsfm" -> stringResource(R.string.music_filter_statsfm)
-                                                    else -> stringResource(R.string.filter_all)
+                                                    "all" -> stringResource(R.string.filter_all)
+                                                    else -> musicSourceLabel(key)
                                                 }
                                             },
                                             iconProvider = { key, _ ->
@@ -679,7 +680,7 @@ private fun ScrobbleListItem(
                 scrobble.source.contains("lastfm", ignoreCase = true) -> "Last.fm"
                 scrobble.source.contains("listenbrainz", ignoreCase = true) -> "ListenBrainz"
                 scrobble.source.contains("statsfm", ignoreCase = true) -> "Stats.fm"
-                else -> scrobble.source.replaceFirstChar { it.uppercase() }
+                else -> musicSourceLabel(scrobble.source)
             }
 
             // Source is metadata, not a status: neutral tonal pill instead of brand/error colors.
@@ -836,7 +837,7 @@ fun MusicDetailContent(
                 scrobble.source.contains("lastfm", ignoreCase = true) -> "Last.fm"
                 scrobble.source.contains("listenbrainz", ignoreCase = true) -> "ListenBrainz"
                 scrobble.source.contains("statsfm", ignoreCase = true) -> "Stats.fm"
-                else -> scrobble.source.replaceFirstChar { it.uppercase() }
+                else -> musicSourceLabel(scrobble.source)
             }
             DetailInfoRow(
                 label = stringResource(R.string.music_detail_source),
@@ -987,4 +988,10 @@ private fun DetailInfoRow(
             modifier = Modifier.weight(1f)
         )
     }
+}
+
+/** Display name for a scrobble source key such as "web_scrobbler". */
+private fun musicSourceLabel(source: String): String = when {
+    source.contains("scrobbler", ignoreCase = true) -> "Web Scrobbler"
+    else -> source.replace('_', ' ').replaceFirstChar { it.uppercase() }
 }

@@ -154,6 +154,8 @@
     <string name="timeline_filter_notifications">Notifications</string>
     <string name="timeline_today">Today</string>
     <string name="timeline_yesterday">Yesterday</string>
+    <string name="health_duration_hours_minutes">%1$dh %2$dm</string>
+    <string name="nutrition_carbfat_note">Carb / fat balance</string>
     <string name="timeline_this_week">This Week</string>
     <string name="timeline_earlier">Earlier</string>
     <string name="timeline_items_count">%1$d activities</string>
