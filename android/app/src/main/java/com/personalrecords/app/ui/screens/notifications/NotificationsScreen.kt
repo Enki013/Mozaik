@@ -256,7 +256,7 @@ fun NotificationsScreen(
                                 leadingIcon = Icons.Rounded.Apps,
                                 isActive = state.selectedApp != null
                             )
-                            // Then sort, ahead of the clear chip so it keeps its place.
+                            // Then sort.
                             ExpressiveDropdownFilterChip(
                                 options = listOf("date_desc", "date_asc"),
                                 selected = state.sortBy,
@@ -271,9 +271,6 @@ fun NotificationsScreen(
                                 leadingIcon = Icons.AutoMirrored.Rounded.Sort,
                                 isActive = false
                             )
-                            if (hasActiveFilters) {
-                                ExpressiveClearFiltersChip(onClick = { viewModel.resetFilters() })
-                            }
                             ExpressiveQuickDateFilters(
                                 selectedDate = state.selectedDateFilter,
                                 fromDate = state.fromDateFilter,
@@ -284,9 +281,6 @@ fun NotificationsScreen(
                                     applyQuickRange(range, viewModel::setDateFilter, viewModel::setDateRangeFilter)
                                 }
                             )
-                        }
-                        if (hasActiveFilters) {
-                            ExpressiveFilterResultCount(count = state.filteredNotifications.size)
                         }
                     }
                 }
@@ -318,7 +312,24 @@ fun NotificationsScreen(
                         } else {
                             ExpressiveEmptyState(
                                 title = stringResource(R.string.notifications_search_empty),
-                                icon = Icons.Rounded.SearchOff
+                                icon = Icons.Rounded.SearchOff,
+                                action = {
+                                    Button(
+                                        onClick = { viewModel.resetFilters() },
+                                        shapes = expressiveButtonShapes()
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Rounded.FilterListOff,
+                                            contentDescription = null,
+                                            modifier = Modifier.size(18.dp)
+                                        )
+                                        Spacer(modifier = Modifier.width(8.dp))
+                                        Text(
+                                            text = stringResource(R.string.action_clear),
+                                            style = MaterialTheme.typography.labelLargeEmphasized
+                                        )
+                                    }
+                                }
                             )
                         }
                     }

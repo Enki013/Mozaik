@@ -372,7 +372,6 @@
     <string name="notifications_no_content">İçerik yok</string>
 
     <!-- Sorting & Timeline & Common -->
-    <string name="timeline_selected_date">Seçili Gün: %1$s</string>
     <string name="common_other">Diğer</string>
     <string name="action_sort">Sırala</string>
     <string name="sort_rating_desc">Puan (Azalan)</string>
@@ -680,10 +679,6 @@
     <string name="movies_filter_mdblist">MDBList</string>
     <string name="sort_calories">Kalori (Yüksek-Düşük)</string>
     <string name="sort_protein">Protein (Yüksek-Düşük)</string>
-    <plurals name="filter_result_count">
-        <item quantity="one">%d sonuç</item>
-        <item quantity="other">%d sonuç</item>
-    </plurals>
     <string name="settings_server_api_key_support">Sunucuna kurulumda verdiğin API_KEY değeri. Belirlemediysen boş bırak.</string>
     <string name="settings_webhook_auth_title">Sunucun API anahtarı istiyor</string>
     <string name="settings_webhook_auth_alt">Düz adresi kullanmak istersen: uygulamada X-Webhook-Secret adında bir başlık ekle, değerine API anahtarını yaz.</string>

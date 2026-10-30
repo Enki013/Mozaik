@@ -46,6 +46,8 @@ fun MoviesScreen(
     var targetCardId by remember { mutableStateOf<String?>(null) }
     var showDatePicker by remember { mutableStateOf(false) }
     var selectedFilm by remember { mutableStateOf<FilmDto?>(null) }
+    val hasActiveDate = state.selectedDateFilter != null || state.fromDateFilter != null
+    val hasActiveFilters = state.searchQuery.isNotEmpty() || hasActiveDate || state.onlyRewatches || state.onlyLetterboxd || state.onlyMdbList
 
     val cinemaColor = recordCategoryColors(RecordCategory.Movies).accent
     val ratingColor = ratingColors().accent
@@ -259,8 +261,6 @@ fun MoviesScreen(
                                 }
                             )
                         }
-                        val hasActiveDate = state.selectedDateFilter != null || state.fromDateFilter != null
-                        val hasActiveFilters = state.searchQuery.isNotEmpty() || hasActiveDate || state.onlyRewatches || state.onlyLetterboxd || state.onlyMdbList
                         ExpressiveFilterRow {
                             ExpressiveFilterChip(
                                 selected = state.onlyRewatches,
@@ -274,7 +274,7 @@ fun MoviesScreen(
                                 },
                                 label = { Text(text = stringResource(R.string.movies_filter_rewatches), style = MaterialTheme.typography.labelLarge) }
                             )
-                            // Then sort, ahead of the clear chip so it keeps its place.
+                            // Then sort.
                             ExpressiveDropdownFilterChip(
                                 options = listOf("date", "rating_desc", "rating_asc", "year", "title"),
                                 selected = state.sortBy,
@@ -292,9 +292,6 @@ fun MoviesScreen(
                                 leadingIcon = Icons.AutoMirrored.Rounded.Sort,
                                 isActive = false
                             )
-                            if (hasActiveFilters) {
-                                ExpressiveClearFiltersChip(onClick = { viewModel.resetFilters() })
-                            }
                             ExpressiveQuickDateFilters(
                                 selectedDate = state.selectedDateFilter,
                                 fromDate = state.fromDateFilter,
@@ -305,9 +302,6 @@ fun MoviesScreen(
                                     applyQuickRange(range, viewModel::setDateFilter, viewModel::setDateRangeFilter)
                                 }
                             )
-                        }
-                        if (hasActiveFilters) {
-                            ExpressiveFilterResultCount(count = state.filteredFilms.size)
                         }
                     }
                 }
@@ -327,12 +321,36 @@ fun MoviesScreen(
                     }
                 } else if (state.filteredFilms.isEmpty() && state.error == null) {
                     item(key = "movies_empty", span = { GridItemSpan(maxLineSpan) }, contentType = "empty") {
-                        ExpressiveEmptyState(
-                            title = stringResource(R.string.movies_empty),
-                            icon = Icons.Rounded.Movie,
-                            iconContainerColor = recordCategoryColors(RecordCategory.Movies).container,
-                            iconContentColor = recordCategoryColors(RecordCategory.Movies).onContainer
-                        )
+                        if (hasActiveFilters) {
+                            ExpressiveEmptyState(
+                                title = stringResource(R.string.movies_empty),
+                                icon = Icons.Rounded.SearchOff,
+                                action = {
+                                    Button(
+                                        onClick = { viewModel.resetFilters() },
+                                        shapes = expressiveButtonShapes()
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Rounded.FilterListOff,
+                                            contentDescription = null,
+                                            modifier = Modifier.size(18.dp)
+                                        )
+                                        Spacer(modifier = Modifier.width(8.dp))
+                                        Text(
+                                            text = stringResource(R.string.action_clear),
+                                            style = MaterialTheme.typography.labelLargeEmphasized
+                                        )
+                                    }
+                                }
+                            )
+                        } else {
+                            ExpressiveEmptyState(
+                                title = stringResource(R.string.movies_empty),
+                                icon = Icons.Rounded.Movie,
+                                iconContainerColor = recordCategoryColors(RecordCategory.Movies).container,
+                                iconContentColor = recordCategoryColors(RecordCategory.Movies).onContainer
+                            )
+                        }
                     }
                 } else {
                     itemsIndexed(

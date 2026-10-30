@@ -372,7 +372,6 @@
     <string name="notifications_no_content">No content</string>
 
     <!-- Sorting & Timeline & Common -->
-    <string name="timeline_selected_date">Selected Date: %1$s</string>
     <string name="common_other">Other</string>
     <string name="action_sort">Sort</string>
     <string name="sort_rating_desc">Rating (High-Low)</string>
@@ -684,10 +683,6 @@
     <string name="movies_filter_mdblist">MDBList</string>
     <string name="sort_calories">Calories (High-Low)</string>
     <string name="sort_protein">Protein (High-Low)</string>
-    <plurals name="filter_result_count">
-        <item quantity="one">%d result</item>
-        <item quantity="other">%d results</item>
-    </plurals>
     <string name="settings_server_api_key_support">The API_KEY you set on your server. Leave empty if you didn\'t set one.</string>
     <string name="settings_webhook_auth_title">Your server needs an API key</string>
     <string name="settings_webhook_auth_alt">Prefer the plain address? Add a header named X-Webhook-Secret in the app and use your API key as its value.</string>

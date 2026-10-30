@@ -71,6 +71,8 @@ fun MusicScreen(
 
     val scrollBehavior = TopAppBarDefaults.enterAlwaysScrollBehavior(rememberTopAppBarState())
     val snackbarHostState = remember { SnackbarHostState() }
+    val hasActiveDate = state.selectedDateFilter != null || state.fromDateFilter != null
+    val hasActiveFilters = state.searchQuery.isNotEmpty() || hasActiveDate || state.selectedFilter != "all" || state.selectedArtist != null
 
     val musicColor = recordCategoryColors(RecordCategory.Music).accent
     val cinemaColor = recordCategoryColors(RecordCategory.Movies).accent
@@ -349,7 +351,7 @@ fun MusicScreen(
                                             isActive = state.selectedArtist != null
                                         )
                                     }
-                                    // Then sort, ahead of the clear chip so it keeps its place.
+                                    // Then sort.
                                     ExpressiveDropdownFilterChip(
                                         options = listOf("date_desc", "date_asc", "track", "artist"),
                                         selected = state.sortBy,
@@ -366,9 +368,6 @@ fun MusicScreen(
                                         leadingIcon = Icons.AutoMirrored.Rounded.Sort,
                                         isActive = false
                                     )
-                                    if (hasActiveFilters) {
-                                        ExpressiveClearFiltersChip(onClick = { viewModel.resetFilters() })
-                                    }
                                     ExpressiveQuickDateFilters(
                                         selectedDate = state.selectedDateFilter,
                                         fromDate = state.fromDateFilter,
@@ -379,9 +378,6 @@ fun MusicScreen(
                                             applyQuickRange(range, viewModel::setDateFilter, viewModel::setDateRangeFilter)
                                         }
                                     )
-                                }
-                                if (hasActiveFilters) {
-                                    ExpressiveFilterResultCount(count = state.filteredScrobbles.size)
                                 }
                             }
                         }
@@ -400,10 +396,35 @@ fun MusicScreen(
                             }
                         } else if (state.filteredScrobbles.isEmpty() && state.error == null) {
                             item(key = "empty_state") {
-                                EmptyMusicView(
-                                    onSyncClick = { viewModel.syncLastFm() },
-                                    isSyncing = state.isSyncingLastFm
-                                )
+                                if (hasActiveFilters) {
+                                    ExpressiveEmptyState(
+                                        title = stringResource(R.string.timeline_empty_title),
+                                        message = stringResource(R.string.timeline_empty_desc),
+                                        icon = Icons.Rounded.SearchOff,
+                                        action = {
+                                            Button(
+                                                onClick = { viewModel.resetFilters() },
+                                                shapes = expressiveButtonShapes()
+                                            ) {
+                                                Icon(
+                                                    imageVector = Icons.Rounded.FilterListOff,
+                                                    contentDescription = null,
+                                                    modifier = Modifier.size(18.dp)
+                                                )
+                                                Spacer(modifier = Modifier.width(8.dp))
+                                                Text(
+                                                    text = stringResource(R.string.action_clear),
+                                                    style = MaterialTheme.typography.labelLargeEmphasized
+                                                )
+                                            }
+                                        }
+                                    )
+                                } else {
+                                    EmptyMusicView(
+                                        onSyncClick = { viewModel.syncLastFm() },
+                                        isSyncing = state.isSyncingLastFm
+                                    )
+                                }
                             }
                         } else {
                             // 5. Scrobble Items List

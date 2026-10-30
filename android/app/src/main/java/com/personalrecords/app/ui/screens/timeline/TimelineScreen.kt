@@ -47,6 +47,11 @@ fun TimelineScreen(
     var showDatePicker by remember { mutableStateOf(false) }
     var selectedActivity by remember { mutableStateOf<ActivityItemDto?>(null) }
     val onActivityClick = remember { { item: ActivityItemDto -> selectedActivity = item } }
+    val todayIso = java.time.LocalDate.now().toString()
+    val isToday = state.selectedDate == todayIso && state.fromDate == null
+    val hasCustomDate = !isToday && (state.selectedDate != null || state.fromDate != null)
+    val hasActiveFilters = isToday || hasCustomDate || state.selectedDays != TimelineDefaultDays ||
+        state.selectedSource != "all" || state.searchQuery.isNotEmpty()
 
     if (showDatePicker) {
         ExpressiveDateFilterDialog(
@@ -139,11 +144,6 @@ fun TimelineScreen(
                 // Layer 1: Search stays pinned until the date controls reach it.
                 // Same header layout as every list screen: search, single-choice source group, chip row.
                 stickyHeader(key = "timeline_filters", contentType = "sticky_header") {
-                    val todayIso = java.time.LocalDate.now().toString()
-                    val isToday = state.selectedDate == todayIso && state.fromDate == null
-                    val hasCustomDate = !isToday && (state.selectedDate != null || state.fromDate != null)
-                    val hasActiveFilters = isToday || hasCustomDate || state.selectedDays != TimelineDefaultDays ||
-                        state.selectedSource != "all" || state.searchQuery.isNotEmpty()
                     ExpressiveFilterHeader {
                         ExpressiveSearchField(
                             value = state.searchQuery,
@@ -184,9 +184,6 @@ fun TimelineScreen(
                             )
                         }
                         ExpressiveFilterRow {
-                            if (hasActiveFilters) {
-                                ExpressiveClearFiltersChip(onClick = { viewModel.resetFilters() })
-                            }
                             ExpressiveQuickDateFilters(
                                 selectedDate = state.selectedDate,
                                 fromDate = state.fromDate,
@@ -203,35 +200,6 @@ fun TimelineScreen(
                                     if (range == 0) viewModel.setToday() else viewModel.setDays(range)
                                 }
                             )
-                        }
-                    }
-                }
-
-                // Active date indicator
-                state.selectedDate?.let { date ->
-                    item(key = "timeline_selected_date_badge", contentType = "selected_date") {
-                        Surface(
-                            color = MaterialTheme.colorScheme.secondaryContainer,
-                            shape = MaterialTheme.shapes.small,
-                            modifier = Modifier.padding(top = 4.dp, bottom = 12.dp)
-                        ) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(6.dp),
-                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp)
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Rounded.CalendarMonth,
-                                    contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.onSecondaryContainer,
-                                    modifier = Modifier.size(16.dp)
-                                )
-                                Text(
-                                    text = stringResource(R.string.timeline_selected_date, date),
-                                    color = MaterialTheme.colorScheme.onSecondaryContainer,
-                                    style = MaterialTheme.typography.labelMediumEmphasized
-                                )
-                            }
                         }
                     }
                 }
@@ -254,7 +222,26 @@ fun TimelineScreen(
                         ExpressiveEmptyState(
                             title = stringResource(R.string.timeline_empty_title),
                             message = stringResource(R.string.timeline_empty_desc),
-                            icon = Icons.Rounded.SearchOff
+                            icon = Icons.Rounded.SearchOff,
+                            action = if (hasActiveFilters) {
+                                {
+                                    Button(
+                                        onClick = { viewModel.resetFilters() },
+                                        shapes = expressiveButtonShapes()
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Rounded.FilterListOff,
+                                            contentDescription = null,
+                                            modifier = Modifier.size(18.dp)
+                                        )
+                                        Spacer(modifier = Modifier.width(8.dp))
+                                        Text(
+                                            text = stringResource(R.string.action_clear),
+                                            style = MaterialTheme.typography.labelLargeEmphasized
+                                        )
+                                    }
+                                }
+                            } else null
                         )
                     }
                 } else {

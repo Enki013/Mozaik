@@ -20,9 +20,6 @@ import androidx.compose.material.icons.rounded.ArrowDropDown
 import androidx.compose.material.icons.rounded.CalendarMonth
 import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.Close
-import androidx.compose.material.icons.rounded.FilterListOff
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
@@ -45,7 +42,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.layout
-import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
@@ -256,40 +252,6 @@ private fun filterMenuItemColors() = MenuDefaults.selectableItemColors(
     selectedLeadingIconColor = MaterialTheme.colorScheme.onSecondaryContainer,
     selectedTrailingContentColor = MaterialTheme.colorScheme.onSecondaryContainer
 )
-
-/** "Clear" chip shown first in the chip row whenever any filter is active. */
-@Composable
-fun ExpressiveClearFiltersChip(
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    ExpressiveAssistChip(
-        onClick = onClick,
-        modifier = modifier,
-        leadingIcon = {
-            Icon(
-                imageVector = Icons.Rounded.FilterListOff,
-                contentDescription = null,
-                modifier = Modifier.size(FilterChipDefaults.IconSize)
-            )
-        },
-        label = { Text(text = stringResource(R.string.action_clear), style = MaterialTheme.typography.labelLarge) }
-    )
-}
-
-/** "23 results" line under the filter rows, shown while any filter or search is active. */
-@Composable
-fun ExpressiveFilterResultCount(
-    count: Int,
-    modifier: Modifier = Modifier
-) {
-    Text(
-        text = pluralStringResource(R.plurals.filter_result_count, count, count),
-        style = MaterialTheme.typography.labelMedium,
-        color = MaterialTheme.colorScheme.onSurfaceVariant,
-        modifier = modifier.filterHeaderItem()
-    )
-}
 
 /** Quick ranges next to the date chip: 0 means today, any other value means "last N days". */
 val QuickDateRanges: List<Int> = listOf(0, 7, 14, 30)

@@ -49,6 +49,8 @@ fun BooksScreen(
     var targetCardId by remember { mutableStateOf<String?>(null) }
     var showDatePicker by remember { mutableStateOf(false) }
     var selectedBook by remember { mutableStateOf<BookDto?>(null) }
+    val hasActiveDate = state.selectedDateFilter != null || state.fromDateFilter != null
+    val hasActiveFilters = state.searchQuery.isNotEmpty() || hasActiveDate || state.selectedShelf != "all"
 
     val booksColor = recordCategoryColors(RecordCategory.Books).accent
     val ratingColor = ratingColors().accent
@@ -262,10 +264,8 @@ fun BooksScreen(
                                 }
                             )
                         }
-                        val hasActiveDate = state.selectedDateFilter != null || state.fromDateFilter != null
-                        val hasActiveFilters = state.searchQuery.isNotEmpty() || hasActiveDate || state.selectedShelf != "all"
                         ExpressiveFilterRow {
-                            // Sort first, so it keeps its place when the clear chip appears.
+                            // Sort leads the row.
                             ExpressiveDropdownFilterChip(
                                 options = listOf("date", "rating_desc", "rating_asc", "title"),
                                 selected = state.sortBy,
@@ -282,9 +282,6 @@ fun BooksScreen(
                                 leadingIcon = Icons.AutoMirrored.Rounded.Sort,
                                 isActive = false
                             )
-                            if (hasActiveFilters) {
-                                ExpressiveClearFiltersChip(onClick = { viewModel.resetFilters() })
-                            }
                             ExpressiveQuickDateFilters(
                                 selectedDate = state.selectedDateFilter,
                                 fromDate = state.fromDateFilter,
@@ -295,9 +292,6 @@ fun BooksScreen(
                                     applyQuickRange(range, viewModel::setDateFilter, viewModel::setDateRangeFilter)
                                 }
                             )
-                        }
-                        if (hasActiveFilters) {
-                            ExpressiveFilterResultCount(count = state.filteredBooks.size)
                         }
                     }
                 }
@@ -317,12 +311,36 @@ fun BooksScreen(
                     }
                 } else if (state.filteredBooks.isEmpty() && state.error == null) {
                     item(key = "books_empty", span = { GridItemSpan(maxLineSpan) }, contentType = "empty") {
-                        ExpressiveEmptyState(
-                            title = stringResource(R.string.books_empty),
-                            icon = Icons.AutoMirrored.Rounded.MenuBook,
-                            iconContainerColor = recordCategoryColors(RecordCategory.Books).container,
-                            iconContentColor = recordCategoryColors(RecordCategory.Books).onContainer
-                        )
+                        if (hasActiveFilters) {
+                            ExpressiveEmptyState(
+                                title = stringResource(R.string.books_empty),
+                                icon = Icons.Rounded.SearchOff,
+                                action = {
+                                    Button(
+                                        onClick = { viewModel.resetFilters() },
+                                        shapes = expressiveButtonShapes()
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Rounded.FilterListOff,
+                                            contentDescription = null,
+                                            modifier = Modifier.size(18.dp)
+                                        )
+                                        Spacer(modifier = Modifier.width(8.dp))
+                                        Text(
+                                            text = stringResource(R.string.action_clear),
+                                            style = MaterialTheme.typography.labelLargeEmphasized
+                                        )
+                                    }
+                                }
+                            )
+                        } else {
+                            ExpressiveEmptyState(
+                                title = stringResource(R.string.books_empty),
+                                icon = Icons.AutoMirrored.Rounded.MenuBook,
+                                iconContainerColor = recordCategoryColors(RecordCategory.Books).container,
+                                iconContentColor = recordCategoryColors(RecordCategory.Books).onContainer
+                            )
+                        }
                     }
                 } else {
                     itemsIndexed(

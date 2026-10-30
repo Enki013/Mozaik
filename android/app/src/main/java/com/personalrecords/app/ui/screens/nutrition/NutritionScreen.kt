@@ -54,6 +54,8 @@ fun NutritionScreen(
     var showDatePicker by remember { mutableStateOf(false) }
     var selectedFood by remember { mutableStateOf<FoodEntryDto?>(null) }
     var animationStarted by remember { mutableStateOf(false) }
+    val hasActiveDate = state.selectedDateFilter != null || state.fromDateFilter != null
+    val hasActiveFilters = state.searchQuery.isNotEmpty() || hasActiveDate || state.selectedMeal != "all"
 
     val nutritionColor = recordCategoryColors(RecordCategory.Nutrition).accent
     val secondaryColor = MaterialTheme.colorScheme.secondary
@@ -576,10 +578,8 @@ fun NutritionScreen(
                             }
                         )
                     }
-                    val hasActiveDate = state.selectedDateFilter != null || state.fromDateFilter != null
-                    val hasActiveFilters = state.searchQuery.isNotEmpty() || hasActiveDate || state.selectedMeal != "all"
                     ExpressiveFilterRow {
-                        // Sort first, so it keeps its place when the clear chip appears.
+                        // Sort leads the row.
                         ExpressiveDropdownFilterChip(
                             options = listOf("date_desc", "date_asc", "calories_desc", "protein_desc"),
                             selected = state.sortBy,
@@ -596,9 +596,6 @@ fun NutritionScreen(
                             leadingIcon = Icons.AutoMirrored.Rounded.Sort,
                             isActive = false
                         )
-                        if (hasActiveFilters) {
-                            ExpressiveClearFiltersChip(onClick = { viewModel.resetFilters() })
-                        }
                         ExpressiveQuickDateFilters(
                             selectedDate = state.selectedDateFilter,
                             fromDate = state.fromDateFilter,
@@ -609,9 +606,6 @@ fun NutritionScreen(
                                 applyQuickRange(range, viewModel::setDateFilter, viewModel::setDateRangeFilter)
                             }
                         )
-                    }
-                    if (hasActiveFilters) {
-                        ExpressiveFilterResultCount(count = state.filteredFoods.size)
                     }
                 }
             }
@@ -632,12 +626,36 @@ fun NutritionScreen(
                 }
             } else if (state.filteredFoods.isEmpty() && state.error == null) {
                 item(key = "nutrition_empty", span = { GridItemSpan(maxLineSpan) }, contentType = "empty") {
-                    ExpressiveEmptyState(
-                        title = stringResource(R.string.nutrition_empty),
-                        icon = Icons.Rounded.Restaurant,
-                        iconContainerColor = recordCategoryColors(RecordCategory.Nutrition).container,
-                        iconContentColor = recordCategoryColors(RecordCategory.Nutrition).onContainer
-                    )
+                    if (hasActiveFilters) {
+                        ExpressiveEmptyState(
+                            title = stringResource(R.string.nutrition_empty),
+                            icon = Icons.Rounded.SearchOff,
+                            action = {
+                                Button(
+                                    onClick = { viewModel.resetFilters() },
+                                    shapes = expressiveButtonShapes()
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Rounded.FilterListOff,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text(
+                                        text = stringResource(R.string.action_clear),
+                                        style = MaterialTheme.typography.labelLargeEmphasized
+                                    )
+                                }
+                            }
+                        )
+                    } else {
+                        ExpressiveEmptyState(
+                            title = stringResource(R.string.nutrition_empty),
+                            icon = Icons.Rounded.Restaurant,
+                            iconContainerColor = recordCategoryColors(RecordCategory.Nutrition).container,
+                            iconContentColor = recordCategoryColors(RecordCategory.Nutrition).onContainer
+                        )
+                    }
                 }
             } else {
                 itemsIndexed(

@@ -65,6 +65,8 @@ fun IntegrationsCatalogScreen(
     val coroutineScope = rememberCoroutineScope()
     val scrollBehavior = TopAppBarDefaults.enterAlwaysScrollBehavior(rememberTopAppBarState())
     var selectedWebhookPlugin by remember { mutableStateOf<IntegrationPlugin?>(null) }
+    val hasActiveFilters = state.searchQuery.isNotEmpty() ||
+        state.selectedCategory != IntegrationCategory.ALL
 
     val messageContext = androidx.compose.ui.platform.LocalContext.current
     LaunchedEffect(state.toastMessage) {
@@ -117,8 +119,6 @@ fun IntegrationsCatalogScreen(
         ) {
             // Search & Category Filters
             stickyHeader(key = "catalog_search_filters", contentType = "sticky_header") {
-                val hasActiveFilters = state.searchQuery.isNotEmpty() ||
-                    state.selectedCategory != IntegrationCategory.ALL
                 ExpressiveFilterHeader {
                     ExpressiveSearchField(
                         value = state.searchQuery,
@@ -137,17 +137,6 @@ fun IntegrationsCatalogScreen(
                             labelProvider = { stringResource(it.labelRes) }
                         )
                     }
-                    if (hasActiveFilters) {
-                        ExpressiveFilterRow {
-                            ExpressiveClearFiltersChip(
-                                onClick = {
-                                    viewModel.setSearchQuery("")
-                                    viewModel.setSelectedCategory(IntegrationCategory.ALL)
-                                }
-                            )
-                        }
-                        ExpressiveFilterResultCount(count = state.plugins.size)
-                    }
                 }
             }
 
@@ -156,7 +145,29 @@ fun IntegrationsCatalogScreen(
                 item(key = "catalog_empty") {
                     ExpressiveEmptyState(
                         title = stringResource(R.string.catalog_empty_search),
-                        icon = Icons.Rounded.SearchOff
+                        icon = Icons.Rounded.SearchOff,
+                        action = if (hasActiveFilters) {
+                            {
+                                Button(
+                                    onClick = {
+                                        viewModel.setSearchQuery("")
+                                        viewModel.setSelectedCategory(IntegrationCategory.ALL)
+                                    },
+                                    shapes = expressiveButtonShapes()
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Rounded.FilterListOff,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text(
+                                        text = stringResource(R.string.action_clear),
+                                        style = MaterialTheme.typography.labelLargeEmphasized
+                                    )
+                                }
+                            }
+                        } else null
                     )
                 }
             } else {
