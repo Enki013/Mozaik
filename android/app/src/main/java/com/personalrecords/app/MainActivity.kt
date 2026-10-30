@@ -689,7 +689,7 @@ private fun ExpressiveAdaptiveNavigation(
                     // Darkest container tone: a greyish bar that keeps the theme's subtle tint and
                     // stands apart from the page in both themes, like Google's floating toolbars.
                     // (tonalElevation only tints the plain `surface` color, so it is not used.)
-                    color = MaterialTheme.colorScheme.surfaceContainer,
+                    color = MaterialTheme.colorScheme.surfaceContainerHighest,
                     shadowElevation = 3.dp,
                     modifier = Modifier.width(64.dp)
                 ) {
@@ -799,7 +799,7 @@ private fun ExpressiveAdaptiveNavigation(
                     // Darkest container tone: a greyish bar that keeps the theme's subtle tint and
                     // stands apart from the page in both themes, like Google's floating toolbars.
                     // (tonalElevation only tints the plain `surface` color, so it is not used.)
-                    color = MaterialTheme.colorScheme.surfaceContainer,
+                    color = MaterialTheme.colorScheme.surfaceContainerHighest,
                     shadowElevation = 3.dp,
                     modifier = Modifier.height(M3NavigationMetrics.FloatingBarHeight)
                 ) {
