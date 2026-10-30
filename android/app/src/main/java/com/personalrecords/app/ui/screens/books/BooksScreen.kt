@@ -329,29 +329,15 @@ fun BooksScreen(
                         key = { _, book -> book.book_id.ifBlank { "${book.title}_${book.author}" } },
                         contentType = { _, _ -> "book_row" }
                     ) { index, book ->
-                        if (isWideScreen) {
-                            Surface(
-                                modifier = expressiveItemModifier().fillMaxWidth(),
-                                shape = M3Shapes.CornerLarge,
-                                color = MaterialTheme.colorScheme.surfaceContainerLow
-                            ) {
-                                BookRowItem(
-                                    book = book,
-                                    onClick = { selectedBook = book }
-                                )
-                            }
-                        } else {
-                            LazyCardRowContainer(
-                                index = index,
-                                totalCount = state.filteredBooks.size,
-                                modifier = expressiveItemModifier()
-                            ) {
-                                BookRowItem(
-                                    book = book,
-                                    onClick = { selectedBook = book }
-                                )
-                            }
-                        }
+                        BookRowItem(
+                            book = book,
+                            // Grid cells on wide screens are standalone rows; phones get one segmented group.
+                            index = if (isWideScreen) 0 else index,
+                            count = if (isWideScreen) 1 else state.filteredBooks.size,
+                            addLeadingGap = !isWideScreen,
+                            modifier = expressiveItemModifier(),
+                            onClick = { selectedBook = book }
+                        )
                     }
                 }
 
@@ -418,6 +404,10 @@ fun BooksScreen(
 @Composable
 fun BookRowItem(
     book: BookDto,
+    index: Int = 0,
+    count: Int = 1,
+    modifier: Modifier = Modifier,
+    addLeadingGap: Boolean = false,
     onClick: () -> Unit = {}
 ) {
     val shelfLabel = when (book.exclusive_shelf.lowercase()) {
@@ -427,66 +417,66 @@ fun BookRowItem(
         else -> book.exclusive_shelf
     }
 
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .expressiveBounceClick(onClick = onClick)
-            .padding(horizontal = 12.dp, vertical = 10.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        PosterThumbnail(imageUrl = book.image_url, fallbackIcon = Icons.AutoMirrored.Filled.MenuBook, width = 36, height = 52)
-        Spacer(modifier = Modifier.width(12.dp))
-
-        Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = book.title,
-                style = MaterialTheme.typography.titleSmallEmphasized,
-                color = MaterialTheme.colorScheme.onSurface,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis
-            )
-            Spacer(modifier = Modifier.height(2.dp))
-            Text(
-                text = book.author,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
-            Spacer(modifier = Modifier.height(4.dp))
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(6.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Surface(
-                    shape = M3Shapes.CornerFull,
-                    color = recordCategoryColors(RecordCategory.Books).container
+    ExpressiveListRow(
+        index = index,
+        count = count,
+        modifier = modifier,
+        addLeadingGap = addLeadingGap,
+        onClick = onClick,
+        verticalAlignment = Alignment.CenterVertically,
+        leadingContent = {
+            PosterThumbnail(imageUrl = book.image_url, fallbackIcon = Icons.AutoMirrored.Filled.MenuBook, width = 36, height = 52)
+        },
+        trailingContent = if (book.my_rating > 0) {
+            { RatingBadge(rating = book.my_rating) }
+        } else null,
+        supportingContent = {
+            Column {
+                Text(
+                    text = book.author,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text(
-                        text = shelfLabel,
-                        style = MaterialTheme.typography.labelSmall,
-                        color = recordCategoryColors(RecordCategory.Books).onContainer,
-                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 1.5.dp),
-                        maxLines = 1,
-                        softWrap = false
-                    )
-                }
-                if (book.number_of_pages > 0) {
-                    Text(
-                        text = stringResource(R.string.books_pages, book.number_of_pages),
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 1,
-                        softWrap = false
-                    )
+                    Surface(
+                        shape = M3Shapes.CornerFull,
+                        color = recordCategoryColors(RecordCategory.Books).container
+                    ) {
+                        Text(
+                            text = shelfLabel,
+                            style = MaterialTheme.typography.labelSmall,
+                            color = recordCategoryColors(RecordCategory.Books).onContainer,
+                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 1.5.dp),
+                            maxLines = 1,
+                            softWrap = false
+                        )
+                    }
+                    if (book.number_of_pages > 0) {
+                        Text(
+                            text = stringResource(R.string.books_pages, book.number_of_pages),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 1,
+                            softWrap = false
+                        )
+                    }
                 }
             }
         }
-
-        if (book.my_rating > 0) {
-            Spacer(modifier = Modifier.width(8.dp))
-            RatingBadge(rating = book.my_rating)
-        }
+    ) {
+        Text(
+            text = book.title,
+            style = MaterialTheme.typography.titleSmallEmphasized,
+            color = MaterialTheme.colorScheme.onSurface,
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis
+        )
     }
 }
 

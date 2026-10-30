@@ -693,5 +693,16 @@
     <string name="filter_today">Bugün</string>
     <string name="filter_days_short">%1$dG</string>
     <string name="stats_drag_to_reorder">Sıralamak için sürükle</string>
+    <!-- Ayarlar: görünüm ve gruplu ayar sayfaları -->
+    <string name="settings_section_appearance">Görünüm</string>
+    <string name="settings_theme_title">Tema</string>
+    <string name="settings_theme_system">Sistem</string>
+    <string name="settings_theme_light">Açık</string>
+    <string name="settings_theme_dark">Koyu</string>
+    <string name="settings_dynamic_color_title">Dinamik renk</string>
+    <string name="settings_dynamic_color_desc">Duvar kağıdındaki renkleri kullan</string>
+    <string name="settings_server_not_configured">Ayarlanmadı</string>
+    <string name="settings_integrations_add">Entegrasyon ekle</string>
+    <string name="settings_integrations_add_desc">Entegrasyon kataloğuna göz at</string>
 </resources>
 

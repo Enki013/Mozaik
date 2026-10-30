@@ -3,7 +3,6 @@ package com.personalrecords.app.core.theme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 
@@ -103,9 +102,9 @@ fun statusColors(tone: StatusTone): StatusColorTokens {
     val scheme = MaterialTheme.colorScheme
     return when (tone) {
         StatusTone.Active -> StatusColorTokens(
-            indicator = if (isSystemInDarkTheme()) StatusSuccessDark else StatusSuccess,
-            container = if (isSystemInDarkTheme()) StatusSuccessDarkContainer else StatusSuccessContainer,
-            onContainer = if (isSystemInDarkTheme()) StatusSuccessDarkOnContainer else StatusSuccessOnContainer
+            indicator = if (LocalDarkTheme.current) StatusSuccessDark else StatusSuccess,
+            container = if (LocalDarkTheme.current) StatusSuccessDarkContainer else StatusSuccessContainer,
+            onContainer = if (LocalDarkTheme.current) StatusSuccessDarkOnContainer else StatusSuccessOnContainer
         )
         StatusTone.Paused -> StatusColorTokens(
             indicator = scheme.outline,

@@ -41,6 +41,8 @@ import androidx.compose.foundation.clickable
 import androidx.compose.material.icons.filled.ErrorOutline
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import androidx.compose.material3.ListItemDefaults
+import androidx.compose.material3.SegmentedListItem
 import androidx.compose.material3.TextButton
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
@@ -84,7 +86,11 @@ fun floatingNavSnackbarPadding(): androidx.compose.ui.unit.Dp {
         12.dp
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
+/**
+ * Small page top app bar, used on every screen. It keeps the `surface` color while content
+ * scrolls, so the bar and the sticky filter header under it never change tone.
+ */
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun ExpressivePageTopAppBar(
     title: String,
@@ -94,39 +100,39 @@ fun ExpressivePageTopAppBar(
     actions: @Composable RowScope.() -> Unit = {},
     scrollBehavior: TopAppBarScrollBehavior? = null
 ) {
-    val appBarContainerColor = MaterialTheme.colorScheme.surface
-    TopAppBar(
-        modifier = modifier,
-        title = {
-            Column(
-                verticalArrangement = Arrangement.spacedBy(1.dp)
-            ) {
-                Text(
-                    text = title,
-                    style = MaterialTheme.typography.titleLargeEmphasized,
-                    color = MaterialTheme.colorScheme.onSurface,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-                if (!subtitle.isNullOrBlank()) {
-                    Text(
-                        text = subtitle,
-                        style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                }
-            }
-        },
-        navigationIcon = navigationIcon,
-        actions = actions,
-        scrollBehavior = scrollBehavior,
-        colors = TopAppBarDefaults.topAppBarColors(
-            containerColor = appBarContainerColor,
-            scrolledContainerColor = appBarContainerColor
-        )
+    val colors = TopAppBarDefaults.topAppBarColors(
+        containerColor = MaterialTheme.colorScheme.surface,
+        scrolledContainerColor = MaterialTheme.colorScheme.surface
     )
+    val titleContent: @Composable () -> Unit = {
+        Text(
+            text = title,
+            style = MaterialTheme.typography.titleLargeEmphasized,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
+        )
+    }
+    val subtitleText = subtitle?.takeIf { it.isNotBlank() }
+    if (subtitleText != null) {
+        TopAppBar(
+            title = titleContent,
+            subtitle = { Text(text = subtitleText, maxLines = 1, overflow = TextOverflow.Ellipsis) },
+            modifier = modifier,
+            navigationIcon = navigationIcon,
+            actions = actions,
+            colors = colors,
+            scrollBehavior = scrollBehavior
+        )
+    } else {
+        TopAppBar(
+            title = titleContent,
+            modifier = modifier,
+            navigationIcon = navigationIcon,
+            actions = actions,
+            colors = colors,
+            scrollBehavior = scrollBehavior
+        )
+    }
 }
 
 @Composable
@@ -211,6 +217,69 @@ fun ExpressiveStatusBadge(
                 softWrap = false
             )
         }
+    }
+}
+
+/**
+ * One row of an M3 Expressive segmented list, built on [SegmentedListItem]: grouped corners
+ * from [ListItemDefaults.segmentedShapes], a shape change and state layer on press, focus and
+ * screen-reader semantics, and the standard 16dp list padding.
+ *
+ * In a lazy list keep [addLeadingGap] on, so each row after the first adds the segment gap
+ * itself. Pass `count = 1` for a standalone row (for example in a grid).
+ */
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+@Composable
+fun ExpressiveListRow(
+    index: Int,
+    count: Int,
+    modifier: Modifier = Modifier,
+    onClick: (() -> Unit)? = null,
+    onLongClick: (() -> Unit)? = null,
+    addLeadingGap: Boolean = true,
+    containerColor: Color = MaterialTheme.colorScheme.surfaceContainerLow,
+    /** Rows with a poster or avatar read better centered; text-only rows keep the M3 default. */
+    verticalAlignment: Alignment.Vertical = ListItemDefaults.verticalAlignment(),
+    leadingContent: (@Composable () -> Unit)? = null,
+    trailingContent: (@Composable () -> Unit)? = null,
+    overlineContent: (@Composable () -> Unit)? = null,
+    supportingContent: (@Composable () -> Unit)? = null,
+    headlineContent: @Composable () -> Unit
+) {
+    val rowModifier = modifier
+        .then(
+            if (addLeadingGap && index > 0) Modifier.padding(top = ListItemDefaults.SegmentedGap)
+            else Modifier
+        )
+        .fillMaxWidth()
+    val shapes = ListItemDefaults.segmentedShapes(index = index, count = count)
+    val colors = ListItemDefaults.segmentedColors(containerColor = containerColor)
+    if (onClick != null) {
+        SegmentedListItem(
+            onClick = onClick,
+            onLongClick = onLongClick,
+            shapes = shapes,
+            colors = colors,
+            modifier = rowModifier,
+            leadingContent = leadingContent,
+            trailingContent = trailingContent,
+            overlineContent = overlineContent,
+            supportingContent = supportingContent,
+            verticalAlignment = verticalAlignment,
+            content = headlineContent
+        )
+    } else {
+        SegmentedListItem(
+            shapes = shapes,
+            colors = colors,
+            modifier = rowModifier,
+            leadingContent = leadingContent,
+            trailingContent = trailingContent,
+            overlineContent = overlineContent,
+            supportingContent = supportingContent,
+            verticalAlignment = verticalAlignment,
+            content = headlineContent
+        )
     }
 }
 

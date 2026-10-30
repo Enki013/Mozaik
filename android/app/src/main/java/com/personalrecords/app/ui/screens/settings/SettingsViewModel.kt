@@ -1,5 +1,7 @@
 package com.personalrecords.app.ui.screens.settings
 
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.Immutable
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -90,6 +92,9 @@ data class SettingsUiState(
     val simklSaveMessage: String? = null,
     // Language
     val appLanguage: String = "system",
+    // Appearance
+    val themeMode: String = "system",
+    val dynamicColor: Boolean = true,
     // Integration Plugins
     val enabledPluginIds: Set<String> = emptySet()
 )
@@ -120,6 +125,16 @@ class SettingsViewModel(
             }
         }
         viewModelScope.launch {
+            preferences.themeMode.collect { mode ->
+                _uiState.update { it.copy(themeMode = mode) }
+            }
+        }
+        viewModelScope.launch {
+            preferences.dynamicColor.collect { enabled ->
+                _uiState.update { it.copy(dynamicColor = enabled) }
+            }
+        }
+        viewModelScope.launch {
             preferences.enabledIntegrationPlugins.collect { enabledSet ->
                 _uiState.update { it.copy(enabledPluginIds = enabledSet) }
             }
@@ -130,6 +145,17 @@ class SettingsViewModel(
         if (hasInitialized) return
         hasInitialized = true
         loadAllSettings()
+    }
+
+    /** Integration (or "server") whose settings page is open; set before navigating there. */
+    var openSettingsPageId by androidx.compose.runtime.mutableStateOf<String?>(null)
+
+    fun setThemeMode(mode: String) {
+        viewModelScope.launch { preferences.setThemeMode(mode) }
+    }
+
+    fun setDynamicColor(enabled: Boolean) {
+        viewModelScope.launch { preferences.setDynamicColor(enabled) }
     }
 
     fun setLanguage(language: String) {

@@ -167,6 +167,7 @@ fun NutritionScreen(
         )
     }
 
+    val gridState = rememberLazyGridState()
     Scaffold(
         modifier = Modifier
             .fillMaxSize()
@@ -212,7 +213,6 @@ fun NutritionScreen(
                 .fillMaxSize()
                 .padding(innerPadding)
         ) {
-            val gridState = rememberLazyGridState()
             val listContent: @Composable () -> Unit = {
                 LazyVerticalGrid(
                     columns = if (isWideScreen) GridCells.Adaptive(minSize = 340.dp) else GridCells.Fixed(1),
@@ -695,29 +695,15 @@ fun NutritionScreen(
                     key = { _, food -> food.food_entry_id.ifBlank { "${food.displayName}_${food.displayDate}_${food.meal}_${food.calories}" } },
                     contentType = { _, _ -> "food_row" }
                 ) { index, food ->
-                    if (isWideScreen) {
-                        Surface(
-                            modifier = expressiveItemModifier().fillMaxWidth(),
-                            shape = M3Shapes.CornerLarge,
-                            color = MaterialTheme.colorScheme.surfaceContainerLow
-                        ) {
-                            FoodEntryRowItem(
-                                item = food,
-                                onClick = { selectedFood = food }
-                            )
-                        }
-                    } else {
-                        LazyCardRowContainer(
-                            index = index,
-                            totalCount = state.filteredFoods.size,
-                            modifier = expressiveItemModifier()
-                        ) {
-                            FoodEntryRowItem(
-                                item = food,
-                                onClick = { selectedFood = food }
-                            )
-                        }
-                    }
+                    FoodEntryRowItem(
+                        item = food,
+                        onClick = { selectedFood = food },
+                        // Grid cells on wide screens are standalone rows; phones get one segmented group.
+                        index = if (isWideScreen) 0 else index,
+                        count = if (isWideScreen) 1 else state.filteredFoods.size,
+                        addLeadingGap = !isWideScreen,
+                        modifier = expressiveItemModifier()
+                    )
                 }
             }
 
@@ -840,91 +826,96 @@ fun MacroLegendItem(
 @Composable
 fun FoodEntryRowItem(
     item: FoodEntryDto,
+    index: Int = 0,
+    count: Int = 1,
+    modifier: Modifier = Modifier,
+    addLeadingGap: Boolean = false,
     onClick: () -> Unit = {}
 ) {
+
     val mealIcon = getMealIcon(item.meal)
     val mealLabel = formatMealName(item.meal)
 
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .expressiveBounceClick(onClick = onClick)
-            .padding(horizontal = 12.dp, vertical = 10.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        // M3 Meal Avatar Container (40dp, optical roundness: 8.dp CornerSmall inside 16.dp CornerLarge card)
-        Box(
-            modifier = Modifier
-                .size(40.dp)
-                .clip(M3Shapes.CornerSmall)
-                .background(recordCategoryColors(RecordCategory.Nutrition).container),
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(
-                imageVector = mealIcon,
-                contentDescription = null,
-                tint = recordCategoryColors(RecordCategory.Nutrition).onContainer,
-                modifier = Modifier.size(20.dp)
-            )
+    
+    ExpressiveListRow(
+        index = index,
+        count = count,
+        modifier = modifier,
+        addLeadingGap = addLeadingGap,
+        onClick = onClick,
+        verticalAlignment = Alignment.CenterVertically,
+        leadingContent = {
+            Box(
+                modifier = Modifier
+                    .size(40.dp)
+                    .clip(M3Shapes.CornerSmall)
+                    .background(recordCategoryColors(RecordCategory.Nutrition).container),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = mealIcon,
+                    contentDescription = null,
+                    tint = recordCategoryColors(RecordCategory.Nutrition).onContainer,
+                    modifier = Modifier.size(20.dp)
+                )
+            }
+        },
+        trailingContent = {
+            Column(horizontalAlignment = Alignment.End) {
+                Text(
+                    text = "${item.calories.toInt()} kcal",
+                    style = MaterialTheme.typography.titleSmallEmphasized,
+                    color = recordCategoryColors(RecordCategory.Nutrition).accent,
+                    maxLines = 1,
+                    softWrap = false
+                )
+                Spacer(modifier = Modifier.height(2.dp))
+                Text(
+                    text = stringResource(R.string.nutrition_macro_short, item.carbohydrate.toInt(), item.protein.toInt(), item.fat.toInt()),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    softWrap = false
+                )
+            }
+        },
+        supportingContent = {
+            Column {
+                Text(
+                    text = "${item.displayAmount} · ${item.displayDate}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
         }
-
-        Spacer(modifier = Modifier.width(12.dp))
-
-        Column(modifier = Modifier.weight(1f)) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(6.dp)
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+            Text(
+                text = item.displayName,
+                style = MaterialTheme.typography.bodyMediumEmphasized,
+                color = MaterialTheme.colorScheme.onSurface,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f, fill = false)
+            )
+            Surface(
+                shape = M3Shapes.CornerFull,
+                color = MaterialTheme.colorScheme.surfaceContainerHigh
             ) {
                 Text(
-                    text = item.displayName,
-                    style = MaterialTheme.typography.bodyMediumEmphasized,
-                    color = MaterialTheme.colorScheme.onSurface,
+                    text = mealLabel,
+                    style = MaterialTheme.typography.labelSmall,
+                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.weight(1f, fill = false)
+                    softWrap = false
                 )
-                Surface(
-                    shape = M3Shapes.CornerFull,
-                    color = MaterialTheme.colorScheme.surfaceContainerHigh
-                ) {
-                    Text(
-                        text = mealLabel,
-                        style = MaterialTheme.typography.labelSmall,
-                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 1,
-                        softWrap = false
-                    )
-                }
             }
-            Spacer(modifier = Modifier.height(2.dp))
-            Text(
-                text = "${item.displayAmount} · ${item.displayDate}",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
-        }
-
-        Spacer(modifier = Modifier.width(8.dp))
-
-        Column(horizontalAlignment = Alignment.End) {
-            Text(
-                text = "${item.calories.toInt()} kcal",
-                style = MaterialTheme.typography.titleSmallEmphasized,
-                color = recordCategoryColors(RecordCategory.Nutrition).accent,
-                maxLines = 1,
-                softWrap = false
-            )
-            Spacer(modifier = Modifier.height(2.dp))
-            Text(
-                text = stringResource(R.string.nutrition_macro_short, item.carbohydrate.toInt(), item.protein.toInt(), item.fat.toInt()),
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                maxLines = 1,
-                softWrap = false
-            )
         }
     }
 }

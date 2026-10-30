@@ -339,29 +339,15 @@ fun MoviesScreen(
                         key = { _, film -> film.film_key.ifBlank { "${film.displayTitle}_${film.year}_${film.safeWatchedDate}" } },
                         contentType = { _, _ -> "movie_row" }
                     ) { index, film ->
-                        if (isWideScreen) {
-                            Surface(
-                                modifier = expressiveItemModifier().fillMaxWidth(),
-                                shape = M3Shapes.CornerLarge,
-                                color = MaterialTheme.colorScheme.surfaceContainerLow
-                            ) {
-                                FilmRowItem(
-                                    film = film,
-                                    onClick = { selectedFilm = film }
-                                )
-                            }
-                        } else {
-                            LazyCardRowContainer(
-                                index = index,
-                                totalCount = state.filteredFilms.size,
-                                modifier = expressiveItemModifier()
-                            ) {
-                                FilmRowItem(
-                                    film = film,
-                                    onClick = { selectedFilm = film }
-                                )
-                            }
-                        }
+                        FilmRowItem(
+                            film = film,
+                            onClick = { selectedFilm = film },
+                            // Grid cells on wide screens are standalone rows; phones get one segmented group.
+                            index = if (isWideScreen) 0 else index,
+                            count = if (isWideScreen) 1 else state.filteredFilms.size,
+                            addLeadingGap = !isWideScreen,
+                            modifier = expressiveItemModifier()
+                        )
                     }
                 }
 
@@ -428,133 +414,136 @@ fun MoviesScreen(
 @Composable
 fun FilmRowItem(
     film: FilmDto,
+    index: Int = 0,
+    count: Int = 1,
+    modifier: Modifier = Modifier,
+    addLeadingGap: Boolean = false,
     onClick: () -> Unit = {}
 ) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .expressiveBounceClick(onClick = onClick)
-            .padding(horizontal = 12.dp, vertical = 10.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        PosterThumbnail(imageUrl = film.image_url, fallbackIcon = Icons.Default.Movie, width = 36, height = 52)
-        Spacer(modifier = Modifier.width(12.dp))
-
-        Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = film.displayTitle,
-                style = MaterialTheme.typography.titleSmallEmphasized,
-                color = MaterialTheme.colorScheme.onSurface,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis
-            )
-            Spacer(modifier = Modifier.height(4.dp))
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(6.dp),
-                verticalAlignment = Alignment.CenterVertically
+    ExpressiveListRow(
+        index = index,
+        count = count,
+        modifier = modifier,
+        addLeadingGap = addLeadingGap,
+        onClick = onClick,
+        verticalAlignment = Alignment.CenterVertically,
+        leadingContent = {
+            PosterThumbnail(imageUrl = film.image_url, fallbackIcon = Icons.Default.Movie, width = 36, height = 52)
+        },
+        trailingContent = {
+            Column(
+                horizontalAlignment = Alignment.End,
+                verticalArrangement = Arrangement.spacedBy(4.dp)
             ) {
-                if (film.isShow) {
-                    Surface(
-                        shape = M3Shapes.CornerFull,
-                        color = MaterialTheme.colorScheme.surfaceContainerHighest
-                    ) {
-                        Text(
-                            text = stringResource(R.string.movies_type_show),
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 1.5.dp),
-                            maxLines = 1,
-                            softWrap = false
-                        )
-                    }
+                if (film.safeRating > 0) {
+                    RatingBadge(rating = film.safeRating)
                 }
-                val metaText = buildString {
-                    if (film.safeYear > 0) append(film.safeYear)
-                    if (film.safeWatchedDate.isNotBlank()) {
-                        if (isNotEmpty()) append(" · ")
-                        append(film.safeWatchedDate)
-                    }
-                }
-                if (metaText.isNotBlank()) {
+
+                val isMdbList = film.source.equals("mdblist", ignoreCase = true)
+                val sourceLabel = if (isMdbList) "MDBList" else stringResource(R.string.movies_badge_letterboxd)
+                val sourceColor = if (isMdbList) MaterialTheme.colorScheme.tertiary else recordCategoryColors(RecordCategory.Movies).accent
+
+                Surface(
+                    shape = M3Shapes.CornerFull,
+                    color = sourceColor.copy(alpha = 0.12f)
+                ) {
                     Text(
-                        text = metaText,
+                        text = sourceLabel,
                         style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        color = sourceColor,
+                        fontWeight = FontWeight.Medium,
+                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
                         maxLines = 1,
                         softWrap = false
                     )
                 }
-                if (film.rewatch) {
-                    Surface(
-                        shape = M3Shapes.CornerFull,
-                        color = recordCategoryColors(RecordCategory.Movies).container
-                    ) {
-                        Row(
-                            modifier = Modifier.padding(horizontal = 5.dp, vertical = 1.5.dp),
-                            horizontalArrangement = Arrangement.spacedBy(3.dp),
-                            verticalAlignment = Alignment.CenterVertically
+            }
+        },
+        supportingContent = {
+            Column {
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    if (film.isShow) {
+                        Surface(
+                            shape = M3Shapes.CornerFull,
+                            color = MaterialTheme.colorScheme.surfaceContainerHighest
                         ) {
-                            Icon(
-                                imageVector = Icons.Default.Repeat,
-                                contentDescription = null,
-                                modifier = Modifier.size(10.dp),
-                                tint = recordCategoryColors(RecordCategory.Movies).onContainer
-                            )
                             Text(
-                                text = stringResource(R.string.movies_rewatch_badge),
-                                style = MaterialTheme.typography.labelSmallEmphasized,
-                                color = recordCategoryColors(RecordCategory.Movies).onContainer,
+                                text = stringResource(R.string.movies_type_show),
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 1.5.dp),
                                 maxLines = 1,
                                 softWrap = false
                             )
                         }
                     }
+                    val metaText = buildString {
+                        if (film.safeYear > 0) append(film.safeYear)
+                        if (film.safeWatchedDate.isNotBlank()) {
+                            if (isNotEmpty()) append(" · ")
+                            append(film.safeWatchedDate)
+                        }
+                    }
+                    if (metaText.isNotBlank()) {
+                        Text(
+                            text = metaText,
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 1,
+                            softWrap = false
+                        )
+                    }
+                    if (film.rewatch) {
+                        Surface(
+                            shape = M3Shapes.CornerFull,
+                            color = recordCategoryColors(RecordCategory.Movies).container
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 5.dp, vertical = 1.5.dp),
+                                horizontalArrangement = Arrangement.spacedBy(3.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Repeat,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(10.dp),
+                                    tint = recordCategoryColors(RecordCategory.Movies).onContainer
+                                )
+                                Text(
+                                    text = stringResource(R.string.movies_rewatch_badge),
+                                    style = MaterialTheme.typography.labelSmallEmphasized,
+                                    color = recordCategoryColors(RecordCategory.Movies).onContainer,
+                                    maxLines = 1,
+                                    softWrap = false
+                                )
+                            }
+                        }
+                    }
+                }
+                if (film.safeReview.isNotBlank()) {
+                    Spacer(modifier = Modifier.height(3.dp))
+                    Text(
+                        text = "“${film.safeReview.take(120)}${if (film.safeReview.length > 120) "..." else ""}”",
+                        style = MaterialTheme.typography.bodySmall,
+                        fontStyle = FontStyle.Italic,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis
+                    )
                 }
             }
-
-            if (film.safeReview.isNotBlank()) {
-                Spacer(modifier = Modifier.height(3.dp))
-                Text(
-                    text = "“${film.safeReview.take(120)}${if (film.safeReview.length > 120) "..." else ""}”",
-                    style = MaterialTheme.typography.bodySmall,
-                    fontStyle = FontStyle.Italic,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis
-                )
-            }
         }
-
-        Spacer(modifier = Modifier.width(8.dp))
-
-        // Trailing Column: Rating & Source Badge (matching MusicScreen design pattern)
-        Column(
-            horizontalAlignment = Alignment.End,
-            verticalArrangement = Arrangement.spacedBy(4.dp)
-        ) {
-            if (film.safeRating > 0) {
-                RatingBadge(rating = film.safeRating)
-            }
-
-            val isMdbList = film.source.equals("mdblist", ignoreCase = true)
-            val sourceLabel = if (isMdbList) "MDBList" else stringResource(R.string.movies_badge_letterboxd)
-            val sourceColor = if (isMdbList) MaterialTheme.colorScheme.tertiary else recordCategoryColors(RecordCategory.Movies).accent
-
-            Surface(
-                shape = M3Shapes.CornerFull,
-                color = sourceColor.copy(alpha = 0.12f)
-            ) {
-                Text(
-                    text = sourceLabel,
-                    style = MaterialTheme.typography.labelSmall,
-                    color = sourceColor,
-                    fontWeight = FontWeight.Medium,
-                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
-                    maxLines = 1,
-                    softWrap = false
-                )
-            }
-        }
+    ) {
+        Text(
+            text = film.displayTitle,
+            style = MaterialTheme.typography.titleSmallEmphasized,
+            color = MaterialTheme.colorScheme.onSurface,
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis
+        )
     }
 }
 

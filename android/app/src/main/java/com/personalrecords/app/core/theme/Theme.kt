@@ -22,6 +22,9 @@ import androidx.core.view.WindowCompat
 
 val LocalReducedMotion = staticCompositionLocalOf { false }
 
+/** Whether the app is drawn dark: follows the in-app theme choice, not only the system. */
+val LocalDarkTheme = staticCompositionLocalOf { false }
+
 // ==========================================
 // Material Design 3 Color Schemes
 // ==========================================
@@ -140,7 +143,8 @@ fun PersonalRecordsTheme(
     }
 
     CompositionLocalProvider(
-        LocalReducedMotion provides isReducedMotion
+        LocalReducedMotion provides isReducedMotion,
+        LocalDarkTheme provides darkTheme
     ) {
         MaterialTheme(
             colorScheme = colorScheme,
@@ -159,75 +163,75 @@ fun PersonalRecordsTheme(
 
 @Composable
 fun domainNutritionContainer(): androidx.compose.ui.graphics.Color =
-    if (isSystemInDarkTheme()) NutritionGreenDarkContainer else NutritionGreenContainer
+    if (LocalDarkTheme.current) NutritionGreenDarkContainer else NutritionGreenContainer
 
 @Composable
 fun domainNutritionOnContainer(): androidx.compose.ui.graphics.Color =
-    if (isSystemInDarkTheme()) NutritionGreenDarkOnContainer else NutritionGreenOnContainer
+    if (LocalDarkTheme.current) NutritionGreenDarkOnContainer else NutritionGreenOnContainer
 
 @Composable
 fun domainBooksContainer(): androidx.compose.ui.graphics.Color =
-    if (isSystemInDarkTheme()) BooksAccentDarkContainer else BooksAccentContainer
+    if (LocalDarkTheme.current) BooksAccentDarkContainer else BooksAccentContainer
 
 @Composable
 fun domainBooksOnContainer(): androidx.compose.ui.graphics.Color =
-    if (isSystemInDarkTheme()) BooksAccentDarkOnContainer else BooksAccentOnContainer
+    if (LocalDarkTheme.current) BooksAccentDarkOnContainer else BooksAccentOnContainer
 
 @Composable
 fun domainCinemaContainer(): androidx.compose.ui.graphics.Color =
-    if (isSystemInDarkTheme()) CinemaAccentDarkContainer else CinemaAccentContainer
+    if (LocalDarkTheme.current) CinemaAccentDarkContainer else CinemaAccentContainer
 
 @Composable
 fun domainCinemaOnContainer(): androidx.compose.ui.graphics.Color =
-    if (isSystemInDarkTheme()) CinemaAccentDarkOnContainer else CinemaAccentOnContainer
+    if (LocalDarkTheme.current) CinemaAccentDarkOnContainer else CinemaAccentOnContainer
 
 @Composable
 fun domainRatingContainer(): androidx.compose.ui.graphics.Color =
-    if (isSystemInDarkTheme()) RatingGoldDarkContainer else RatingGoldContainer
+    if (LocalDarkTheme.current) RatingGoldDarkContainer else RatingGoldContainer
 
 @Composable
 fun domainRatingOnContainer(): androidx.compose.ui.graphics.Color =
-    if (isSystemInDarkTheme()) RatingGoldDarkOnContainer else RatingGoldOnContainer
+    if (LocalDarkTheme.current) RatingGoldDarkOnContainer else RatingGoldOnContainer
 
 @Composable
 fun domainNutritionColor(): androidx.compose.ui.graphics.Color =
-    if (isSystemInDarkTheme()) NutritionGreenDark else NutritionGreen
+    if (LocalDarkTheme.current) NutritionGreenDark else NutritionGreen
 
 @Composable
 fun domainBooksColor(): androidx.compose.ui.graphics.Color =
-    if (isSystemInDarkTheme()) BooksAccentDark else BooksAccent
+    if (LocalDarkTheme.current) BooksAccentDark else BooksAccent
 
 @Composable
 fun domainCinemaColor(): androidx.compose.ui.graphics.Color =
-    if (isSystemInDarkTheme()) CinemaAccentDark else CinemaAccent
+    if (LocalDarkTheme.current) CinemaAccentDark else CinemaAccent
 
 @Composable
 fun domainRatingColor(): androidx.compose.ui.graphics.Color =
-    if (isSystemInDarkTheme()) RatingGoldDark else RatingGold
+    if (LocalDarkTheme.current) RatingGoldDark else RatingGold
 
 @Composable
 fun domainHealthContainer(): androidx.compose.ui.graphics.Color =
-    if (isSystemInDarkTheme()) HealthCrimsonDarkContainer else HealthCrimsonContainer
+    if (LocalDarkTheme.current) HealthCrimsonDarkContainer else HealthCrimsonContainer
 
 @Composable
 fun domainHealthOnContainer(): androidx.compose.ui.graphics.Color =
-    if (isSystemInDarkTheme()) HealthCrimsonDarkOnContainer else HealthCrimsonOnContainer
+    if (LocalDarkTheme.current) HealthCrimsonDarkOnContainer else HealthCrimsonOnContainer
 
 @Composable
 fun domainHealthColor(): androidx.compose.ui.graphics.Color =
-    if (isSystemInDarkTheme()) HealthCrimsonDark else HealthCrimson
+    if (LocalDarkTheme.current) HealthCrimsonDark else HealthCrimson
 
 @Composable
 fun domainMusicContainer(): androidx.compose.ui.graphics.Color =
-    if (isSystemInDarkTheme()) MusicAccentDarkContainer else MusicAccentContainer
+    if (LocalDarkTheme.current) MusicAccentDarkContainer else MusicAccentContainer
 
 @Composable
 fun domainMusicOnContainer(): androidx.compose.ui.graphics.Color =
-    if (isSystemInDarkTheme()) MusicAccentDarkOnContainer else MusicAccentOnContainer
+    if (LocalDarkTheme.current) MusicAccentDarkOnContainer else MusicAccentOnContainer
 
 @Composable
 fun domainMusicColor(): androidx.compose.ui.graphics.Color =
-    if (isSystemInDarkTheme()) MusicAccentDark else MusicAccent
+    if (LocalDarkTheme.current) MusicAccentDark else MusicAccent
 
 // Route app transitions through the same official scheme that Material components use.
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)

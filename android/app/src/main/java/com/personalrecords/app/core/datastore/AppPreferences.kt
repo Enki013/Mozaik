@@ -3,6 +3,7 @@ package com.personalrecords.app.core.datastore
 import android.content.Context
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
+import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
@@ -19,6 +20,9 @@ class AppPreferences(private val context: Context) {
         val SERVER_API_KEY = stringPreferencesKey("server_api_key")
         val CALORIE_TARGET = intPreferencesKey("calorie_target")
         val APP_LANGUAGE = stringPreferencesKey("app_language")
+        /** "system", "light" or "dark". */
+        val THEME_MODE = stringPreferencesKey("theme_mode")
+        val DYNAMIC_COLOR = booleanPreferencesKey("dynamic_color")
         val ENABLED_INTEGRATION_PLUGINS = stringSetPreferencesKey("enabled_integration_plugins")
         val HIDDEN_STATS_CARDS = stringSetPreferencesKey("hidden_stats_cards")
         val DEFAULT_ENABLED_PLUGINS = setOf("fatsecret", "goodreads", "letterboxd", "lastfm")
@@ -85,6 +89,22 @@ class AppPreferences(private val context: Context) {
 
     val calorieTarget: Flow<Int?> = context.dataStore.data.map { prefs ->
         prefs[CALORIE_TARGET]
+    }
+
+    val themeMode: Flow<String> = context.dataStore.data.map { prefs ->
+        prefs[THEME_MODE] ?: "system"
+    }
+
+    val dynamicColor: Flow<Boolean> = context.dataStore.data.map { prefs ->
+        prefs[DYNAMIC_COLOR] ?: true
+    }
+
+    suspend fun setThemeMode(mode: String) {
+        context.dataStore.edit { prefs -> prefs[THEME_MODE] = mode }
+    }
+
+    suspend fun setDynamicColor(enabled: Boolean) {
+        context.dataStore.edit { prefs -> prefs[DYNAMIC_COLOR] = enabled }
     }
 
     suspend fun setAppLanguage(language: String) {

@@ -411,16 +411,14 @@ fun MusicScreen(
                                 key = { _, scrobble -> scrobble.id },
                                 contentType = { _, _ -> "scrobble_row" }
                             ) { index, scrobble ->
-                                LazyCardRowContainer(
+                                ScrobbleListItem(
+                                    scrobble = scrobble,
+                                    onClick = { selectedScrobble = scrobble },
                                     index = index,
-                                    totalCount = state.filteredScrobbles.size,
+                                    count = state.filteredScrobbles.size,
+                                    addLeadingGap = true,
                                     modifier = expressiveItemModifier()
-                                ) {
-                                    ScrobbleListItem(
-                                        scrobble = scrobble,
-                                        onClick = { selectedScrobble = scrobble }
-                                    )
-                                }
+                                )
                             }
                         }
                     }
@@ -618,92 +616,101 @@ private fun MusicMetricsHeader(
 @Composable
 private fun ScrobbleListItem(
     scrobble: MusicScrobbleDto,
+    index: Int = 0,
+    count: Int = 1,
+    modifier: Modifier = Modifier,
+    addLeadingGap: Boolean = false,
     onClick: () -> Unit
 ) {
+
     // Same row anatomy as Books / Movies / Health: 12x10 padding, 40dp leading, titleSmall + bodySmall.
     val musicColors = recordCategoryColors(RecordCategory.Music)
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .expressiveBounceClick(onClick = onClick)
-            .padding(horizontal = 12.dp, vertical = 10.dp),
+    
+    ExpressiveListRow(
+        index = index,
+        count = count,
+        modifier = modifier,
+        addLeadingGap = addLeadingGap,
+        onClick = onClick,
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(12.dp)
-    ) {
-        Box(
-            modifier = Modifier
-                .size(40.dp)
-                .clip(M3Shapes.CornerSmall)
-                .background(musicColors.container),
-            contentAlignment = Alignment.Center
-        ) {
-            if (scrobble.imageUrl.isNotBlank()) {
-                AsyncImage(
-                    model = scrobble.imageUrl,
-                    contentDescription = scrobble.track,
-                    modifier = Modifier.fillMaxSize(),
-                    contentScale = ContentScale.Crop
-                )
-            } else {
-                Icon(
-                    imageVector = Icons.Default.MusicNote,
-                    contentDescription = null,
-                    tint = musicColors.onContainer,
-                    modifier = Modifier.size(20.dp)
-                )
-            }
-        }
-
-        Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = scrobble.track,
-                style = MaterialTheme.typography.titleSmallEmphasized,
-                color = MaterialTheme.colorScheme.onSurface,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
-            Spacer(modifier = Modifier.height(2.dp))
-            Text(
-                text = scrobble.artist + if (scrobble.album.isNotBlank()) " • ${scrobble.album}" else "",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
-        }
-
-        Column(
-            horizontalAlignment = Alignment.End,
-            verticalArrangement = Arrangement.spacedBy(4.dp)
-        ) {
-            val sourceLabel = when {
-                scrobble.source.contains("lastfm", ignoreCase = true) -> "Last.fm"
-                scrobble.source.contains("listenbrainz", ignoreCase = true) -> "ListenBrainz"
-                scrobble.source.contains("statsfm", ignoreCase = true) -> "Stats.fm"
-                else -> musicSourceLabel(scrobble.source)
-            }
-
-            // Source is metadata, not a status: neutral tonal pill instead of brand/error colors.
-            Surface(
-                shape = M3Shapes.CornerFull,
-                color = MaterialTheme.colorScheme.surfaceContainerHighest
+        leadingContent = {
+            Box(
+                modifier = Modifier
+                    .size(40.dp)
+                    .clip(M3Shapes.CornerSmall)
+                    .background(musicColors.container),
+                contentAlignment = Alignment.Center
             ) {
-                Text(
-                    text = sourceLabel,
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 1.5.dp)
-                )
+                if (scrobble.imageUrl.isNotBlank()) {
+                    AsyncImage(
+                        model = scrobble.imageUrl,
+                        contentDescription = scrobble.track,
+                        modifier = Modifier.fillMaxSize(),
+                        contentScale = ContentScale.Crop
+                    )
+                } else {
+                    Icon(
+                        imageVector = Icons.Default.MusicNote,
+                        contentDescription = null,
+                        tint = musicColors.onContainer,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
             }
+        },
+        trailingContent = {
+            Column(
+                horizontalAlignment = Alignment.End,
+                verticalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                val sourceLabel = when {
+                    scrobble.source.contains("lastfm", ignoreCase = true) -> "Last.fm"
+                    scrobble.source.contains("listenbrainz", ignoreCase = true) -> "ListenBrainz"
+                    scrobble.source.contains("statsfm", ignoreCase = true) -> "Stats.fm"
+                    else -> musicSourceLabel(scrobble.source)
+                }
 
-            if (scrobble.formattedTime.isNotBlank()) {
+                // Source is metadata, not a status: neutral tonal pill instead of brand/error colors.
+                Surface(
+                    shape = M3Shapes.CornerFull,
+                    color = MaterialTheme.colorScheme.surfaceContainerHighest
+                ) {
+                    Text(
+                        text = sourceLabel,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 1.5.dp)
+                    )
+                }
+
+                if (scrobble.formattedTime.isNotBlank()) {
+                    Text(
+                        text = scrobble.formattedTime,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+        },
+        supportingContent = {
+            Column {
                 Text(
-                    text = scrobble.formattedTime,
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    text = scrobble.artist + if (scrobble.album.isNotBlank()) " • ${scrobble.album}" else "",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
                 )
             }
         }
+    ) {
+        Text(
+            text = scrobble.track,
+            style = MaterialTheme.typography.titleSmallEmphasized,
+            color = MaterialTheme.colorScheme.onSurface,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
+        )
     }
 }
 

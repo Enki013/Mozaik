@@ -55,6 +55,10 @@ sealed class Screen(
 
     @Serializable
     data object IntegrationsCatalog : Screen("integrations_catalog", R.string.title_integrations_catalog, Icons.Default.Extension, navLabelRes = R.string.title_integrations_catalog)
+
+    /** One settings page (server or a single integration); which one is held by SettingsViewModel. */
+    @Serializable
+    data object SettingsDetail : Screen("settings_detail", R.string.title_settings, Icons.Default.Extension, navLabelRes = R.string.title_settings)
 }
 
 val bottomNavScreens = listOf(
@@ -79,7 +83,8 @@ val detailScreens = setOf(
     Screen.HealthConnect,
     Screen.Music,
     Screen.Language,
-    Screen.IntegrationsCatalog
+    Screen.IntegrationsCatalog,
+    Screen.SettingsDetail
 )
 
 val recordsSubScreens = setOf(

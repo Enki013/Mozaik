@@ -697,5 +697,16 @@
     <string name="filter_today">Today</string>
     <string name="filter_days_short">%1$dd</string>
     <string name="stats_drag_to_reorder">Drag to reorder</string>
+    <!-- Settings: appearance and grouped settings pages -->
+    <string name="settings_section_appearance">Appearance</string>
+    <string name="settings_theme_title">Theme</string>
+    <string name="settings_theme_system">System</string>
+    <string name="settings_theme_light">Light</string>
+    <string name="settings_theme_dark">Dark</string>
+    <string name="settings_dynamic_color_title">Dynamic color</string>
+    <string name="settings_dynamic_color_desc">Use colors from your wallpaper</string>
+    <string name="settings_server_not_configured">Not set up</string>
+    <string name="settings_integrations_add">Add integration</string>
+    <string name="settings_integrations_add_desc">Browse the integrations catalog</string>
 </resources>
 

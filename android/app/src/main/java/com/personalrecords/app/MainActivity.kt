@@ -83,9 +83,16 @@ class MainActivity : ComponentActivity() {
         setContent {
             val preferences = remember { PersonalRecordsApp.instance.preferences }
             val language by preferences.appLanguage.collectAsState(initial = "system")
+            val themeMode by preferences.themeMode.collectAsState(initial = "system")
+            val dynamicColor by preferences.dynamicColor.collectAsState(initial = true)
+            val darkTheme = when (themeMode) {
+                "light" -> false
+                "dark" -> true
+                else -> androidx.compose.foundation.isSystemInDarkTheme()
+            }
 
             ProvideLocalizedApp(language = language) {
-                PersonalRecordsTheme {
+                PersonalRecordsTheme(darkTheme = darkTheme, dynamicColor = dynamicColor) {
                     Surface(
                         modifier = Modifier.fillMaxSize(),
                         color = MaterialTheme.colorScheme.background
@@ -147,6 +154,7 @@ private fun Any?.toScreen(): Screen? {
             this == "Overview" || this.contains("Overview") -> Screen.Overview
             this == "Timeline" || this.contains("Timeline") -> Screen.Timeline
             this == "Records" || this.contains("Records") -> Screen.Records
+            this == "SettingsDetail" || this.contains("SettingsDetail") -> Screen.SettingsDetail
             this == "Settings" || this.contains("Settings") -> Screen.Settings
             this == "Nutrition" || this.contains("Nutrition") -> Screen.Nutrition
             this == "Books" || this.contains("Books") -> Screen.Books
@@ -346,7 +354,19 @@ fun MainAppHost() {
             IntegrationsCatalogScreen(
                 viewModel = catalogVm,
                 onNavigateBack = { navigator.goBack() },
-                onNavigateToSettings = { navigator.navigate(Screen.Settings) }
+                onNavigateToSettings = { pluginId ->
+                    settingsVm.openSettingsPageId = pluginId
+                    navigator.navigate(Screen.SettingsDetail)
+                }
+            )
+        }
+
+        entry<Screen.SettingsDetail> {
+            SettingsScreen(
+                viewModel = settingsVm,
+                pageId = settingsVm.openSettingsPageId,
+                onNavigateBack = { navigator.goBack() },
+                onNavigateToIntegrationsCatalog = { navigator.navigate(Screen.IntegrationsCatalog) }
             )
         }
     }
@@ -447,7 +467,11 @@ fun MainAppHost() {
                             scrollToTopFlow = settingsScrollFlow,
                             refreshFlow = settingsRefreshFlow,
                             onNavigateToLanguage = { navigator.navigate(Screen.Language) },
-                            onNavigateToIntegrationsCatalog = { navigator.navigate(Screen.IntegrationsCatalog) }
+                            onNavigateToIntegrationsCatalog = { navigator.navigate(Screen.IntegrationsCatalog) },
+                            onOpenSettingsPage = { pageId ->
+                                settingsVm.openSettingsPageId = pageId
+                                navigator.navigate(Screen.SettingsDetail)
+                            }
                         )
                     }
                 }
@@ -667,7 +691,7 @@ private fun ExpressiveAdaptiveNavigation(
         }
     }
 
-    val settingsSelected = topLevelRoute == Screen.Settings || currentRoute == Screen.Language
+    val settingsSelected = topLevelRoute == Screen.Settings || currentRoute == Screen.Language || currentRoute == Screen.SettingsDetail
 
     if (isWideScreen) {
         // Floating NavRail — M3 Expressive Vertical Floating Toolbar
@@ -703,7 +727,7 @@ private fun ExpressiveAdaptiveNavigation(
                                 val selected = when (screen) {
                                     Screen.Records -> topLevelRoute == Screen.Records || currentRoute in recordsSubScreens
                                     Screen.Settings -> settingsSelected
-                                    else -> topLevelRoute == screen && currentRoute !in recordsSubScreens && currentRoute != Screen.Language
+                                    else -> topLevelRoute == screen && currentRoute !in recordsSubScreens && currentRoute != Screen.Language && currentRoute != Screen.SettingsDetail
                                 }
 
                                 val interactionSource = remember { MutableInteractionSource() }
@@ -811,7 +835,7 @@ private fun ExpressiveAdaptiveNavigation(
                                 val selected = when (screen) {
                                     Screen.Records -> topLevelRoute == Screen.Records || currentRoute in recordsSubScreens
                                     Screen.Settings -> settingsSelected
-                                    else -> topLevelRoute == screen && currentRoute !in recordsSubScreens && currentRoute != Screen.Language
+                                    else -> topLevelRoute == screen && currentRoute !in recordsSubScreens && currentRoute != Screen.Language && currentRoute != Screen.SettingsDetail
                                 }
 
                                 val interactionSource = remember { MutableInteractionSource() }

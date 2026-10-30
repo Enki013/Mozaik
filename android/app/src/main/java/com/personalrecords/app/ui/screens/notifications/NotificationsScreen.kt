@@ -105,6 +105,7 @@ fun NotificationsScreen(
         )
     }
 
+    val gridState = rememberLazyGridState()
     Scaffold(
         modifier = Modifier
             .fillMaxSize()
@@ -151,7 +152,6 @@ fun NotificationsScreen(
                 .padding(innerPadding)
         ) {
             val appList = state.appList
-            val gridState = rememberLazyGridState()
             val listContent: @Composable () -> Unit = {
                 LazyVerticalGrid(
                     columns = if (isWideScreen) GridCells.Adaptive(minSize = 340.dp) else GridCells.Fixed(1),
@@ -327,29 +327,15 @@ fun NotificationsScreen(
                         key = { _, notif -> notif.id.ifBlank { "${notif.created_at}_${notif.app_name}_${notif.title}" } },
                         contentType = { _, _ -> "notification_row" }
                     ) { index, notif ->
-                        if (isWideScreen) {
-                            Surface(
-                                modifier = expressiveItemModifier().fillMaxWidth(),
-                                shape = M3Shapes.CornerLarge,
-                                color = MaterialTheme.colorScheme.surfaceContainerLow
-                            ) {
-                                NotificationRowItem(
-                                    notification = notif,
-                                    onClick = { selectedNotification = notif }
-                                )
-                            }
-                        } else {
-                            LazyCardRowContainer(
-                                index = index,
-                                totalCount = state.filteredNotifications.size,
-                                modifier = expressiveItemModifier()
-                            ) {
-                                NotificationRowItem(
-                                    notification = notif,
-                                    onClick = { selectedNotification = notif }
-                                )
-                            }
-                        }
+                        NotificationRowItem(
+                            notification = notif,
+                            onClick = { selectedNotification = notif },
+                            // Grid cells on wide screens are standalone rows; phones get one segmented group.
+                            index = if (isWideScreen) 0 else index,
+                            count = if (isWideScreen) 1 else state.filteredNotifications.size,
+                            addLeadingGap = !isWideScreen,
+                            modifier = expressiveItemModifier()
+                        )
                     }
                 }
 
@@ -416,91 +402,95 @@ fun NotificationsScreen(
 @Composable
 fun NotificationRowItem(
     notification: NotificationDto,
+    index: Int = 0,
+    count: Int = 1,
+    modifier: Modifier = Modifier,
+    addLeadingGap: Boolean = false,
     onClick: () -> Unit
 ) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .expressiveBounceClick(onClick = onClick)
-            .padding(horizontal = 12.dp, vertical = 10.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        // M3 Circular Notification Avatar Box (40dp)
-        Box(
-            modifier = Modifier
-                .size(40.dp)
-                .clip(M3Shapes.CornerFull)
-                .background(recordCategoryColors(RecordCategory.Notifications).container),
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(
-                imageVector = Icons.Default.Notifications,
-                contentDescription = null,
-                tint = recordCategoryColors(RecordCategory.Notifications).onContainer,
-                modifier = Modifier.size(20.dp)
-            )
-        }
-
-        Spacer(modifier = Modifier.width(12.dp))
-
-        Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = notification.displayTitle,
-                style = MaterialTheme.typography.titleSmallEmphasized,
-                color = MaterialTheme.colorScheme.onSurface,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
-            Spacer(modifier = Modifier.height(2.dp))
-            Text(
-                text = notification.displayBody.ifBlank { notification.sub_text.ifBlank { stringResource(R.string.notifications_no_content) } },
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
-            Spacer(modifier = Modifier.height(4.dp))
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(6.dp),
-                verticalAlignment = Alignment.CenterVertically
+    ExpressiveListRow(
+        index = index,
+        count = count,
+        modifier = modifier,
+        addLeadingGap = addLeadingGap,
+        onClick = onClick,
+        verticalAlignment = Alignment.CenterVertically,
+        leadingContent = {
+            Box(
+                modifier = Modifier
+                    .size(40.dp)
+                    .clip(M3Shapes.CornerFull)
+                    .background(recordCategoryColors(RecordCategory.Notifications).container),
+                contentAlignment = Alignment.Center
             ) {
-                Surface(
-                    shape = M3Shapes.CornerFull,
-                    color = recordCategoryColors(RecordCategory.Notifications).container
+                Icon(
+                    imageVector = Icons.Default.Notifications,
+                    contentDescription = null,
+                    tint = recordCategoryColors(RecordCategory.Notifications).onContainer,
+                    modifier = Modifier.size(20.dp)
+                )
+            }
+        },
+        supportingContent = {
+            Column {
+                Text(
+                    text = notification.displayBody.ifBlank { notification.sub_text.ifBlank { stringResource(R.string.notifications_no_content) } },
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text(
-                        text = notification.displayAppName,
-                        style = MaterialTheme.typography.labelSmall,
-                        color = recordCategoryColors(RecordCategory.Notifications).onContainer,
-                        modifier = Modifier.padding(horizontal = 7.dp, vertical = 2.dp),
-                        maxLines = 1,
-                        softWrap = false
-                    )
-                }
-                if (notification.category.isNotBlank()) {
                     Surface(
                         shape = M3Shapes.CornerFull,
-                        color = MaterialTheme.colorScheme.surfaceContainerHighest
+                        color = recordCategoryColors(RecordCategory.Notifications).container
                     ) {
                         Text(
-                            text = notification.category,
+                            text = notification.displayAppName,
                             style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                            color = recordCategoryColors(RecordCategory.Notifications).onContainer,
+                            modifier = Modifier.padding(horizontal = 7.dp, vertical = 2.dp),
                             maxLines = 1,
                             softWrap = false
                         )
                     }
+                    if (notification.category.isNotBlank()) {
+                        Surface(
+                            shape = M3Shapes.CornerFull,
+                            color = MaterialTheme.colorScheme.surfaceContainerHighest
+                        ) {
+                            Text(
+                                text = notification.category,
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                                maxLines = 1,
+                                softWrap = false
+                            )
+                        }
+                    }
+                    Text(
+                        text = "${notification.formattedDate} · ${notification.formattedTime}",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        softWrap = false
+                    )
                 }
-                Text(
-                    text = "${notification.formattedDate} · ${notification.formattedTime}",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 1,
-                    softWrap = false
-                )
             }
         }
+    ) {
+        Text(
+            text = notification.displayTitle,
+            style = MaterialTheme.typography.titleSmallEmphasized,
+            color = MaterialTheme.colorScheme.onSurface,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
+        )
     }
 }
 

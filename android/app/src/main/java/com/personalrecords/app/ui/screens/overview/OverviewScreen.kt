@@ -148,6 +148,7 @@ fun OverviewScreen(
         }
     }
 
+    val listState = rememberLazyListState()
     Scaffold(
         modifier = Modifier
             .fillMaxSize()
@@ -188,7 +189,6 @@ fun OverviewScreen(
             )
         }
     ) { innerPadding ->
-        val listState = rememberLazyListState()
         var isRefreshing by remember { mutableStateOf(false) }
         LaunchedEffect(state.isLoading) {
             if (!state.isLoading) isRefreshing = false
@@ -944,16 +944,12 @@ fun OverviewScreen(
                                     val activitiesToShow = state.recentActivities.take(6)
                                     activitiesToShow.forEachIndexed { index, item ->
                                         key("${item.source}_${item.id.ifBlank { "${item.date}_${item.title}" }}") {
-                                            GroupedListItemSurface(
+                                            ActivityRowItem(
+                                                item = item,
+                                                onClick = { selectedActivity = item },
                                                 index = index,
-                                                itemCount = activitiesToShow.size,
-                                                modifier = Modifier.fillMaxWidth()
-                                            ) {
-                                                ActivityRowItem(
-                                                    item = item,
-                                                    onClick = { selectedActivity = item }
-                                                )
-                                            }
+                                                count = activitiesToShow.size
+                                            )
                                         }
                                     }
                                 }
@@ -1500,8 +1496,13 @@ private fun HeroSpotlightFooter(
 @Composable
 fun ActivityRowItem(
     item: com.personalrecords.app.core.network.model.ActivityItemDto,
+    index: Int = 0,
+    count: Int = 1,
+    modifier: Modifier = Modifier,
+    addLeadingGap: Boolean = false,
     onClick: () -> Unit
 ) {
+
     val fallbackIcon = when (item.source) {
         "fatsecret" -> Icons.Default.Restaurant
         "goodreads" -> Icons.AutoMirrored.Filled.MenuBook
@@ -1511,124 +1512,122 @@ fun ActivityRowItem(
         else -> Icons.Default.Bookmark
     }
 
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .expressiveBounceClick(onClick = onClick)
-            .padding(horizontal = 14.dp, vertical = 11.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        // Leading Media / Icon Avatar
-        when (item.source) {
-            "notification" -> {
-                Box(
-                    modifier = Modifier
-                        .size(38.dp)
-                        .clip(M3Shapes.CornerFull)
-                        .background(MaterialTheme.colorScheme.secondaryContainer),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Notifications,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onSecondaryContainer,
-                        modifier = Modifier.size(18.dp)
-                    )
-                }
-            }
-            "fatsecret" -> {
-                Box(
-                    modifier = Modifier
-                        .size(38.dp)
-                        .clip(M3Shapes.CornerSmall)
-                        .background(recordCategoryColors(RecordCategory.Nutrition).container),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Restaurant,
-                        contentDescription = null,
-                        tint = recordCategoryColors(RecordCategory.Nutrition).onContainer,
-                        modifier = Modifier.size(18.dp)
-                    )
-                }
-            }
-            "music" -> {
-                Box(
-                    modifier = Modifier
-                        .size(38.dp)
-                        .clip(M3Shapes.CornerSmall)
-                        .background(recordCategoryColors(RecordCategory.Music).container),
-                    contentAlignment = Alignment.Center
-                ) {
-                    if (item.image_url?.isNotBlank() == true) {
-                        AsyncImage(
-                            model = item.image_url,
-                            contentDescription = null,
-                            modifier = Modifier.fillMaxSize(),
-                            contentScale = androidx.compose.ui.layout.ContentScale.Crop
-                        )
-                    } else {
+    
+    ExpressiveListRow(
+        index = index,
+        count = count,
+        modifier = modifier,
+        addLeadingGap = addLeadingGap,
+        onClick = onClick,
+        verticalAlignment = Alignment.CenterVertically,
+        leadingContent = {
+            when (item.source) {
+                "notification" -> {
+                    Box(
+                        modifier = Modifier
+                            .size(38.dp)
+                            .clip(M3Shapes.CornerFull)
+                            .background(MaterialTheme.colorScheme.secondaryContainer),
+                        contentAlignment = Alignment.Center
+                    ) {
                         Icon(
-                            imageVector = Icons.Default.MusicNote,
+                            imageVector = Icons.Default.Notifications,
                             contentDescription = null,
-                            tint = recordCategoryColors(RecordCategory.Music).onContainer,
+                            tint = MaterialTheme.colorScheme.onSecondaryContainer,
                             modifier = Modifier.size(18.dp)
                         )
                     }
                 }
-            }
-            else -> {
-                PosterThumbnail(
-                    imageUrl = item.image_url,
-                    fallbackIcon = fallbackIcon,
-                    width = 34,
-                    height = 48
-                )
-            }
-        }
-
-        Spacer(modifier = Modifier.width(12.dp))
-
-        // Center Details
-        Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = item.title,
-                style = MaterialTheme.typography.bodyMediumEmphasized,
-                color = MaterialTheme.colorScheme.onSurface,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
-            Spacer(modifier = Modifier.height(2.dp))
-            Text(
-                text = "${item.subtitle} · ${item.date}",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
-        }
-
-        Spacer(modifier = Modifier.width(8.dp))
-
-        // Trailing Badge (Calories, Rating)
-        Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(3.dp)) {
-            val rating = item.details["rating"]?.toString()?.toDoubleOrNull()
-                ?: item.details["my_rating"]?.toString()?.toDoubleOrNull()
-            if (rating != null && rating > 0) {
-                RatingBadge(rating = rating)
-            }
-            if (item.source == "fatsecret") {
-                val cal = item.details["calories"]?.toString()?.replace("\"", "")
-                if (cal != null && cal != "0" && cal != "null") {
-                    Text(
-                        text = "$cal kcal",
-                        style = MaterialTheme.typography.labelSmallEmphasized,
-                        color = MaterialTheme.colorScheme.primary,
-                        maxLines = 1,
-                        softWrap = false
+                "fatsecret" -> {
+                    Box(
+                        modifier = Modifier
+                            .size(38.dp)
+                            .clip(M3Shapes.CornerSmall)
+                            .background(recordCategoryColors(RecordCategory.Nutrition).container),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Restaurant,
+                            contentDescription = null,
+                            tint = recordCategoryColors(RecordCategory.Nutrition).onContainer,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
+                }
+                "music" -> {
+                    Box(
+                        modifier = Modifier
+                            .size(38.dp)
+                            .clip(M3Shapes.CornerSmall)
+                            .background(recordCategoryColors(RecordCategory.Music).container),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        if (item.image_url?.isNotBlank() == true) {
+                            AsyncImage(
+                                model = item.image_url,
+                                contentDescription = null,
+                                modifier = Modifier.fillMaxSize(),
+                                contentScale = androidx.compose.ui.layout.ContentScale.Crop
+                            )
+                        } else {
+                            Icon(
+                                imageVector = Icons.Default.MusicNote,
+                                contentDescription = null,
+                                tint = recordCategoryColors(RecordCategory.Music).onContainer,
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
+                    }
+                }
+                else -> {
+                    PosterThumbnail(
+                        imageUrl = item.image_url,
+                        fallbackIcon = fallbackIcon,
+                        width = 34,
+                        height = 48
                     )
                 }
             }
+        },
+        trailingContent = {
+            Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                val rating = item.details["rating"]?.toString()?.toDoubleOrNull()
+                    ?: item.details["my_rating"]?.toString()?.toDoubleOrNull()
+                if (rating != null && rating > 0) {
+                    RatingBadge(rating = rating)
+                }
+                if (item.source == "fatsecret") {
+                    val cal = item.details["calories"]?.toString()?.replace("\"", "")
+                    if (cal != null && cal != "0" && cal != "null") {
+                        Text(
+                            text = "$cal kcal",
+                            style = MaterialTheme.typography.labelSmallEmphasized,
+                            color = MaterialTheme.colorScheme.primary,
+                            maxLines = 1,
+                            softWrap = false
+                        )
+                    }
+                }
+            }
+        },
+        supportingContent = {
+            Column {
+                Text(
+                    text = "${item.subtitle} · ${item.date}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
         }
+    ) {
+        Text(
+            text = item.title,
+            style = MaterialTheme.typography.bodyMediumEmphasized,
+            color = MaterialTheme.colorScheme.onSurface,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
+        )
     }
 }

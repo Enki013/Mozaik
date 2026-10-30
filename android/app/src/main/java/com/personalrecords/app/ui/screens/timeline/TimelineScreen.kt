@@ -31,7 +31,6 @@ import com.personalrecords.app.ui.components.*
 // Each day is one segmented group: header on top, sections and rows below, 2dp apart.
 private val DayCardTopShape = M3Shapes.groupedListItem(index = 0, count = 2)
 private val DayCardMiddleShape = M3Shapes.groupedListItem(index = 1, count = 3)
-private val DayCardBottomShape = M3Shapes.groupedListItem(index = 1, count = 2)
 private val TimelineSourceKeys = listOf("all", "fatsecret", "health_connect", "music", "goodreads", "letterboxd", "notification")
 
 @OptIn(ExperimentalMaterial3Api::class, androidx.compose.foundation.ExperimentalFoundationApi::class)
@@ -67,6 +66,7 @@ fun TimelineScreen(
     }
 
     val scrollBehavior = TopAppBarDefaults.enterAlwaysScrollBehavior(rememberTopAppBarState())
+    val listState = androidx.compose.foundation.lazy.rememberLazyListState()
     Scaffold(
         modifier = Modifier
             .fillMaxSize()
@@ -79,7 +79,6 @@ fun TimelineScreen(
         },
         contentWindowInsets = WindowInsets.statusBars
     ) { innerPadding ->
-        val listState = androidx.compose.foundation.lazy.rememberLazyListState()
         var isRefreshing by remember { mutableStateOf(false) }
         LaunchedEffect(state.isLoading) {
             if (!state.isLoading) isRefreshing = false
@@ -584,36 +583,34 @@ private fun TimelineActivityRowItem(
     onItemClick: (ActivityItemDto) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val shape = if (entry.isLastInDay) DayCardBottomShape else DayCardMiddleShape
-
-    Surface(
-        modifier = modifier
-            .padding(top = M3ListMetrics.SegmentGap)
-            .fillMaxWidth()
-            .then(if (entry.isLastInDay) Modifier.padding(bottom = 8.dp) else Modifier),
-        shape = shape,
-        color = MaterialTheme.colorScheme.surfaceContainerLow
-    ) {
-        Column {
-            TimelineItemCard(
-                item = entry.item,
-                rating = entry.rating,
-                caloriesText = entry.caloriesText,
-                timeText = entry.timeText,
-                onClick = { onItemClick(entry.item) }
-            )
-        }
-    }
+    // Each day is one segmented group: the day header is the first segment, so an activity is a
+    // middle segment, or the bottom one when it closes the day.
+    TimelineItemCard(
+        item = entry.item,
+        rating = entry.rating,
+        caloriesText = entry.caloriesText,
+        timeText = entry.timeText,
+        onClick = { onItemClick(entry.item) },
+        index = 1,
+        count = if (entry.isLastInDay) 2 else 3,
+        addLeadingGap = true,
+        modifier = modifier.then(if (entry.isLastInDay) Modifier.padding(bottom = 8.dp) else Modifier)
+    )
 }
 
 @Composable
 fun TimelineItemCard(
     item: ActivityItemDto,
+    index: Int = 0,
+    count: Int = 1,
+    modifier: Modifier = Modifier,
+    addLeadingGap: Boolean = false,
     rating: Double? = null,
     caloriesText: String? = null,
     timeText: String? = null,
     onClick: () -> Unit = {}
 ) {
+
     val fallbackIcon = when (item.source) {
         "fatsecret" -> Icons.Default.Restaurant
         "health_connect" -> Icons.Default.Favorite
@@ -624,177 +621,177 @@ fun TimelineItemCard(
         else -> Icons.Default.Bookmark
     }
 
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onClick)
-            .padding(horizontal = 12.dp, vertical = 10.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        // Leading Icon / Thumbnail (optical roundness: 8.dp CornerSmall inside 16.dp CornerLarge card)
-        when (item.source) {
-            "notification" -> {
-                Box(
-                    modifier = Modifier
-                        .size(38.dp)
-                        .clip(M3Shapes.CornerFull)
-                        .background(recordCategoryColors(RecordCategory.Notifications).container),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Notifications,
-                        contentDescription = null,
-                        tint = recordCategoryColors(RecordCategory.Notifications).onContainer,
-                        modifier = Modifier.size(18.dp)
-                    )
-                }
-            }
-            "fatsecret" -> {
-                Box(
-                    modifier = Modifier
-                        .size(38.dp)
-                        .clip(M3Shapes.CornerSmall)
-                        .background(recordCategoryColors(RecordCategory.Nutrition).container),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Restaurant,
-                        contentDescription = null,
-                        tint = recordCategoryColors(RecordCategory.Nutrition).onContainer,
-                        modifier = Modifier.size(18.dp)
-                    )
-                }
-            }
-            "health_connect" -> {
-                val hcIcon = when (item.type) {
-                    "sleep" -> Icons.Default.Bedtime
-                    "exercise" -> Icons.AutoMirrored.Filled.DirectionsRun
-                    "weight" -> Icons.Default.MonitorWeight
-                    else -> Icons.Default.Favorite
-                }
-                Box(
-                    modifier = Modifier
-                        .size(38.dp)
-                        .clip(M3Shapes.CornerSmall)
-                        .background(recordCategoryColors(RecordCategory.Health).container),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        imageVector = hcIcon,
-                        contentDescription = null,
-                        tint = recordCategoryColors(RecordCategory.Health).onContainer,
-                        modifier = Modifier.size(18.dp)
-                    )
-                }
-            }
-            "music" -> {
-                Box(
-                    modifier = Modifier
-                        .size(38.dp)
-                        .clip(M3Shapes.CornerSmall)
-                        .background(recordCategoryColors(RecordCategory.Music).container),
-                    contentAlignment = Alignment.Center
-                ) {
-                    if (item.image_url?.isNotBlank() == true) {
-                        AsyncImage(
-                            model = item.image_url,
-                            contentDescription = null,
-                            modifier = Modifier.fillMaxSize(),
-                            contentScale = androidx.compose.ui.layout.ContentScale.Crop
-                        )
-                    } else {
+    
+    ExpressiveListRow(
+        index = index,
+        count = count,
+        modifier = modifier,
+        addLeadingGap = addLeadingGap,
+        onClick = onClick,
+        verticalAlignment = Alignment.CenterVertically,
+        leadingContent = {
+            when (item.source) {
+                "notification" -> {
+                    Box(
+                        modifier = Modifier
+                            .size(38.dp)
+                            .clip(M3Shapes.CornerFull)
+                            .background(recordCategoryColors(RecordCategory.Notifications).container),
+                        contentAlignment = Alignment.Center
+                    ) {
                         Icon(
-                            imageVector = Icons.Default.MusicNote,
+                            imageVector = Icons.Default.Notifications,
                             contentDescription = null,
-                            tint = recordCategoryColors(RecordCategory.Music).onContainer,
+                            tint = recordCategoryColors(RecordCategory.Notifications).onContainer,
                             modifier = Modifier.size(18.dp)
                         )
                     }
                 }
-            }
-            else -> {
-                PosterThumbnail(
-                    imageUrl = item.image_url,
-                    fallbackIcon = fallbackIcon,
-                    width = 34,
-                    height = 48
-                )
-            }
-        }
-
-        Spacer(modifier = Modifier.width(12.dp))
-
-        Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = item.title,
-                style = MaterialTheme.typography.bodyMediumEmphasized,
-                color = MaterialTheme.colorScheme.onSurface,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
-            if (item.subtitle.isNotBlank()) {
-                Spacer(modifier = Modifier.height(2.dp))
-                Text(
-                    text = item.subtitle,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-            }
-        }
-
-        Spacer(modifier = Modifier.width(8.dp))
-
-        // Right details (rating, rewatch, calorie, time)
-        Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(3.dp)) {
-            if (rating != null && rating > 0) {
-                RatingBadge(rating = rating)
-            }
-            if (item.rewatch) {
-                Surface(
-                    shape = M3Shapes.CornerFull,
-                    color = recordCategoryColors(RecordCategory.Movies).container
-                ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(3.dp),
-                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                "fatsecret" -> {
+                    Box(
+                        modifier = Modifier
+                            .size(38.dp)
+                            .clip(M3Shapes.CornerSmall)
+                            .background(recordCategoryColors(RecordCategory.Nutrition).container),
+                        contentAlignment = Alignment.Center
                     ) {
                         Icon(
-                            imageVector = Icons.Default.Repeat,
+                            imageVector = Icons.Default.Restaurant,
                             contentDescription = null,
-                            tint = recordCategoryColors(RecordCategory.Movies).onContainer,
-                            modifier = Modifier.size(10.dp)
-                        )
-                        Text(
-                            text = "Tekrar",
-                            color = recordCategoryColors(RecordCategory.Movies).onContainer,
-                            style = MaterialTheme.typography.labelSmallEmphasized,
-                            maxLines = 1,
-                            softWrap = false
+                            tint = recordCategoryColors(RecordCategory.Nutrition).onContainer,
+                            modifier = Modifier.size(18.dp)
                         )
                     }
                 }
+                "health_connect" -> {
+                    val hcIcon = when (item.type) {
+                        "sleep" -> Icons.Default.Bedtime
+                        "exercise" -> Icons.AutoMirrored.Filled.DirectionsRun
+                        "weight" -> Icons.Default.MonitorWeight
+                        else -> Icons.Default.Favorite
+                    }
+                    Box(
+                        modifier = Modifier
+                            .size(38.dp)
+                            .clip(M3Shapes.CornerSmall)
+                            .background(recordCategoryColors(RecordCategory.Health).container),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = hcIcon,
+                            contentDescription = null,
+                            tint = recordCategoryColors(RecordCategory.Health).onContainer,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
+                }
+                "music" -> {
+                    Box(
+                        modifier = Modifier
+                            .size(38.dp)
+                            .clip(M3Shapes.CornerSmall)
+                            .background(recordCategoryColors(RecordCategory.Music).container),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        if (item.image_url?.isNotBlank() == true) {
+                            AsyncImage(
+                                model = item.image_url,
+                                contentDescription = null,
+                                modifier = Modifier.fillMaxSize(),
+                                contentScale = androidx.compose.ui.layout.ContentScale.Crop
+                            )
+                        } else {
+                            Icon(
+                                imageVector = Icons.Default.MusicNote,
+                                contentDescription = null,
+                                tint = recordCategoryColors(RecordCategory.Music).onContainer,
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
+                    }
+                }
+                else -> {
+                    PosterThumbnail(
+                        imageUrl = item.image_url,
+                        fallbackIcon = fallbackIcon,
+                        width = 34,
+                        height = 48
+                    )
+                }
             }
-            if (!caloriesText.isNullOrBlank()) {
-                Text(
-                    text = caloriesText,
-                    style = MaterialTheme.typography.labelSmallEmphasized,
-                    color = MaterialTheme.colorScheme.primary,
-                    maxLines = 1,
-                    softWrap = false
-                )
+        },
+        trailingContent = {
+            Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                if (rating != null && rating > 0) {
+                    RatingBadge(rating = rating)
+                }
+                if (item.rewatch) {
+                    Surface(
+                        shape = M3Shapes.CornerFull,
+                        color = recordCategoryColors(RecordCategory.Movies).container
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(3.dp),
+                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Repeat,
+                                contentDescription = null,
+                                tint = recordCategoryColors(RecordCategory.Movies).onContainer,
+                                modifier = Modifier.size(10.dp)
+                            )
+                            Text(
+                                text = "Tekrar",
+                                color = recordCategoryColors(RecordCategory.Movies).onContainer,
+                                style = MaterialTheme.typography.labelSmallEmphasized,
+                                maxLines = 1,
+                                softWrap = false
+                            )
+                        }
+                    }
+                }
+                if (!caloriesText.isNullOrBlank()) {
+                    Text(
+                        text = caloriesText,
+                        style = MaterialTheme.typography.labelSmallEmphasized,
+                        color = MaterialTheme.colorScheme.primary,
+                        maxLines = 1,
+                        softWrap = false
+                    )
+                }
+                if (!timeText.isNullOrBlank()) {
+                    Text(
+                        text = timeText,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        softWrap = false
+                    )
+                }
             }
-            if (!timeText.isNullOrBlank()) {
-                Text(
-                    text = timeText,
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 1,
-                    softWrap = false
-                )
+        },
+        supportingContent = {
+            Column {
+                if (item.subtitle.isNotBlank()) {
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Text(
+                        text = item.subtitle,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
             }
         }
+    ) {
+        Text(
+            text = item.title,
+            style = MaterialTheme.typography.bodyMediumEmphasized,
+            color = MaterialTheme.colorScheme.onSurface,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
+        )
     }
 }

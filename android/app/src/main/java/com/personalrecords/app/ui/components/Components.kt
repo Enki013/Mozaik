@@ -3056,26 +3056,6 @@ fun ActivityItemDetailBottomSheet(
 }
 
 
-/**
- * Lazy-list row inside a segmented group. Thin wrapper over [GroupedListItemSurface]
- * so every list screen shares the same corners and gap.
- */
-@Composable
-fun LazyCardRowContainer(
-    index: Int,
-    totalCount: Int,
-    modifier: Modifier = Modifier,
-    content: @Composable () -> Unit
-) {
-    GroupedListItemSurface(
-        index = index,
-        itemCount = totalCount,
-        modifier = modifier,
-        addLeadingGap = true,
-        content = content
-    )
-}
-
 
 
 

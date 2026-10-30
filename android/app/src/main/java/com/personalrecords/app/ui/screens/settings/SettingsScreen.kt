@@ -13,6 +13,11 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import com.personalrecords.app.ui.screens.catalog.recordCategory
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.role
+import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.shape.CircleShape
@@ -72,7 +77,15 @@ fun SettingsScreen(
     scrollToTopFlow: kotlinx.coroutines.flow.Flow<Unit>? = null,
     refreshFlow: kotlinx.coroutines.flow.Flow<Unit>? = null,
     onNavigateToLanguage: () -> Unit = {},
-    onNavigateToIntegrationsCatalog: () -> Unit = {}
+    onNavigateToIntegrationsCatalog: () -> Unit = {},
+    /** Opens the page of the server ([SERVER_PAGE_ID]) or of one integration (its plugin id). */
+    onOpenSettingsPage: (String) -> Unit = {},
+    /**
+     * null: the main settings list. Otherwise this instance is a settings page showing only the
+     * server form or one integration's settings.
+     */
+    pageId: String? = null,
+    onNavigateBack: () -> Unit = {}
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
@@ -291,15 +304,38 @@ fun SettingsScreen(
         }
     }
 
-    val scrollBehavior = TopAppBarDefaults.enterAlwaysScrollBehavior(rememberTopAppBarState())
+    val enabledPlugins = remember(state.enabledPluginIds) {
+        com.personalrecords.app.core.integrations.PluginRegistry.defaultPlugins.filter { it.id in state.enabledPluginIds }
+    }
+    val pageTitle = when (pageId) {
+        null -> stringResource(R.string.title_settings)
+        SERVER_PAGE_ID -> stringResource(R.string.settings_server_title)
+        else -> com.personalrecords.app.core.integrations.PluginRegistry.defaultPlugins
+            .firstOrNull { it.id == pageId }?.name ?: stringResource(R.string.title_settings)
+    }
+    val scrollBehavior = if (pageId == null) {
+        TopAppBarDefaults.enterAlwaysScrollBehavior(rememberTopAppBarState())
+    } else {
+        TopAppBarDefaults.pinnedScrollBehavior(rememberTopAppBarState())
+    }
     Scaffold(
         modifier = Modifier
             .fillMaxSize()
             .nestedScroll(scrollBehavior.nestedScrollConnection),
         topBar = {
             ExpressivePageTopAppBar(
-                title = stringResource(R.string.title_settings),
-                scrollBehavior = scrollBehavior
+                title = pageTitle,
+                scrollBehavior = scrollBehavior,
+                navigationIcon = {
+                    if (pageId != null) {
+                        IconButton(onClick = onNavigateBack) {
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                                contentDescription = stringResource(R.string.action_back)
+                            )
+                        }
+                    }
+                }
             )
         },
         contentWindowInsets = WindowInsets.statusBars,
@@ -320,68 +356,37 @@ fun SettingsScreen(
                 state = listState,
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(horizontal = 12.dp),
+                    .padding(horizontal = 16.dp),
                 contentPadding = PaddingValues(top = 4.dp, bottom = floatingBottomNavigationContentPadding()),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
+                verticalArrangement = Arrangement.spacedBy(if (pageId == null) 16.dp else 8.dp)
             ) {
-                // ==========================================
-                // SECTION 0: Dil ve Bölge / Language & Region
-                // ==========================================
-                item {
-                    SettingsSectionTitle(title = stringResource(R.string.settings_section_language))
-                }
-                item {
-                    SettingsCard {
-                        val currentLanguageLabel = when (state.appLanguage) {
-                            "tr" -> "Türkçe"
-                            "en" -> "English"
-                            else -> stringResource(R.string.settings_language_system)
-                        }
-
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clip(M3Shapes.CornerMedium)
-                                .clickable { onNavigateToLanguage() }
-                                .padding(vertical = 4.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(10.dp)
-                        ) {
-                            SettingsIconBox(
-                                icon = Icons.Default.Language,
-                                containerColor = MaterialTheme.colorScheme.tertiaryContainer,
-                                contentColor = MaterialTheme.colorScheme.onTertiaryContainer
-                            )
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(
-                                    text = stringResource(R.string.settings_language_title),
-                                    style = MaterialTheme.typography.titleMediumEmphasized,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis
-                                )
-                                Text(
-                                    text = currentLanguageLabel,
-                                    style = MaterialTheme.typography.bodySmallEmphasized,
-                                    color = MaterialTheme.colorScheme.primary,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis
-                                )
+                if (pageId == null) {
+                    settingsMainPage(
+                        state = state,
+                        enabledPlugins = enabledPlugins,
+                        onNavigateToLanguage = onNavigateToLanguage,
+                        onOpenSettingsPage = onOpenSettingsPage,
+                        onNavigateToIntegrationsCatalog = onNavigateToIntegrationsCatalog,
+                        onThemeModeChange = { viewModel.setThemeMode(it) },
+                        onDynamicColorChange = { viewModel.setDynamicColor(it) },
+                        onExport = { path, extension ->
+                            val baseUrl = state.serverUrl.trim().trimEnd('/')
+                            if (baseUrl.isBlank()) {
+                                coroutineScope.launch {
+                                    snackbarHostState.showSnackbar(context.getString(R.string.settings_save_server_first))
+                                }
+                            } else {
+                                val timestamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
+                                triggerDownload("$baseUrl$path", "personal_records_$timestamp.$extension")
                             }
-                            Icon(
-                                imageVector = Icons.Default.ChevronRight,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
                         }
-                    }
+                    )
                 }
 
                 // ==========================================
-                // SECTION 1: Sunucu ve Altyapı
+                // Server page
                 // ==========================================
-                item {
-                    SettingsSectionTitle(title = stringResource(R.string.settings_section_server))
-                }
+                if (pageId == SERVER_PAGE_ID) {
                 item {
                     SettingsCard {
                         Row(
@@ -585,101 +590,10 @@ fun SettingsScreen(
                         }
                     }
                 }
-
-                // ==========================================
-                // DYNAMIC INTEGRATIONS & PLUGINS SECTION
-                // ==========================================
-                item(key = "section_integrations_header") {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 4.dp, vertical = 6.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Column(modifier = Modifier.weight(1f, fill = false)) {
-                            Text(
-                                text = stringResource(R.string.settings_section_integrations),
-                                style = MaterialTheme.typography.titleMediumEmphasized,
-                                color = MaterialTheme.colorScheme.onSurface
-                            )
-                            Text(
-                                text = stringResource(R.string.settings_section_integrations_desc),
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                        Spacer(modifier = Modifier.width(8.dp))
-                        FilledTonalButton(
-                            onClick = onNavigateToIntegrationsCatalog,
-                            shape = M3Shapes.CornerFull,
-                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
-                            modifier = Modifier.height(34.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Add,
-                                contentDescription = null,
-                                modifier = Modifier.size(16.dp)
-                            )
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Text(
-                                text = stringResource(R.string.settings_integrations_catalog_action),
-                                style = MaterialTheme.typography.labelMedium
-                            )
-                        }
-                    }
-                }
-
-                if (state.enabledPluginIds.isEmpty()) {
-                    item(key = "empty_integrations_card") {
-                        SettingsCard {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(12.dp)
-                            ) {
-                                SettingsIconBox(
-                                    icon = Icons.Default.Extension,
-                                    containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-                                    contentColor = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                                Column(modifier = Modifier.weight(1f)) {
-                                    Text(
-                                        text = stringResource(R.string.settings_integrations_empty_title),
-                                        style = MaterialTheme.typography.titleSmallEmphasized,
-                                        color = MaterialTheme.colorScheme.onSurface
-                                    )
-                                    Spacer(modifier = Modifier.height(2.dp))
-                                    Text(
-                                        text = stringResource(R.string.settings_integrations_empty_desc),
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                }
-                            }
-                            Spacer(modifier = Modifier.height(12.dp))
-                            Button(
-                                onClick = onNavigateToIntegrationsCatalog,
-                                shape = M3Shapes.CornerMedium,
-                                modifier = Modifier.fillMaxWidth()
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.Extension,
-                                    contentDescription = null,
-                                    modifier = Modifier.size(18.dp)
-                                )
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Text(
-                                    text = stringResource(R.string.settings_open_catalog),
-                                    style = MaterialTheme.typography.labelLarge
-                                )
-                            }
-                        }
-                    }
                 }
 
                 // 1. Notification Webhook
-                if (state.enabledPluginIds.contains("notification") || state.enabledPluginIds.contains("notification_relay")) {
+                if (pageId == "notification" || pageId == "notification_relay") {
                     item(key = "config_notification") {
                         SettingsCard {
                         val cleanBaseUrl = state.serverUrl.trim().trimEnd('/')
@@ -870,7 +784,7 @@ fun SettingsScreen(
                 }
 
                 // 2. Health Connect Webhook
-                if (state.enabledPluginIds.contains("health_connect")) {
+                if (pageId == "health_connect") {
                     item(key = "config_health_connect") {
                         SettingsCard {
                         val cleanBaseUrl = state.serverUrl.trim().trimEnd('/')
@@ -1060,7 +974,7 @@ fun SettingsScreen(
                 }
 
                 // 3. FatSecret BYOK
-                if (state.enabledPluginIds.contains("fatsecret")) {
+                if (pageId == "fatsecret") {
                     item(key = "config_fatsecret") {
                         SettingsCard {
                         // Header
@@ -1125,7 +1039,7 @@ fun SettingsScreen(
                             Spacer(modifier = Modifier.height(10.dp))
                             Surface(
                                 shape = M3Shapes.CornerMedium,
-                                color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.65f),
+                                color = MaterialTheme.colorScheme.surfaceContainerHigh,
                                 modifier = Modifier.fillMaxWidth()
                             ) {
                                 Row(
@@ -1165,7 +1079,7 @@ fun SettingsScreen(
                                         shapes = expressiveButtonShapes(),
                                         onClick = { showKeyEditor = !showKeyEditor },
                                         modifier = Modifier
-                                            .height(34.dp),
+                                            .heightIn(min = ButtonDefaults.MinHeight),
                                         contentPadding = PaddingValues(horizontal = 10.dp, vertical = 0.dp)
                                     ) {
                                         Row(
@@ -1179,7 +1093,7 @@ fun SettingsScreen(
                                             )
                                             Text(
                                                 text = if (showKeyEditor) stringResource(R.string.action_cancel) else stringResource(R.string.action_edit),
-                                                style = MaterialTheme.typography.labelMedium,
+                                                style = MaterialTheme.typography.labelLarge,
                                                 maxLines = 1,
                                                 softWrap = false
                                             )
@@ -1201,7 +1115,7 @@ fun SettingsScreen(
                         ) {
                             Surface(
                                 shape = M3Shapes.CornerMedium,
-                                color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.65f),
+                                color = MaterialTheme.colorScheme.surfaceContainerHigh,
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .padding(top = 8.dp)
@@ -1345,7 +1259,7 @@ fun SettingsScreen(
                                     Spacer(modifier = Modifier.height(10.dp))
                                     Surface(
                                         shape = M3Shapes.CornerSmall,
-                                        color = MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.8f),
+                                        color = MaterialTheme.colorScheme.surfaceContainerHighest,
                                         modifier = Modifier.fillMaxWidth()
                                     ) {
                                         Column(modifier = Modifier.padding(10.dp)) {
@@ -1404,7 +1318,7 @@ fun SettingsScreen(
 
                         // Divider before sync section
                         HorizontalDivider(
-                            color = MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.5f),
+                            color = MaterialTheme.colorScheme.surfaceContainerHighest,
                             modifier = Modifier.padding(vertical = 12.dp)
                         )
 
@@ -1511,7 +1425,7 @@ fun SettingsScreen(
                 }
 
                 // 4. Letterboxd RSS
-                if (state.enabledPluginIds.contains("letterboxd")) {
+                if (pageId == "letterboxd") {
                     item(key = "config_letterboxd") {
                         SettingsCard {
                         // Letterboxd Card Header
@@ -1561,7 +1475,7 @@ fun SettingsScreen(
                             Spacer(modifier = Modifier.height(10.dp))
                             Surface(
                                 shape = M3Shapes.CornerMedium,
-                                color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.65f),
+                                color = MaterialTheme.colorScheme.surfaceContainerHigh,
                                 modifier = Modifier.fillMaxWidth()
                             ) {
                                 Row(
@@ -1602,7 +1516,7 @@ fun SettingsScreen(
                                         shapes = expressiveButtonShapes(),
                                         onClick = { showLetterboxdEditor = !showLetterboxdEditor },
                                         modifier = Modifier
-                                            .height(34.dp),
+                                            .heightIn(min = ButtonDefaults.MinHeight),
                                         contentPadding = PaddingValues(horizontal = 10.dp, vertical = 0.dp)
                                     ) {
                                         Row(
@@ -1616,7 +1530,7 @@ fun SettingsScreen(
                                             )
                                             Text(
                                                 text = if (showLetterboxdEditor) stringResource(R.string.action_cancel) else stringResource(R.string.action_edit),
-                                                style = MaterialTheme.typography.labelMedium,
+                                                style = MaterialTheme.typography.labelLarge,
                                                 maxLines = 1,
                                                 softWrap = false
                                             )
@@ -1638,7 +1552,7 @@ fun SettingsScreen(
                         ) {
                             Surface(
                                 shape = M3Shapes.CornerMedium,
-                                color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.65f),
+                                color = MaterialTheme.colorScheme.surfaceContainerHigh,
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .padding(top = 8.dp)
@@ -1762,7 +1676,7 @@ fun SettingsScreen(
                 }
 
                 // 5. Goodreads RSS
-                if (state.enabledPluginIds.contains("goodreads")) {
+                if (pageId == "goodreads") {
                     item(key = "config_goodreads") {
                         SettingsCard {
                         // Goodreads Card Header
@@ -1812,7 +1726,7 @@ fun SettingsScreen(
                             Spacer(modifier = Modifier.height(10.dp))
                             Surface(
                                 shape = M3Shapes.CornerMedium,
-                                color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.65f),
+                                color = MaterialTheme.colorScheme.surfaceContainerHigh,
                                 modifier = Modifier.fillMaxWidth()
                             ) {
                                 Row(
@@ -1853,7 +1767,7 @@ fun SettingsScreen(
                                         shapes = expressiveButtonShapes(),
                                         onClick = { showGoodreadsEditor = !showGoodreadsEditor },
                                         modifier = Modifier
-                                            .height(34.dp),
+                                            .heightIn(min = ButtonDefaults.MinHeight),
                                         contentPadding = PaddingValues(horizontal = 10.dp, vertical = 0.dp)
                                     ) {
                                         Row(
@@ -1867,7 +1781,7 @@ fun SettingsScreen(
                                             )
                                             Text(
                                                 text = if (showGoodreadsEditor) stringResource(R.string.action_cancel) else stringResource(R.string.action_edit),
-                                                style = MaterialTheme.typography.labelMedium,
+                                                style = MaterialTheme.typography.labelLarge,
                                                 maxLines = 1,
                                                 softWrap = false
                                             )
@@ -1889,7 +1803,7 @@ fun SettingsScreen(
                         ) {
                             Surface(
                                 shape = M3Shapes.CornerMedium,
-                                color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.65f),
+                                color = MaterialTheme.colorScheme.surfaceContainerHigh,
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .padding(top = 8.dp)
@@ -2013,7 +1927,7 @@ fun SettingsScreen(
                 }
 
                 // 5b. Trakt.tv API
-                if (state.enabledPluginIds.contains("trakt")) {
+                if (pageId == "trakt") {
                     item(key = "config_trakt") {
                         SettingsCard {
                             // Trakt Card Header
@@ -2063,7 +1977,7 @@ fun SettingsScreen(
                                 Spacer(modifier = Modifier.height(10.dp))
                                 Surface(
                                     shape = M3Shapes.CornerMedium,
-                                    color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.65f),
+                                    color = MaterialTheme.colorScheme.surfaceContainerHigh,
                                     modifier = Modifier.fillMaxWidth()
                                 ) {
                                     Row(
@@ -2107,7 +2021,7 @@ fun SettingsScreen(
                                             shapes = expressiveButtonShapes(),
                                             onClick = { showTraktEditor = !showTraktEditor },
                                             modifier = Modifier
-                                                .height(34.dp),
+                                                .heightIn(min = ButtonDefaults.MinHeight),
                                             contentPadding = PaddingValues(horizontal = 10.dp, vertical = 0.dp)
                                         ) {
                                             Row(
@@ -2121,7 +2035,7 @@ fun SettingsScreen(
                                                 )
                                                 Text(
                                                     text = if (showTraktEditor) stringResource(R.string.action_cancel) else stringResource(R.string.action_edit),
-                                                    style = MaterialTheme.typography.labelMedium,
+                                                    style = MaterialTheme.typography.labelLarge,
                                                     maxLines = 1,
                                                     softWrap = false
                                                 )
@@ -2139,7 +2053,7 @@ fun SettingsScreen(
                             ) {
                                 Surface(
                                     shape = M3Shapes.CornerMedium,
-                                    color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.65f),
+                                    color = MaterialTheme.colorScheme.surfaceContainerHigh,
                                     modifier = Modifier
                                         .fillMaxWidth()
                                         .padding(top = 8.dp)
@@ -2312,7 +2226,7 @@ fun SettingsScreen(
                 }
 
                 // 5c. MDBList API
-                if (state.enabledPluginIds.contains("mdblist")) {
+                if (pageId == "mdblist") {
                     item(key = "config_mdblist") {
                         SettingsCard {
                             // MDBList Card Header
@@ -2362,7 +2276,7 @@ fun SettingsScreen(
                                 Spacer(modifier = Modifier.height(10.dp))
                                 Surface(
                                     shape = M3Shapes.CornerMedium,
-                                    color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.65f),
+                                    color = MaterialTheme.colorScheme.surfaceContainerHigh,
                                     modifier = Modifier.fillMaxWidth()
                                 ) {
                                     Row(
@@ -2400,7 +2314,7 @@ fun SettingsScreen(
                                             shapes = expressiveButtonShapes(),
                                             onClick = { showMdbListEditor = !showMdbListEditor },
                                             modifier = Modifier
-                                                .height(34.dp),
+                                                .heightIn(min = ButtonDefaults.MinHeight),
                                             contentPadding = PaddingValues(horizontal = 10.dp, vertical = 0.dp)
                                         ) {
                                             Row(
@@ -2414,7 +2328,7 @@ fun SettingsScreen(
                                                 )
                                                 Text(
                                                     text = if (showMdbListEditor) stringResource(R.string.action_cancel) else stringResource(R.string.action_edit),
-                                                    style = MaterialTheme.typography.labelMedium,
+                                                    style = MaterialTheme.typography.labelLarge,
                                                     maxLines = 1,
                                                     softWrap = false
                                                 )
@@ -2432,7 +2346,7 @@ fun SettingsScreen(
                             ) {
                                 Surface(
                                     shape = M3Shapes.CornerMedium,
-                                    color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.65f),
+                                    color = MaterialTheme.colorScheme.surfaceContainerHigh,
                                     modifier = Modifier
                                         .fillMaxWidth()
                                         .padding(top = 8.dp)
@@ -2577,7 +2491,7 @@ fun SettingsScreen(
                 }
 
                 // 5d. Simkl API
-                if (state.enabledPluginIds.contains("simkl")) {
+                if (pageId == "simkl") {
                     item(key = "config_simkl") {
                         SettingsCard {
                             // Simkl Card Header
@@ -2627,7 +2541,7 @@ fun SettingsScreen(
                                 Spacer(modifier = Modifier.height(6.dp))
                                 Surface(
                                     shape = M3Shapes.CornerMedium,
-                                    color = MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.5f),
+                                    color = MaterialTheme.colorScheme.surfaceContainerHighest,
                                     modifier = Modifier.fillMaxWidth()
                                 ) {
                                     Row(
@@ -2673,7 +2587,7 @@ fun SettingsScreen(
                                             shapes = expressiveButtonShapes(),
                                             onClick = { showSimklEditor = !showSimklEditor },
                                             modifier = Modifier
-                                                .height(34.dp),
+                                                .heightIn(min = ButtonDefaults.MinHeight),
                                             contentPadding = PaddingValues(horizontal = 10.dp, vertical = 0.dp)
                                         ) {
                                             Row(
@@ -2687,7 +2601,7 @@ fun SettingsScreen(
                                                 )
                                                 Text(
                                                     text = if (showSimklEditor) stringResource(R.string.action_cancel) else stringResource(R.string.action_edit),
-                                                    style = MaterialTheme.typography.labelMedium,
+                                                    style = MaterialTheme.typography.labelLarge,
                                                     maxLines = 1,
                                                     softWrap = false
                                                 )
@@ -2705,7 +2619,7 @@ fun SettingsScreen(
                             ) {
                                 Surface(
                                     shape = M3Shapes.CornerMedium,
-                                    color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.65f),
+                                    color = MaterialTheme.colorScheme.surfaceContainerHigh,
                                     modifier = Modifier
                                         .fillMaxWidth()
                                         .padding(top = 8.dp)
@@ -2932,7 +2846,7 @@ fun SettingsScreen(
                 }
 
                 // 6. Last.fm API
-                if (state.enabledPluginIds.contains("lastfm")) {
+                if (pageId == "lastfm") {
                     item(key = "config_lastfm") {
                         SettingsCard {
                         // Last.fm Card Header
@@ -2982,7 +2896,7 @@ fun SettingsScreen(
                             Spacer(modifier = Modifier.height(10.dp))
                             Surface(
                                 shape = M3Shapes.CornerMedium,
-                                color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.65f),
+                                color = MaterialTheme.colorScheme.surfaceContainerHigh,
                                 modifier = Modifier.fillMaxWidth()
                             ) {
                                 Row(
@@ -3020,7 +2934,7 @@ fun SettingsScreen(
                                         shapes = expressiveButtonShapes(),
                                         onClick = { showLastFmEditor = !showLastFmEditor },
                                         modifier = Modifier
-                                            .height(34.dp),
+                                            .heightIn(min = ButtonDefaults.MinHeight),
                                         contentPadding = PaddingValues(horizontal = 10.dp, vertical = 0.dp)
                                     ) {
                                         Row(
@@ -3034,7 +2948,7 @@ fun SettingsScreen(
                                             )
                                             Text(
                                                 text = if (showLastFmEditor) stringResource(R.string.action_cancel) else stringResource(R.string.action_edit),
-                                                style = MaterialTheme.typography.labelMedium,
+                                                style = MaterialTheme.typography.labelLarge,
                                                 maxLines = 1,
                                                 softWrap = false
                                             )
@@ -3056,7 +2970,7 @@ fun SettingsScreen(
                         ) {
                             Surface(
                                 shape = M3Shapes.CornerMedium,
-                                color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.65f),
+                                color = MaterialTheme.colorScheme.surfaceContainerHigh,
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .padding(top = 8.dp)
@@ -3236,7 +3150,7 @@ fun SettingsScreen(
                 }
 
                 // 7. ListenBrainz API
-                if (state.enabledPluginIds.contains("listenbrainz")) {
+                if (pageId == "listenbrainz") {
                     item(key = "config_listenbrainz") {
                         SettingsCard {
                             // ListenBrainz Card Header
@@ -3286,7 +3200,7 @@ fun SettingsScreen(
                                 Spacer(modifier = Modifier.height(10.dp))
                                 Surface(
                                     shape = M3Shapes.CornerMedium,
-                                    color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.65f),
+                                    color = MaterialTheme.colorScheme.surfaceContainerHigh,
                                     modifier = Modifier.fillMaxWidth()
                                 ) {
                                     Row(
@@ -3327,7 +3241,7 @@ fun SettingsScreen(
                                             shapes = expressiveButtonShapes(),
                                             onClick = { showListenBrainzEditor = !showListenBrainzEditor },
                                             modifier = Modifier
-                                                .height(34.dp),
+                                                .heightIn(min = ButtonDefaults.MinHeight),
                                             contentPadding = PaddingValues(horizontal = 10.dp, vertical = 0.dp)
                                         ) {
                                             Row(
@@ -3341,7 +3255,7 @@ fun SettingsScreen(
                                                 )
                                                 Text(
                                                     text = if (showListenBrainzEditor) stringResource(R.string.action_cancel) else stringResource(R.string.action_edit),
-                                                    style = MaterialTheme.typography.labelMedium,
+                                                    style = MaterialTheme.typography.labelLarge,
                                                     maxLines = 1,
                                                     softWrap = false
                                                 )
@@ -3363,7 +3277,7 @@ fun SettingsScreen(
                             ) {
                                 Surface(
                                     shape = M3Shapes.CornerMedium,
-                                    color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.65f),
+                                    color = MaterialTheme.colorScheme.surfaceContainerHigh,
                                     modifier = Modifier
                                         .fillMaxWidth()
                                         .padding(top = 8.dp)
@@ -3543,7 +3457,7 @@ fun SettingsScreen(
                 }
 
                 // 8. Stats.fm API
-                if (state.enabledPluginIds.contains("statsfm")) {
+                if (pageId == "statsfm") {
                     item(key = "config_statsfm") {
                         SettingsCard {
                             // Stats.fm Card Header
@@ -3593,7 +3507,7 @@ fun SettingsScreen(
                                 Spacer(modifier = Modifier.height(10.dp))
                                 Surface(
                                     shape = M3Shapes.CornerMedium,
-                                    color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.65f),
+                                    color = MaterialTheme.colorScheme.surfaceContainerHigh,
                                     modifier = Modifier.fillMaxWidth()
                                 ) {
                                     Row(
@@ -3630,7 +3544,7 @@ fun SettingsScreen(
                                             shapes = expressiveButtonShapes(),
                                             onClick = { showStatsFmEditor = !showStatsFmEditor },
                                             modifier = Modifier
-                                                .height(34.dp),
+                                                .heightIn(min = ButtonDefaults.MinHeight),
                                             contentPadding = PaddingValues(horizontal = 10.dp, vertical = 0.dp)
                                         ) {
                                             Row(
@@ -3644,7 +3558,7 @@ fun SettingsScreen(
                                                 )
                                                 Text(
                                                     text = if (showStatsFmEditor) stringResource(R.string.action_cancel) else stringResource(R.string.action_edit),
-                                                    style = MaterialTheme.typography.labelMedium,
+                                                    style = MaterialTheme.typography.labelLarge,
                                                     maxLines = 1,
                                                     softWrap = false
                                                 )
@@ -3666,7 +3580,7 @@ fun SettingsScreen(
                             ) {
                                 Surface(
                                     shape = M3Shapes.CornerMedium,
-                                    color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.65f),
+                                    color = MaterialTheme.colorScheme.surfaceContainerHigh,
                                     modifier = Modifier
                                         .fillMaxWidth()
                                         .padding(top = 8.dp)
@@ -3790,7 +3704,7 @@ fun SettingsScreen(
                 }
 
                 // 9. Web Scrobbler Brand Integration Card
-                if (state.enabledPluginIds.contains("web_scrobbler")) {
+                if (pageId == "web_scrobbler") {
                     item(key = "config_web_scrobbler") {
                         SettingsCard {
                         val cleanBaseUrl = state.serverUrl.trim().trimEnd('/')
@@ -4044,7 +3958,7 @@ fun SettingsScreen(
 
                 // 8. Other Active Plugins (Dynamic catalog plugins like Spotify or future plugins)
                 items(
-                    items = otherActivePlugins,
+                    items = otherActivePlugins.filter { it.id == pageId },
                     key = { "config_${it.id}" }
                 ) { plugin ->
                     GenericPluginSettingsCard(
@@ -4059,162 +3973,346 @@ fun SettingsScreen(
                     )
                 }
 
-                // ==========================================
-                // SECTION 5: Veri Egemenliği & Yedekleme
-                // ==========================================
-                item {
-                    SettingsSectionTitle(title = stringResource(R.string.settings_section_export))
-                }
-                item {
-                    SettingsCard {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(10.dp)
-                        ) {
-                            SettingsIconBox(
-                                icon = Icons.Default.Storage,
-                                containerColor = MaterialTheme.colorScheme.primaryContainer,
-                                contentColor = MaterialTheme.colorScheme.onPrimaryContainer
-                            )
-                            Column {
-                                Text(
-                                    text = stringResource(R.string.settings_export_title),
-                                    style = MaterialTheme.typography.titleMediumEmphasized
-                                )
-                                Text(
-                                    text = stringResource(R.string.settings_export_desc),
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
-                        }
-
-                        Spacer(modifier = Modifier.height(12.dp))
-
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            FilledTonalButton(
-                                shapes = expressiveButtonShapes(),
-                                onClick = {
-                                    val baseUrl = state.serverUrl.trim().trimEnd('/')
-                                    if (baseUrl.isBlank()) {
-                                        coroutineScope.launch {
-                                            snackbarHostState.showSnackbar(context.getString(R.string.settings_save_server_first))
-                                        }
-                                    } else {
-                                        val timestamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
-                                        triggerDownload("$baseUrl/api/export/all", "personal_records_$timestamp.json")
-                                    }
-                                },
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .height(42.dp),
-                                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp)
-                            ) {
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(6.dp)
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Default.Download,
-                                        contentDescription = null,
-                                        modifier = Modifier.size(16.dp)
-                                    )
-                                    Text(
-                                        text = stringResource(R.string.settings_btn_export_json),
-                                        style = MaterialTheme.typography.labelMedium,
-                                        maxLines = 1,
-                                        softWrap = false,
-                                        overflow = TextOverflow.Ellipsis
-                                    )
-                                }
-                            }
-
-                            FilledTonalButton(
-                                shapes = expressiveButtonShapes(),
-                                onClick = {
-                                    val baseUrl = state.serverUrl.trim().trimEnd('/')
-                                    if (baseUrl.isBlank()) {
-                                        coroutineScope.launch {
-                                            snackbarHostState.showSnackbar(context.getString(R.string.settings_save_server_first))
-                                        }
-                                    } else {
-                                        val timestamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
-                                        triggerDownload("$baseUrl/api/export/db", "personal_records_$timestamp.sqlite3")
-                                    }
-                                },
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .height(42.dp),
-                                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp)
-                            ) {
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(6.dp)
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Default.Download,
-                                        contentDescription = null,
-                                        modifier = Modifier.size(16.dp)
-                                    )
-                                    Text(
-                                        text = stringResource(R.string.settings_btn_export_sqlite),
-                                        style = MaterialTheme.typography.labelMedium,
-                                        maxLines = 1,
-                                        softWrap = false,
-                                        overflow = TextOverflow.Ellipsis
-                                    )
-                                }
-                            }
-                        }
-
-                        Spacer(modifier = Modifier.height(6.dp))
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(4.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Info,
-                                contentDescription = null,
-                                modifier = Modifier.size(14.dp),
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                            Text(
-                                text = stringResource(R.string.settings_export_note),
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                    }
-                }
-
-                // ==========================================
-                // SECTION 6: Uygulama Bilgisi (Simple Text Footer)
-                // ==========================================
-                item {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(top = 12.dp, bottom = 20.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(2.dp)
-                    ) {
-                        Text(
-                            text = "${stringResource(R.string.app_name)} • ${stringResource(R.string.app_version_info)}",
-                            style = MaterialTheme.typography.labelMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
-                        )
-                        Text(
-                            text = stringResource(R.string.app_description),
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
-                        )
-                    }
-                }
-
                 item { Spacer(modifier = Modifier.height(16.dp)) }
+            }
+        }
+    }
+}
+
+/** Page id of the server form; integration pages use their plugin id. */
+const val SERVER_PAGE_ID = "server"
+
+/**
+ * Main settings list: one segmented group per section. Every row that has more settings
+ * behind it opens its own page through [onOpenSettingsPage].
+ */
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+private fun LazyListScope.settingsMainPage(
+    state: SettingsUiState,
+    enabledPlugins: List<IntegrationPlugin>,
+    onNavigateToLanguage: () -> Unit,
+    onOpenSettingsPage: (String) -> Unit,
+    onNavigateToIntegrationsCatalog: () -> Unit,
+    onThemeModeChange: (String) -> Unit,
+    onDynamicColorChange: (Boolean) -> Unit,
+    onExport: (path: String, extension: String) -> Unit
+) {
+    // Language
+    item(key = "section_language") {
+        SettingsGroup(title = stringResource(R.string.settings_section_language)) {
+            val currentLanguageLabel = when (state.appLanguage) {
+                "tr" -> "Türkçe"
+                "en" -> "English"
+                else -> stringResource(R.string.settings_language_system)
+            }
+            ExpressiveListRow(
+                index = 0,
+                count = 1,
+                addLeadingGap = false,
+                onClick = onNavigateToLanguage,
+                leadingContent = {
+                    SettingsIconBox(
+                        icon = Icons.Default.Language,
+                        containerColor = MaterialTheme.colorScheme.tertiaryContainer,
+                        contentColor = MaterialTheme.colorScheme.onTertiaryContainer
+                    )
+                },
+                trailingContent = { SettingsChevron() },
+                supportingContent = { Text(currentLanguageLabel) }
+            ) {
+                Text(stringResource(R.string.settings_language_title))
+            }
+        }
+    }
+
+    // Appearance
+    item(key = "section_appearance") {
+        val supportsDynamicColor = android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S
+        val rowCount = if (supportsDynamicColor) 2 else 1
+        SettingsGroup(title = stringResource(R.string.settings_section_appearance)) {
+            ExpressiveListRow(
+                index = 0,
+                count = rowCount,
+                addLeadingGap = false,
+                leadingContent = {
+                    SettingsIconBox(
+                        icon = Icons.Default.DarkMode,
+                        containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                        contentColor = MaterialTheme.colorScheme.onSecondaryContainer
+                    )
+                },
+                supportingContent = {
+                    ThemeModeButtonGroup(
+                        selected = state.themeMode,
+                        onSelect = onThemeModeChange,
+                        modifier = Modifier.padding(top = 8.dp)
+                    )
+                }
+            ) {
+                Text(stringResource(R.string.settings_theme_title))
+            }
+            if (supportsDynamicColor) {
+                SegmentedListItem(
+                    checked = state.dynamicColor,
+                    onCheckedChange = onDynamicColorChange,
+                    shapes = ListItemDefaults.segmentedShapes(index = 1, count = rowCount),
+                    // The switch already shows the state; keep the row neutral instead of the
+                    // selected-row highlight that checked list items get by default.
+                    colors = ListItemDefaults.segmentedColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+                        selectedContainerColor = MaterialTheme.colorScheme.surfaceContainerLow
+                    ),
+                    leadingContent = {
+                        SettingsIconBox(
+                            icon = Icons.Default.Palette,
+                            containerColor = MaterialTheme.colorScheme.primaryContainer,
+                            contentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                        )
+                    },
+                    trailingContent = {
+                        // The row is the toggle; the switch only shows its state.
+                        Switch(checked = state.dynamicColor, onCheckedChange = null)
+                    },
+                    supportingContent = { Text(stringResource(R.string.settings_dynamic_color_desc)) },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(stringResource(R.string.settings_dynamic_color_title))
+                }
+            }
+        }
+    }
+
+    // Server
+    item(key = "section_server") {
+        SettingsGroup(title = stringResource(R.string.settings_section_server)) {
+            ExpressiveListRow(
+                index = 0,
+                count = 1,
+                addLeadingGap = false,
+                onClick = { onOpenSettingsPage(SERVER_PAGE_ID) },
+                leadingContent = {
+                    SettingsIconBox(
+                        icon = Icons.Default.Dns,
+                        containerColor = MaterialTheme.colorScheme.primaryContainer,
+                        contentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                    )
+                },
+                trailingContent = {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        state.connectionSuccess?.let { ok ->
+                            ConnectionStatusChip(connected = ok)
+                        }
+                        SettingsChevron()
+                    }
+                },
+                supportingContent = {
+                    Text(
+                        text = state.serverUrl.trim().ifBlank { stringResource(R.string.settings_server_not_configured) },
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+            ) {
+                Text(stringResource(R.string.settings_server_title))
+            }
+        }
+    }
+
+    // Integrations: one row per enabled plugin, then a row into the catalog.
+    item(key = "section_integrations") {
+        val count = enabledPlugins.size + 1
+        SettingsGroup(title = stringResource(R.string.settings_section_integrations)) {
+            enabledPlugins.forEachIndexed { index, plugin ->
+                val colors = recordCategoryColors(plugin.recordCategory())
+                val description = if (plugin.shortDescRes != 0) stringResource(plugin.shortDescRes) else plugin.shortDescription
+                ExpressiveListRow(
+                    index = index,
+                    count = count,
+                    addLeadingGap = false,
+                    onClick = { onOpenSettingsPage(plugin.id) },
+                    leadingContent = {
+                        SettingsIconBox(
+                            icon = plugin.icon,
+                            containerColor = colors.container,
+                            contentColor = colors.onContainer
+                        )
+                    },
+                    trailingContent = { SettingsChevron() },
+                    supportingContent = if (description.isNotBlank()) {
+                        { Text(description, maxLines = 1, overflow = TextOverflow.Ellipsis) }
+                    } else null
+                ) {
+                    Text(plugin.name, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                }
+            }
+            ExpressiveListRow(
+                index = enabledPlugins.size,
+                count = count,
+                addLeadingGap = false,
+                onClick = onNavigateToIntegrationsCatalog,
+                leadingContent = {
+                    SettingsIconBox(
+                        icon = Icons.Default.Add,
+                        containerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
+                        contentColor = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                },
+                trailingContent = { SettingsChevron() },
+                supportingContent = {
+                    Text(
+                        stringResource(
+                            if (enabledPlugins.isEmpty()) R.string.settings_integrations_empty_desc
+                            else R.string.settings_integrations_add_desc
+                        )
+                    )
+                }
+            ) {
+                Text(stringResource(R.string.settings_integrations_add))
+            }
+        }
+    }
+
+    // Data export
+    item(key = "section_export") {
+        SettingsGroup(title = stringResource(R.string.settings_section_export)) {
+            ExpressiveListRow(
+                index = 0,
+                count = 2,
+                addLeadingGap = false,
+                onClick = { onExport("/api/export/all", "json") },
+                leadingContent = {
+                    SettingsIconBox(
+                        icon = Icons.Default.Download,
+                        containerColor = MaterialTheme.colorScheme.primaryContainer,
+                        contentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                    )
+                },
+                supportingContent = { Text(stringResource(R.string.settings_export_desc)) }
+            ) {
+                Text(stringResource(R.string.settings_btn_export_json))
+            }
+            ExpressiveListRow(
+                index = 1,
+                count = 2,
+                addLeadingGap = false,
+                onClick = { onExport("/api/export/db", "sqlite3") },
+                leadingContent = {
+                    SettingsIconBox(
+                        icon = Icons.Default.Storage,
+                        containerColor = MaterialTheme.colorScheme.primaryContainer,
+                        contentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                    )
+                },
+                supportingContent = { Text(stringResource(R.string.settings_export_note)) }
+            ) {
+                Text(stringResource(R.string.settings_btn_export_sqlite))
+            }
+        }
+    }
+
+    // App info footer
+    item(key = "app_info") {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(top = 8.dp, bottom = 20.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(2.dp)
+        ) {
+            Text(
+                text = "${stringResource(R.string.app_name)} • ${stringResource(R.string.app_version_info)}",
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Text(
+                text = stringResource(R.string.app_description),
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+    }
+}
+
+/** Section of the main settings list: a subheader over a segmented group of rows. */
+@Composable
+private fun SettingsGroup(
+    title: String,
+    content: @Composable ColumnScope.() -> Unit
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(ListItemDefaults.SegmentedGap)) {
+        SettingsSectionTitle(title = title)
+        content()
+    }
+}
+
+@Composable
+private fun SettingsChevron() {
+    Icon(
+        imageVector = Icons.Default.ChevronRight,
+        contentDescription = null
+    )
+}
+
+@Composable
+private fun ConnectionStatusChip(connected: Boolean) {
+    val statusBg = if (connected) statusColors(StatusTone.Active).container else MaterialTheme.colorScheme.errorContainer
+    val statusFg = if (connected) statusColors(StatusTone.Active).onContainer else MaterialTheme.colorScheme.onErrorContainer
+    Surface(shape = M3Shapes.CornerFull, color = statusBg) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(4.dp),
+            modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(6.dp)
+                    .background(statusFg, M3Shapes.CornerFull)
+            )
+            Text(
+                text = stringResource(if (connected) R.string.badge_connected else R.string.badge_not_connected),
+                color = statusFg,
+                style = MaterialTheme.typography.labelSmallEmphasized,
+                maxLines = 1,
+                softWrap = false
+            )
+        }
+    }
+}
+
+/** System / Light / Dark as an M3 Expressive connected button group. */
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+@Composable
+private fun ThemeModeButtonGroup(
+    selected: String,
+    onSelect: (String) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val options = listOf(
+        "system" to R.string.settings_theme_system,
+        "light" to R.string.settings_theme_light,
+        "dark" to R.string.settings_theme_dark
+    )
+    Row(
+        modifier = modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(ButtonGroupDefaults.ConnectedSpaceBetween)
+    ) {
+        options.forEachIndexed { index, (mode, labelRes) ->
+            ToggleButton(
+                checked = selected == mode,
+                onCheckedChange = { onSelect(mode) },
+                shapes = when (index) {
+                    0 -> ButtonGroupDefaults.connectedLeadingButtonShapes()
+                    options.lastIndex -> ButtonGroupDefaults.connectedTrailingButtonShapes()
+                    else -> ButtonGroupDefaults.connectedMiddleButtonShapes()
+                },
+                modifier = Modifier
+                    .weight(1f)
+                    .semantics { role = Role.RadioButton }
+            ) {
+                Text(stringResource(labelRes), maxLines = 1, softWrap = false)
             }
         }
     }
@@ -4224,9 +4322,11 @@ fun SettingsScreen(
 private fun SettingsSectionTitle(title: String) {
     Text(
         text = title,
-        style = MaterialTheme.typography.labelLargeEmphasized,
+        style = MaterialTheme.typography.titleSmallEmphasized,
         color = MaterialTheme.colorScheme.primary,
-        modifier = Modifier.padding(start = 4.dp, top = 8.dp, bottom = 2.dp)
+        modifier = Modifier
+            .padding(start = 16.dp, top = 4.dp, bottom = 6.dp)
+            .semantics { heading() }
     )
 }
 

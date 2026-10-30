@@ -57,7 +57,8 @@ import kotlinx.coroutines.launch
 fun IntegrationsCatalogScreen(
     viewModel: IntegrationsCatalogViewModel,
     onNavigateBack: () -> Unit,
-    onNavigateToSettings: (() -> Unit)? = null
+    /** Opens the settings page of one integration, by plugin id. */
+    onNavigateToSettings: ((String) -> Unit)? = null
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
@@ -168,7 +169,7 @@ fun IntegrationsCatalogScreen(
                         onToggle = { isEnabled -> viewModel.togglePlugin(plugin.id, isEnabled) },
                         onConfigureWebhook = { selectedWebhookPlugin = plugin },
                         onSync = { viewModel.syncPlugin(plugin) },
-                        onOpenSettings = onNavigateToSettings
+                        onOpenSettings = onNavigateToSettings?.let { open -> { open(plugin.id) } }
                     )
                 }
             }
@@ -421,7 +422,7 @@ private fun OfficialSiteLink(
 }
 
 /** Maps a plugin to the record category whose color it should use. */
-private fun IntegrationPlugin.recordCategory(): RecordCategory = when (category) {
+internal fun IntegrationPlugin.recordCategory(): RecordCategory = when (category) {
     IntegrationCategory.MUSIC -> RecordCategory.Music
     IntegrationCategory.MEDIA -> if (id == "goodreads") RecordCategory.Books else RecordCategory.Movies
     IntegrationCategory.HEALTH -> if (id == "fatsecret") RecordCategory.Nutrition else RecordCategory.Health

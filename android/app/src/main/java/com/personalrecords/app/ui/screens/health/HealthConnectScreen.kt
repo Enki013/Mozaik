@@ -377,15 +377,13 @@ fun HealthConnectScreen(
                             key = { _, rec -> rec.id.ifBlank { "${rec.record_type}_${rec.start_time}_${rec.title}" } },
                             contentType = { _, _ -> "health_row" }
                         ) { index, rec ->
-                            LazyCardRowContainer(
+                            HealthRecordRowItem(
+                                record = rec,
+                                onClick = { selectedRecord = rec },
                                 index = index,
-                                totalCount = state.filteredRecords.size
-                            ) {
-                                HealthRecordRowItem(
-                                    record = rec,
-                                    onClick = { selectedRecord = rec }
-                                )
-                            }
+                                count = state.filteredRecords.size,
+                                addLeadingGap = true
+                            )
                         }
                     }
 
@@ -461,8 +459,13 @@ fun healthRecordVisuals(recordType: String, category: String): Triple<ImageVecto
 @Composable
 fun HealthRecordRowItem(
     record: HealthRecordDto,
+    index: Int = 0,
+    count: Int = 1,
+    modifier: Modifier = Modifier,
+    addLeadingGap: Boolean = false,
     onClick: () -> Unit
 ) {
+
     val (icon, iconBg, iconTint) = healthRecordVisuals(record.record_type, record.category)
     val categoryLabel = when (record.category) {
         "activity" -> stringResource(R.string.health_cat_activity)
@@ -473,80 +476,83 @@ fun HealthRecordRowItem(
         else -> stringResource(R.string.title_health_connect)
     }
 
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .expressiveBounceClick(onClick = onClick)
-            .padding(horizontal = 12.dp, vertical = 10.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Box(
-            modifier = Modifier
-                .size(40.dp)
-                .clip(M3Shapes.CornerSmall)
-                .background(iconBg),
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(
-                imageVector = icon,
-                contentDescription = null,
-                tint = iconTint,
-                modifier = Modifier.size(20.dp)
-            )
-        }
-
-        Spacer(modifier = Modifier.width(12.dp))
-
-        Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = record.title,
-                style = MaterialTheme.typography.titleSmallEmphasized,
-                color = MaterialTheme.colorScheme.onSurface,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
-            if (record.subtitle.isNotBlank()) {
-                Spacer(modifier = Modifier.height(2.dp))
-                Text(
-                    text = record.subtitle,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
+    
+    ExpressiveListRow(
+        index = index,
+        count = count,
+        modifier = modifier,
+        addLeadingGap = addLeadingGap,
+        onClick = onClick,
+        verticalAlignment = Alignment.CenterVertically,
+        leadingContent = {
+            Box(
+                modifier = Modifier
+                    .size(40.dp)
+                    .clip(M3Shapes.CornerSmall)
+                    .background(iconBg),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = icon,
+                    contentDescription = null,
+                    tint = iconTint,
+                    modifier = Modifier.size(20.dp)
                 )
             }
-            Spacer(modifier = Modifier.height(4.dp))
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(6.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Surface(
-                    shape = M3Shapes.CornerFull,
-                    color = iconBg
-                ) {
+        },
+        supportingContent = {
+            Column {
+                if (record.subtitle.isNotBlank()) {
+                    Spacer(modifier = Modifier.height(2.dp))
                     Text(
-                        text = categoryLabel,
-                        style = MaterialTheme.typography.labelSmall,
-                        color = iconTint,
-                        modifier = Modifier.padding(horizontal = 7.dp, vertical = 2.dp),
-                        maxLines = 1,
-                        softWrap = false
-                    )
-                }
-                val dateTimeStr = listOf(record.formattedDate, record.formattedTime)
-                    .filter { it.isNotBlank() }
-                    .joinToString(" · ")
-                if (dateTimeStr.isNotBlank()) {
-                    Text(
-                        text = dateTimeStr,
-                        style = MaterialTheme.typography.labelSmall,
+                        text = record.subtitle,
+                        style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         maxLines = 1,
-                        softWrap = false
+                        overflow = TextOverflow.Ellipsis
                     )
+                }
+                Spacer(modifier = Modifier.height(4.dp))
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Surface(
+                        shape = M3Shapes.CornerFull,
+                        color = iconBg
+                    ) {
+                        Text(
+                            text = categoryLabel,
+                            style = MaterialTheme.typography.labelSmall,
+                            color = iconTint,
+                            modifier = Modifier.padding(horizontal = 7.dp, vertical = 2.dp),
+                            maxLines = 1,
+                            softWrap = false
+                        )
+                    }
+                    val dateTimeStr = listOf(record.formattedDate, record.formattedTime)
+                        .filter { it.isNotBlank() }
+                        .joinToString(" · ")
+                    if (dateTimeStr.isNotBlank()) {
+                        Text(
+                            text = dateTimeStr,
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 1,
+                            softWrap = false
+                        )
+                    }
                 }
             }
         }
+    ) {
+        Text(
+            text = record.title,
+            style = MaterialTheme.typography.titleSmallEmphasized,
+            color = MaterialTheme.colorScheme.onSurface,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
+        )
     }
 }
 
