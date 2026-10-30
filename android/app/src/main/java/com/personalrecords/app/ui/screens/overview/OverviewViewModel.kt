@@ -1,5 +1,8 @@
 package com.personalrecords.app.ui.screens.overview
 
+import com.personalrecords.app.R
+import com.personalrecords.app.ui.common.syncIntegration
+import com.personalrecords.app.ui.common.UiMessage
 import androidx.compose.runtime.Immutable
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -62,7 +65,7 @@ data class OverviewUiState(
     val healthSummary: HealthConnectSummaryDto = HealthConnectSummaryDto(),
     val notificationsStats: NotificationsOverviewStats = NotificationsOverviewStats(),
     val isSyncing: String? = null, // "fatsecret", "goodreads", "letterboxd", "lastfm"
-    val syncMessage: String? = null,
+    val syncMessage: UiMessage? = null,
     val error: String? = null,
     val enabledPluginIds: Set<String> = AppPreferences.DEFAULT_ENABLED_PLUGINS,
     val serverBaseUrl: String = ""
@@ -247,114 +250,13 @@ class OverviewViewModel(
     fun syncService(service: String) {
         viewModelScope.launch {
             _uiState.update { it.copy(isSyncing = service, syncMessage = null) }
-            val result = when (service) {
-                "fatsecret" -> repository.syncFatSecret(30)
-                "goodreads" -> repository.syncGoodreads()
-                "letterboxd" -> repository.syncLetterboxd()
-                "lastfm", "music" -> {
-                    when (val lfm = repository.syncLastFm()) {
-                        is Resource.Success -> Resource.Success(
-                            com.personalrecords.app.core.network.model.SyncResultDto(
-                                success = true,
-                                message = lfm.data.message
-                            )
-                        )
-                        is Resource.Error -> Resource.Error(lfm.message ?: "Last.fm eşitlenemedi")
-                        else -> Resource.Error("Last.fm eşitlenemedi")
-                    }
-                }
-                "listenbrainz" -> {
-                    when (val lb = repository.syncListenBrainz()) {
-                        is Resource.Success -> {
-                            val count = lb.data.inserted + lb.data.updated
-                            val defaultMsg = if (count > 0) "ListenBrainz eşitlendi ($count yeni/güncellenen)" else "ListenBrainz dinlemeleri güncel"
-                            Resource.Success(
-                                com.personalrecords.app.core.network.model.SyncResultDto(
-                                    success = true,
-                                    message = lb.data.message.ifBlank { defaultMsg }
-                                )
-                            )
-                        }
-                        is Resource.Error -> Resource.Error(lb.message ?: "ListenBrainz eşitlenemedi")
-                        else -> Resource.Error("ListenBrainz eşitlenemedi")
-                    }
-                }
-                "statsfm" -> {
-                    when (val sfm = repository.syncStatsFm()) {
-                        is Resource.Success -> {
-                            val count = sfm.data.inserted + sfm.data.updated
-                            val defaultMsg = if (count > 0) "Stats.fm eşitlendi ($count yeni/güncellenen)" else "Stats.fm dinlemeleri güncel"
-                            Resource.Success(
-                                com.personalrecords.app.core.network.model.SyncResultDto(
-                                    success = true,
-                                    message = sfm.data.message.ifBlank { defaultMsg }
-                                )
-                            )
-                        }
-                        is Resource.Error -> Resource.Error(sfm.message ?: "Stats.fm eşitlenemedi")
-                        else -> Resource.Error("Stats.fm eşitlenemedi")
-                    }
-                }
-                "health_connect" -> {
-                    Resource.Success(
-                        com.personalrecords.app.core.network.model.SyncResultDto(
-                            success = true,
-                            message = "Health Connect verileri eşitlendi!"
-                        )
-                    )
-                }
-                "notification", "notification_relay" -> {
-                    Resource.Success(
-                        com.personalrecords.app.core.network.model.SyncResultDto(
-                            success = true,
-                            message = "Bildirim kayıtları eşitlendi!"
-                        )
-                    )
-                }
-                "web_scrobbler" -> {
-                    Resource.Success(
-                        com.personalrecords.app.core.network.model.SyncResultDto(
-                            success = true,
-                            message = "Web Scrobbler verileri eşitlendi!"
-                        )
-                    )
-                }
-                "trakt" -> repository.syncTrakt(force = true)
-                "mdblist" -> repository.syncMdbList(force = true)
-                "simkl" -> repository.syncSimkl(force = true)
-                else -> {
-                    val pluginName = PluginRegistry.defaultPlugins.find { it.id == service || it.syncServiceKey == service }?.name ?: service
-                    Resource.Success(
-                        com.personalrecords.app.core.network.model.SyncResultDto(
-                            success = true,
-                            message = "$pluginName verileri güncellendi!"
-                        )
-                    )
-                }
-            }
-            when (result) {
-                is Resource.Success -> {
-                    val serverMsg = result.data.message.takeIf { it.isNotBlank() }
-                    _uiState.update {
-                        it.copy(
-                            isSyncing = null,
-                            syncMessage = serverMsg ?: "${service.replaceFirstChar { c -> c.uppercase() }} eşitlendi!"
-                        )
-                    }
-                    loadData()
-                }
-                is Resource.Error -> {
-                    _uiState.update {
-                        it.copy(
-                            isSyncing = null,
-                            syncMessage = "Hata: ${result.message}"
-                        )
-                    }
-                }
-                else -> {
-                    _uiState.update { it.copy(isSyncing = null) }
-                }
-            }
+            val plugin = PluginRegistry.defaultPlugins.find { it.id == service || it.syncServiceKey == service }
+            val displayName = plugin?.name ?: service.replaceFirstChar { it.uppercase() }
+            // Webhook-only integrations have nothing to pull; refreshing the dashboard is the sync.
+            val message = repository.syncIntegration(service, displayName)
+                ?: UiMessage.of(R.string.settings_msg_synced, displayName)
+            _uiState.update { it.copy(isSyncing = null, syncMessage = message) }
+            if (!message.isError) loadData()
         }
     }
 
@@ -388,7 +290,7 @@ class OverviewViewModel(
             _uiState.update {
                 it.copy(
                     isSyncing = null,
-                    syncMessage = if (syncedCount > 0) "Tüm aktif entegrasyonlar eşitlendi ($syncedCount servis)" else "Senkronizasyon tamamlandı"
+                    syncMessage = if (syncedCount > 0) UiMessage.of(R.string.sync_msg_all, syncedCount) else UiMessage.of(R.string.sync_msg_done)
                 )
             }
             loadData()

@@ -708,5 +708,34 @@
     <string name="settings_server_not_configured">Not set up</string>
     <string name="settings_integrations_add">Add integration</string>
     <string name="settings_integrations_add_desc">Browse the integrations catalog</string>
+    <!-- Settings messages -->
+    <string name="settings_msg_error">Error: %1$s</string>
+    <string name="settings_msg_keys_empty">Consumer key and secret can\'t be empty.</string>
+    <string name="settings_msg_keys_saved">Keys saved.</string>
+    <string name="settings_msg_server_unreachable">Couldn\'t reach the server. Check the address.</string>
+    <string name="settings_msg_server_key_missing">The server is protected: the API key is missing or invalid.</string>
+    <string name="settings_msg_server_verified">Connected and API key verified (protected).</string>
+    <string name="settings_msg_server_open">Connected (open mode).</string>
+    <string name="settings_msg_server_unauthorized">Unauthorized: the server rejected your API key.</string>
+    <string name="settings_msg_server_connected">Connected.</string>
+    <string name="settings_msg_fatsecret_synced">FatSecret synced (%1$d days).</string>
+    <string name="settings_msg_synced">%1$s synced.</string>
+    <string name="settings_msg_synced_tracks">%1$s synced: %2$d tracks updated.</string>
+    <string name="settings_msg_synced_items">%1$s synced: %2$d items imported.</string>
+    <string name="settings_msg_mdblist_synced">MDBList synced: media ratings updated.</string>
+    <string name="settings_msg_saved">%1$s saved.</string>
+    <string name="settings_msg_settings_saved">%1$s settings saved.</string>
+    <string name="settings_msg_letterboxd_empty">Enter a Letterboxd username or RSS link.</string>
+    <string name="settings_msg_goodreads_empty">Enter a Goodreads RSS link.</string>
+    <string name="sync_msg_failed">%1$s couldn\'t sync.</string>
+    <string name="sync_msg_up_to_date">%1$s is up to date.</string>
+    <string name="sync_msg_all">All active integrations synced (%1$d services).</string>
+    <string name="sync_msg_done">Sync finished.</string>
+    <string name="plugin_msg_enabled">Integration turned on.</string>
+    <string name="plugin_msg_disabled">Integration turned off (recording paused).</string>
+    <string name="music_msg_new_scrobbles">%1$d new scrobbles added.</string>
+    <string name="music_msg_up_to_date">All tracks are up to date.</string>
+    <string name="calories_value">%1$s kcal</string>
+    <string name="ratings_loading">Loading ratings…</string>
 </resources>
 

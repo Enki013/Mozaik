@@ -37,7 +37,7 @@ fun WebhookAuthCard(
     modifier: Modifier = Modifier
 ) {
     Surface(
-        shape = M3Shapes.CornerMedium,
+        shape = MaterialTheme.shapes.medium,
         color = MaterialTheme.colorScheme.secondaryContainer,
         contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
         modifier = modifier.fillMaxWidth()

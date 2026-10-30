@@ -66,9 +66,10 @@ fun IntegrationsCatalogScreen(
     val scrollBehavior = TopAppBarDefaults.enterAlwaysScrollBehavior(rememberTopAppBarState())
     var selectedWebhookPlugin by remember { mutableStateOf<IntegrationPlugin?>(null) }
 
+    val messageContext = androidx.compose.ui.platform.LocalContext.current
     LaunchedEffect(state.toastMessage) {
         state.toastMessage?.let {
-            snackbarHostState.showSnackbar(it)
+            snackbarHostState.showSnackbar(it.resolve(messageContext))
             viewModel.clearToast()
         }
     }
@@ -215,7 +216,7 @@ private fun CatalogPluginCard(
     // Same container and corner as the Settings integration cards.
     Card(
         modifier = Modifier.fillMaxWidth(),
-        shape = M3Shapes.CornerLargeIncreased,
+        shape = MaterialTheme.shapes.largeIncreased,
         colors = CardDefaults.cardColors(containerColor = colorScheme.surfaceContainerLow),
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
     ) {
@@ -230,7 +231,7 @@ private fun CatalogPluginCard(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clip(M3Shapes.CornerMedium)
+                    .clip(MaterialTheme.shapes.medium)
                     .toggleable(
                         value = plugin.isEnabled,
                         enabled = canToggle,
@@ -243,7 +244,7 @@ private fun CatalogPluginCard(
                 Box(
                     modifier = Modifier
                         .size(48.dp)
-                        .clip(M3Shapes.CornerLarge)
+                        .clip(MaterialTheme.shapes.large)
                         .background(iconContainerColor),
                     contentAlignment = Alignment.Center
                 ) {
@@ -458,7 +459,7 @@ private fun PluginWebhookBottomSheet(
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
-        shape = M3Shapes.CornerExtraLarge,
+        shape = MaterialTheme.shapes.extraLarge,
         containerColor = MaterialTheme.colorScheme.surfaceContainerLow
     ) {
         Column(
@@ -484,7 +485,7 @@ private fun PluginWebhookBottomSheet(
                     Box(
                         modifier = Modifier
                             .size(48.dp)
-                            .clip(M3Shapes.CornerLarge)
+                            .clip(MaterialTheme.shapes.large)
                             .background(categoryColors.container),
                         contentAlignment = Alignment.Center
                     ) {
@@ -526,7 +527,7 @@ private fun PluginWebhookBottomSheet(
 
             // Webhook Target URL box
             Surface(
-                shape = M3Shapes.CornerMedium,
+                shape = MaterialTheme.shapes.medium,
                 color = MaterialTheme.colorScheme.surfaceContainerHighest,
                 modifier = Modifier.fillMaxWidth()
             ) {
@@ -621,7 +622,7 @@ private fun PluginWebhookBottomSheet(
             // Setup Steps guide
             if (plugin.setupSteps.isNotEmpty()) {
                 Surface(
-                    shape = M3Shapes.CornerMedium,
+                    shape = MaterialTheme.shapes.medium,
                     color = MaterialTheme.colorScheme.surfaceContainerHigh,
                     modifier = Modifier.fillMaxWidth()
                 ) {

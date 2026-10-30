@@ -139,7 +139,7 @@ fun MusicScreen(
 
     LaunchedEffect(state.syncMessage) {
         state.syncMessage?.let {
-            snackbarHostState.showSnackbar(it)
+            snackbarHostState.showSnackbar(it.resolve(context))
             viewModel.clearSyncMessage()
         }
     }
@@ -641,7 +641,7 @@ private fun ScrobbleListItem(
             Box(
                 modifier = Modifier
                     .size(40.dp)
-                    .clip(M3Shapes.CornerSmall)
+                    .clip(MaterialTheme.shapes.small)
                     .background(musicColors.container),
                 contentAlignment = Alignment.Center
             ) {
@@ -926,7 +926,7 @@ fun MusicDetailBottomSheet(
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
-        shape = M3Shapes.CornerExtraLarge,
+        shape = MaterialTheme.shapes.extraLarge,
         containerColor = MaterialTheme.colorScheme.surfaceContainerLow
     ) {
         MusicDetailContent(
@@ -947,7 +947,7 @@ fun MusicDetailPaneCard(
 ) {
     Surface(
         modifier = modifier.fillMaxSize(),
-        shape = M3Shapes.CornerLarge,
+        shape = MaterialTheme.shapes.large,
         color = MaterialTheme.colorScheme.surfaceContainerLow
     ) {
         Column(

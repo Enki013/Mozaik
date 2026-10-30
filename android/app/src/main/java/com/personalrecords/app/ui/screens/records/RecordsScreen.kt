@@ -275,7 +275,7 @@ private fun RecordsGroup(
                     Box(
                         modifier = Modifier
                             .size(40.dp)
-                            .clip(M3Shapes.CornerSmall)
+                            .clip(MaterialTheme.shapes.small)
                             .background(colors.container),
                         contentAlignment = Alignment.Center
                     ) {

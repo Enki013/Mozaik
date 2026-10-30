@@ -1,5 +1,7 @@
 package com.personalrecords.app.ui.screens.settings
 
+import com.personalrecords.app.R
+import com.personalrecords.app.ui.common.UiMessage
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.Immutable
@@ -19,11 +21,11 @@ import kotlinx.coroutines.launch
 data class SettingsUiState(
     val serverUrl: String = "",
     val serverApiKey: String = "",
-    val authStatusMessage: String? = null,
+    val authStatusMessage: UiMessage? = null,
     val isTestingConnection: Boolean = false,
     val connectionSuccess: Boolean? = null,
     val isSyncing: String? = null,
-    val syncStatusMessage: String? = null,
+    val syncStatusMessage: UiMessage? = null,
     // FatSecret BYOK
     val consumerKey: String = "",
     val consumerSecret: String = "",
@@ -32,17 +34,17 @@ data class SettingsUiState(
     val maskedKey: String = "",
     val isLoadingFsSettings: Boolean = false,
     val isSavingKeys: Boolean = false,
-    val keySaveMessage: String? = null,
+    val keySaveMessage: UiMessage? = null,
     // Letterboxd
     val letterboxdUrl: String = "",
     val isLoadingLetterboxd: Boolean = false,
     val isSavingLetterboxd: Boolean = false,
-    val letterboxdSaveMessage: String? = null,
+    val letterboxdSaveMessage: UiMessage? = null,
     // Goodreads
     val goodreadsUrl: String = "",
     val isLoadingGoodreads: Boolean = false,
     val isSavingGoodreads: Boolean = false,
-    val goodreadsSaveMessage: String? = null,
+    val goodreadsSaveMessage: UiMessage? = null,
     // Music & Scrobbler
     val lastfmUsername: String = "",
     val lastfmApiKey: String = "",
@@ -51,17 +53,17 @@ data class SettingsUiState(
     val webScrobblerEnabled: Boolean = false,
     val isLoadingMusicSettings: Boolean = false,
     val isSavingMusicSettings: Boolean = false,
-    val musicSaveMessage: String? = null,
+    val musicSaveMessage: UiMessage? = null,
     // ListenBrainz
     val listenbrainzUsername: String = "",
     val listenbrainzToken: String = "",
     val listenbrainzTokenSet: Boolean = false,
     val isSavingListenBrainz: Boolean = false,
-    val listenbrainzSaveMessage: String? = null,
+    val listenbrainzSaveMessage: UiMessage? = null,
     // Stats.fm
     val statsfmUsername: String = "",
     val isSavingStatsFm: Boolean = false,
-    val statsfmSaveMessage: String? = null,
+    val statsfmSaveMessage: UiMessage? = null,
     // Trakt.tv
     val traktUsername: String = "",
     val traktClientId: String = "",
@@ -70,14 +72,14 @@ data class SettingsUiState(
     val traktSyncRatings: Boolean = true,
     val isLoadingTrakt: Boolean = false,
     val isSavingTrakt: Boolean = false,
-    val traktSaveMessage: String? = null,
+    val traktSaveMessage: UiMessage? = null,
     // MDBList
     val mdblistApiKey: String = "",
     val mdblistSyncRatings: Boolean = true,
     val mdblistSyncLists: Boolean = false,
     val isLoadingMdbList: Boolean = false,
     val isSavingMdbList: Boolean = false,
-    val mdblistSaveMessage: String? = null,
+    val mdblistSaveMessage: UiMessage? = null,
     // Simkl
     val simklClientId: String = "",
     val simklAccessToken: String = "",
@@ -89,7 +91,7 @@ data class SettingsUiState(
     val simklSyncRatings: Boolean = true,
     val isLoadingSimkl: Boolean = false,
     val isSavingSimkl: Boolean = false,
-    val simklSaveMessage: String? = null,
+    val simklSaveMessage: UiMessage? = null,
     // Language
     val appLanguage: String = "system",
     // Appearance
@@ -210,7 +212,7 @@ class SettingsViewModel(
         val key = _uiState.value.consumerKey.trim()
         val secret = _uiState.value.consumerSecret.trim()
         if (key.isBlank() || secret.isBlank()) {
-            _uiState.update { it.copy(keySaveMessage = "Consumer Key ve Secret boş olamaz.") }
+            _uiState.update { it.copy(keySaveMessage = UiMessage.error(R.string.settings_msg_keys_empty)) }
             return
         }
         viewModelScope.launch {
@@ -221,7 +223,7 @@ class SettingsViewModel(
                     _uiState.update {
                         it.copy(
                             isSavingKeys = false,
-                            keySaveMessage = result.data.message.ifBlank { "Anahtarlar kaydedildi!" },
+                            keySaveMessage = UiMessage.serverOr(result.data.message, R.string.settings_msg_keys_saved),
                             consumerKey = "",
                             consumerSecret = ""
                         )
@@ -232,7 +234,7 @@ class SettingsViewModel(
                     _uiState.update {
                         it.copy(
                             isSavingKeys = false,
-                            keySaveMessage = "Hata: ${result.message}"
+                            keySaveMessage = UiMessage.error(R.string.settings_msg_error, result.message)
                         )
                     }
                 }
@@ -266,7 +268,7 @@ class SettingsViewModel(
                     it.copy(
                         isTestingConnection = false,
                         connectionSuccess = false,
-                        authStatusMessage = "Sunucuya ulaşılamadı. Adresi kontrol edin."
+                        authStatusMessage = UiMessage.error(R.string.settings_msg_server_unreachable)
                     )
                 }
                 return@launch
@@ -281,7 +283,7 @@ class SettingsViewModel(
                             it.copy(
                                 isTestingConnection = false,
                                 connectionSuccess = false,
-                                authStatusMessage = "Sunucu korumalı: API Anahtarı eksik veya geçersiz!"
+                                authStatusMessage = UiMessage.error(R.string.settings_msg_server_key_missing)
                             )
                         }
                     } else if (auth.required) {
@@ -289,7 +291,7 @@ class SettingsViewModel(
                             it.copy(
                                 isTestingConnection = false,
                                 connectionSuccess = true,
-                                authStatusMessage = "Bağlantı ve API Anahtarı doğrulandı (Korumalı)."
+                                authStatusMessage = UiMessage.of(R.string.settings_msg_server_verified)
                             )
                         }
                     } else {
@@ -297,7 +299,7 @@ class SettingsViewModel(
                             it.copy(
                                 isTestingConnection = false,
                                 connectionSuccess = true,
-                                authStatusMessage = "Bağlantı başarılı (Açık mod)."
+                                authStatusMessage = UiMessage.of(R.string.settings_msg_server_open)
                             )
                         }
                     }
@@ -308,7 +310,7 @@ class SettingsViewModel(
                         it.copy(
                             isTestingConnection = false,
                             connectionSuccess = !is401,
-                            authStatusMessage = if (is401) "Yetkisiz: API Anahtarınız sunucu tarafından reddedildi." else "Bağlantı sağlandı."
+                            authStatusMessage = if (is401) UiMessage.error(R.string.settings_msg_server_unauthorized) else UiMessage.of(R.string.settings_msg_server_connected)
                         )
                     }
                 }
@@ -331,7 +333,7 @@ class SettingsViewModel(
                     _uiState.update {
                         it.copy(
                             isSyncing = null,
-                            syncStatusMessage = serverMsg ?: "FatSecret başarıyla eşitlendi ($days gün)!"
+                            syncStatusMessage = UiMessage.serverOr(serverMsg, R.string.settings_msg_fatsecret_synced, days)
                         )
                     }
                 }
@@ -339,7 +341,7 @@ class SettingsViewModel(
                     _uiState.update {
                         it.copy(
                             isSyncing = null,
-                            syncStatusMessage = "Hata: ${result.message}"
+                            syncStatusMessage = UiMessage.error(R.string.settings_msg_error, result.message)
                         )
                     }
                 }
@@ -357,7 +359,7 @@ class SettingsViewModel(
                     _uiState.update {
                         it.copy(
                             isSyncing = null,
-                            syncStatusMessage = "Goodreads RSS eşitlendi!"
+                            syncStatusMessage = UiMessage.of(R.string.settings_msg_synced, "Goodreads RSS")
                         )
                     }
                 }
@@ -365,7 +367,7 @@ class SettingsViewModel(
                     _uiState.update {
                         it.copy(
                             isSyncing = null,
-                            syncStatusMessage = "Hata: ${result.message}"
+                            syncStatusMessage = UiMessage.error(R.string.settings_msg_error, result.message)
                         )
                     }
                 }
@@ -383,7 +385,7 @@ class SettingsViewModel(
                     _uiState.update {
                         it.copy(
                             isSyncing = null,
-                            syncStatusMessage = "Letterboxd RSS eşitlendi!"
+                            syncStatusMessage = UiMessage.of(R.string.settings_msg_synced, "Letterboxd RSS")
                         )
                     }
                 }
@@ -391,7 +393,7 @@ class SettingsViewModel(
                     _uiState.update {
                         it.copy(
                             isSyncing = null,
-                            syncStatusMessage = "Hata: ${result.message}"
+                            syncStatusMessage = UiMessage.error(R.string.settings_msg_error, result.message)
                         )
                     }
                 }
@@ -410,7 +412,7 @@ class SettingsViewModel(
                     _uiState.update {
                         it.copy(
                             isSyncing = null,
-                            syncStatusMessage = "Last.fm eşitlendi: $count parça güncellendi!"
+                            syncStatusMessage = UiMessage.of(R.string.settings_msg_synced_tracks, "Last.fm", count)
                         )
                     }
                 }
@@ -418,7 +420,7 @@ class SettingsViewModel(
                     _uiState.update {
                         it.copy(
                             isSyncing = null,
-                            syncStatusMessage = "Hata: ${result.message}"
+                            syncStatusMessage = UiMessage.error(R.string.settings_msg_error, result.message)
                         )
                     }
                 }
@@ -451,7 +453,7 @@ class SettingsViewModel(
     fun saveLetterboxdSettings() {
         var input = _uiState.value.letterboxdUrl.trim()
         if (input.isBlank()) {
-            _uiState.update { it.copy(letterboxdSaveMessage = "Letterboxd kullanıcı adı veya RSS linki girin.") }
+            _uiState.update { it.copy(letterboxdSaveMessage = UiMessage.error(R.string.settings_msg_letterboxd_empty)) }
             return
         }
         if (!input.startsWith("http://") && !input.startsWith("https://")) {
@@ -466,7 +468,7 @@ class SettingsViewModel(
                         it.copy(
                             isSavingLetterboxd = false,
                             letterboxdUrl = res.data.feed_url.ifBlank { input },
-                            letterboxdSaveMessage = res.data.message.ifBlank { "Letterboxd kaydedildi!" }
+                            letterboxdSaveMessage = UiMessage.serverOr(res.data.message, R.string.settings_msg_saved, "Letterboxd")
                         )
                     }
                 }
@@ -474,7 +476,7 @@ class SettingsViewModel(
                     _uiState.update {
                         it.copy(
                             isSavingLetterboxd = false,
-                            letterboxdSaveMessage = "Hata: ${res.message}"
+                            letterboxdSaveMessage = UiMessage.error(R.string.settings_msg_error, res.message)
                         )
                     }
                 }
@@ -507,7 +509,7 @@ class SettingsViewModel(
     fun saveGoodreadsSettings() {
         var input = _uiState.value.goodreadsUrl.trim()
         if (input.isBlank()) {
-            _uiState.update { it.copy(goodreadsSaveMessage = "Goodreads RSS linki girin.") }
+            _uiState.update { it.copy(goodreadsSaveMessage = UiMessage.error(R.string.settings_msg_goodreads_empty)) }
             return
         }
         if (!input.startsWith("http://") && !input.startsWith("https://")) {
@@ -525,7 +527,7 @@ class SettingsViewModel(
                         it.copy(
                             isSavingGoodreads = false,
                             goodreadsUrl = res.data.feed_url.ifBlank { input },
-                            goodreadsSaveMessage = res.data.message.ifBlank { "Goodreads kaydedildi!" }
+                            goodreadsSaveMessage = UiMessage.serverOr(res.data.message, R.string.settings_msg_saved, "Goodreads")
                         )
                     }
                 }
@@ -533,7 +535,7 @@ class SettingsViewModel(
                     _uiState.update {
                         it.copy(
                             isSavingGoodreads = false,
-                            goodreadsSaveMessage = "Hata: ${res.message}"
+                            goodreadsSaveMessage = UiMessage.error(R.string.settings_msg_error, res.message)
                         )
                     }
                 }
@@ -593,7 +595,7 @@ class SettingsViewModel(
                     _uiState.update {
                         it.copy(
                             isSavingMusicSettings = false,
-                            musicSaveMessage = "Müzik ayarları kaydedildi",
+                            musicSaveMessage = UiMessage.of(R.string.settings_msg_settings_saved, "Last.fm"),
                             lastfmApiKey = ""
                         )
                     }
@@ -603,7 +605,7 @@ class SettingsViewModel(
                     _uiState.update {
                         it.copy(
                             isSavingMusicSettings = false,
-                            musicSaveMessage = result.message
+                            musicSaveMessage = UiMessage.error(R.string.settings_msg_error, result.message)
                         )
                     }
                 }
@@ -635,7 +637,7 @@ class SettingsViewModel(
                     _uiState.update {
                         it.copy(
                             isSavingListenBrainz = false,
-                            listenbrainzSaveMessage = "ListenBrainz ayarları kaydedildi",
+                            listenbrainzSaveMessage = UiMessage.of(R.string.settings_msg_settings_saved, "ListenBrainz"),
                             listenbrainzToken = ""
                         )
                     }
@@ -645,7 +647,7 @@ class SettingsViewModel(
                     _uiState.update {
                         it.copy(
                             isSavingListenBrainz = false,
-                            listenbrainzSaveMessage = "Hata: ${result.message}"
+                            listenbrainzSaveMessage = UiMessage.error(R.string.settings_msg_error, result.message)
                         )
                     }
                 }
@@ -664,7 +666,7 @@ class SettingsViewModel(
                     _uiState.update {
                         it.copy(
                             isSyncing = null,
-                            syncStatusMessage = "ListenBrainz eşitlendi: $count parça güncellendi!"
+                            syncStatusMessage = UiMessage.of(R.string.settings_msg_synced_tracks, "ListenBrainz", count)
                         )
                     }
                 }
@@ -672,7 +674,7 @@ class SettingsViewModel(
                     _uiState.update {
                         it.copy(
                             isSyncing = null,
-                            syncStatusMessage = "Hata: ${result.message}"
+                            syncStatusMessage = UiMessage.error(R.string.settings_msg_error, result.message)
                         )
                     }
                 }
@@ -697,7 +699,7 @@ class SettingsViewModel(
                     _uiState.update {
                         it.copy(
                             isSavingStatsFm = false,
-                            statsfmSaveMessage = "Stats.fm ayarları kaydedildi"
+                            statsfmSaveMessage = UiMessage.of(R.string.settings_msg_settings_saved, "Stats.fm")
                         )
                     }
                     loadMusicSettings()
@@ -706,7 +708,7 @@ class SettingsViewModel(
                     _uiState.update {
                         it.copy(
                             isSavingStatsFm = false,
-                            statsfmSaveMessage = "Hata: ${result.message}"
+                            statsfmSaveMessage = UiMessage.error(R.string.settings_msg_error, result.message)
                         )
                     }
                 }
@@ -725,7 +727,7 @@ class SettingsViewModel(
                     _uiState.update {
                         it.copy(
                             isSyncing = null,
-                            syncStatusMessage = "Stats.fm eşitlendi: $count akış güncellendi!"
+                            syncStatusMessage = UiMessage.of(R.string.settings_msg_synced_tracks, "Stats.fm", count)
                         )
                     }
                 }
@@ -733,7 +735,7 @@ class SettingsViewModel(
                     _uiState.update {
                         it.copy(
                             isSyncing = null,
-                            syncStatusMessage = "Hata: ${result.message}"
+                            syncStatusMessage = UiMessage.error(R.string.settings_msg_error, result.message)
                         )
                     }
                 }
@@ -821,7 +823,7 @@ class SettingsViewModel(
                             traktSyncMovies = syncMovies,
                             traktSyncEpisodes = syncEpisodes,
                             traktSyncRatings = syncRatings,
-                            traktSaveMessage = "Trakt ayarları kaydedildi"
+                            traktSaveMessage = UiMessage.of(R.string.settings_msg_settings_saved, "Trakt")
                         )
                     }
                     if (username.isNotBlank()) {
@@ -832,7 +834,7 @@ class SettingsViewModel(
                     _uiState.update {
                         it.copy(
                             isSavingTrakt = false,
-                            traktSaveMessage = "Hata: ${result.message}"
+                            traktSaveMessage = UiMessage.error(R.string.settings_msg_error, result.message)
                         )
                     }
                 }
@@ -850,7 +852,7 @@ class SettingsViewModel(
                     _uiState.update {
                         it.copy(
                             isSyncing = null,
-                            syncStatusMessage = "Trakt.tv eşitlendi: $count kayıt aktarıldı!"
+                            syncStatusMessage = UiMessage.of(R.string.settings_msg_synced_items, "Trakt.tv", count)
                         )
                     }
                 }
@@ -858,7 +860,7 @@ class SettingsViewModel(
                     _uiState.update {
                         it.copy(
                             isSyncing = null,
-                            syncStatusMessage = "Hata: ${result.message}"
+                            syncStatusMessage = UiMessage.error(R.string.settings_msg_error, result.message)
                         )
                     }
                 }
@@ -914,7 +916,7 @@ class SettingsViewModel(
                             mdblistApiKey = apiKey.trim(),
                             mdblistSyncRatings = syncRatings,
                             mdblistSyncLists = syncLists,
-                            mdblistSaveMessage = "MDBList ayarları kaydedildi"
+                            mdblistSaveMessage = UiMessage.of(R.string.settings_msg_settings_saved, "MDBList")
                         )
                     }
                     if (apiKey.isNotBlank()) {
@@ -925,7 +927,7 @@ class SettingsViewModel(
                     _uiState.update {
                         it.copy(
                             isSavingMdbList = false,
-                            mdblistSaveMessage = "Hata: ${result.message}"
+                            mdblistSaveMessage = UiMessage.error(R.string.settings_msg_error, result.message)
                         )
                     }
                 }
@@ -942,7 +944,7 @@ class SettingsViewModel(
                     _uiState.update {
                         it.copy(
                             isSyncing = null,
-                            syncStatusMessage = "MDBList eşitlendi: Medya puanları güncellendi!"
+                            syncStatusMessage = UiMessage.of(R.string.settings_msg_mdblist_synced)
                         )
                     }
                 }
@@ -950,7 +952,7 @@ class SettingsViewModel(
                     _uiState.update {
                         it.copy(
                             isSyncing = null,
-                            syncStatusMessage = "Hata: ${result.message}"
+                            syncStatusMessage = UiMessage.error(R.string.settings_msg_error, result.message)
                         )
                     }
                 }
@@ -1019,7 +1021,7 @@ class SettingsViewModel(
                             simklSyncAnime = syncAnime,
                             simklSyncRatings = syncRatings,
                             isSimklConnected = accessToken.isNotBlank() || it.isSimklConnected,
-                            simklSaveMessage = "Simkl ayarları kaydedildi"
+                            simklSaveMessage = UiMessage.of(R.string.settings_msg_settings_saved, "Simkl")
                         )
                     }
                     if (accessToken.isNotBlank()) {
@@ -1030,7 +1032,7 @@ class SettingsViewModel(
                     _uiState.update {
                         it.copy(
                             isSavingSimkl = false,
-                            simklSaveMessage = "Hata: ${result.message}"
+                            simklSaveMessage = UiMessage.error(R.string.settings_msg_error, result.message)
                         )
                     }
                 }
@@ -1048,7 +1050,7 @@ class SettingsViewModel(
                     _uiState.update {
                         it.copy(
                             isSyncing = null,
-                            syncStatusMessage = "Simkl eşitlendi: $count kayıt aktarıldı!"
+                            syncStatusMessage = UiMessage.of(R.string.settings_msg_synced_items, "Simkl", count)
                         )
                     }
                 }
@@ -1056,7 +1058,7 @@ class SettingsViewModel(
                     _uiState.update {
                         it.copy(
                             isSyncing = null,
-                            syncStatusMessage = "Simkl senkronizasyon hatası: ${result.message}"
+                            syncStatusMessage = UiMessage.error(R.string.settings_msg_error, result.message)
                         )
                     }
                 }

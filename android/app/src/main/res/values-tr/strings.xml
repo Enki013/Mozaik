@@ -704,5 +704,38 @@
     <string name="settings_server_not_configured">Ayarlanmadı</string>
     <string name="settings_integrations_add">Entegrasyon ekle</string>
     <string name="settings_integrations_add_desc">Entegrasyon kataloğuna göz at</string>
+    <!-- Ayar mesajları -->
+    <string name="settings_msg_error">Hata: %1$s</string>
+    <string name="settings_msg_keys_empty">Consumer Key ve Secret boş olamaz.</string>
+    <string name="settings_msg_keys_saved">Anahtarlar kaydedildi.</string>
+    <string name="settings_msg_server_unreachable">Sunucuya ulaşılamadı. Adresi kontrol edin.</string>
+    <string name="settings_msg_server_key_missing">Sunucu korumalı: API anahtarı eksik veya geçersiz.</string>
+    <string name="settings_msg_server_verified">Bağlantı ve API anahtarı doğrulandı (korumalı).</string>
+    <string name="settings_msg_server_open">Bağlantı başarılı (açık mod).</string>
+    <string name="settings_msg_server_unauthorized">Yetkisiz: API anahtarınız sunucu tarafından reddedildi.</string>
+    <string name="settings_msg_server_connected">Bağlantı sağlandı.</string>
+    <string name="settings_msg_fatsecret_synced">FatSecret eşitlendi (%1$d gün).</string>
+    <string name="settings_msg_synced">%1$s eşitlendi.</string>
+    <string name="settings_msg_synced_tracks">%1$s eşitlendi: %2$d parça güncellendi.</string>
+    <string name="settings_msg_synced_items">%1$s eşitlendi: %2$d kayıt aktarıldı.</string>
+    <string name="settings_msg_mdblist_synced">MDBList eşitlendi: medya puanları güncellendi.</string>
+    <string name="settings_msg_saved">%1$s kaydedildi.</string>
+    <string name="settings_msg_settings_saved">%1$s ayarları kaydedildi.</string>
+    <string name="settings_msg_letterboxd_empty">Letterboxd kullanıcı adı veya RSS linki girin.</string>
+    <string name="settings_msg_goodreads_empty">Goodreads RSS linki girin.</string>
+    <string name="sync_msg_failed">%1$s eşitlenemedi.</string>
+    <string name="sync_msg_up_to_date">%1$s güncel.</string>
+    <string name="sync_msg_all">Tüm aktif entegrasyonlar eşitlendi (%1$d servis).</string>
+    <string name="sync_msg_done">Senkronizasyon tamamlandı.</string>
+    <string name="plugin_msg_enabled">Entegrasyon açıldı.</string>
+    <string name="plugin_msg_disabled">Entegrasyon kapatıldı (kayıt duraklatıldı).</string>
+    <string name="music_msg_new_scrobbles">%1$d yeni scrobble eklendi.</string>
+    <string name="music_msg_up_to_date">Tüm parçalar güncel.</string>
+    <string name="calories_value">%1$s kcal</string>
+    <string name="ratings_loading">Puanlar yükleniyor…</string>
+    <string name="music_stats_artists_count">%1$d sanatçı</string>
+    <string name="music_stats_albums_count">%1$d albüm</string>
+    <string name="music_filter_listenbrainz">ListenBrainz</string>
+    <string name="music_filter_statsfm">Stats.fm</string>
 </resources>
 

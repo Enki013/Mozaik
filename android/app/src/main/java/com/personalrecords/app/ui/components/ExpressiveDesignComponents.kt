@@ -387,7 +387,7 @@ fun ExpressiveErrorBanner(
     onClick: (() -> Unit)? = null
 ) {
     Surface(
-        shape = M3Shapes.CornerLarge,
+        shape = MaterialTheme.shapes.large,
         color = MaterialTheme.colorScheme.errorContainer,
         contentColor = MaterialTheme.colorScheme.onErrorContainer,
         modifier = modifier

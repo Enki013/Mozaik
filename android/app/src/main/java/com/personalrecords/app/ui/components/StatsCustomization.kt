@@ -224,7 +224,7 @@ fun StatsCustomizationBottomSheet(
     ModalBottomSheet(
         onDismissRequest = onDismissRequest,
         sheetState = sheetState,
-        shape = M3Shapes.CornerExtraLarge,
+        shape = MaterialTheme.shapes.extraLarge,
         containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
         dragHandle = { BottomSheetDefaults.DragHandle() }
     ) {
@@ -245,7 +245,7 @@ fun StatsCustomizationBottomSheet(
                 Box(
                     modifier = Modifier
                         .size(44.dp)
-                        .clip(M3Shapes.CornerMedium)
+                        .clip(MaterialTheme.shapes.medium)
                         .background(MaterialTheme.colorScheme.primaryContainer),
                     contentAlignment = Alignment.Center
                 ) {
@@ -350,7 +350,7 @@ private fun ReorderableStatCardList(
     val scope = rememberCoroutineScope()
     val reducedMotion = LocalReducedMotion.current
     val settleSpec = M3ExpressiveMotion.defaultSpatial<Float>()
-    val gapPx = with(LocalDensity.current) { M3ListMetrics.SegmentGap.toPx() }
+    val gapPx = with(LocalDensity.current) { ListItemDefaults.SegmentedGap.toPx() }
     val cardsById = remember(cards) { cards.associateBy { it.id } }
 
     // One local list for the whole lifetime: the drag handlers are created once and must always
@@ -436,7 +436,7 @@ private fun ReorderableStatCardList(
     val moveDownLabel = stringResource(R.string.action_move_down)
     val dragHandleLabel = stringResource(R.string.stats_drag_to_reorder)
 
-    Column(verticalArrangement = Arrangement.spacedBy(M3ListMetrics.SegmentGap)) {
+    Column(verticalArrangement = Arrangement.spacedBy(ListItemDefaults.SegmentedGap)) {
         order.forEachIndexed { index, id ->
             val card = cardsById[id] ?: return@forEachIndexed
             key(id) {
@@ -448,7 +448,7 @@ private fun ReorderableStatCardList(
                     label = "stat_row_lift"
                 )
                 Surface(
-                    shape = if (isDragging) M3Shapes.CornerLarge else M3Shapes.groupedListItem(index, order.size),
+                    shape = if (isDragging) MaterialTheme.shapes.large else M3Shapes.groupedListItem(index, order.size),
                     color = if (isDragging) MaterialTheme.colorScheme.surfaceContainerHighest
                             else MaterialTheme.colorScheme.surfaceContainerHigh,
                     shadowElevation = lift,
@@ -507,7 +507,7 @@ private fun ReorderableStatCardList(
                             Box(
                                 modifier = Modifier
                                     .size(36.dp)
-                                    .clip(M3Shapes.CornerSmall)
+                                    .clip(MaterialTheme.shapes.small)
                                     .background(
                                         if (card.iconTint != Color.Unspecified) card.iconTint.copy(alpha = 0.15f)
                                         else MaterialTheme.colorScheme.primaryContainer

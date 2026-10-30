@@ -129,8 +129,9 @@ private fun computeTimelineFlatEntries(
                 val calRaw = if (item.source == "fatsecret") {
                     item.details["calories"]?.toString()?.replace("\"", "")
                 } else null
+                // Number only; the UI adds the unit from string resources.
                 val caloriesText = if (!calRaw.isNullOrBlank() && calRaw != "0" && calRaw != "null") {
-                    "$calRaw kcal"
+                    calRaw
                 } else null
                 val timeText = when (item.source) {
                     "notification" -> item.time ?: item.details["post_time"]?.toString()?.replace("\"", "")?.let {

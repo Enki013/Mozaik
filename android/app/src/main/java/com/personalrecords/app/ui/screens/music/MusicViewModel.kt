@@ -1,5 +1,7 @@
 package com.personalrecords.app.ui.screens.music
 
+import com.personalrecords.app.R
+import com.personalrecords.app.ui.common.UiMessage
 import androidx.compose.runtime.Immutable
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -36,7 +38,7 @@ data class MusicUiState(
     val searchQuery: String = "",
     val webhookUrl: String = "",
     val error: String? = null,
-    val syncMessage: String? = null
+    val syncMessage: UiMessage? = null
 )
 
 private fun filterAndSortMusicScrobbles(
@@ -135,7 +137,7 @@ class MusicViewModel(
             } catch (e: Exception) {
                 _uiState.update {
                     it.copy(
-                        error = e.message ?: "Müzik verileri güncellenemedi"
+                        error = e.localizedMessage ?: e.toString()
                     )
                 }
             } finally {
@@ -152,7 +154,7 @@ class MusicViewModel(
             } catch (e: Exception) {
                 _uiState.update {
                     it.copy(
-                        error = e.message ?: "Müzik verileri yüklenemedi"
+                        error = e.localizedMessage ?: e.toString()
                     )
                 }
             } finally {
@@ -318,7 +320,7 @@ class MusicViewModel(
             when (val res = repository.syncLastFm(allPages = allPages)) {
                 is Resource.Success -> {
                     val count = res.data?.inserted ?: 0
-                    val msg = if (count > 0) "$count yeni scrobble eklendi" else "Tüm parçalar güncel"
+                    val msg = if (count > 0) UiMessage.of(R.string.music_msg_new_scrobbles, count) else UiMessage.of(R.string.music_msg_up_to_date)
                     _uiState.update { it.copy(isSyncingLastFm = false, syncMessage = msg) }
                     fetchData(isRefresh = true)
                 }

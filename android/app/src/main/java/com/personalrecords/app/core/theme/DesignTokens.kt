@@ -32,12 +32,6 @@ object M3ComponentSize {
     val FilterControlHeight = 40.dp
 }
 
-/** Segmented (grouped) list metrics shared by every list screen. */
-object M3ListMetrics {
-    /** Gap between segments of one group; corners come from [M3Shapes.groupedListItem]. */
-    val SegmentGap = 2.dp
-}
-
 object M3NavigationMetrics {
     val FloatingBarHeight = 64.dp
     val FloatingBarBottomOffset = 12.dp
@@ -124,6 +118,17 @@ private fun fixedCategoryColors(category: RecordCategory): CategoryColorTokens {
         )
     }
 }
+
+/**
+ * Star-rating colors, from one place like [recordCategoryColors]. Not harmonized: the gold has to
+ * read as "rating" whatever the wallpaper is.
+ */
+@Composable
+fun ratingColors(): CategoryColorTokens = CategoryColorTokens(
+    accent = domainRatingColor(),
+    container = domainRatingContainer(),
+    onContainer = domainRatingOnContainer()
+)
 
 enum class StatusTone {
     Active,

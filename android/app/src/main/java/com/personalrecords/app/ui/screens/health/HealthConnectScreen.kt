@@ -193,9 +193,10 @@ fun HealthConnectScreen(
             val hrFormatted = remember(summary.latest_heart_rate_bpm) {
                 if (summary.latest_heart_rate_bpm > 0) "${summary.latest_heart_rate_bpm.toInt()} bpm" else "-"
             }
-            val activeKcalFormatted = remember(summary.today_active_calories) {
-                if (summary.today_active_calories > 0) "${summary.today_active_calories.toInt()} kcal" else "0 kcal"
-            }
+            val activeKcalFormatted = stringResource(
+                R.string.calories_value,
+                summary.today_active_calories.toInt().coerceAtLeast(0)
+            )
 
             ExpressiveListDetailLayout(
                 showDetailPane = isTwoPane,
@@ -451,7 +452,7 @@ fun healthRecordVisuals(recordType: String, category: String): Triple<ImageVecto
     val (bg, fg) = when (category) {
         "activity" -> recordCategoryColors(RecordCategory.Nutrition).container to recordCategoryColors(RecordCategory.Nutrition).onContainer
         "sleep" -> recordCategoryColors(RecordCategory.Movies).container to recordCategoryColors(RecordCategory.Movies).onContainer
-        "exercise" -> domainRatingContainer() to domainRatingOnContainer()
+        "exercise" -> ratingColors().container to ratingColors().onContainer
         "body" -> recordCategoryColors(RecordCategory.Books).container to recordCategoryColors(RecordCategory.Books).onContainer
         else -> recordCategoryColors(RecordCategory.Health).container to recordCategoryColors(RecordCategory.Health).onContainer
     }
@@ -492,7 +493,7 @@ fun HealthRecordRowItem(
             Box(
                 modifier = Modifier
                     .size(40.dp)
-                    .clip(M3Shapes.CornerSmall)
+                    .clip(MaterialTheme.shapes.small)
                     .background(iconBg),
                 contentAlignment = Alignment.Center
             ) {

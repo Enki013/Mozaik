@@ -51,7 +51,7 @@ fun BooksScreen(
     var selectedBook by remember { mutableStateOf<BookDto?>(null) }
 
     val booksColor = recordCategoryColors(RecordCategory.Books).accent
-    val ratingColor = domainRatingColor()
+    val ratingColor = ratingColors().accent
     val booksTotalTitle = stringResource(R.string.stats_card_books_total_title)
     val booksTotalDesc = stringResource(R.string.stats_card_books_total_desc)
     val booksToReadTitle = stringResource(R.string.stats_card_books_to_read_title)
@@ -205,11 +205,11 @@ fun BooksScreen(
                                     badgeText = "",
                                     note = stringResource(R.string.books_stats_avg_rating, avgRating),
                                     valueIcon = Icons.Rounded.Bookmark,
-                                    valueIconTint = domainRatingColor(),
+                                    valueIconTint = ratingColors().accent,
                                     noteIcon = Icons.Rounded.Star,
-                                    noteIconTint = domainRatingOnContainer(),
-                                    badgeBg = domainRatingContainer(),
-                                    badgeColor = domainRatingOnContainer(),
+                                    noteIconTint = ratingColors().onContainer,
+                                    badgeBg = ratingColors().container,
+                                    badgeColor = ratingColors().onContainer,
                                     onLongClick = { isEditMode = true }
                                 )
                             }

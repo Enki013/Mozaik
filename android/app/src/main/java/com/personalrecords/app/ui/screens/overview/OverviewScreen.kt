@@ -142,9 +142,10 @@ fun OverviewScreen(
         }
     }
 
+    val messageContext = androidx.compose.ui.platform.LocalContext.current
     LaunchedEffect(state.syncMessage) {
         state.syncMessage?.let {
-            snackbarHostState.showSnackbar(it)
+            snackbarHostState.showSnackbar(it.resolve(messageContext))
             viewModel.clearSyncMessage()
         }
     }
@@ -575,7 +576,7 @@ fun OverviewScreen(
                         ) {
                             if (slides.isEmpty()) {
                                 Surface(
-                                    shape = M3Shapes.CornerExtraLargeIncreased,
+                                    shape = MaterialTheme.shapes.extraLargeIncreased,
                                     color = MaterialTheme.colorScheme.surfaceContainerLow,
                                     modifier = Modifier.fillMaxWidth()
                                 ) {
@@ -616,7 +617,7 @@ fun OverviewScreen(
                                     ) { itemIndex ->
                                         OverviewHeroCard(
                                             slide = slides[itemIndex],
-                                            modifier = Modifier.maskClip(M3Shapes.CornerExtraLargeIncreased)
+                                            modifier = Modifier.maskClip(MaterialTheme.shapes.extraLargeIncreased)
                                         )
                                     }
                                 }
@@ -789,7 +790,7 @@ fun OverviewScreen(
                                     }
                                 }
                             } else {
-                                Column(verticalArrangement = Arrangement.spacedBy(M3ListMetrics.SegmentGap)) {
+                                Column(verticalArrangement = Arrangement.spacedBy(ListItemDefaults.SegmentedGap)) {
                                     activePlugins.forEachIndexed { index, plugin ->
                                         val syncKey = plugin.syncServiceKey ?: plugin.id
                                         val isItemSyncing = state.isSyncing == syncKey || state.isSyncing == "all"
@@ -807,7 +808,7 @@ fun OverviewScreen(
                                                 Box(
                                                     modifier = Modifier
                                                         .size(40.dp)
-                                                        .clip(M3Shapes.CornerMedium)
+                                                        .clip(MaterialTheme.shapes.medium)
                                                         .background(MaterialTheme.colorScheme.surfaceContainerHigh),
                                                     contentAlignment = Alignment.Center
                                                 ) {
@@ -922,7 +923,7 @@ fun OverviewScreen(
                                     }
                                 }
                             } else {
-                                Column(verticalArrangement = Arrangement.spacedBy(M3ListMetrics.SegmentGap)) {
+                                Column(verticalArrangement = Arrangement.spacedBy(ListItemDefaults.SegmentedGap)) {
                                     val activitiesToShow = state.recentActivities.take(6)
                                     activitiesToShow.forEachIndexed { index, item ->
                                         key("${item.source}_${item.id.ifBlank { "${item.date}_${item.title}" }}") {
@@ -1028,7 +1029,7 @@ private fun OverviewHeroCard(
             .fillMaxWidth()
             .heightIn(min = 284.dp)
             .expressivePressScale(),
-        shape = M3Shapes.CornerExtraLargeIncreased,
+        shape = MaterialTheme.shapes.extraLargeIncreased,
         colors = CardDefaults.cardColors(
             containerColor = slide.containerColor,
             contentColor = slide.contentColor
@@ -1506,7 +1507,7 @@ fun ActivityRowItem(
                     Box(
                         modifier = Modifier
                             .size(38.dp)
-                            .clip(M3Shapes.CornerSmall)
+                            .clip(MaterialTheme.shapes.small)
                             .background(recordCategoryColors(RecordCategory.Nutrition).container),
                         contentAlignment = Alignment.Center
                     ) {
@@ -1522,7 +1523,7 @@ fun ActivityRowItem(
                     Box(
                         modifier = Modifier
                             .size(38.dp)
-                            .clip(M3Shapes.CornerSmall)
+                            .clip(MaterialTheme.shapes.small)
                             .background(recordCategoryColors(RecordCategory.Music).container),
                         contentAlignment = Alignment.Center
                     ) {

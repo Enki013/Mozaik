@@ -48,7 +48,7 @@ fun MoviesScreen(
     var selectedFilm by remember { mutableStateOf<FilmDto?>(null) }
 
     val cinemaColor = recordCategoryColors(RecordCategory.Movies).accent
-    val ratingColor = domainRatingColor()
+    val ratingColor = ratingColors().accent
     val totalTitle = stringResource(R.string.movies_stats_total)
     val totalDesc = stringResource(R.string.movies_stats_total_desc)
     val avgTitle = stringResource(R.string.movies_stats_avg_rating)
@@ -200,11 +200,11 @@ fun MoviesScreen(
                                     title = stringResource(R.string.movies_stats_avg_rating),
                                     value = avgRating,
                                     valueIcon = Icons.Rounded.Star,
-                                    valueIconTint = domainRatingOnContainer(),
+                                    valueIconTint = ratingColors().onContainer,
                                     badgeText = "",
                                     note = stringResource(R.string.movies_stats_rewatch, rewatchFilms),
-                                    badgeBg = domainRatingContainer(),
-                                    badgeColor = domainRatingOnContainer(),
+                                    badgeBg = ratingColors().container,
+                                    badgeColor = ratingColors().onContainer,
                                     onLongClick = { isEditMode = true }
                                 )
                             }

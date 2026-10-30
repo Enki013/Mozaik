@@ -111,7 +111,7 @@ fun NutritionScreen(
         var tempTarget by remember { mutableStateOf(state.calorieTarget?.toString() ?: "") }
         AlertDialog(
             onDismissRequest = { showTargetDialog = false },
-            shape = M3Shapes.CornerExtraLarge,
+            shape = MaterialTheme.shapes.extraLarge,
             title = {
                 Text(
                     text = stringResource(R.string.nutrition_target_dialog_title),
@@ -124,7 +124,7 @@ fun NutritionScreen(
                     onValueChange = { tempTarget = it },
                     label = { Text(stringResource(R.string.nutrition_target_dialog_label)) },
                     singleLine = true,
-                    shape = M3Shapes.CornerSmall
+                    shape = MaterialTheme.shapes.small
                 )
             },
             confirmButton = {
@@ -254,7 +254,7 @@ fun NutritionScreen(
                         "nutrition_calories" -> {
                             MetricCard(
                                 title = stringResource(R.string.overview_metric_today_calories),
-                                value = "${state.todayCalories.toInt()} kcal",
+                                value = stringResource(R.string.calories_value, state.todayCalories.toInt()),
                                 badgeText = targetBadge,
                                 note = remNote,
                                 valueIcon = Icons.Rounded.LocalFireDepartment,
@@ -287,7 +287,7 @@ fun NutritionScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(bottom = 8.dp),
-                    shape = M3Shapes.CornerLarge,
+                    shape = MaterialTheme.shapes.large,
                     colors = CardDefaults.cardColors(
                         containerColor = MaterialTheme.colorScheme.surfaceContainerLow
                     ),
@@ -336,7 +336,7 @@ fun NutritionScreen(
                                         modifier = Modifier.size(14.dp)
                                     )
                                     Text(
-                                        text = state.calorieTarget?.let { "$it kcal" } ?: "---",
+                                        text = state.calorieTarget?.let { stringResource(R.string.calories_value, it) } ?: "---",
                                         style = MaterialTheme.typography.labelMediumEmphasized
                                     )
                                 }
@@ -361,7 +361,7 @@ fun NutritionScreen(
 
                         val carbColor = recordCategoryColors(RecordCategory.Books).accent
                         val protColor = recordCategoryColors(RecordCategory.Nutrition).accent
-                        val fatColor = domainRatingColor()
+                        val fatColor = ratingColors().accent
 
                         val macroSegments = if (todayTotalMacroKcal > 0) {
                             listOf(
@@ -401,7 +401,7 @@ fun NutritionScreen(
                             } ?: ""
                             val consumedText = target?.let {
                                 stringResource(R.string.nutrition_consumed_today, state.todayCalories.toInt(), it, (progressPct * 100).toInt())
-                            } ?: "${state.todayCalories.toInt()} kcal"
+                            } ?: stringResource(R.string.calories_value, state.todayCalories.toInt())
                             Text(
                                 text = consumedText,
                                 style = MaterialTheme.typography.bodySmall,
@@ -456,7 +456,7 @@ fun NutritionScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(bottom = 8.dp),
-                    shape = M3Shapes.CornerLarge,
+                    shape = MaterialTheme.shapes.large,
                     colors = CardDefaults.cardColors(
                         containerColor = MaterialTheme.colorScheme.surfaceContainerLow
                     ),
@@ -498,7 +498,7 @@ fun NutritionScreen(
 
                         val carbColor = recordCategoryColors(RecordCategory.Books).accent
                         val protColor = recordCategoryColors(RecordCategory.Nutrition).accent
-                        val fatColor = domainRatingColor()
+                        val fatColor = ratingColors().accent
 
                         val breakdownSegments = if (totalKcal > 0) {
                             listOf(
@@ -801,7 +801,7 @@ fun FoodEntryRowItem(
             Box(
                 modifier = Modifier
                     .size(40.dp)
-                    .clip(M3Shapes.CornerSmall)
+                    .clip(MaterialTheme.shapes.small)
                     .background(recordCategoryColors(RecordCategory.Nutrition).container),
                 contentAlignment = Alignment.Center
             ) {
@@ -816,7 +816,7 @@ fun FoodEntryRowItem(
         trailingContent = {
             Column(horizontalAlignment = Alignment.End) {
                 Text(
-                    text = "${item.calories.toInt()} kcal",
+                    text = stringResource(R.string.calories_value, item.calories.toInt()),
                     style = MaterialTheme.typography.titleSmallEmphasized,
                     color = recordCategoryColors(RecordCategory.Nutrition).accent,
                     maxLines = 1,

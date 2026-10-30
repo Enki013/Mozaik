@@ -212,7 +212,7 @@ fun TimelineScreen(
                     item(key = "timeline_selected_date_badge", contentType = "selected_date") {
                         Surface(
                             color = MaterialTheme.colorScheme.secondaryContainer,
-                            shape = M3Shapes.CornerSmall,
+                            shape = MaterialTheme.shapes.small,
                             modifier = Modifier.padding(top = 4.dp, bottom = 12.dp)
                         ) {
                             Row(
@@ -308,7 +308,7 @@ private fun TimelineDayHeaderItem(
     modifier: Modifier = Modifier
 ) {
     val isOnlyFood = !entry.hasMultipleSections && entry.singleSource == "fatsecret"
-    val shape = if (entry.isLastInDay) M3Shapes.CornerLarge else DayCardTopShape
+    val shape = if (entry.isLastInDay) MaterialTheme.shapes.large else DayCardTopShape
 
     Surface(
         modifier = modifier
@@ -351,7 +351,7 @@ private fun TimelineDayHeaderItem(
                     color = recordCategoryColors(RecordCategory.Nutrition).container
                 ) {
                     Text(
-                        text = "${entry.totalCal} kcal",
+                        text = stringResource(R.string.calories_value, entry.totalCal),
                         color = recordCategoryColors(RecordCategory.Nutrition).onContainer,
                         style = MaterialTheme.typography.labelSmallEmphasized,
                         modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
@@ -428,7 +428,7 @@ private fun TimelineSectionHeaderItem(
 ) {
     Surface(
         modifier = modifier
-            .padding(top = M3ListMetrics.SegmentGap)
+            .padding(top = ListItemDefaults.SegmentedGap)
             .fillMaxWidth(),
         shape = DayCardMiddleShape,
         color = MaterialTheme.colorScheme.surfaceContainerLow
@@ -505,7 +505,7 @@ private fun TimelineSectionHeaderItem(
                         color = recordCategoryColors(RecordCategory.Nutrition).container
                     ) {
                         Text(
-                            text = "${entry.totalCal} kcal",
+                            text = stringResource(R.string.calories_value, entry.totalCal),
                             color = recordCategoryColors(RecordCategory.Nutrition).onContainer,
                             style = MaterialTheme.typography.labelSmallEmphasized,
                             modifier = Modifier.padding(horizontal = 7.dp, vertical = 2.dp)
@@ -638,7 +638,7 @@ fun TimelineItemCard(
                     Box(
                         modifier = Modifier
                             .size(38.dp)
-                            .clip(M3Shapes.CornerSmall)
+                            .clip(MaterialTheme.shapes.small)
                             .background(recordCategoryColors(RecordCategory.Nutrition).container),
                         contentAlignment = Alignment.Center
                     ) {
@@ -660,7 +660,7 @@ fun TimelineItemCard(
                     Box(
                         modifier = Modifier
                             .size(38.dp)
-                            .clip(M3Shapes.CornerSmall)
+                            .clip(MaterialTheme.shapes.small)
                             .background(recordCategoryColors(RecordCategory.Health).container),
                         contentAlignment = Alignment.Center
                     ) {
@@ -676,7 +676,7 @@ fun TimelineItemCard(
                     Box(
                         modifier = Modifier
                             .size(38.dp)
-                            .clip(M3Shapes.CornerSmall)
+                            .clip(MaterialTheme.shapes.small)
                             .background(recordCategoryColors(RecordCategory.Music).container),
                         contentAlignment = Alignment.Center
                     ) {
@@ -740,7 +740,7 @@ fun TimelineItemCard(
                 }
                 if (!caloriesText.isNullOrBlank()) {
                     Text(
-                        text = caloriesText,
+                        text = stringResource(R.string.calories_value, caloriesText),
                         style = MaterialTheme.typography.labelSmallEmphasized,
                         color = MaterialTheme.colorScheme.primary,
                         maxLines = 1,
