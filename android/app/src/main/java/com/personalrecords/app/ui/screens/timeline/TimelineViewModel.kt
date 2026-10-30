@@ -161,7 +161,7 @@ private fun computeTimelineFlatEntries(
 data class TimelineUiState(
     val isLoading: Boolean = true,
     val isFiltering: Boolean = false,
-    val selectedDays: Int = 14,
+    val selectedDays: Int = TimelineDefaultDays,
     val selectedDate: String? = null,
     val fromDate: String? = null,
     val toDate: String? = null,
@@ -271,7 +271,7 @@ class TimelineViewModel(
     fun resetFilters() {
         _uiState.update {
             it.copy(
-                selectedDays = 14,
+                selectedDays = TimelineDefaultDays,
                 selectedDate = null,
                 fromDate = null,
                 toDate = null,
@@ -311,3 +311,6 @@ class TimelineViewModel(
         }
     }
 }
+
+/** Day window the timeline loads when no other range or date is chosen. */
+const val TimelineDefaultDays = 14

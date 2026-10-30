@@ -142,7 +142,7 @@ fun TimelineScreen(
                     val todayIso = java.time.LocalDate.now().toString()
                     val isToday = state.selectedDate == todayIso && state.fromDate == null
                     val hasCustomDate = !isToday && (state.selectedDate != null || state.fromDate != null)
-                    val hasActiveFilters = isToday || hasCustomDate || state.selectedDays != 14 ||
+                    val hasActiveFilters = isToday || hasCustomDate || state.selectedDays != TimelineDefaultDays ||
                         state.selectedSource != "all" || state.searchQuery.isNotEmpty()
                     ExpressiveFilterHeader {
                         ExpressiveSearchField(
@@ -167,9 +167,10 @@ fun TimelineScreen(
                                     hasCustomDate -> null
                                     else -> state.selectedDays
                                 },
+                                defaultQuickRange = TimelineDefaultDays,
                                 onPickDate = { showDatePicker = true },
-                                // Clearing the date returns to the selected day range, not a full reset.
-                                onClearDate = { viewModel.setDays(state.selectedDays) },
+                                // Clearing a range or date returns to the default window, not a full reset.
+                                onClearDate = { viewModel.setDays(TimelineDefaultDays) },
                                 onQuickRange = { range ->
                                     if (range == 0) viewModel.setToday() else viewModel.setDays(range)
                                 }

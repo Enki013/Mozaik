@@ -230,6 +230,7 @@ fun <T> ExpressiveDropdownFilterChip(
                 options.forEachIndexed { index, option ->
                     val isSelected = option == selected
                     SelectableDropdownMenuItem(
+                        colors = filterMenuItemColors(),
                         selected = isSelected,
                         onClick = {
                             expanded = false
@@ -250,6 +251,19 @@ fun <T> ExpressiveDropdownFilterChip(
         }
     }
 }
+
+/**
+ * Selected menu items use the same secondary-container pair as selected filter chips, so a
+ * selection reads the same in the chip row and in its menu (the M3 default is tertiary).
+ */
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+@Composable
+private fun filterMenuItemColors() = MenuDefaults.selectableItemColors(
+    selectedContainerColor = MaterialTheme.colorScheme.secondaryContainer,
+    selectedTextColor = MaterialTheme.colorScheme.onSecondaryContainer,
+    selectedLeadingIconColor = MaterialTheme.colorScheme.onSecondaryContainer,
+    selectedTrailingContentColor = MaterialTheme.colorScheme.onSecondaryContainer
+)
 
 /** "Clear" chip shown first in the chip row whenever any filter is active. */
 @Composable
@@ -332,10 +346,16 @@ fun ExpressiveQuickDateFilters(
     onPickDate: () -> Unit,
     onClearDate: () -> Unit,
     onQuickRange: (Int) -> Unit,
-    selectedQuickRange: Int? = quickRangeOf(selectedDate, fromDate, toDate)
+    selectedQuickRange: Int? = quickRangeOf(selectedDate, fromDate, toDate),
+    /**
+     * Range the screen always shows when nothing else is chosen (Timeline: 14 days). While it is
+     * selected the chip names it but looks inactive and has no clear button.
+     */
+    defaultQuickRange: Int? = null
 ) {
     var expanded by remember { mutableStateOf(false) }
     val hasCustomDate = (selectedDate != null || fromDate != null) && selectedQuickRange == null
+    val isDefaultRange = defaultQuickRange != null && selectedQuickRange == defaultQuickRange
     // Resolve labels here, not inside the menu: the menu is a separate window.
     val rangeLabels = QuickDateRanges.map { range ->
         if (range == 0) stringResource(R.string.filter_today) else stringResource(R.string.filter_last_days, range)
@@ -354,7 +374,7 @@ fun ExpressiveQuickDateFilters(
     Box {
         ExpressiveDateFilterChip(
             label = chipLabel,
-            isActive = selectedQuickRange != null || hasCustomDate,
+            isActive = (selectedQuickRange != null && !isDefaultRange) || hasCustomDate,
             onClick = { expanded = true },
             onClear = onClearDate
         )
@@ -365,6 +385,7 @@ fun ExpressiveQuickDateFilters(
             DropdownMenuGroup(shapes = MenuDefaults.groupShape(index = 0, count = 2)) {
                 QuickDateRanges.forEachIndexed { index, range ->
                     SelectableDropdownMenuItem(
+                        colors = filterMenuItemColors(),
                         selected = selectedQuickRange == range,
                         onClick = {
                             expanded = false
@@ -385,6 +406,7 @@ fun ExpressiveQuickDateFilters(
             Spacer(modifier = Modifier.height(MenuDefaults.GroupSpacing))
             DropdownMenuGroup(shapes = MenuDefaults.groupShape(index = 1, count = 2)) {
                 SelectableDropdownMenuItem(
+                    colors = filterMenuItemColors(),
                     selected = hasCustomDate,
                     onClick = {
                         expanded = false
