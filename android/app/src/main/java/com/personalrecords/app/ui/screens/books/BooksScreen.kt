@@ -239,38 +239,7 @@ fun BooksScreen(
                                 .fillMaxWidth()
                                 .filterHeaderItem()
                         )
-                        val hasActiveDate = state.selectedDateFilter != null || state.fromDateFilter != null
-                        val hasActiveFilters = state.searchQuery.isNotEmpty() || hasActiveDate || state.selectedShelf != "all"
                         ExpressiveFilterRow {
-                            if (hasActiveFilters) {
-                                ExpressiveClearFiltersChip(onClick = { viewModel.resetFilters() })
-                            }
-                            ExpressiveQuickDateFilters(
-                                selectedDate = state.selectedDateFilter,
-                                fromDate = state.fromDateFilter,
-                                toDate = state.toDateFilter,
-                                onPickDate = { showDatePicker = true },
-                                onClearDate = { viewModel.clearDateFilter() },
-                                onQuickRange = { range ->
-                                    applyQuickRange(range, viewModel::setDateFilter, viewModel::setDateRangeFilter)
-                                }
-                            )
-                            ExpressiveDropdownFilterChip(
-                                options = listOf("date", "rating_desc", "rating_asc", "title"),
-                                selected = state.sortBy,
-                                onSelect = { viewModel.setSortBy(it) },
-                                optionLabel = { key ->
-                                    when (key) {
-                                        "date" -> stringResource(R.string.sort_date_read)
-                                        "rating_desc" -> stringResource(R.string.sort_rating_desc)
-                                        "rating_asc" -> stringResource(R.string.sort_rating_asc)
-                                        "title" -> stringResource(R.string.sort_title)
-                                        else -> stringResource(R.string.action_sort)
-                                    }
-                                },
-                                leadingIcon = Icons.AutoMirrored.Rounded.Sort,
-                                isActive = false
-                            )
                             ExpressiveConnectedButtonGroup(
                                 items = BookShelfKeys,
                                 selectedItem = state.selectedShelf,
@@ -290,6 +259,40 @@ fun BooksScreen(
                                         "currently-reading" -> Icons.AutoMirrored.Rounded.MenuBook
                                         else -> null
                                     }
+                                }
+                            )
+                        }
+                        val hasActiveDate = state.selectedDateFilter != null || state.fromDateFilter != null
+                        val hasActiveFilters = state.searchQuery.isNotEmpty() || hasActiveDate || state.selectedShelf != "all"
+                        ExpressiveFilterRow {
+                            // Sort first, so it keeps its place when the clear chip appears.
+                            ExpressiveDropdownFilterChip(
+                                options = listOf("date", "rating_desc", "rating_asc", "title"),
+                                selected = state.sortBy,
+                                onSelect = { viewModel.setSortBy(it) },
+                                optionLabel = { key ->
+                                    when (key) {
+                                        "date" -> stringResource(R.string.sort_date_read)
+                                        "rating_desc" -> stringResource(R.string.sort_rating_desc)
+                                        "rating_asc" -> stringResource(R.string.sort_rating_asc)
+                                        "title" -> stringResource(R.string.sort_title)
+                                        else -> stringResource(R.string.action_sort)
+                                    }
+                                },
+                                leadingIcon = Icons.AutoMirrored.Rounded.Sort,
+                                isActive = false
+                            )
+                            if (hasActiveFilters) {
+                                ExpressiveClearFiltersChip(onClick = { viewModel.resetFilters() })
+                            }
+                            ExpressiveQuickDateFilters(
+                                selectedDate = state.selectedDateFilter,
+                                fromDate = state.fromDateFilter,
+                                toDate = state.toDateFilter,
+                                onPickDate = { showDatePicker = true },
+                                onClearDate = { viewModel.clearDateFilter() },
+                                onQuickRange = { range ->
+                                    applyQuickRange(range, viewModel::setDateFilter, viewModel::setDateRangeFilter)
                                 }
                             )
                         }

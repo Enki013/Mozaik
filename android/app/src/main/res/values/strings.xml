@@ -708,8 +708,5 @@
     <string name="settings_server_not_configured">Not set up</string>
     <string name="settings_integrations_add">Add integration</string>
     <string name="settings_integrations_add_desc">Browse the integrations catalog</string>
-    <string name="filter_date">Date</string>
-    <string name="filter_last_days">Last %1$d days</string>
-    <string name="filter_custom_range">Custom range…</string>
 </resources>
 

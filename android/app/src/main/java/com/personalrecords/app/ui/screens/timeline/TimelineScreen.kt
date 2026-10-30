@@ -155,26 +155,6 @@ fun TimelineScreen(
                                 .filterHeaderItem()
                         )
                         ExpressiveFilterRow {
-                            if (hasActiveFilters) {
-                                ExpressiveClearFiltersChip(onClick = { viewModel.resetFilters() })
-                            }
-                            ExpressiveQuickDateFilters(
-                                selectedDate = state.selectedDate,
-                                fromDate = state.fromDate,
-                                toDate = state.toDate,
-                                selectedQuickRange = when {
-                                    isToday -> 0
-                                    hasCustomDate -> null
-                                    else -> state.selectedDays
-                                },
-                                defaultQuickRange = TimelineDefaultDays,
-                                onPickDate = { showDatePicker = true },
-                                // Clearing a range or date returns to the default window, not a full reset.
-                                onClearDate = { viewModel.setDays(TimelineDefaultDays) },
-                                onQuickRange = { range ->
-                                    if (range == 0) viewModel.setToday() else viewModel.setDays(range)
-                                }
-                            )
                             ExpressiveConnectedButtonGroup(
                                 items = TimelineSourceKeys,
                                 selectedItem = state.selectedSource,
@@ -200,6 +180,27 @@ fun TimelineScreen(
                                         "notification" -> Icons.Rounded.Notifications
                                         else -> null
                                     }
+                                }
+                            )
+                        }
+                        ExpressiveFilterRow {
+                            if (hasActiveFilters) {
+                                ExpressiveClearFiltersChip(onClick = { viewModel.resetFilters() })
+                            }
+                            ExpressiveQuickDateFilters(
+                                selectedDate = state.selectedDate,
+                                fromDate = state.fromDate,
+                                toDate = state.toDate,
+                                selectedQuickRange = when {
+                                    isToday -> 0
+                                    hasCustomDate -> null
+                                    else -> state.selectedDays
+                                },
+                                onPickDate = { showDatePicker = true },
+                                // Clearing a custom date returns to the default window, not a full reset.
+                                onClearDate = { viewModel.setDays(TimelineDefaultDays) },
+                                onQuickRange = { range ->
+                                    if (range == 0) viewModel.setToday() else viewModel.setDays(range)
                                 }
                             )
                         }

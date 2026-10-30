@@ -276,36 +276,7 @@ fun HealthConnectScreen(
                                     .fillMaxWidth()
                                     .filterHeaderItem()
                             )
-                            val hasActiveDate = state.selectedDateFilter != null || state.fromDateFilter != null
-                            val hasActiveFilters = state.searchQuery.isNotEmpty() || hasActiveDate || state.selectedCategory != "all"
                             ExpressiveFilterRow {
-                                if (hasActiveFilters) {
-                                    ExpressiveClearFiltersChip(onClick = { viewModel.resetFilters() })
-                                }
-                                ExpressiveQuickDateFilters(
-                                    selectedDate = state.selectedDateFilter,
-                                    fromDate = state.fromDateFilter,
-                                    toDate = state.toDateFilter,
-                                    onPickDate = { showDatePicker = true },
-                                    onClearDate = { viewModel.clearDateFilter() },
-                                    onQuickRange = { range ->
-                                        applyQuickRange(range, viewModel::setDateFilter, viewModel::setDateRangeFilter)
-                                    }
-                                )
-                                ExpressiveDropdownFilterChip(
-                                    options = listOf("date_desc", "date_asc"),
-                                    selected = state.sortBy,
-                                    onSelect = { viewModel.setSortBy(it) },
-                                    optionLabel = { key ->
-                                        when (key) {
-                                            "date_desc" -> stringResource(R.string.sort_newest)
-                                            "date_asc" -> stringResource(R.string.sort_oldest)
-                                            else -> stringResource(R.string.action_sort)
-                                        }
-                                    },
-                                    leadingIcon = Icons.AutoMirrored.Rounded.Sort,
-                                    isActive = false
-                                )
                                 ExpressiveConnectedButtonGroup(
                                     items = HealthCategoryKeys,
                                     selectedItem = state.selectedCategory,
@@ -329,6 +300,38 @@ fun HealthConnectScreen(
                                             "body" -> Icons.Rounded.MonitorWeight
                                             else -> null
                                         }
+                                    }
+                                )
+                            }
+                            val hasActiveDate = state.selectedDateFilter != null || state.fromDateFilter != null
+                            val hasActiveFilters = state.searchQuery.isNotEmpty() || hasActiveDate || state.selectedCategory != "all"
+                            ExpressiveFilterRow {
+                                // Sort first, so it keeps its place when the clear chip appears.
+                                ExpressiveDropdownFilterChip(
+                                    options = listOf("date_desc", "date_asc"),
+                                    selected = state.sortBy,
+                                    onSelect = { viewModel.setSortBy(it) },
+                                    optionLabel = { key ->
+                                        when (key) {
+                                            "date_desc" -> stringResource(R.string.sort_newest)
+                                            "date_asc" -> stringResource(R.string.sort_oldest)
+                                            else -> stringResource(R.string.action_sort)
+                                        }
+                                    },
+                                    leadingIcon = Icons.AutoMirrored.Rounded.Sort,
+                                    isActive = false
+                                )
+                                if (hasActiveFilters) {
+                                    ExpressiveClearFiltersChip(onClick = { viewModel.resetFilters() })
+                                }
+                                ExpressiveQuickDateFilters(
+                                    selectedDate = state.selectedDateFilter,
+                                    fromDate = state.fromDateFilter,
+                                    toDate = state.toDateFilter,
+                                    onPickDate = { showDatePicker = true },
+                                    onClearDate = { viewModel.clearDateFilter() },
+                                    onQuickRange = { range ->
+                                        applyQuickRange(range, viewModel::setDateFilter, viewModel::setDateRangeFilter)
                                     }
                                 )
                             }

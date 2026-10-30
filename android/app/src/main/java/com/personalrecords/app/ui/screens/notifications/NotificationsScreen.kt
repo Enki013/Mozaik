@@ -247,6 +247,21 @@ fun NotificationsScreen(
                         val hasActiveDate = state.selectedDateFilter != null || state.fromDateFilter != null
                         val hasActiveFilters = state.searchQuery.isNotEmpty() || hasActiveDate || state.selectedApp != null
                         ExpressiveFilterRow {
+                            // Sort first, so it keeps its place when the clear chip appears.
+                            ExpressiveDropdownFilterChip(
+                                options = listOf("date_desc", "date_asc"),
+                                selected = state.sortBy,
+                                onSelect = { viewModel.setSortBy(it) },
+                                optionLabel = { key ->
+                                    when (key) {
+                                        "date_desc" -> stringResource(R.string.sort_newest)
+                                        "date_asc" -> stringResource(R.string.sort_oldest)
+                                        else -> stringResource(R.string.action_sort)
+                                    }
+                                },
+                                leadingIcon = Icons.AutoMirrored.Rounded.Sort,
+                                isActive = false
+                            )
                             if (hasActiveFilters) {
                                 ExpressiveClearFiltersChip(onClick = { viewModel.resetFilters() })
                             }
@@ -268,20 +283,6 @@ fun NotificationsScreen(
                                 label = state.selectedApp ?: stringResource(R.string.filter_app),
                                 leadingIcon = Icons.Rounded.Apps,
                                 isActive = state.selectedApp != null
-                            )
-                            ExpressiveDropdownFilterChip(
-                                options = listOf("date_desc", "date_asc"),
-                                selected = state.sortBy,
-                                onSelect = { viewModel.setSortBy(it) },
-                                optionLabel = { key ->
-                                    when (key) {
-                                        "date_desc" -> stringResource(R.string.sort_newest)
-                                        "date_asc" -> stringResource(R.string.sort_oldest)
-                                        else -> stringResource(R.string.action_sort)
-                                    }
-                                },
-                                leadingIcon = Icons.AutoMirrored.Rounded.Sort,
-                                isActive = false
                             )
                         }
                         if (hasActiveFilters) {

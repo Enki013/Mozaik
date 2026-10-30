@@ -161,15 +161,7 @@ fun ExpressiveDateFilterChip(
                     )
                 }
             }
-        } else {
-            {
-                Icon(
-                    imageVector = Icons.Rounded.ArrowDropDown,
-                    contentDescription = null,
-                    modifier = Modifier.size(FilterChipDefaults.IconSize)
-                )
-            }
-        },
+        } else null,
         label = { Text(text = label, style = MaterialTheme.typography.labelLarge, maxLines = 1) }
     )
 }
@@ -300,7 +292,7 @@ fun ExpressiveFilterResultCount(
 }
 
 /** Quick ranges next to the date chip: 0 means today, any other value means "last N days". */
-val QuickDateRanges: List<Int> = listOf(0, 7, 14, 30, 90)
+val QuickDateRanges: List<Int> = listOf(0, 7, 14, 30)
 
 /**
  * The quick range the current date filter equals, or null when there is no date filter
@@ -333,11 +325,10 @@ fun applyQuickRange(
 }
 
 /**
- * Date filter shared by every list screen: one chip that opens a menu of quick ranges (Today,
- * last 7 / 14 / 30 / 90 days) and a custom range. The chip shows the active range and a clear
- * button; it takes one slot in the filter row instead of six.
+ * Date controls shared by every list screen: the custom date chip followed by the quick range
+ * group (Today, 7d, 14d, 30d). The date chip only looks active for a custom date, so the
+ * same filter is never highlighted twice.
  */
-@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun ExpressiveQuickDateFilters(
     selectedDate: String?,
@@ -346,85 +337,32 @@ fun ExpressiveQuickDateFilters(
     onPickDate: () -> Unit,
     onClearDate: () -> Unit,
     onQuickRange: (Int) -> Unit,
-    selectedQuickRange: Int? = quickRangeOf(selectedDate, fromDate, toDate),
-    /**
-     * Range the screen always shows when nothing else is chosen (Timeline: 14 days). While it is
-     * selected the chip names it but looks inactive and has no clear button.
-     */
-    defaultQuickRange: Int? = null
+    selectedQuickRange: Int? = quickRangeOf(selectedDate, fromDate, toDate)
 ) {
-    var expanded by remember { mutableStateOf(false) }
     val hasCustomDate = (selectedDate != null || fromDate != null) && selectedQuickRange == null
-    val isDefaultRange = defaultQuickRange != null && selectedQuickRange == defaultQuickRange
-    // Resolve labels here, not inside the menu: the menu is a separate window.
-    val rangeLabels = QuickDateRanges.map { range ->
-        if (range == 0) stringResource(R.string.filter_today) else stringResource(R.string.filter_last_days, range)
-    }
-    val customLabel = stringResource(R.string.filter_custom_range)
-    val chipLabel = when {
-        selectedQuickRange != null -> rangeLabels[QuickDateRanges.indexOf(selectedQuickRange)]
-        hasCustomDate -> formatDateRangeChipLabel(
-            singleDate = selectedDate,
-            fromDate = fromDate,
-            toDate = toDate,
-            defaultText = stringResource(R.string.filter_date)
-        )
-        else -> stringResource(R.string.filter_date)
-    }
-    Box {
-        ExpressiveDateFilterChip(
-            label = chipLabel,
-            isActive = (selectedQuickRange != null && !isDefaultRange) || hasCustomDate,
-            onClick = { expanded = true },
-            onClear = onClearDate
-        )
-        DropdownMenuPopup(
-            expanded = expanded,
-            onDismissRequest = { expanded = false }
-        ) {
-            DropdownMenuGroup(shapes = MenuDefaults.groupShape(index = 0, count = 2)) {
-                QuickDateRanges.forEachIndexed { index, range ->
-                    SelectableDropdownMenuItem(
-                        colors = filterMenuItemColors(),
-                        selected = selectedQuickRange == range,
-                        onClick = {
-                            expanded = false
-                            onQuickRange(range)
-                        },
-                        text = { Text(text = rangeLabels[index]) },
-                        shapes = MenuDefaults.itemShape(index = index, count = QuickDateRanges.size),
-                        selectedLeadingIcon = {
-                            Icon(
-                                imageVector = Icons.Rounded.Check,
-                                contentDescription = null,
-                                modifier = Modifier.size(MenuDefaults.LeadingIconSize)
-                            )
-                        }
-                    )
-                }
-            }
-            Spacer(modifier = Modifier.height(MenuDefaults.GroupSpacing))
-            DropdownMenuGroup(shapes = MenuDefaults.groupShape(index = 1, count = 2)) {
-                SelectableDropdownMenuItem(
-                    colors = filterMenuItemColors(),
-                    selected = hasCustomDate,
-                    onClick = {
-                        expanded = false
-                        onPickDate()
-                    },
-                    text = { Text(text = customLabel) },
-                    shapes = MenuDefaults.itemShape(index = 0, count = 1),
-                    leadingIcon = {
-                        Icon(
-                            imageVector = Icons.Rounded.CalendarMonth,
-                            contentDescription = null,
-                            modifier = Modifier.size(MenuDefaults.LeadingIconSize)
-                        )
-                    }
-                )
-            }
+    ExpressiveDateFilterChip(
+        label = if (hasCustomDate) {
+            formatDateRangeChipLabel(
+                singleDate = selectedDate,
+                fromDate = fromDate,
+                toDate = toDate,
+                defaultText = stringResource(R.string.filter_pick_date)
+            )
+        } else {
+            stringResource(R.string.filter_pick_date)
+        },
+        isActive = hasCustomDate,
+        onClick = onPickDate,
+        onClear = onClearDate
+    )
+    ExpressiveConnectedButtonGroup(
+        items = QuickDateRanges,
+        selectedItem = selectedQuickRange ?: -1,
+        onItemSelected = onQuickRange,
+        labelProvider = { range ->
+            if (range == 0) stringResource(R.string.filter_today) else stringResource(R.string.filter_days_short, range)
         }
-    }
+    )
 }
 
 private val M3FilterControlHeight = com.personalrecords.app.core.theme.M3ComponentSize.FilterControlHeight

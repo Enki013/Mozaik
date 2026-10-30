@@ -704,8 +704,5 @@
     <string name="settings_server_not_configured">Ayarlanmadı</string>
     <string name="settings_integrations_add">Entegrasyon ekle</string>
     <string name="settings_integrations_add_desc">Entegrasyon kataloğuna göz at</string>
-    <string name="filter_date">Tarih</string>
-    <string name="filter_last_days">Son %1$d gün</string>
-    <string name="filter_custom_range">Özel aralık…</string>
 </resources>
 

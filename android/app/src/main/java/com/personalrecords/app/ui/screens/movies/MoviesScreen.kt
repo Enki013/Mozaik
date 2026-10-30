@@ -234,9 +234,52 @@ fun MoviesScreen(
                                 .fillMaxWidth()
                                 .filterHeaderItem()
                         )
+                        ExpressiveFilterRow {
+                            ExpressiveConnectedButtonGroup(
+                                items = listOf("all", "letterboxd", "mdblist"),
+                                selectedItem = when {
+                                    state.onlyLetterboxd -> "letterboxd"
+                                    state.onlyMdbList -> "mdblist"
+                                    else -> "all"
+                                },
+                                onItemSelected = { key -> viewModel.setSource(key) },
+                                labelProvider = { key ->
+                                    when (key) {
+                                        "letterboxd" -> stringResource(R.string.movies_badge_letterboxd)
+                                        "mdblist" -> stringResource(R.string.movies_filter_mdblist)
+                                        else -> stringResource(R.string.filter_all)
+                                    }
+                                },
+                                iconProvider = { key, _ ->
+                                    when (key) {
+                                        "letterboxd" -> Icons.Rounded.Movie
+                                        "mdblist" -> Icons.Rounded.VideoLibrary
+                                        else -> null
+                                    }
+                                }
+                            )
+                        }
                         val hasActiveDate = state.selectedDateFilter != null || state.fromDateFilter != null
                         val hasActiveFilters = state.searchQuery.isNotEmpty() || hasActiveDate || state.onlyRewatches || state.onlyLetterboxd || state.onlyMdbList
                         ExpressiveFilterRow {
+                            // Sort first, so it keeps its place when the clear chip appears.
+                            ExpressiveDropdownFilterChip(
+                                options = listOf("date", "rating_desc", "rating_asc", "year", "title"),
+                                selected = state.sortBy,
+                                onSelect = { viewModel.setSortBy(it) },
+                                optionLabel = { key ->
+                                    when (key) {
+                                        "date" -> stringResource(R.string.sort_date_watched)
+                                        "rating_desc" -> stringResource(R.string.sort_rating_desc)
+                                        "rating_asc" -> stringResource(R.string.sort_rating_asc)
+                                        "year" -> stringResource(R.string.sort_release_year)
+                                        "title" -> stringResource(R.string.sort_movie_title)
+                                        else -> stringResource(R.string.action_sort)
+                                    }
+                                },
+                                leadingIcon = Icons.AutoMirrored.Rounded.Sort,
+                                isActive = false
+                            )
                             if (hasActiveFilters) {
                                 ExpressiveClearFiltersChip(onClick = { viewModel.resetFilters() })
                             }
@@ -261,46 +304,6 @@ fun MoviesScreen(
                                     )
                                 },
                                 label = { Text(text = stringResource(R.string.movies_filter_rewatches), style = MaterialTheme.typography.labelLarge) }
-                            )
-                            ExpressiveDropdownFilterChip(
-                                options = listOf("date", "rating_desc", "rating_asc", "year", "title"),
-                                selected = state.sortBy,
-                                onSelect = { viewModel.setSortBy(it) },
-                                optionLabel = { key ->
-                                    when (key) {
-                                        "date" -> stringResource(R.string.sort_date_watched)
-                                        "rating_desc" -> stringResource(R.string.sort_rating_desc)
-                                        "rating_asc" -> stringResource(R.string.sort_rating_asc)
-                                        "year" -> stringResource(R.string.sort_release_year)
-                                        "title" -> stringResource(R.string.sort_movie_title)
-                                        else -> stringResource(R.string.action_sort)
-                                    }
-                                },
-                                leadingIcon = Icons.AutoMirrored.Rounded.Sort,
-                                isActive = false
-                            )
-                            ExpressiveConnectedButtonGroup(
-                                items = listOf("all", "letterboxd", "mdblist"),
-                                selectedItem = when {
-                                    state.onlyLetterboxd -> "letterboxd"
-                                    state.onlyMdbList -> "mdblist"
-                                    else -> "all"
-                                },
-                                onItemSelected = { key -> viewModel.setSource(key) },
-                                labelProvider = { key ->
-                                    when (key) {
-                                        "letterboxd" -> stringResource(R.string.movies_badge_letterboxd)
-                                        "mdblist" -> stringResource(R.string.movies_filter_mdblist)
-                                        else -> stringResource(R.string.filter_all)
-                                    }
-                                },
-                                iconProvider = { key, _ ->
-                                    when (key) {
-                                        "letterboxd" -> Icons.Rounded.Movie
-                                        "mdblist" -> Icons.Rounded.VideoLibrary
-                                        else -> null
-                                    }
-                                }
                             )
                         }
                         if (hasActiveFilters) {

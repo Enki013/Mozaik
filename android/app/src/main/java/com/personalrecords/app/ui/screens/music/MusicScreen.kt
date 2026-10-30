@@ -300,10 +300,49 @@ fun MusicScreen(
                                         .filterHeaderItem()
                                 )
                                 if (availableSources.size > 1) {
+                                    ExpressiveFilterRow {
+                                        ExpressiveConnectedButtonGroup(
+                                            items = availableSources,
+                                            selectedItem = if (state.selectedFilter in availableSources) state.selectedFilter else "all",
+                                            onItemSelected = { key -> viewModel.setFilter(key) },
+                                            labelProvider = { key ->
+                                                when (key) {
+                                                    "lastfm" -> stringResource(R.string.music_filter_lastfm)
+                                                    "listenbrainz" -> stringResource(R.string.music_filter_listenbrainz)
+                                                    "statsfm" -> stringResource(R.string.music_filter_statsfm)
+                                                    "all" -> stringResource(R.string.filter_all)
+                                                    else -> musicSourceLabel(key)
+                                                }
+                                            },
+                                            iconProvider = { key, _ ->
+                                                when (key) {
+
+                                                    else -> null
+                                                }
+                                            }
+                                        )
+                                    }
                                 }
                                 val hasActiveDate = state.selectedDateFilter != null || state.fromDateFilter != null
                                 val hasActiveFilters = state.searchQuery.isNotEmpty() || hasActiveDate || state.selectedFilter != "all" || state.selectedArtist != null
                                 ExpressiveFilterRow {
+                                    // Sort first, so it keeps its place when the clear chip appears.
+                                    ExpressiveDropdownFilterChip(
+                                        options = listOf("date_desc", "date_asc", "track", "artist"),
+                                        selected = state.sortBy,
+                                        onSelect = { viewModel.setSortBy(it) },
+                                        optionLabel = { key ->
+                                            when (key) {
+                                                "date_desc" -> stringResource(R.string.sort_newest)
+                                                "date_asc" -> stringResource(R.string.sort_oldest)
+                                                "track" -> stringResource(R.string.sort_track)
+                                                "artist" -> stringResource(R.string.sort_artist)
+                                                else -> stringResource(R.string.action_sort)
+                                            }
+                                        },
+                                        leadingIcon = Icons.AutoMirrored.Rounded.Sort,
+                                        isActive = false
+                                    )
                                     if (hasActiveFilters) {
                                         ExpressiveClearFiltersChip(onClick = { viewModel.resetFilters() })
                                     }
@@ -340,42 +379,6 @@ fun MusicScreen(
                                             isActive = state.selectedArtist != null
                                         )
                                     }
-                                    ExpressiveDropdownFilterChip(
-                                        options = listOf("date_desc", "date_asc", "track", "artist"),
-                                        selected = state.sortBy,
-                                        onSelect = { viewModel.setSortBy(it) },
-                                        optionLabel = { key ->
-                                            when (key) {
-                                                "date_desc" -> stringResource(R.string.sort_newest)
-                                                "date_asc" -> stringResource(R.string.sort_oldest)
-                                                "track" -> stringResource(R.string.sort_track)
-                                                "artist" -> stringResource(R.string.sort_artist)
-                                                else -> stringResource(R.string.action_sort)
-                                            }
-                                        },
-                                        leadingIcon = Icons.AutoMirrored.Rounded.Sort,
-                                        isActive = false
-                                    )
-                                        ExpressiveConnectedButtonGroup(
-                                            items = availableSources,
-                                            selectedItem = if (state.selectedFilter in availableSources) state.selectedFilter else "all",
-                                            onItemSelected = { key -> viewModel.setFilter(key) },
-                                            labelProvider = { key ->
-                                                when (key) {
-                                                    "lastfm" -> stringResource(R.string.music_filter_lastfm)
-                                                    "listenbrainz" -> stringResource(R.string.music_filter_listenbrainz)
-                                                    "statsfm" -> stringResource(R.string.music_filter_statsfm)
-                                                    "all" -> stringResource(R.string.filter_all)
-                                                    else -> musicSourceLabel(key)
-                                                }
-                                            },
-                                            iconProvider = { key, _ ->
-                                                when (key) {
-
-                                                    else -> null
-                                                }
-                                            }
-                                        )
                                 }
                                 if (hasActiveFilters) {
                                     ExpressiveFilterResultCount(count = state.filteredScrobbles.size)
