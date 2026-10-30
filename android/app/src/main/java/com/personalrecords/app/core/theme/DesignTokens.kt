@@ -28,14 +28,7 @@ object M3ListMetrics {
 
 object M3NavigationMetrics {
     val FloatingBarHeight = 64.dp
-    /** Keeps the floating bar a pill on wide phones and small tablets in landscape. */
-    val FloatingBarMaxWidth = 360.dp
     val FloatingBarBottomOffset = 12.dp
-    /** Collapsed rail width: fits a 56dp indicator plus a one-line label under it. */
-    val FloatingRailWidth = 88.dp
-    val FloatingRailStartOffset = 12.dp
-    /** Start padding for content next to the floating rail (offset + rail + gap). */
-    val RailContentStartPadding = FloatingRailStartOffset + FloatingRailWidth + 12.dp
     val BottomFadeHeight = 116.dp
     val BottomContentClearance = 16.dp
     val WideBottomContentSpacing = 24.dp
