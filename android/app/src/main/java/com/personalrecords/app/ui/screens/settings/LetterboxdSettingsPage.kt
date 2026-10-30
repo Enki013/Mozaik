@@ -23,10 +23,10 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.automirrored.filled.HelpOutline
-import androidx.compose.material.icons.automirrored.filled.MenuBook
-import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.automirrored.rounded.ArrowBack
+import androidx.compose.material.icons.automirrored.rounded.HelpOutline
+import androidx.compose.material.icons.automirrored.rounded.MenuBook
+import androidx.compose.material.icons.rounded.*
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material3.*
 import androidx.compose.foundation.lazy.itemsIndexed
@@ -106,7 +106,7 @@ internal fun LetterboxdSettingsPage(
                 horizontalArrangement = Arrangement.spacedBy(10.dp)
             ) {
                 SettingsIconBox(
-                    icon = Icons.Default.Movie,
+                    icon = Icons.Rounded.Movie,
                     containerColor = MaterialTheme.colorScheme.secondaryContainer,
                     contentColor = MaterialTheme.colorScheme.onSecondaryContainer
                 )
@@ -155,7 +155,7 @@ internal fun LetterboxdSettingsPage(
                         modifier = Modifier.weight(1f)
                     ) {
                         Icon(
-                            imageVector = Icons.Default.CheckCircle,
+                            imageVector = Icons.Rounded.CheckCircle,
                             contentDescription = null,
                             tint = statusColors(StatusTone.Active).indicator,
                             modifier = Modifier.size(20.dp)
@@ -190,7 +190,7 @@ internal fun LetterboxdSettingsPage(
                             horizontalArrangement = Arrangement.spacedBy(4.dp)
                         ) {
                             Icon(
-                                imageVector = if (showLetterboxdEditor) Icons.Default.ExpandLess else Icons.Default.Edit,
+                                imageVector = if (showLetterboxdEditor) Icons.Rounded.ExpandLess else Icons.Rounded.Edit,
                                 contentDescription = null,
                                 modifier = Modifier.size(14.dp)
                             )
@@ -233,7 +233,7 @@ internal fun LetterboxdSettingsPage(
                         singleLine = true,
                         leadingIcon = {
                             Icon(
-                                imageVector = Icons.Default.AlternateEmail,
+                                imageVector = Icons.Rounded.AlternateEmail,
                                 contentDescription = null,
                                 tint = MaterialTheme.colorScheme.primary
                             )
@@ -241,7 +241,7 @@ internal fun LetterboxdSettingsPage(
                         trailingIcon = if (state.letterboxdUrl.isNotBlank()) {
                             {
                                 IconButton(onClick = { viewModel.updateLetterboxdUrl("") }) {
-                                    Icon(Icons.Default.Clear, contentDescription = stringResource(R.string.action_clear))
+                                    Icon(Icons.Rounded.Clear, contentDescription = stringResource(R.string.action_clear))
                                 }
                             }
                         } else null,
@@ -276,7 +276,7 @@ internal fun LetterboxdSettingsPage(
                                 verticalAlignment = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.spacedBy(6.dp)
                             ) {
-                                Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(16.dp))
+                                Icon(Icons.Rounded.Check, contentDescription = null, modifier = Modifier.size(16.dp))
                                 Text(
                                     text = stringResource(R.string.action_save),
                                     style = MaterialTheme.typography.labelLargeEmphasized,
@@ -322,7 +322,7 @@ internal fun LetterboxdSettingsPage(
                         horizontalArrangement = Arrangement.spacedBy(6.dp)
                     ) {
                         Icon(
-                            imageVector = Icons.Default.Sync,
+                            imageVector = Icons.Rounded.Sync,
                             contentDescription = null,
                             modifier = Modifier.size(16.dp)
                         )

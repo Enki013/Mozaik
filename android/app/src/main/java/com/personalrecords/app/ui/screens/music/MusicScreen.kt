@@ -21,10 +21,10 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.automirrored.filled.HelpOutline
-import androidx.compose.material.icons.automirrored.filled.Sort
-import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.automirrored.rounded.ArrowBack
+import androidx.compose.material.icons.automirrored.rounded.HelpOutline
+import androidx.compose.material.icons.automirrored.rounded.Sort
+import androidx.compose.material.icons.rounded.*
 import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -90,28 +90,28 @@ fun MusicScreen(
                 id = "music_total",
                 title = musicTotalTitle,
                 description = musicTotalDesc,
-                icon = Icons.Default.MusicNote,
+                icon = Icons.Rounded.MusicNote,
                 iconTint = musicColor
             ),
             StatCardItem(
                 id = "music_today",
                 title = musicTodayTitle,
                 description = musicTodayDesc,
-                icon = Icons.Default.Today,
+                icon = Icons.Rounded.Today,
                 iconTint = secondaryColor
             ),
             StatCardItem(
                 id = "music_artists",
                 title = musicArtistsTitle,
                 description = musicArtistsDesc,
-                icon = Icons.Default.Person,
+                icon = Icons.Rounded.Person,
                 iconTint = tertiaryColor
             ),
             StatCardItem(
                 id = "music_albums",
                 title = musicAlbumsTitle,
                 description = musicAlbumsDesc,
-                icon = Icons.Default.Album,
+                icon = Icons.Rounded.Album,
                 iconTint = cinemaColor
             )
         )
@@ -182,7 +182,7 @@ fun MusicScreen(
                     if (onNavigateBack != null) {
                         IconButton(onClick = onNavigateBack) {
                             Icon(
-                                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                                imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
                                 contentDescription = stringResource(R.string.action_back)
                             )
                         }
@@ -226,7 +226,7 @@ fun MusicScreen(
                         )
                     } else {
                         DetailPlaceholderPane(
-                            icon = Icons.Default.MusicNote,
+                            icon = Icons.Rounded.MusicNote,
                             title = stringResource(R.string.adaptive_select_item_title),
                             subtitle = stringResource(R.string.adaptive_select_item_subtitle)
                         )
@@ -300,28 +300,6 @@ fun MusicScreen(
                                         .filterHeaderItem()
                                 )
                                 if (availableSources.size > 1) {
-                                    ExpressiveFilterRow {
-                                        ExpressiveConnectedButtonGroup(
-                                            items = availableSources,
-                                            selectedItem = if (state.selectedFilter in availableSources) state.selectedFilter else "all",
-                                            onItemSelected = { key -> viewModel.setFilter(key) },
-                                            labelProvider = { key ->
-                                                when (key) {
-                                                    "lastfm" -> stringResource(R.string.music_filter_lastfm)
-                                                    "listenbrainz" -> stringResource(R.string.music_filter_listenbrainz)
-                                                    "statsfm" -> stringResource(R.string.music_filter_statsfm)
-                                                    "all" -> stringResource(R.string.filter_all)
-                                                    else -> musicSourceLabel(key)
-                                                }
-                                            },
-                                            iconProvider = { key, _ ->
-                                                when (key) {
-
-                                                    else -> null
-                                                }
-                                            }
-                                        )
-                                    }
                                 }
                                 val hasActiveDate = state.selectedDateFilter != null || state.fromDateFilter != null
                                 val hasActiveFilters = state.searchQuery.isNotEmpty() || hasActiveDate || state.selectedFilter != "all" || state.selectedArtist != null
@@ -358,7 +336,7 @@ fun MusicScreen(
                                                 }
                                             },
                                             label = state.selectedArtist ?: stringResource(R.string.filter_artist),
-                                            leadingIcon = Icons.Default.Person,
+                                            leadingIcon = Icons.Rounded.Person,
                                             isActive = state.selectedArtist != null
                                         )
                                     }
@@ -375,9 +353,29 @@ fun MusicScreen(
                                                 else -> stringResource(R.string.action_sort)
                                             }
                                         },
-                                        leadingIcon = Icons.AutoMirrored.Filled.Sort,
+                                        leadingIcon = Icons.AutoMirrored.Rounded.Sort,
                                         isActive = false
                                     )
+                                        ExpressiveConnectedButtonGroup(
+                                            items = availableSources,
+                                            selectedItem = if (state.selectedFilter in availableSources) state.selectedFilter else "all",
+                                            onItemSelected = { key -> viewModel.setFilter(key) },
+                                            labelProvider = { key ->
+                                                when (key) {
+                                                    "lastfm" -> stringResource(R.string.music_filter_lastfm)
+                                                    "listenbrainz" -> stringResource(R.string.music_filter_listenbrainz)
+                                                    "statsfm" -> stringResource(R.string.music_filter_statsfm)
+                                                    "all" -> stringResource(R.string.filter_all)
+                                                    else -> musicSourceLabel(key)
+                                                }
+                                            },
+                                            iconProvider = { key, _ ->
+                                                when (key) {
+
+                                                    else -> null
+                                                }
+                                            }
+                                        )
                                 }
                                 if (hasActiveFilters) {
                                     ExpressiveFilterResultCount(count = state.filteredScrobbles.size)
@@ -417,7 +415,8 @@ fun MusicScreen(
                                     index = index,
                                     count = state.filteredScrobbles.size,
                                     addLeadingGap = true,
-                                    modifier = expressiveItemModifier()
+                                    modifier = expressiveItemModifier(),
+                                    selected = if (isTwoPane) selectedScrobble == scrobble else null
                                 )
                             }
                         }
@@ -561,9 +560,9 @@ private fun MusicMetricsHeader(
                 MetricCard(
                     title = stringResource(R.string.music_stats_total),
                     value = totalScrobbles.toString(),
-                    badgeText = "All Time",
+                    badgeText = "",
                     note = "Scrobbles",
-                    valueIcon = Icons.Default.MusicNote,
+                    valueIcon = Icons.Rounded.MusicNote,
                     valueIconTint = recordCategoryColors(RecordCategory.Music).accent,
                     badgeBg = recordCategoryColors(RecordCategory.Music).container,
                     badgeColor = recordCategoryColors(RecordCategory.Music).onContainer,
@@ -574,9 +573,9 @@ private fun MusicMetricsHeader(
                 MetricCard(
                     title = stringResource(R.string.music_stats_today),
                     value = todayScrobbles.toString(),
-                    badgeText = "Today",
+                    badgeText = "",
                     note = "Tracks",
-                    valueIcon = Icons.Default.Today,
+                    valueIcon = Icons.Rounded.Today,
                     valueIconTint = MaterialTheme.colorScheme.secondary,
                     badgeBg = MaterialTheme.colorScheme.secondaryContainer,
                     badgeColor = MaterialTheme.colorScheme.onSecondaryContainer,
@@ -587,9 +586,9 @@ private fun MusicMetricsHeader(
                 MetricCard(
                     title = stringResource(R.string.music_stats_artists),
                     value = uniqueArtists.toString(),
-                    badgeText = "Artists",
+                    badgeText = "",
                     note = "Unique",
-                    valueIcon = Icons.Default.Person,
+                    valueIcon = Icons.Rounded.Person,
                     valueIconTint = MaterialTheme.colorScheme.tertiary,
                     badgeBg = MaterialTheme.colorScheme.tertiaryContainer,
                     badgeColor = MaterialTheme.colorScheme.onTertiaryContainer,
@@ -600,9 +599,9 @@ private fun MusicMetricsHeader(
                 MetricCard(
                     title = stringResource(R.string.music_stats_albums),
                     value = uniqueAlbums.toString(),
-                    badgeText = "Albums",
+                    badgeText = "",
                     note = "Unique",
-                    valueIcon = Icons.Default.Album,
+                    valueIcon = Icons.Rounded.Album,
                     valueIconTint = recordCategoryColors(RecordCategory.Movies).accent,
                     badgeBg = recordCategoryColors(RecordCategory.Movies).container,
                     badgeColor = recordCategoryColors(RecordCategory.Movies).onContainer,
@@ -619,6 +618,7 @@ private fun ScrobbleListItem(
     index: Int = 0,
     count: Int = 1,
     modifier: Modifier = Modifier,
+    selected: Boolean? = null,
     addLeadingGap: Boolean = false,
     onClick: () -> Unit
 ) {
@@ -630,6 +630,7 @@ private fun ScrobbleListItem(
         index = index,
         count = count,
         modifier = modifier,
+        selected = selected,
         addLeadingGap = addLeadingGap,
         onClick = onClick,
         verticalAlignment = Alignment.CenterVertically,
@@ -650,7 +651,7 @@ private fun ScrobbleListItem(
                     )
                 } else {
                     Icon(
-                        imageVector = Icons.Default.MusicNote,
+                        imageVector = Icons.Rounded.MusicNote,
                         contentDescription = null,
                         tint = musicColors.onContainer,
                         modifier = Modifier.size(20.dp)
@@ -723,7 +724,7 @@ private fun EmptyMusicView(
     ExpressiveEmptyState(
         title = stringResource(R.string.music_empty_title),
         message = stringResource(R.string.music_empty_desc),
-        icon = Icons.Default.MusicNote,
+        icon = Icons.Rounded.MusicNote,
         iconContainerColor = musicColors.container,
         iconContentColor = musicColors.onContainer,
         action = {
@@ -733,7 +734,7 @@ private fun EmptyMusicView(
                 shapes = expressiveButtonShapes()
             ) {
                 Icon(
-                    imageVector = Icons.Default.Sync,
+                    imageVector = Icons.Rounded.Sync,
                     contentDescription = null,
                     modifier = Modifier.size(18.dp)
                 )
@@ -791,7 +792,7 @@ fun MusicDetailContent(
                     )
                 } else {
                     Icon(
-                        imageVector = Icons.Default.MusicNote,
+                        imageVector = Icons.Rounded.MusicNote,
                         contentDescription = null,
                         tint = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.size(36.dp)
@@ -805,8 +806,7 @@ fun MusicDetailContent(
             ) {
                 Text(
                     text = scrobble.track,
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.Bold,
+                    style = MaterialTheme.typography.titleLargeEmphasized,
                     color = MaterialTheme.colorScheme.onSurface
                 )
                 Text(
@@ -828,7 +828,7 @@ fun MusicDetailContent(
                 DetailInfoRow(
                     label = stringResource(R.string.music_detail_album),
                     value = scrobble.album,
-                    icon = Icons.Default.Album
+                    icon = Icons.Rounded.Album
                 )
             }
 
@@ -836,7 +836,7 @@ fun MusicDetailContent(
                 DetailInfoRow(
                     label = stringResource(R.string.music_detail_duration),
                     value = scrobble.formattedDuration,
-                    icon = Icons.Default.Timer
+                    icon = Icons.Rounded.Timer
                 )
             }
 
@@ -849,14 +849,14 @@ fun MusicDetailContent(
             DetailInfoRow(
                 label = stringResource(R.string.music_detail_source),
                 value = displaySource,
-                icon = Icons.Default.Source
+                icon = Icons.Rounded.Source
             )
 
             if (scrobble.formattedDate.isNotBlank()) {
                 DetailInfoRow(
                     label = stringResource(R.string.music_detail_time),
                     value = "${scrobble.formattedDate}  ${scrobble.formattedTime}",
-                    icon = Icons.Default.Schedule
+                    icon = Icons.Rounded.Schedule
                 )
             }
         }
@@ -881,7 +881,7 @@ fun MusicDetailContent(
                 shapes = expressiveButtonShapes(),
                 modifier = Modifier.weight(1f)
             ) {
-                Icon(imageVector = Icons.Default.ContentCopy, contentDescription = null, modifier = Modifier.size(16.dp))
+                Icon(imageVector = Icons.Rounded.ContentCopy, contentDescription = null, modifier = Modifier.size(16.dp))
                 Spacer(modifier = Modifier.width(6.dp))
                 Text(stringResource(R.string.action_copy))
             }
@@ -900,7 +900,7 @@ fun MusicDetailContent(
                     colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
                     modifier = Modifier.weight(1f)
                 ) {
-                    Icon(imageVector = Icons.Default.OpenInNew, contentDescription = null, modifier = Modifier.size(16.dp))
+                    Icon(imageVector = Icons.Rounded.OpenInNew, contentDescription = null, modifier = Modifier.size(16.dp))
                     Spacer(modifier = Modifier.width(6.dp))
                     Text(stringResource(R.string.action_open))
                 }
@@ -987,8 +987,7 @@ private fun DetailInfoRow(
         )
         Text(
             text = value,
-            style = MaterialTheme.typography.bodyMedium,
-            fontWeight = FontWeight.Medium,
+            style = MaterialTheme.typography.bodyMediumEmphasized,
             color = MaterialTheme.colorScheme.onSurface,
             maxLines = 2,
             overflow = TextOverflow.Ellipsis,

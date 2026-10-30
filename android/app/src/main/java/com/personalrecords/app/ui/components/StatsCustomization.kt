@@ -7,7 +7,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.rounded.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import kotlinx.coroutines.launch
@@ -18,7 +18,7 @@ import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.LayoutCoordinates
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.material.icons.filled.DragIndicator
+import androidx.compose.material.icons.rounded.DragIndicator
 import androidx.compose.ui.zIndex
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.customActions
@@ -29,6 +29,9 @@ import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.drawOutline
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -40,41 +43,24 @@ import com.personalrecords.app.R
 import com.personalrecords.app.core.theme.*
 
 /**
- * Edit-mode jiggle for reorderable stat cards: subtle looping rotation and lift.
- * Separate from [expressiveShake], which is the one-shot error shake.
- * Disabled when the system "remove animations" setting is on.
+ * Edit-mode marker for reorderable stat cards: an outline around the card, without the looping
+ * iOS-style wobble. Dragging still lifts the card (see [StatCardGrid]).
  */
 @Composable
-fun Modifier.expressiveEditJiggle(enabled: Boolean, index: Int = 0): Modifier {
-    if (!enabled || LocalReducedMotion.current) return this
-    val infiniteTransition = rememberInfiniteTransition(label = "expressive_shake_$index")
-    val rotation by infiniteTransition.animateFloat(
-        initialValue = -1.4f,
-        targetValue = 1.4f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(
-                durationMillis = if (index % 2 == 0) 130 else 160,
-                easing = FastOutSlowInEasing
-            ),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = "shake_rotation_$index"
+fun Modifier.statCardEditOutline(enabled: Boolean): Modifier {
+    val alpha by animateFloatAsState(
+        targetValue = if (enabled) 1f else 0f,
+        animationSpec = M3ExpressiveMotion.fastEffects(),
+        label = "edit_outline_alpha"
     )
-    val translationY by infiniteTransition.animateFloat(
-        initialValue = -1f,
-        targetValue = 1f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(
-                durationMillis = if (index % 2 == 0) 150 else 180,
-                easing = FastOutSlowInEasing
-            ),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = "shake_translation_$index"
-    )
-    return this.graphicsLayer {
-        rotationZ = rotation
-        this.translationY = translationY
+    val color = MaterialTheme.colorScheme.outline
+    val shape = MaterialTheme.shapes.medium
+    return this.drawWithContent {
+        drawContent()
+        if (alpha > 0.01f) {
+            val outline = shape.createOutline(size, layoutDirection, this)
+            drawOutline(outline, color = color.copy(alpha = alpha), style = Stroke(width = 2.dp.toPx()))
+        }
     }
 }
 
@@ -95,7 +81,7 @@ fun StatCardContainer(
     val haptic = LocalHapticFeedback.current
     key(cardId) {
         Box(
-            modifier = modifier.expressiveEditJiggle(enabled = isEditMode, index = index)
+            modifier = modifier.statCardEditOutline(enabled = isEditMode)
         ) {
             content()
 
@@ -109,28 +95,22 @@ fun StatCardContainer(
                     .align(Alignment.TopEnd)
                     .padding(top = 4.dp, end = 4.dp)
             ) {
-                Surface(
+                FilledTonalIconButton(
                     onClick = {
-                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                        haptic.performHapticFeedback(HapticFeedbackType.Confirm)
                         onHideCard()
                     },
-                    shape = CircleShape,
-                    color = MaterialTheme.colorScheme.errorContainer,
-                    contentColor = MaterialTheme.colorScheme.onErrorContainer,
-                    tonalElevation = 3.dp,
-                    shadowElevation = 4.dp,
-                    modifier = Modifier.size(28.dp)
+                    colors = IconButtonDefaults.filledTonalIconButtonColors(
+                        containerColor = MaterialTheme.colorScheme.errorContainer,
+                        contentColor = MaterialTheme.colorScheme.onErrorContainer
+                    ),
+                    modifier = Modifier.size(IconButtonDefaults.extraSmallContainerSize())
                 ) {
-                    Box(
-                        contentAlignment = Alignment.Center,
-                        modifier = Modifier.fillMaxSize()
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.VisibilityOff,
-                            contentDescription = stringResource(R.string.stats_hide_this_card),
-                            modifier = Modifier.size(15.dp)
-                        )
-                    }
+                    Icon(
+                        imageVector = Icons.Rounded.VisibilityOff,
+                        contentDescription = stringResource(R.string.stats_hide_this_card),
+                        modifier = Modifier.size(IconButtonDefaults.extraSmallIconSize)
+                    )
                 }
             }
         }
@@ -176,7 +156,7 @@ fun TopAppBarStatsAction(
                 )
             ) {
                 Icon(
-                    imageVector = Icons.Default.Check,
+                    imageVector = Icons.Rounded.Check,
                     contentDescription = null,
                     modifier = Modifier.size(16.dp)
                 )
@@ -199,7 +179,7 @@ fun TopAppBarStatsAction(
                     }
                 ) {
                     Icon(
-                        imageVector = Icons.Default.DashboardCustomize,
+                        imageVector = Icons.Rounded.DashboardCustomize,
                         contentDescription = stringResource(R.string.stats_customization_title),
                         tint = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -270,7 +250,7 @@ fun StatsCustomizationBottomSheet(
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
-                        imageVector = Icons.Default.Tune,
+                        imageVector = Icons.Rounded.Tune,
                         contentDescription = null,
                         tint = MaterialTheme.colorScheme.onPrimaryContainer,
                         modifier = Modifier.size(24.dp)
@@ -303,12 +283,12 @@ fun StatsCustomizationBottomSheet(
                     modifier = Modifier.fillMaxWidth(),
                     shapes = expressiveButtonShapes(),
                     colors = ButtonDefaults.filledTonalButtonColors(
-                        containerColor = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.5f),
+                        containerColor = MaterialTheme.colorScheme.errorContainer,
                         contentColor = MaterialTheme.colorScheme.onErrorContainer
                     )
                 ) {
                     Icon(
-                        imageVector = Icons.Default.VisibilityOff,
+                        imageVector = Icons.Rounded.VisibilityOff,
                         contentDescription = null,
                         modifier = Modifier.size(18.dp)
                     )
@@ -334,24 +314,20 @@ fun StatsCustomizationBottomSheet(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
+                // Resetting drops the user's order and hidden cards, so it reads as destructive.
                 TextButton(
                     onClick = onResetDefault,
-                    shapes = expressiveButtonShapes()
+                    shapes = expressiveButtonShapes(),
+                    colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error)
                 ) {
-                    Text(
-                        text = stringResource(R.string.stats_reset_default),
-                        style = MaterialTheme.typography.labelMedium
-                    )
+                    Text(text = stringResource(R.string.stats_reset_default))
                 }
 
                 Button(
                     onClick = onDismissRequest,
                     shapes = expressiveButtonShapes()
                 ) {
-                    Text(
-                        text = stringResource(R.string.action_close),
-                        style = MaterialTheme.typography.labelMedium
-                    )
+                    Text(text = stringResource(R.string.action_close))
                 }
             }
         }
@@ -521,7 +497,7 @@ private fun ReorderableStatCardList(
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(
-                                imageVector = Icons.Default.DragIndicator,
+                                imageVector = Icons.Rounded.DragIndicator,
                                 contentDescription = null,
                                 tint = MaterialTheme.colorScheme.onSurfaceVariant
                             )

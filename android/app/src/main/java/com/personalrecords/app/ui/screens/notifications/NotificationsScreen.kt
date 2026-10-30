@@ -17,9 +17,9 @@ import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.automirrored.filled.Sort
-import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.automirrored.rounded.ArrowBack
+import androidx.compose.material.icons.automirrored.rounded.Sort
+import androidx.compose.material.icons.rounded.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -76,13 +76,13 @@ fun NotificationsScreen(
                 id = "notifications_total",
                 title = notificationsTotalTitle,
                 description = notificationsTotalDesc,
-                icon = Icons.Default.Notifications
+                icon = Icons.Rounded.Notifications
             ),
             StatCardItem(
                 id = "notifications_today",
                 title = notificationsTodayTitle,
                 description = notificationsTodayDesc,
-                icon = Icons.Default.Today
+                icon = Icons.Rounded.Today
             )
         )
     }
@@ -119,7 +119,7 @@ fun NotificationsScreen(
                     if (onNavigateBack != null) {
                         IconButton(onClick = onNavigateBack) {
                             Icon(
-                                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                                imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
                                 contentDescription = stringResource(R.string.action_back)
                             )
                         }
@@ -196,9 +196,9 @@ fun NotificationsScreen(
                                 MetricCard(
                                     title = stringResource(R.string.notifications_stats_total),
                                     value = "$total",
-                                    badgeText = stringResource(R.string.notifications_badge_notification),
+                                    badgeText = "",
                                     note = stringResource(R.string.notifications_stats_apps_count, appCount),
-                                    valueIcon = Icons.Default.Notifications,
+                                    valueIcon = Icons.Rounded.Notifications,
                                     valueIconTint = MaterialTheme.colorScheme.primary,
                                     badgeBg = MaterialTheme.colorScheme.primaryContainer,
                                     badgeColor = MaterialTheme.colorScheme.onPrimaryContainer,
@@ -209,9 +209,9 @@ fun NotificationsScreen(
                                 MetricCard(
                                     title = stringResource(R.string.notifications_stats_today),
                                     value = "$todayCount",
-                                    badgeText = stringResource(R.string.badge_daily),
+                                    badgeText = "",
                                     note = stringResource(R.string.notifications_stats_active_stream),
-                                    valueIcon = Icons.Default.Today,
+                                    valueIcon = Icons.Rounded.Today,
                                     valueIconTint = MaterialTheme.colorScheme.secondary,
                                     badgeBg = recordCategoryColors(RecordCategory.Notifications).container,
                                     badgeColor = recordCategoryColors(RecordCategory.Notifications).onContainer,
@@ -266,7 +266,7 @@ fun NotificationsScreen(
                                 onSelect = { viewModel.setAppFilter(it) },
                                 optionLabel = { app -> app ?: stringResource(R.string.filter_all) },
                                 label = state.selectedApp ?: stringResource(R.string.filter_app),
-                                leadingIcon = Icons.Default.Apps,
+                                leadingIcon = Icons.Rounded.Apps,
                                 isActive = state.selectedApp != null
                             )
                             ExpressiveDropdownFilterChip(
@@ -280,7 +280,7 @@ fun NotificationsScreen(
                                         else -> stringResource(R.string.action_sort)
                                     }
                                 },
-                                leadingIcon = Icons.AutoMirrored.Filled.Sort,
+                                leadingIcon = Icons.AutoMirrored.Rounded.Sort,
                                 isActive = false
                             )
                         }
@@ -310,14 +310,14 @@ fun NotificationsScreen(
                             ExpressiveEmptyState(
                                 title = stringResource(R.string.notifications_empty),
                                 message = stringResource(R.string.notifications_empty_guide),
-                                icon = Icons.Default.Notifications,
+                                icon = Icons.Rounded.Notifications,
                                 iconContainerColor = recordCategoryColors(RecordCategory.Notifications).container,
                                 iconContentColor = recordCategoryColors(RecordCategory.Notifications).onContainer
                             )
                         } else {
                             ExpressiveEmptyState(
                                 title = stringResource(R.string.notifications_search_empty),
-                                icon = Icons.Default.SearchOff
+                                icon = Icons.Rounded.SearchOff
                             )
                         }
                     }
@@ -334,7 +334,8 @@ fun NotificationsScreen(
                             index = if (isWideScreen) 0 else index,
                             count = if (isWideScreen) 1 else state.filteredNotifications.size,
                             addLeadingGap = !isWideScreen,
-                            modifier = expressiveItemModifier()
+                            modifier = expressiveItemModifier(),
+                            selected = if (isTwoPane) selectedNotification == notif else null
                         )
                     }
                 }
@@ -353,7 +354,7 @@ fun NotificationsScreen(
                     )
                 } else {
                     DetailPlaceholderPane(
-                        icon = Icons.Default.Notifications,
+                        icon = Icons.Rounded.Notifications,
                         title = stringResource(R.string.adaptive_select_item_title),
                         subtitle = stringResource(R.string.adaptive_select_item_subtitle)
                     )
@@ -405,6 +406,7 @@ fun NotificationRowItem(
     index: Int = 0,
     count: Int = 1,
     modifier: Modifier = Modifier,
+    selected: Boolean? = null,
     addLeadingGap: Boolean = false,
     onClick: () -> Unit
 ) {
@@ -412,24 +414,12 @@ fun NotificationRowItem(
         index = index,
         count = count,
         modifier = modifier,
+        selected = selected,
         addLeadingGap = addLeadingGap,
         onClick = onClick,
         verticalAlignment = Alignment.CenterVertically,
         leadingContent = {
-            Box(
-                modifier = Modifier
-                    .size(40.dp)
-                    .clip(M3Shapes.CornerFull)
-                    .background(recordCategoryColors(RecordCategory.Notifications).container),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Notifications,
-                    contentDescription = null,
-                    tint = recordCategoryColors(RecordCategory.Notifications).onContainer,
-                    modifier = Modifier.size(20.dp)
-                )
-            }
+            AppLetterAvatar(appName = notification.displayAppName)
         },
         supportingContent = {
             Column {

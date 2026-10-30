@@ -82,5 +82,8 @@ val Shapes = Shapes(
     small = M3Shapes.CornerSmall,
     medium = M3Shapes.CornerMedium,
     large = M3Shapes.CornerLarge,
-    extraLarge = M3Shapes.CornerExtraLarge
+    extraLarge = M3Shapes.CornerExtraLarge,
+    largeIncreased = M3Shapes.CornerLargeIncreased,
+    extraLargeIncreased = M3Shapes.CornerExtraLargeIncreased,
+    extraExtraLarge = M3Shapes.CornerExtraExtraLarge
 )

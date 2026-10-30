@@ -46,6 +46,7 @@ import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.PointerEventType
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.node.DrawModifierNode
+import androidx.compose.ui.node.currentValueOf
 import androidx.compose.ui.node.ModifierNodeElement
 import androidx.compose.ui.node.PointerInputModifierNode
 import androidx.compose.ui.node.invalidateDraw
@@ -64,7 +65,7 @@ import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.rounded.*
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.pulltorefresh.PullToRefreshDefaults
 import androidx.compose.material3.pulltorefresh.PullToRefreshState
@@ -81,7 +82,7 @@ import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.automirrored.filled.MenuBook
+import androidx.compose.material.icons.automirrored.rounded.MenuBook
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontStyle
@@ -120,7 +121,8 @@ import java.util.Locale
 import java.util.TimeZone
 
 /**
- * MD3 Elevated Metric Card for dashboard overviews and key statistics.
+ * Metric card for the stats row of list screens. Leave [badgeText] blank unless the badge adds
+ * information the title does not already give (a target, a percentage).
  */
 @Composable
 fun MetricCard(
@@ -161,7 +163,7 @@ fun MetricCard(
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
         border = null
     ) {
-        Column(modifier = Modifier.padding(horizontal = 8.dp, vertical = 8.dp)) {
+        Column(modifier = Modifier.padding(12.dp)) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -169,7 +171,7 @@ fun MetricCard(
             ) {
                 Text(
                     text = title,
-                    style = MaterialTheme.typography.labelSmallEmphasized,
+                    style = MaterialTheme.typography.labelMediumEmphasized,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
@@ -183,7 +185,7 @@ fun MetricCard(
                     ) {
                         Text(
                             text = badgeText,
-                            modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp),
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
                             style = MaterialTheme.typography.labelSmall,
                             color = badgeColor,
                             maxLines = 1,
@@ -202,7 +204,7 @@ fun MetricCard(
                         imageVector = valueIcon,
                         contentDescription = null,
                         tint = valueIconTint,
-                        modifier = Modifier.size(18.dp)
+                        modifier = Modifier.size(20.dp)
                     )
                 }
                 Text(
@@ -223,7 +225,7 @@ fun MetricCard(
                         imageVector = noteIcon,
                         contentDescription = null,
                         tint = noteIconTint ?: MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.size(11.dp)
+                        modifier = Modifier.size(14.dp)
                     )
                 }
                 Text(
@@ -244,7 +246,7 @@ fun MetricCard(
 @Composable
 fun PosterThumbnail(
     imageUrl: String?,
-    fallbackIcon: ImageVector = Icons.Default.BrokenImage,
+    fallbackIcon: ImageVector = Icons.Rounded.BrokenImage,
     @SuppressLint("ModifierParameter") modifier: Modifier = Modifier,
     width: Int = 36,
     height: Int = 52
@@ -294,7 +296,7 @@ fun RatingBadge(
                 modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
             ) {
                 Icon(
-                    imageVector = Icons.Filled.Star,
+                    imageVector = Icons.Rounded.Star,
                     contentDescription = null,
                     tint = domainRatingOnContainer(),
                     modifier = Modifier.size(10.dp)
@@ -432,7 +434,7 @@ fun ExpressiveFilterChip(
     val resolvedLeadingIcon = leadingIcon ?: if (selected) {
         {
             Icon(
-                imageVector = Icons.Default.Check,
+                imageVector = Icons.Rounded.Check,
                 contentDescription = null,
                 modifier = Modifier.size(FilterChipDefaults.IconSize)
             )
@@ -738,7 +740,7 @@ fun ExpressivePullToRefreshIndicator(
     }
     LaunchedEffect(isPastThreshold) {
         if (isPastThreshold) {
-            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+            haptic.performHapticFeedback(HapticFeedbackType.GestureThresholdActivate)
         }
     }
 
@@ -833,8 +835,8 @@ fun ExpressivePullToRefreshBox(
 /**
  * MD3 Expressive spring bounce click modifier.
  *
- * Uses M3 Expressive Fast Spatial spring (`damping = 0.6f, stiffness = 800f`) for small/interactive
- * component scale compression and bounce recovery via [ExpressivePressScaleNode] without `Modifier.composed`.
+ * Uses the M3 Expressive fast spatial spring for small component scale compression and recovery
+ * via [ExpressivePressScaleNode] without `Modifier.composed`.
  */
 fun Modifier.expressiveBounceClick(
     scaleDown: Float = 0.96f,
@@ -875,7 +877,7 @@ fun Modifier.expressiveBounceCombinedClick(
 /**
  * MD3 Expressive spring press scale modifier implemented via [ModifierNodeElement] and [Modifier.Node]
  * to avoid `Modifier.composed` subcomposition overhead on lazy list items.
- * Uses M3 Expressive Fast Spatial spring (`damping = 0.6f, stiffness = 800f`).
+ * Uses the M3 Expressive fast spatial spring; skipped when reduced motion is on.
  */
 fun Modifier.expressivePressScale(
     interactionSource: InteractionSource? = null,
@@ -906,10 +908,14 @@ private data class ExpressivePressScaleElement(
     }
 }
 
+/** M3 Expressive fast spatial spring, the motion token for small component state changes. */
+private val PressScaleSpec = androidx.compose.material3.MotionScheme.expressive().fastSpatialSpec<Float>()
+
 private class ExpressivePressScaleNode(
     private var scaleDown: Float,
     private var enabled: Boolean
-) : Modifier.Node(), PointerInputModifierNode, DrawModifierNode {
+) : Modifier.Node(), PointerInputModifierNode, DrawModifierNode,
+    androidx.compose.ui.node.CompositionLocalConsumerModifierNode {
     private var scaleAnimatable: Animatable<Float, AnimationVector1D>? = null
     private var animJob: Job? = null
     private var isPointerPressed: Boolean = false
@@ -931,7 +937,8 @@ private class ExpressivePressScaleNode(
         pass: PointerEventPass,
         bounds: IntSize
     ) {
-        if (pass != PointerEventPass.Main || !enabled) return
+        // No press scale when the system "remove animations" setting is on.
+        if (pass != PointerEventPass.Main || !enabled || currentValueOf(LocalReducedMotion)) return
         when (pointerEvent.type) {
             PointerEventType.Press -> {
                 if (!isPointerPressed && pointerEvent.changes.any { it.pressed && !it.isConsumed }) {
@@ -975,7 +982,7 @@ private class ExpressivePressScaleNode(
         animJob = coroutineScope.launch {
             anim.animateTo(
                 targetValue = target,
-                animationSpec = spring(dampingRatio = Spring.DampingRatioNoBouncy, stiffness = Spring.StiffnessMediumLow)
+                animationSpec = PressScaleSpec
             ) {
                 invalidateDraw()
             }
@@ -1016,7 +1023,7 @@ fun Modifier.expressiveShake(
 
     LaunchedEffect(trigger) {
         if (trigger != null && trigger != false && trigger != "") {
-            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+            haptic.performHapticFeedback(HapticFeedbackType.Reject)
             if (isReducedMotion) {
                 // Non-spatial fallback: subtle opacity pulse
                 animAlpha.snapTo(1f)
@@ -1297,8 +1304,11 @@ fun ExpressiveDateFilterDialog(
         properties = androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth = false)
     ) {
         Surface(
+            // Up to the M3 picker width, but never wider than the window.
             modifier = Modifier
-                .requiredWidth(360.dp)
+                .padding(horizontal = 16.dp)
+                .widthIn(max = 360.dp)
+                .fillMaxWidth()
                 .wrapContentHeight(),
             shape = MaterialTheme.shapes.extraLarge,
             color = MaterialTheme.colorScheme.surfaceContainerHigh,
@@ -1412,7 +1422,7 @@ fun ExpressiveDateFilterDialog(
                     if (hasAnySelection) {
                         TextButton(
                             onClick = {
-                                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                haptic.performHapticFeedback(HapticFeedbackType.VirtualKey)
                                 onClear()
                                 onDismissRequest()
                             }
@@ -1435,7 +1445,7 @@ fun ExpressiveDateFilterDialog(
                     Spacer(modifier = Modifier.width(4.dp))
                     TextButton(
                         onClick = {
-                            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                            haptic.performHapticFeedback(HapticFeedbackType.Confirm)
                             if (selectionMode == DateSelectionMode.SINGLE) {
                                 singleDatePickerState.selectedDateMillis?.let { millis ->
                                     onDateSelected(formatMillisToIsoDate(millis))
@@ -1489,10 +1499,10 @@ private fun localizedMealName(meal: String): String {
 
 private fun mealIconFor(meal: String): ImageVector {
     return when (meal.trim().lowercase()) {
-        "breakfast" -> Icons.Default.BakeryDining
-        "lunch" -> Icons.Default.LunchDining
-        "dinner" -> Icons.Default.DinnerDining
-        else -> Icons.Default.Restaurant
+        "breakfast" -> Icons.Rounded.BakeryDining
+        "lunch" -> Icons.Rounded.LunchDining
+        "dinner" -> Icons.Rounded.DinnerDining
+        else -> Icons.Rounded.Restaurant
     }
 }
 
@@ -1685,7 +1695,7 @@ fun FoodEntryDetailContent(
                     contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp)
                 ) {
                     Icon(
-                        imageVector = Icons.Default.ContentCopy,
+                        imageVector = Icons.Rounded.ContentCopy,
                         contentDescription = null,
                         modifier = Modifier.size(16.dp)
                     )
@@ -1844,8 +1854,7 @@ fun MediaRatingBadges(
                     RatingPill(
                         label = "IMDb",
                         score = String.format(Locale.US, "%.1f", score),
-                        containerColor = Color(0xFFF5C518).copy(alpha = 0.2f),
-                        textColor = Color(0xFFD6A000)
+                        brandColor = Color(0xFFF5C518)
                     )
                 }
 
@@ -1854,8 +1863,7 @@ fun MediaRatingBadges(
                     RatingPill(
                         label = "🍅",
                         score = "$score%",
-                        containerColor = Color(0xFFFA320A).copy(alpha = 0.15f),
-                        textColor = Color(0xFFFA320A)
+                        brandColor = Color(0xFFFA320A)
                     )
                 }
 
@@ -1864,8 +1872,7 @@ fun MediaRatingBadges(
                     RatingPill(
                         label = "🍿",
                         score = "$score%",
-                        containerColor = Color(0xFFFF9800).copy(alpha = 0.15f),
-                        textColor = Color(0xFFFF9800)
+                        brandColor = Color(0xFFFF9800)
                     )
                 }
 
@@ -1874,8 +1881,7 @@ fun MediaRatingBadges(
                     RatingPill(
                         label = "Metascore",
                         score = "$score",
-                        containerColor = Color(0xFF00CE7A).copy(alpha = 0.15f),
-                        textColor = Color(0xFF00CE7A)
+                        brandColor = Color(0xFF00CE7A)
                     )
                 }
 
@@ -1884,8 +1890,7 @@ fun MediaRatingBadges(
                     RatingPill(
                         label = "Trakt",
                         score = "$score%",
-                        containerColor = Color(0xFFED1C24).copy(alpha = 0.15f),
-                        textColor = Color(0xFFED1C24)
+                        brandColor = Color(0xFFED1C24)
                     )
                 }
 
@@ -1894,8 +1899,7 @@ fun MediaRatingBadges(
                     RatingPill(
                         label = "Letterboxd",
                         score = String.format(Locale.US, "%.1f", score),
-                        containerColor = Color(0xFF00E054).copy(alpha = 0.15f),
-                        textColor = Color(0xFF00E054)
+                        brandColor = Color(0xFF00E054)
                     )
                 }
             }
@@ -1903,33 +1907,41 @@ fun MediaRatingBadges(
     }
 }
 
+/**
+ * Third-party score: label and score in readable theme colors on a tonal pill; the service's
+ * brand color only marks the dot, so light brand colors (IMDb yellow) keep their contrast.
+ */
 @Composable
 fun RatingPill(
     label: String,
     score: String,
-    containerColor: Color,
-    textColor: Color,
+    brandColor: Color,
     modifier: Modifier = Modifier
 ) {
     Surface(
         shape = M3Shapes.CornerFull,
-        color = containerColor,
+        color = MaterialTheme.colorScheme.surfaceContainerHighest,
         modifier = modifier
     ) {
         Row(
-            modifier = Modifier.padding(horizontal = 7.dp, vertical = 2.5.dp),
+            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(4.dp)
+            horizontalArrangement = Arrangement.spacedBy(6.dp)
         ) {
+            Box(
+                modifier = Modifier
+                    .size(8.dp)
+                    .background(brandColor, CircleShape)
+            )
             Text(
                 text = label,
-                style = MaterialTheme.typography.labelSmallEmphasized,
-                color = textColor,
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
                 maxLines = 1
             )
             Text(
                 text = score,
-                style = MaterialTheme.typography.labelSmallEmphasized,
+                style = MaterialTheme.typography.labelMediumEmphasized,
                 color = MaterialTheme.colorScheme.onSurface,
                 maxLines = 1
             )
@@ -1960,7 +1972,7 @@ fun FilmDetailContent(
         ) {
             PosterThumbnail(
                 imageUrl = film.image_url,
-                fallbackIcon = Icons.Default.Movie,
+                fallbackIcon = Icons.Rounded.Movie,
                 width = 72,
                 height = 104
             )
@@ -2025,7 +2037,7 @@ fun FilmDetailContent(
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Icon(
-                                    imageVector = Icons.Default.Repeat,
+                                    imageVector = Icons.Rounded.Repeat,
                                     contentDescription = null,
                                     tint = recordCategoryColors(RecordCategory.Movies).onContainer,
                                     modifier = Modifier.size(11.dp)
@@ -2112,7 +2124,7 @@ fun FilmDetailContent(
                 contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp)
             ) {
                 Icon(
-                    imageVector = Icons.Default.ContentCopy,
+                    imageVector = Icons.Rounded.ContentCopy,
                     contentDescription = null,
                     modifier = Modifier.size(16.dp)
                 )
@@ -2226,7 +2238,7 @@ fun BookDetailContent(
         ) {
             PosterThumbnail(
                 imageUrl = book.image_url,
-                fallbackIcon = Icons.AutoMirrored.Filled.MenuBook,
+                fallbackIcon = Icons.AutoMirrored.Rounded.MenuBook,
                 width = 72,
                 height = 104
             )
@@ -2317,7 +2329,7 @@ fun BookDetailContent(
                             horizontalArrangement = Arrangement.spacedBy(6.dp)
                         ) {
                             Icon(
-                                imageVector = Icons.AutoMirrored.Filled.MenuBook,
+                                imageVector = Icons.AutoMirrored.Rounded.MenuBook,
                                 contentDescription = null,
                                 tint = recordCategoryColors(RecordCategory.Books).accent,
                                 modifier = Modifier.size(16.dp)
@@ -2335,7 +2347,7 @@ fun BookDetailContent(
                             horizontalArrangement = Arrangement.spacedBy(6.dp)
                         ) {
                             Icon(
-                                imageVector = Icons.Default.CalendarMonth,
+                                imageVector = Icons.Rounded.CalendarMonth,
                                 contentDescription = null,
                                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
                                 modifier = Modifier.size(16.dp)
@@ -2374,7 +2386,7 @@ fun BookDetailContent(
                 contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp)
             ) {
                 Icon(
-                    imageVector = Icons.Default.ContentCopy,
+                    imageVector = Icons.Rounded.ContentCopy,
                     contentDescription = null,
                     modifier = Modifier.size(16.dp)
                 )
@@ -2569,7 +2581,7 @@ fun NotificationDetailContent(
                 contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp)
             ) {
                 Icon(
-                    imageVector = Icons.Default.ContentCopy,
+                    imageVector = Icons.Rounded.ContentCopy,
                     contentDescription = null,
                     modifier = Modifier.size(16.dp)
                 )
@@ -2781,7 +2793,7 @@ fun HealthRecordDetailContent(
                             verticalAlignment = Alignment.Top
                         ) {
                             Icon(
-                                imageVector = Icons.Default.Schedule,
+                                imageVector = Icons.Rounded.Schedule,
                                 contentDescription = null,
                                 modifier = Modifier
                                     .size(16.dp)
@@ -2817,7 +2829,7 @@ fun HealthRecordDetailContent(
                             verticalAlignment = Alignment.Top
                         ) {
                             Icon(
-                                imageVector = Icons.Default.Apps,
+                                imageVector = Icons.Rounded.Apps,
                                 contentDescription = null,
                                 modifier = Modifier
                                     .size(16.dp)
@@ -2861,7 +2873,7 @@ fun HealthRecordDetailContent(
                 contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp)
             ) {
                 Icon(
-                    imageVector = Icons.Default.ContentCopy,
+                    imageVector = Icons.Rounded.ContentCopy,
                     contentDescription = null,
                     modifier = Modifier.size(16.dp)
                 )

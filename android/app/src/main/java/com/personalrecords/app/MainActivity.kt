@@ -51,8 +51,6 @@ import com.personalrecords.app.core.theme.M3ExpressiveMotion
 import com.personalrecords.app.core.theme.M3NavigationMetrics
 import com.personalrecords.app.core.theme.M3Shapes
 import com.personalrecords.app.core.theme.PersonalRecordsTheme
-import com.personalrecords.app.core.theme.labelLargeEmphasized
-import com.personalrecords.app.core.theme.labelSmallEmphasized
 import com.personalrecords.app.ui.AppViewModelFactory
 import com.personalrecords.app.ui.navigation.Navigator
 import com.personalrecords.app.ui.navigation.Screen
@@ -601,7 +599,13 @@ fun MainAppHost() {
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(M3NavigationMetrics.BottomFadeHeight)
+                    // Only behind the gesture area and the lower half of the floating bar, so the
+                    // last list rows above the bar stay fully visible.
+                    .height(
+                        WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding() +
+                            M3NavigationMetrics.FloatingBarBottomOffset +
+                            M3NavigationMetrics.FloatingBarHeight / 2
+                    )
                     .background(
                         androidx.compose.ui.graphics.Brush.verticalGradient(
                             colors = listOf(

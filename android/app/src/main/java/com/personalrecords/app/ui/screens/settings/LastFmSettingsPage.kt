@@ -23,10 +23,10 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.automirrored.filled.HelpOutline
-import androidx.compose.material.icons.automirrored.filled.MenuBook
-import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.automirrored.rounded.ArrowBack
+import androidx.compose.material.icons.automirrored.rounded.HelpOutline
+import androidx.compose.material.icons.automirrored.rounded.MenuBook
+import androidx.compose.material.icons.rounded.*
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material3.*
 import androidx.compose.foundation.lazy.itemsIndexed
@@ -108,7 +108,7 @@ internal fun LastFmSettingsPage(
                 horizontalArrangement = Arrangement.spacedBy(10.dp)
             ) {
                 SettingsIconBox(
-                    icon = Icons.Default.MusicNote,
+                    icon = Icons.Rounded.MusicNote,
                     containerColor = MaterialTheme.colorScheme.primaryContainer,
                     contentColor = MaterialTheme.colorScheme.onPrimaryContainer
                 )
@@ -157,7 +157,7 @@ internal fun LastFmSettingsPage(
                         modifier = Modifier.weight(1f)
                     ) {
                         Icon(
-                            imageVector = Icons.Default.CheckCircle,
+                            imageVector = Icons.Rounded.CheckCircle,
                             contentDescription = null,
                             tint = statusColors(StatusTone.Active).indicator,
                             modifier = Modifier.size(20.dp)
@@ -189,7 +189,7 @@ internal fun LastFmSettingsPage(
                             horizontalArrangement = Arrangement.spacedBy(4.dp)
                         ) {
                             Icon(
-                                imageVector = if (showLastFmEditor) Icons.Default.ExpandLess else Icons.Default.Edit,
+                                imageVector = if (showLastFmEditor) Icons.Rounded.ExpandLess else Icons.Rounded.Edit,
                                 contentDescription = null,
                                 modifier = Modifier.size(14.dp)
                             )
@@ -232,7 +232,7 @@ internal fun LastFmSettingsPage(
                         singleLine = true,
                         leadingIcon = {
                             Icon(
-                                imageVector = Icons.Default.AlternateEmail,
+                                imageVector = Icons.Rounded.AlternateEmail,
                                 contentDescription = null,
                                 tint = MaterialTheme.colorScheme.primary
                             )
@@ -240,7 +240,7 @@ internal fun LastFmSettingsPage(
                         trailingIcon = if (state.lastfmUsername.isNotBlank()) {
                             {
                                 IconButton(onClick = { viewModel.updateLastfmUsername("") }) {
-                                    Icon(Icons.Default.Clear, contentDescription = stringResource(R.string.action_clear))
+                                    Icon(Icons.Rounded.Clear, contentDescription = stringResource(R.string.action_clear))
                                 }
                             }
                         } else null,
@@ -273,7 +273,7 @@ internal fun LastFmSettingsPage(
                         visualTransformation = if (lastfmKeyVisible) VisualTransformation.None else PasswordVisualTransformation(),
                         leadingIcon = {
                             Icon(
-                                imageVector = Icons.Default.Key,
+                                imageVector = Icons.Rounded.Key,
                                 contentDescription = null,
                                 tint = MaterialTheme.colorScheme.primary
                             )
@@ -283,7 +283,7 @@ internal fun LastFmSettingsPage(
                                 Row(verticalAlignment = Alignment.CenterVertically) {
                                     IconButton(onClick = { lastfmKeyVisible = !lastfmKeyVisible }) {
                                         Icon(
-                                            imageVector = if (lastfmKeyVisible) Icons.Default.VisibilityOff else Icons.Default.Visibility,
+                                            imageVector = if (lastfmKeyVisible) Icons.Rounded.VisibilityOff else Icons.Rounded.Visibility,
                                             contentDescription = null,
                                             tint = MaterialTheme.colorScheme.onSurfaceVariant
                                         )
@@ -295,7 +295,7 @@ internal fun LastFmSettingsPage(
                                         }
                                     ) {
                                         Icon(
-                                            imageVector = Icons.Default.Clear,
+                                            imageVector = Icons.Rounded.Clear,
                                             contentDescription = stringResource(R.string.action_clear),
                                             tint = MaterialTheme.colorScheme.onSurfaceVariant
                                         )
@@ -331,7 +331,7 @@ internal fun LastFmSettingsPage(
                                 verticalAlignment = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.spacedBy(6.dp)
                             ) {
-                                Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(16.dp))
+                                Icon(Icons.Rounded.Check, contentDescription = null, modifier = Modifier.size(16.dp))
                                 Text(
                                     text = stringResource(R.string.action_save),
                                     style = MaterialTheme.typography.labelLargeEmphasized,
@@ -377,7 +377,7 @@ internal fun LastFmSettingsPage(
                         horizontalArrangement = Arrangement.spacedBy(6.dp)
                     ) {
                         Icon(
-                            imageVector = Icons.Default.Sync,
+                            imageVector = Icons.Rounded.Sync,
                             contentDescription = null,
                             modifier = Modifier.size(16.dp)
                         )

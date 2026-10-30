@@ -222,7 +222,7 @@
     <string name="toast_webhook_auth_copied">Authenticated Webhook URL copied</string>
 
     <string name="settings_section_fatsecret">Nutrition Integration (FatSecret)</string>
-    <string name="settings_fatsecret_title">FatSecret API (BYOK)</string>
+    <string name="settings_fatsecret_title">FatSecret API</string>
     <string name="settings_fatsecret_desc">Secure connection with your own API credentials</string>
     <string name="settings_fatsecret_connected_banner">FatSecret Account Connected</string>
     <string name="settings_fatsecret_reconnect">Reconnect</string>
@@ -281,7 +281,7 @@
     <string name="settings_plugin_rss_title">2. RSS Plugins (Pull / Polling)</string>
     <string name="settings_plugin_rss_desc">Periodic background polling of public RSS feeds like Letterboxd and Goodreads.</string>
     <string name="settings_plugin_api_title">3. OTT / OAuth Plugins (API)</string>
-    <string name="settings_plugin_api_desc">FatSecret OAuth BYOK. Upcoming: Spotify listening history and Steam library.</string>
+    <string name="settings_plugin_api_desc">FatSecret with your own API key. Upcoming: Spotify listening history and Steam library.</string>
 
     <string name="settings_section_export">Data Sovereignty &amp; Backup</string>
     <string name="settings_export_title">Data Export</string>
@@ -520,13 +520,13 @@
     <string name="integration_type_api_sync">API Sync</string>
     <string name="integration_type_rss_feed">RSS Feed</string>
     <string name="integration_type_webhook">Webhook</string>
-    <string name="integration_type_oauth_byok">OAuth 1.0 (BYOK)</string>
+    <string name="integration_type_oauth_byok">Your own API key</string>
 
     <!-- Plugin Badges -->
     <string name="plugin_badge_browser_extension">Browser Extension</string>
     <string name="plugin_badge_api_sync">API Sync</string>
     <string name="plugin_badge_rss_feed">RSS Feed</string>
-    <string name="plugin_badge_oauth_byok">OAuth 1.0 (BYOK)</string>
+    <string name="plugin_badge_oauth_byok">Your own API key</string>
     <string name="plugin_badge_android_webhook">Android Webhook</string>
     <string name="plugin_badge_system_webhook">System Webhook</string>
     <string name="plugin_badge_in_development">In Development</string>
@@ -543,7 +543,7 @@
     <string name="plugin_desc_letterboxd">Film diary and movie ratings synchronization.</string>
     <string name="plugin_long_desc_letterboxd">Reads your Letterboxd RSS feed to import watched films, ratings, and diary entries to your server.</string>
     <string name="plugin_desc_fatsecret">Daily calorie, macronutrient, and meal diary integration.</string>
-    <string name="plugin_long_desc_fatsecret">Securely connects using your own FatSecret Platform API keys (BYOK) to sync food and meal intake.</string>
+    <string name="plugin_long_desc_fatsecret">Connects with your own FatSecret Platform API keys to sync food and meal intake.</string>
     <string name="plugin_desc_health_connect">Sync steps, sleep, heart rate, and workouts from your device.</string>
     <string name="plugin_long_desc_health_connect">Uses the open-source Health Connect Webhook companion app to relay health and activity metrics to your server.</string>
     <string name="plugin_desc_notification_relay">Capture and categorize Android device notification streams securely.</string>
@@ -708,5 +708,8 @@
     <string name="settings_server_not_configured">Not set up</string>
     <string name="settings_integrations_add">Add integration</string>
     <string name="settings_integrations_add_desc">Browse the integrations catalog</string>
+    <string name="filter_date">Date</string>
+    <string name="filter_last_days">Last %1$d days</string>
+    <string name="filter_custom_range">Custom range…</string>
 </resources>
 

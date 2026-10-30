@@ -21,14 +21,14 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.automirrored.filled.OpenInNew
+import androidx.compose.material.icons.automirrored.rounded.ArrowBack
+import androidx.compose.material.icons.automirrored.rounded.OpenInNew
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.Role
 import androidx.compose.foundation.selection.toggleable
-import androidx.compose.material.icons.automirrored.filled.HelpOutline
-import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.automirrored.rounded.HelpOutline
+import androidx.compose.material.icons.rounded.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -94,7 +94,7 @@ fun IntegrationsCatalogScreen(
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
                         Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                            imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
                             contentDescription = stringResource(R.string.action_back)
                         )
                     }
@@ -155,7 +155,7 @@ fun IntegrationsCatalogScreen(
                 item(key = "catalog_empty") {
                     ExpressiveEmptyState(
                         title = stringResource(R.string.catalog_empty_search),
-                        icon = Icons.Default.SearchOff
+                        icon = Icons.Rounded.SearchOff
                     )
                 }
             } else {
@@ -324,7 +324,7 @@ private fun CatalogPluginCard(
                         modifier = Modifier.weight(1f)
                     ) {
                         Icon(
-                            imageVector = Icons.Default.Tune,
+                            imageVector = Icons.Rounded.Tune,
                             contentDescription = null,
                             modifier = Modifier.size(ButtonDefaults.IconSize)
                         )
@@ -347,7 +347,7 @@ private fun CatalogPluginCard(
                             ExpressiveLoadingIndicator(size = ButtonDefaults.IconSize)
                         } else {
                             Icon(
-                                imageVector = Icons.Default.Sync,
+                                imageVector = Icons.Rounded.Sync,
                                 contentDescription = null,
                                 modifier = Modifier.size(ButtonDefaults.IconSize)
                             )
@@ -369,7 +369,7 @@ private fun CatalogPluginCard(
                             modifier = Modifier.weight(1f)
                         ) {
                             Icon(
-                                imageVector = Icons.Default.Settings,
+                                imageVector = Icons.Rounded.Settings,
                                 contentDescription = null,
                                 modifier = Modifier.size(ButtonDefaults.IconSize)
                             )
@@ -409,7 +409,7 @@ private fun OfficialSiteLink(
         modifier = Modifier.semantics { contentDescription = description }
     ) {
         Icon(
-            imageVector = Icons.AutoMirrored.Filled.OpenInNew,
+            imageVector = Icons.AutoMirrored.Rounded.OpenInNew,
             contentDescription = null,
             modifier = Modifier.size(ButtonDefaults.IconSize)
         )
@@ -562,7 +562,7 @@ private fun PluginWebhookBottomSheet(
                     modifier = Modifier.weight(1f)
                 ) {
                     Icon(
-                        imageVector = Icons.Default.ContentCopy,
+                        imageVector = Icons.Rounded.ContentCopy,
                         contentDescription = null,
                         modifier = Modifier.size(16.dp)
                     )
@@ -591,7 +591,7 @@ private fun PluginWebhookBottomSheet(
                         modifier = Modifier.weight(1f)
                     ) {
                         Icon(
-                            imageVector = Icons.Default.OpenInBrowser,
+                            imageVector = Icons.Rounded.OpenInBrowser,
                             contentDescription = null,
                             modifier = Modifier.size(16.dp)
                         )
@@ -631,7 +631,7 @@ private fun PluginWebhookBottomSheet(
                             horizontalArrangement = Arrangement.spacedBy(6.dp)
                         ) {
                             Icon(
-                                imageVector = Icons.AutoMirrored.Filled.HelpOutline,
+                                imageVector = Icons.AutoMirrored.Rounded.HelpOutline,
                                 contentDescription = null,
                                 modifier = Modifier.size(16.dp),
                                 tint = MaterialTheme.colorScheme.primary

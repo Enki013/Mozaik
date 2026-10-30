@@ -9,11 +9,11 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.automirrored.filled.Sort
-import androidx.compose.material.icons.automirrored.filled.DirectionsRun
-import androidx.compose.material.icons.automirrored.filled.DirectionsWalk
-import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.automirrored.rounded.ArrowBack
+import androidx.compose.material.icons.automirrored.rounded.Sort
+import androidx.compose.material.icons.automirrored.rounded.DirectionsRun
+import androidx.compose.material.icons.automirrored.rounded.DirectionsWalk
+import androidx.compose.material.icons.rounded.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -81,28 +81,28 @@ fun HealthConnectScreen(
                 id = "health_steps",
                 title = healthStepsTitle,
                 description = healthStepsDesc,
-                icon = Icons.AutoMirrored.Filled.DirectionsWalk,
+                icon = Icons.AutoMirrored.Rounded.DirectionsWalk,
                 iconTint = healthColor
             ),
             StatCardItem(
                 id = "health_hr",
                 title = healthHrTitle,
                 description = healthHrDesc,
-                icon = Icons.Default.Favorite,
+                icon = Icons.Rounded.Favorite,
                 iconTint = errorColor
             ),
             StatCardItem(
                 id = "health_sleep",
                 title = healthSleepTitle,
                 description = healthSleepDesc,
-                icon = Icons.Default.Bedtime,
+                icon = Icons.Rounded.Bedtime,
                 iconTint = tertiaryColor
             ),
             StatCardItem(
                 id = "health_active",
                 title = healthActiveTitle,
                 description = healthActiveDesc,
-                icon = Icons.Default.LocalFireDepartment,
+                icon = Icons.Rounded.LocalFireDepartment,
                 iconTint = nutritionColor
             )
         )
@@ -143,7 +143,7 @@ fun HealthConnectScreen(
                     if (onNavigateBack != null) {
                         IconButton(onClick = onNavigateBack) {
                             Icon(
-                                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                                imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
                                 contentDescription = stringResource(R.string.action_back)
                             )
                         }
@@ -205,7 +205,7 @@ fun HealthConnectScreen(
                         HealthRecordDetailPaneCard(record = rec, onClose = { selectedRecord = null })
                     } else {
                         DetailPlaceholderPane(
-                            icon = Icons.Default.Favorite,
+                            icon = Icons.Rounded.Favorite,
                             title = stringResource(R.string.adaptive_select_item_title),
                             subtitle = stringResource(R.string.adaptive_select_item_subtitle)
                         )
@@ -276,33 +276,6 @@ fun HealthConnectScreen(
                                     .fillMaxWidth()
                                     .filterHeaderItem()
                             )
-                            ExpressiveFilterRow {
-                                ExpressiveConnectedButtonGroup(
-                                    items = HealthCategoryKeys,
-                                    selectedItem = state.selectedCategory,
-                                    onItemSelected = { key -> viewModel.setCategoryFilter(key) },
-                                    labelProvider = { key ->
-                                        when (key) {
-                                            "activity" -> stringResource(R.string.health_cat_activity)
-                                            "sleep" -> stringResource(R.string.health_cat_sleep)
-                                            "vitals" -> stringResource(R.string.health_cat_vitals)
-                                            "exercise" -> stringResource(R.string.health_cat_exercise)
-                                            "body" -> stringResource(R.string.health_cat_body)
-                                            else -> stringResource(R.string.filter_all)
-                                        }
-                                    },
-                                    iconProvider = { key, _ ->
-                                        when (key) {
-                                            "activity" -> Icons.AutoMirrored.Filled.DirectionsWalk
-                                            "sleep" -> Icons.Default.Bedtime
-                                            "vitals" -> Icons.Default.MonitorHeart
-                                            "exercise" -> Icons.Default.FitnessCenter
-                                            "body" -> Icons.Default.MonitorWeight
-                                            else -> null
-                                        }
-                                    }
-                                )
-                            }
                             val hasActiveDate = state.selectedDateFilter != null || state.fromDateFilter != null
                             val hasActiveFilters = state.searchQuery.isNotEmpty() || hasActiveDate || state.selectedCategory != "all"
                             ExpressiveFilterRow {
@@ -330,8 +303,33 @@ fun HealthConnectScreen(
                                             else -> stringResource(R.string.action_sort)
                                         }
                                     },
-                                    leadingIcon = Icons.AutoMirrored.Filled.Sort,
+                                    leadingIcon = Icons.AutoMirrored.Rounded.Sort,
                                     isActive = false
+                                )
+                                ExpressiveConnectedButtonGroup(
+                                    items = HealthCategoryKeys,
+                                    selectedItem = state.selectedCategory,
+                                    onItemSelected = { key -> viewModel.setCategoryFilter(key) },
+                                    labelProvider = { key ->
+                                        when (key) {
+                                            "activity" -> stringResource(R.string.health_cat_activity)
+                                            "sleep" -> stringResource(R.string.health_cat_sleep)
+                                            "vitals" -> stringResource(R.string.health_cat_vitals)
+                                            "exercise" -> stringResource(R.string.health_cat_exercise)
+                                            "body" -> stringResource(R.string.health_cat_body)
+                                            else -> stringResource(R.string.filter_all)
+                                        }
+                                    },
+                                    iconProvider = { key, _ ->
+                                        when (key) {
+                                            "activity" -> Icons.AutoMirrored.Rounded.DirectionsWalk
+                                            "sleep" -> Icons.Rounded.Bedtime
+                                            "vitals" -> Icons.Rounded.MonitorHeart
+                                            "exercise" -> Icons.Rounded.FitnessCenter
+                                            "body" -> Icons.Rounded.MonitorWeight
+                                            else -> null
+                                        }
+                                    }
                                 )
                             }
                             if (hasActiveFilters) {
@@ -360,14 +358,14 @@ fun HealthConnectScreen(
                                 ExpressiveEmptyState(
                                     title = stringResource(R.string.health_empty_title),
                                     message = stringResource(R.string.health_empty_guide),
-                                    icon = Icons.Default.Favorite,
+                                    icon = Icons.Rounded.Favorite,
                                     iconContainerColor = recordCategoryColors(RecordCategory.Health).container,
                                     iconContentColor = recordCategoryColors(RecordCategory.Health).onContainer
                                 )
                             } else {
                                 ExpressiveEmptyState(
                                     title = stringResource(R.string.health_search_empty),
-                                    icon = Icons.Default.SearchOff
+                                    icon = Icons.Rounded.SearchOff
                                 )
                             }
                         }
@@ -382,7 +380,8 @@ fun HealthConnectScreen(
                                 onClick = { selectedRecord = rec },
                                 index = index,
                                 count = state.filteredRecords.size,
-                                addLeadingGap = true
+                                addLeadingGap = true,
+                                selected = if (isTwoPane) selectedRecord == rec else null
                             )
                         }
                     }
@@ -433,17 +432,17 @@ fun HealthConnectScreen(
 @Composable
 fun healthRecordVisuals(recordType: String, category: String): Triple<ImageVector, Color, Color> {
     val icon = when (recordType) {
-        "steps" -> Icons.AutoMirrored.Filled.DirectionsWalk
-        "distance", "elevation_gained", "floors_climbed" -> Icons.Default.Route
-        "active_calories", "total_calories", "basal_metabolic_rate" -> Icons.Default.LocalFireDepartment
-        "sleep" -> Icons.Default.Bedtime
-        "exercise", "speed", "power", "vo2_max" -> Icons.AutoMirrored.Filled.DirectionsRun
-        "heart_rate", "resting_heart_rate", "heart_rate_variability" -> Icons.Default.MonitorHeart
-        "oxygen_saturation", "respiratory_rate" -> Icons.Default.Air
-        "blood_pressure", "blood_glucose", "body_temperature", "skin_temperature" -> Icons.Default.Thermostat
-        "weight", "bmi", "body_fat", "lean_body_mass", "bone_mass", "height" -> Icons.Default.MonitorWeight
-        "hydration", "body_water_mass" -> Icons.Default.WaterDrop
-        else -> Icons.Default.Favorite
+        "steps" -> Icons.AutoMirrored.Rounded.DirectionsWalk
+        "distance", "elevation_gained", "floors_climbed" -> Icons.Rounded.Route
+        "active_calories", "total_calories", "basal_metabolic_rate" -> Icons.Rounded.LocalFireDepartment
+        "sleep" -> Icons.Rounded.Bedtime
+        "exercise", "speed", "power", "vo2_max" -> Icons.AutoMirrored.Rounded.DirectionsRun
+        "heart_rate", "resting_heart_rate", "heart_rate_variability" -> Icons.Rounded.MonitorHeart
+        "oxygen_saturation", "respiratory_rate" -> Icons.Rounded.Air
+        "blood_pressure", "blood_glucose", "body_temperature", "skin_temperature" -> Icons.Rounded.Thermostat
+        "weight", "bmi", "body_fat", "lean_body_mass", "bone_mass", "height" -> Icons.Rounded.MonitorWeight
+        "hydration", "body_water_mass" -> Icons.Rounded.WaterDrop
+        else -> Icons.Rounded.Favorite
     }
 
     val (bg, fg) = when (category) {
@@ -462,6 +461,7 @@ fun HealthRecordRowItem(
     index: Int = 0,
     count: Int = 1,
     modifier: Modifier = Modifier,
+    selected: Boolean? = null,
     addLeadingGap: Boolean = false,
     onClick: () -> Unit
 ) {
@@ -481,6 +481,7 @@ fun HealthRecordRowItem(
         index = index,
         count = count,
         modifier = modifier,
+        selected = selected,
         addLeadingGap = addLeadingGap,
         onClick = onClick,
         verticalAlignment = Alignment.CenterVertically,
@@ -573,9 +574,9 @@ private fun HealthStatCardItemView(
                 MetricCard(
                     title = stringResource(R.string.health_metric_steps_title),
                     value = stepsFormatted,
-                    badgeText = stringResource(R.string.health_metric_steps_badge),
+                    badgeText = "",
                     note = summary.steps_date.ifBlank { stringResource(R.string.badge_daily) },
-                    valueIcon = Icons.AutoMirrored.Filled.DirectionsWalk,
+                    valueIcon = Icons.AutoMirrored.Rounded.DirectionsWalk,
                     valueIconTint = recordCategoryColors(RecordCategory.Health).accent,
                     badgeBg = recordCategoryColors(RecordCategory.Health).container,
                     badgeColor = recordCategoryColors(RecordCategory.Health).onContainer,
@@ -586,9 +587,9 @@ private fun HealthStatCardItemView(
                 MetricCard(
                     title = stringResource(R.string.health_metric_hr_title),
                     value = hrFormatted,
-                    badgeText = stringResource(R.string.health_metric_hr_badge),
+                    badgeText = "",
                     note = stringResource(R.string.health_metric_hr_note),
-                    valueIcon = Icons.Default.Favorite,
+                    valueIcon = Icons.Rounded.Favorite,
                     valueIconTint = MaterialTheme.colorScheme.error,
                     badgeBg = MaterialTheme.colorScheme.errorContainer,
                     badgeColor = MaterialTheme.colorScheme.onErrorContainer,
@@ -599,9 +600,9 @@ private fun HealthStatCardItemView(
                 MetricCard(
                     title = stringResource(R.string.health_metric_sleep_title),
                     value = sleepFormatted,
-                    badgeText = stringResource(R.string.health_metric_sleep_badge),
+                    badgeText = "",
                     note = summary.sleep_date.ifBlank { stringResource(R.string.badge_daily) },
-                    valueIcon = Icons.Default.Bedtime,
+                    valueIcon = Icons.Rounded.Bedtime,
                     valueIconTint = MaterialTheme.colorScheme.tertiary,
                     badgeBg = MaterialTheme.colorScheme.tertiaryContainer,
                     badgeColor = MaterialTheme.colorScheme.onTertiaryContainer,
@@ -617,9 +618,9 @@ private fun HealthStatCardItemView(
                 MetricCard(
                     title = stringResource(R.string.health_metric_active_title),
                     value = activeKcalFormatted,
-                    badgeText = stringResource(R.string.health_metric_active_badge),
+                    badgeText = "",
                     note = fourthNote,
-                    valueIcon = Icons.Default.LocalFireDepartment,
+                    valueIcon = Icons.Rounded.LocalFireDepartment,
                     valueIconTint = recordCategoryColors(RecordCategory.Nutrition).accent,
                     badgeBg = recordCategoryColors(RecordCategory.Nutrition).container,
                     badgeColor = recordCategoryColors(RecordCategory.Nutrition).onContainer,

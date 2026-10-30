@@ -9,13 +9,14 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.foundation.pager.HorizontalPager
-import androidx.compose.foundation.pager.rememberPagerState
+import androidx.compose.material3.carousel.CarouselDefaults
+import androidx.compose.material3.carousel.HorizontalUncontainedCarousel
+import androidx.compose.material3.carousel.rememberCarouselState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.*
-import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.automirrored.rounded.*
+import androidx.compose.material.icons.rounded.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -75,42 +76,42 @@ fun OverviewScreen(
             id = "overview_nutrition",
             title = stringResource(R.string.title_nutrition),
             description = stringResource(R.string.overview_hero_status_nutrition),
-            icon = Icons.Default.Restaurant,
+            icon = Icons.Rounded.Restaurant,
             iconTint = recordCategoryColors(RecordCategory.Nutrition).accent
         ),
         StatCardItem(
             id = "overview_books",
             title = stringResource(R.string.title_books),
             description = stringResource(R.string.overview_hero_status_books),
-            icon = Icons.AutoMirrored.Filled.MenuBook,
+            icon = Icons.AutoMirrored.Rounded.MenuBook,
             iconTint = recordCategoryColors(RecordCategory.Books).accent
         ),
         StatCardItem(
             id = "overview_movies",
             title = stringResource(R.string.title_movies),
             description = stringResource(R.string.overview_hero_status_movies),
-            icon = Icons.Default.Movie,
+            icon = Icons.Rounded.Movie,
             iconTint = recordCategoryColors(RecordCategory.Movies).accent
         ),
         StatCardItem(
             id = "overview_music",
             title = stringResource(R.string.title_music),
             description = stringResource(R.string.overview_hero_status_music),
-            icon = Icons.Default.MusicNote,
+            icon = Icons.Rounded.MusicNote,
             iconTint = recordCategoryColors(RecordCategory.Music).accent
         ),
         StatCardItem(
             id = "overview_health",
             title = stringResource(R.string.title_health_connect),
             description = stringResource(R.string.overview_hero_status_health),
-            icon = Icons.Default.Favorite,
+            icon = Icons.Rounded.Favorite,
             iconTint = recordCategoryColors(RecordCategory.Health).accent
         ),
         StatCardItem(
             id = "overview_notifications",
             title = stringResource(R.string.title_notifications),
             description = stringResource(R.string.overview_hero_status_notifications),
-            icon = Icons.Default.Notifications,
+            icon = Icons.Rounded.Notifications,
             iconTint = recordCategoryColors(RecordCategory.Notifications).accent
         )
     )
@@ -130,14 +131,14 @@ fun OverviewScreen(
             ""
         }
     }
-    val statsPagerState = rememberPagerState(
-        initialPage = 0,
-        pageCount = { visibleOverviewCardCount.coerceAtLeast(1) }
+    val statsPagerState = rememberCarouselState(
+        initialItem = 0,
+        itemCount = { visibleOverviewCardCount.coerceAtLeast(1) }
     )
 
     LaunchedEffect(visibleOverviewCardCount) {
-        if (visibleOverviewCardCount > 0 && statsPagerState.currentPage >= visibleOverviewCardCount) {
-            statsPagerState.scrollToPage(0)
+        if (visibleOverviewCardCount > 0 && statsPagerState.currentItem >= visibleOverviewCardCount) {
+            statsPagerState.scrollToItem(0)
         }
     }
 
@@ -171,7 +172,7 @@ fun OverviewScreen(
                             }
                         ) {
                             Icon(
-                                imageVector = Icons.Default.DashboardCustomize,
+                                imageVector = Icons.Rounded.DashboardCustomize,
                                 contentDescription = stringResource(R.string.stats_customization_title),
                                 tint = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -233,7 +234,7 @@ fun OverviewScreen(
                     state = listState,
                     modifier = Modifier
                         .fillMaxSize()
-                        .padding(horizontal = 16.dp),
+                        .padding(horizontal = M3Spacing.Large),
                     contentPadding = PaddingValues(
                         top = 8.dp,
                         bottom = floatingBottomNavigationContentPadding()
@@ -246,7 +247,7 @@ fun OverviewScreen(
                             ExpressiveErrorBanner(
                                 title = stringResource(R.string.overview_connection_error_title),
                                 message = stringResource(R.string.overview_connection_error_desc),
-                                icon = Icons.Default.CloudOff,
+                                icon = Icons.Rounded.CloudOff,
                                 onRetry = { viewModel.loadData() },
                                 onClick = onNavigateToSettings,
                                 modifier = expressiveItemModifier()
@@ -301,8 +302,9 @@ fun OverviewScreen(
                         val resolvedMealTitle = state.latestMeal?.displayName?.ifBlank { null }
                             ?: latestMeal?.title
                             ?: stringResource(R.string.overview_hero_no_recent_meal)
+                        val kcalUnit = stringResource(R.string.overview_hero_unit_kcal)
                         val resolvedMealSubtitle = state.latestMeal?.let { m ->
-                            val parts = listOfNotNull(m.meal.ifBlank { null }, "${m.calories.toInt()} kcal")
+                            val parts = listOfNotNull(m.meal.ifBlank { null }, "${m.calories.toInt()} $kcalUnit")
                             if (parts.isNotEmpty()) parts.joinToString(" · ") else null
                         } ?: latestMeal?.subtitle?.takeIf { it.isNotBlank() }
 
@@ -315,7 +317,7 @@ fun OverviewScreen(
 
                         val nutritionPills = listOf(
                             HeroMetricPillData(
-                                value = "$remainingCal kcal",
+                                value = "$remainingCal $kcalUnit",
                                 label = stringResource(R.string.overview_hero_pill_remaining)
                             ),
                             HeroMetricPillData(
@@ -338,7 +340,7 @@ fun OverviewScreen(
                                 caption = stringResource(R.string.overview_hero_latest_added),
                                 title = resolvedMealTitle,
                                 subtitle = resolvedMealSubtitle,
-                                fallbackIcon = Icons.Default.Restaurant
+                                fallbackIcon = Icons.Rounded.Restaurant
                             ),
                             containerColor = recordCategoryColors(RecordCategory.Nutrition).container,
                             contentColor = recordCategoryColors(RecordCategory.Nutrition).onContainer,
@@ -376,7 +378,7 @@ fun OverviewScreen(
                             HeroMetricPillData(
                                 value = booksRatingVal,
                                 label = stringResource(R.string.overview_hero_pill_rating),
-                                icon = Icons.Default.Star
+                                icon = Icons.Rounded.Star
                             )
                         )
 
@@ -396,7 +398,7 @@ fun OverviewScreen(
                                 title = resolvedBookTitle,
                                 subtitle = resolvedBookAuthor,
                                 imageUrl = resolvedBookCover,
-                                fallbackIcon = Icons.AutoMirrored.Filled.MenuBook
+                                fallbackIcon = Icons.AutoMirrored.Rounded.MenuBook
                             ),
                             containerColor = recordCategoryColors(RecordCategory.Books).container,
                             contentColor = recordCategoryColors(RecordCategory.Books).onContainer,
@@ -422,7 +424,7 @@ fun OverviewScreen(
                             HeroMetricPillData(
                                 value = filmsRatingVal,
                                 label = stringResource(R.string.overview_hero_pill_rating),
-                                icon = Icons.Default.Star
+                                icon = Icons.Rounded.Star
                             )
                         )
 
@@ -439,7 +441,7 @@ fun OverviewScreen(
                                 title = resolvedFilmTitle,
                                 subtitle = resolvedFilmSubtitle,
                                 imageUrl = resolvedFilmPoster,
-                                fallbackIcon = Icons.Default.Movie
+                                fallbackIcon = Icons.Rounded.Movie
                             ),
                             containerColor = recordCategoryColors(RecordCategory.Movies).container,
                             contentColor = recordCategoryColors(RecordCategory.Movies).onContainer,
@@ -489,7 +491,7 @@ fun OverviewScreen(
                                 title = resolvedMusicTitle,
                                 subtitle = resolvedMusicSubtitle,
                                 imageUrl = resolvedMusicImage,
-                                fallbackIcon = Icons.Default.MusicNote
+                                fallbackIcon = Icons.Rounded.MusicNote
                             ),
                             containerColor = recordCategoryColors(RecordCategory.Music).container,
                             contentColor = recordCategoryColors(RecordCategory.Music).onContainer,
@@ -525,7 +527,7 @@ fun OverviewScreen(
                                 title = healthRecord?.title?.ifBlank { null }
                                     ?: stringResource(R.string.overview_health_no_recent_record),
                                 subtitle = healthRecord?.formattedDate?.takeIf { it.isNotBlank() },
-                                fallbackIcon = Icons.AutoMirrored.Filled.DirectionsWalk
+                                fallbackIcon = Icons.AutoMirrored.Rounded.DirectionsWalk
                             ),
                             containerColor = recordCategoryColors(RecordCategory.Health).container,
                             contentColor = recordCategoryColors(RecordCategory.Health).onContainer,
@@ -556,7 +558,7 @@ fun OverviewScreen(
                                         .joinToString(" · ")
                                         .takeIf { it.isNotBlank() }
                                 },
-                                fallbackIcon = Icons.Default.Apps
+                                fallbackIcon = Icons.Rounded.Apps
                             ),
                             containerColor = recordCategoryColors(RecordCategory.Notifications).container,
                             contentColor = recordCategoryColors(RecordCategory.Notifications).onContainer,
@@ -600,18 +602,21 @@ fun OverviewScreen(
                                     }
                                 }
                             } else {
-                                HorizontalPager(
-                                    state = statsPagerState,
-                                    modifier = Modifier.fillMaxWidth(),
-                                    pageSpacing = 16.dp
-                                ) { pageIndex ->
-                                    Box(
-                                        modifier = Modifier.fillMaxWidth(),
-                                        contentAlignment = Alignment.Center
-                                    ) {
+                                // M3 carousel: the next card peeks in at the edge and cards are
+                                // masked by the carousel as they scroll in and out.
+                                BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
+                                    val peek = if (slides.size > 1) HeroCardPeek else 0.dp
+                                    val heroItemWidth = (maxWidth - peek).coerceAtMost(840.dp)
+                                    HorizontalUncontainedCarousel(
+                                        state = statsPagerState,
+                                        itemWidth = heroItemWidth,
+                                        itemSpacing = 8.dp,
+                                        flingBehavior = CarouselDefaults.singleAdvanceFlingBehavior(statsPagerState),
+                                        modifier = Modifier.fillMaxWidth()
+                                    ) { itemIndex ->
                                         OverviewHeroCard(
-                                            slide = slides[pageIndex],
-                                            modifier = Modifier.widthIn(max = 840.dp)
+                                            slide = slides[itemIndex],
+                                            modifier = Modifier.maskClip(M3Shapes.CornerExtraLargeIncreased)
                                         )
                                     }
                                 }
@@ -620,7 +625,7 @@ fun OverviewScreen(
                                 if (slides.size > 1) {
                                     val pageIndicatorDescription = stringResource(
                                         R.string.overview_stats_page_indicator,
-                                        statsPagerState.currentPage + 1,
+                                        statsPagerState.currentItem + 1,
                                         slides.size
                                     )
                                     // The dots are not interactive, so the row is only as tall as a dot:
@@ -637,7 +642,7 @@ fun OverviewScreen(
                                         verticalAlignment = Alignment.CenterVertically
                                     ) {
                                         slides.forEachIndexed { index, slide ->
-                                            val isSelected = statsPagerState.currentPage == index
+                                            val isSelected = statsPagerState.currentItem == index
                                             val animatedWidth by animateDpAsState(
                                                 targetValue = if (isSelected) 22.dp else 6.dp,
                                                 animationSpec = M3ExpressiveMotion.fastSpatial(),
@@ -720,7 +725,7 @@ fun OverviewScreen(
                                             )
                                         } else {
                                             Icon(
-                                                imageVector = Icons.Default.Sync,
+                                                imageVector = Icons.Rounded.Sync,
                                                 contentDescription = null,
                                                 modifier = Modifier.size(15.dp)
                                             )
@@ -740,7 +745,7 @@ fun OverviewScreen(
                                         )
                                     ) {
                                         Icon(
-                                            imageVector = Icons.Default.Add,
+                                            imageVector = Icons.Rounded.Add,
                                             contentDescription = stringResource(R.string.catalog_add_integration),
                                             modifier = Modifier.size(18.dp)
                                         )
@@ -771,7 +776,7 @@ fun OverviewScreen(
                                             shapes = expressiveButtonShapes()
                                         ) {
                                             Icon(
-                                                imageVector = Icons.Default.Add,
+                                                imageVector = Icons.Rounded.Add,
                                                 contentDescription = null,
                                                 modifier = Modifier.size(16.dp)
                                             )
@@ -876,7 +881,7 @@ fun OverviewScreen(
                                             color = MaterialTheme.colorScheme.primary
                                         )
                                         Icon(
-                                            imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                                            imageVector = Icons.AutoMirrored.Rounded.ArrowForward,
                                             contentDescription = null,
                                             tint = MaterialTheme.colorScheme.primary,
                                             modifier = Modifier.size(16.dp)
@@ -1058,7 +1063,7 @@ private fun OverviewHeroCard(
                         Text(
                             text = slide.provider,
                             style = MaterialTheme.typography.labelMediumEmphasized,
-                            color = slide.contentColor.copy(alpha = 0.72f),
+                            color = slide.contentColor,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis
                         )
@@ -1093,15 +1098,15 @@ private fun OverviewHeroCard(
                         ) {
                             val targetStr = slide.secondaryText.substringAfterLast("·").trim().removePrefix("/").trim()
                             Text(
-                                text = targetStr.ifBlank { "${slide.count} kcal" },
-                                style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
+                                text = targetStr.ifBlank { "${slide.count} ${stringResource(R.string.overview_hero_unit_kcal)}" },
+                                style = MaterialTheme.typography.titleSmallEmphasized,
                                 color = slide.contentColor
                             )
                             if (slide.progressLabel != null) {
                                 Text(
                                     text = slide.progressLabel,
-                                    style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold),
-                                    color = slide.contentColor.copy(alpha = 0.85f)
+                                    style = MaterialTheme.typography.labelSmallEmphasized,
+                                    color = slide.contentColor
                                 )
                             }
                         }
@@ -1173,7 +1178,7 @@ private fun OverviewHeroCard(
                             Text(
                                 text = slide.unitText,
                                 style = MaterialTheme.typography.titleMediumEmphasized,
-                                color = slide.contentColor.copy(alpha = 0.75f),
+                                color = slide.contentColor,
                                 modifier = Modifier.padding(bottom = 4.dp)
                             )
                         }
@@ -1264,7 +1269,7 @@ private fun HeroMediaPoster(
             )
         } else if (iconOnly) {
             Icon(
-                imageVector = spotlight?.fallbackIcon ?: Icons.Default.Apps,
+                imageVector = spotlight?.fallbackIcon ?: Icons.Rounded.Apps,
                 contentDescription = null,
                 tint = recordCategoryColors(overviewRecordCategory(category)).onContainer,
                 modifier = Modifier
@@ -1297,7 +1302,7 @@ private fun HeroMediaPoster(
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
-                    imageVector = spotlight?.fallbackIcon ?: Icons.AutoMirrored.Filled.MenuBook,
+                    imageVector = spotlight?.fallbackIcon ?: Icons.AutoMirrored.Rounded.MenuBook,
                     contentDescription = null,
                     tint = recordCategoryColors(overviewRecordCategory(category)).accent,
                     modifier = Modifier.size(28.dp)
@@ -1362,18 +1367,13 @@ private fun LeafitCalorieDial(
         ) {
             Text(
                 text = consumed.toString(),
-                style = MaterialTheme.typography.titleLarge.copy(
-                    fontWeight = FontWeight.Bold,
-                    fontFeatureSettings = "tnum"
-                ),
+                style = MaterialTheme.typography.titleLargeEmphasized.copy(fontFeatureSettings = "tnum"),
                 color = contentColor
             )
             Text(
-                text = "kcal",
-                style = MaterialTheme.typography.labelSmall.copy(
-                    fontWeight = FontWeight.Medium
-                ),
-                color = contentColor.copy(alpha = 0.72f)
+                text = stringResource(R.string.overview_hero_unit_kcal),
+                style = MaterialTheme.typography.labelSmall,
+                color = contentColor
             )
         }
     }
@@ -1415,7 +1415,7 @@ private fun HeroMetricPill(
         Text(
             text = pill.label,
             style = MaterialTheme.typography.labelSmall,
-            color = contentColor.copy(alpha = 0.72f),
+            color = contentColor,
             maxLines = 2,
             overflow = TextOverflow.Ellipsis
         )
@@ -1461,7 +1461,7 @@ private fun HeroSpotlightFooter(
             Text(
                 text = spotlight.subtitle,
                 style = MaterialTheme.typography.bodySmall,
-                color = contentColor.copy(alpha = 0.72f),
+                color = contentColor,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.padding(start = 2.dp)
@@ -1481,12 +1481,12 @@ fun ActivityRowItem(
 ) {
 
     val fallbackIcon = when (item.source) {
-        "fatsecret" -> Icons.Default.Restaurant
-        "goodreads" -> Icons.AutoMirrored.Filled.MenuBook
-        "letterboxd" -> Icons.Default.Movie
-        "notification" -> Icons.Default.Notifications
-        "music" -> Icons.Default.MusicNote
-        else -> Icons.Default.Bookmark
+        "fatsecret" -> Icons.Rounded.Restaurant
+        "goodreads" -> Icons.AutoMirrored.Rounded.MenuBook
+        "letterboxd" -> Icons.Rounded.Movie
+        "notification" -> Icons.Rounded.Notifications
+        "music" -> Icons.Rounded.MusicNote
+        else -> Icons.Rounded.Bookmark
     }
 
     
@@ -1500,20 +1500,7 @@ fun ActivityRowItem(
         leadingContent = {
             when (item.source) {
                 "notification" -> {
-                    Box(
-                        modifier = Modifier
-                            .size(38.dp)
-                            .clip(M3Shapes.CornerFull)
-                            .background(MaterialTheme.colorScheme.secondaryContainer),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Notifications,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.onSecondaryContainer,
-                            modifier = Modifier.size(18.dp)
-                        )
-                    }
+                    AppLetterAvatar(appName = notificationAppName(item), size = 38.dp)
                 }
                 "fatsecret" -> {
                     Box(
@@ -1524,7 +1511,7 @@ fun ActivityRowItem(
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
-                            imageVector = Icons.Default.Restaurant,
+                            imageVector = Icons.Rounded.Restaurant,
                             contentDescription = null,
                             tint = recordCategoryColors(RecordCategory.Nutrition).onContainer,
                             modifier = Modifier.size(18.dp)
@@ -1548,7 +1535,7 @@ fun ActivityRowItem(
                             )
                         } else {
                             Icon(
-                                imageVector = Icons.Default.MusicNote,
+                                imageVector = Icons.Rounded.MusicNote,
                                 contentDescription = null,
                                 tint = recordCategoryColors(RecordCategory.Music).onContainer,
                                 modifier = Modifier.size(18.dp)
@@ -1577,7 +1564,7 @@ fun ActivityRowItem(
                     val cal = item.details["calories"]?.toString()?.replace("\"", "")
                     if (cal != null && cal != "0" && cal != "null") {
                         Text(
-                            text = "$cal kcal",
+                            text = "$cal ${stringResource(R.string.overview_hero_unit_kcal)}",
                             style = MaterialTheme.typography.labelSmallEmphasized,
                             color = MaterialTheme.colorScheme.primary,
                             maxLines = 1,
@@ -1608,3 +1595,6 @@ fun ActivityRowItem(
         )
     }
 }
+
+/** How much of the next hero card shows at the carousel edge. */
+private val HeroCardPeek = 40.dp

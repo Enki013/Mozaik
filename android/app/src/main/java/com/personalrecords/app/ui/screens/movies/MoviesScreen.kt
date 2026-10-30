@@ -12,8 +12,8 @@ import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.*
-import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.automirrored.rounded.*
+import androidx.compose.material.icons.rounded.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -59,14 +59,14 @@ fun MoviesScreen(
                 id = "movies_total",
                 title = totalTitle,
                 description = totalDesc,
-                icon = Icons.Default.Movie,
+                icon = Icons.Rounded.Movie,
                 iconTint = cinemaColor
             ),
             StatCardItem(
                 id = "movies_avg_rating",
                 title = avgTitle,
                 description = avgDesc,
-                icon = Icons.Filled.Star,
+                icon = Icons.Rounded.Star,
                 iconTint = ratingColor
             )
         )
@@ -109,7 +109,7 @@ fun MoviesScreen(
                     if (onNavigateBack != null) {
                         IconButton(onClick = onNavigateBack) {
                             Icon(
-                                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                                imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
                                 contentDescription = stringResource(R.string.action_back)
                             )
                         }
@@ -186,9 +186,9 @@ fun MoviesScreen(
                                 MetricCard(
                                     title = stringResource(R.string.movies_stats_total),
                                     value = "$totalFilms",
-                                    badgeText = stringResource(R.string.movies_badge_watched),
+                                    badgeText = "",
                                     note = stringResource(R.string.movies_stats_rated, ratedFilms),
-                                    valueIcon = Icons.Default.Movie,
+                                    valueIcon = Icons.Rounded.Movie,
                                     valueIconTint = recordCategoryColors(RecordCategory.Movies).accent,
                                     badgeBg = recordCategoryColors(RecordCategory.Movies).container,
                                     badgeColor = recordCategoryColors(RecordCategory.Movies).onContainer,
@@ -199,9 +199,9 @@ fun MoviesScreen(
                                 MetricCard(
                                     title = stringResource(R.string.movies_stats_avg_rating),
                                     value = avgRating,
-                                    valueIcon = Icons.Filled.Star,
+                                    valueIcon = Icons.Rounded.Star,
                                     valueIconTint = domainRatingOnContainer(),
-                                    badgeText = stringResource(R.string.badge_avg),
+                                    badgeText = "",
                                     note = stringResource(R.string.movies_stats_rewatch, rewatchFilms),
                                     badgeBg = domainRatingContainer(),
                                     badgeColor = domainRatingOnContainer(),
@@ -234,31 +234,6 @@ fun MoviesScreen(
                                 .fillMaxWidth()
                                 .filterHeaderItem()
                         )
-                        ExpressiveFilterRow {
-                            ExpressiveConnectedButtonGroup(
-                                items = listOf("all", "letterboxd", "mdblist"),
-                                selectedItem = when {
-                                    state.onlyLetterboxd -> "letterboxd"
-                                    state.onlyMdbList -> "mdblist"
-                                    else -> "all"
-                                },
-                                onItemSelected = { key -> viewModel.setSource(key) },
-                                labelProvider = { key ->
-                                    when (key) {
-                                        "letterboxd" -> stringResource(R.string.movies_badge_letterboxd)
-                                        "mdblist" -> stringResource(R.string.movies_filter_mdblist)
-                                        else -> stringResource(R.string.filter_all)
-                                    }
-                                },
-                                iconProvider = { key, _ ->
-                                    when (key) {
-                                        "letterboxd" -> Icons.Default.Movie
-                                        "mdblist" -> Icons.Default.VideoLibrary
-                                        else -> null
-                                    }
-                                }
-                            )
-                        }
                         val hasActiveDate = state.selectedDateFilter != null || state.fromDateFilter != null
                         val hasActiveFilters = state.searchQuery.isNotEmpty() || hasActiveDate || state.onlyRewatches || state.onlyLetterboxd || state.onlyMdbList
                         ExpressiveFilterRow {
@@ -280,7 +255,7 @@ fun MoviesScreen(
                                 onClick = { viewModel.toggleRewatches() },
                                 leadingIcon = {
                                     Icon(
-                                        imageVector = Icons.Default.Repeat,
+                                        imageVector = Icons.Rounded.Repeat,
                                         contentDescription = null,
                                         modifier = Modifier.size(FilterChipDefaults.IconSize)
                                     )
@@ -301,8 +276,31 @@ fun MoviesScreen(
                                         else -> stringResource(R.string.action_sort)
                                     }
                                 },
-                                leadingIcon = Icons.AutoMirrored.Filled.Sort,
+                                leadingIcon = Icons.AutoMirrored.Rounded.Sort,
                                 isActive = false
+                            )
+                            ExpressiveConnectedButtonGroup(
+                                items = listOf("all", "letterboxd", "mdblist"),
+                                selectedItem = when {
+                                    state.onlyLetterboxd -> "letterboxd"
+                                    state.onlyMdbList -> "mdblist"
+                                    else -> "all"
+                                },
+                                onItemSelected = { key -> viewModel.setSource(key) },
+                                labelProvider = { key ->
+                                    when (key) {
+                                        "letterboxd" -> stringResource(R.string.movies_badge_letterboxd)
+                                        "mdblist" -> stringResource(R.string.movies_filter_mdblist)
+                                        else -> stringResource(R.string.filter_all)
+                                    }
+                                },
+                                iconProvider = { key, _ ->
+                                    when (key) {
+                                        "letterboxd" -> Icons.Rounded.Movie
+                                        "mdblist" -> Icons.Rounded.VideoLibrary
+                                        else -> null
+                                    }
+                                }
                             )
                         }
                         if (hasActiveFilters) {
@@ -328,7 +326,7 @@ fun MoviesScreen(
                     item(key = "movies_empty", span = { GridItemSpan(maxLineSpan) }, contentType = "empty") {
                         ExpressiveEmptyState(
                             title = stringResource(R.string.movies_empty),
-                            icon = Icons.Default.Movie,
+                            icon = Icons.Rounded.Movie,
                             iconContainerColor = recordCategoryColors(RecordCategory.Movies).container,
                             iconContentColor = recordCategoryColors(RecordCategory.Movies).onContainer
                         )
@@ -346,7 +344,8 @@ fun MoviesScreen(
                             index = if (isWideScreen) 0 else index,
                             count = if (isWideScreen) 1 else state.filteredFilms.size,
                             addLeadingGap = !isWideScreen,
-                            modifier = expressiveItemModifier()
+                            modifier = expressiveItemModifier(),
+                            selected = if (isTwoPane) selectedFilm == film else null
                         )
                     }
                 }
@@ -365,7 +364,7 @@ fun MoviesScreen(
                     )
                 } else {
                     DetailPlaceholderPane(
-                        icon = Icons.Default.Movie,
+                        icon = Icons.Rounded.Movie,
                         title = stringResource(R.string.adaptive_select_item_title),
                         subtitle = stringResource(R.string.adaptive_select_item_subtitle)
                     )
@@ -417,6 +416,7 @@ fun FilmRowItem(
     index: Int = 0,
     count: Int = 1,
     modifier: Modifier = Modifier,
+    selected: Boolean? = null,
     addLeadingGap: Boolean = false,
     onClick: () -> Unit = {}
 ) {
@@ -424,11 +424,12 @@ fun FilmRowItem(
         index = index,
         count = count,
         modifier = modifier,
+        selected = selected,
         addLeadingGap = addLeadingGap,
         onClick = onClick,
         verticalAlignment = Alignment.CenterVertically,
         leadingContent = {
-            PosterThumbnail(imageUrl = film.image_url, fallbackIcon = Icons.Default.Movie, width = 36, height = 52)
+            PosterThumbnail(imageUrl = film.image_url, fallbackIcon = Icons.Rounded.Movie, width = 36, height = 52)
         },
         trailingContent = {
             Column(
@@ -451,7 +452,6 @@ fun FilmRowItem(
                         text = sourceLabel,
                         style = MaterialTheme.typography.labelSmall,
                         color = sourceColor,
-                        fontWeight = FontWeight.Medium,
                         modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
                         maxLines = 1,
                         softWrap = false
@@ -507,7 +507,7 @@ fun FilmRowItem(
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Icon(
-                                    imageVector = Icons.Default.Repeat,
+                                    imageVector = Icons.Rounded.Repeat,
                                     contentDescription = null,
                                     modifier = Modifier.size(10.dp),
                                     tint = recordCategoryColors(RecordCategory.Movies).onContainer

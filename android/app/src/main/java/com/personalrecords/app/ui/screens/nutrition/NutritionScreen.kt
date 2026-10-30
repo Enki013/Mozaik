@@ -13,8 +13,8 @@ import androidx.compose.foundation.lazy.grid.itemsIndexed
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.*
-import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.automirrored.rounded.*
+import androidx.compose.material.icons.rounded.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -56,45 +56,26 @@ fun NutritionScreen(
     var animationStarted by remember { mutableStateOf(false) }
 
     val nutritionColor = recordCategoryColors(RecordCategory.Nutrition).accent
-    val booksColor = recordCategoryColors(RecordCategory.Books).accent
     val secondaryColor = MaterialTheme.colorScheme.secondary
     val nutritionCaloriesTitle = stringResource(R.string.stats_card_nutrition_calories_title)
     val nutritionCaloriesDesc = stringResource(R.string.stats_card_nutrition_calories_desc)
     val nutritionMealsTitle = stringResource(R.string.stats_card_nutrition_meals_title)
     val nutritionMealsDesc = stringResource(R.string.stats_card_nutrition_meals_desc)
-    val nutritionProteinTitle = stringResource(R.string.stats_card_nutrition_protein_title)
-    val nutritionProteinDesc = stringResource(R.string.stats_card_nutrition_protein_desc)
-    val nutritionCarbfatTitle = stringResource(R.string.stats_card_nutrition_carbfat_title)
-    val nutritionCarbfatDesc = stringResource(R.string.stats_card_nutrition_carbfat_desc)
-    val nutritionStatCards = remember(nutritionColor, booksColor, secondaryColor, nutritionCaloriesTitle, nutritionCaloriesDesc, nutritionMealsTitle, nutritionMealsDesc, nutritionProteinTitle, nutritionProteinDesc, nutritionCarbfatTitle, nutritionCarbfatDesc) {
+    val nutritionStatCards = remember(nutritionColor, secondaryColor, nutritionCaloriesTitle, nutritionCaloriesDesc, nutritionMealsTitle, nutritionMealsDesc) {
         listOf(
             StatCardItem(
                 id = "nutrition_calories",
                 title = nutritionCaloriesTitle,
                 description = nutritionCaloriesDesc,
-                icon = Icons.Default.LocalFireDepartment,
+                icon = Icons.Rounded.LocalFireDepartment,
                 iconTint = nutritionColor
             ),
             StatCardItem(
                 id = "nutrition_meals",
                 title = nutritionMealsTitle,
                 description = nutritionMealsDesc,
-                icon = Icons.Default.Restaurant,
+                icon = Icons.Rounded.Restaurant,
                 iconTint = secondaryColor
-            ),
-            StatCardItem(
-                id = "nutrition_protein",
-                title = nutritionProteinTitle,
-                description = nutritionProteinDesc,
-                icon = Icons.Default.FitnessCenter,
-                iconTint = nutritionColor
-            ),
-            StatCardItem(
-                id = "nutrition_carbfat",
-                title = nutritionCarbfatTitle,
-                description = nutritionCarbfatDesc,
-                icon = Icons.Default.PieChart,
-                iconTint = booksColor
             )
         )
     }
@@ -181,7 +162,7 @@ fun NutritionScreen(
                     if (onNavigateBack != null) {
                         IconButton(onClick = onNavigateBack) {
                             Icon(
-                                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                                imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
                                 contentDescription = stringResource(R.string.action_back)
                             )
                         }
@@ -228,6 +209,17 @@ fun NutritionScreen(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalArrangement = Arrangement.spacedBy(if (isWideScreen) 8.dp else 0.dp)
                 ) {
+            // Errors first, so a failed sync is seen before the numbers it affects.
+            state.error?.let { err ->
+                item(key = "nutrition_error_banner", span = { GridItemSpan(maxLineSpan) }, contentType = "error_banner") {
+                    ExpressiveErrorBanner(
+                        message = err,
+                        onRetry = { viewModel.loadData() },
+                        modifier = expressiveItemModifier().padding(bottom = 8.dp)
+                    )
+                }
+            }
+
             // Stats Summary: M3 Elevated Metric Cards with Value Icons (Music & Health pattern)
             item(key = "nutrition_stats", span = { GridItemSpan(maxLineSpan) }, contentType = "stats") {
                 val target = state.calorieTarget
@@ -238,21 +230,13 @@ fun NutritionScreen(
                     else stringResource(R.string.nutrition_target_exceeded, -rem)
                 } ?: stringResource(R.string.overview_metric_today_calories)
 
-                val todayTotalMacroGrams = state.todayCarb + state.todayProtein + state.todayFat
-                val protPct = if (todayTotalMacroGrams > 0) ((state.todayProtein / todayTotalMacroGrams) * 100).toInt() else 0
-                val carbPct = if (todayTotalMacroGrams > 0) ((state.todayCarb / todayTotalMacroGrams) * 100).toInt() else 0
-                val fatPct = if (todayTotalMacroGrams > 0) ((state.todayFat / todayTotalMacroGrams) * 100).toInt() else 0
 
                 val isCaloriesVisible = "nutrition_calories" !in hiddenCardIds
                 val isMealsVisible = "nutrition_meals" !in hiddenCardIds
-                val isProteinVisible = "nutrition_protein" !in hiddenCardIds
-                val isCarbFatVisible = "nutrition_carbfat" !in hiddenCardIds
 
-                val hasRow1 = isCaloriesVisible || isMealsVisible
-                val hasRow2 = isProteinVisible || isCarbFatVisible
 
-                LaunchedEffect(isCaloriesVisible, isMealsVisible, isProteinVisible, isCarbFatVisible) {
-                    if (!isCaloriesVisible && !isMealsVisible && !isProteinVisible && !isCarbFatVisible) {
+                LaunchedEffect(isCaloriesVisible, isMealsVisible) {
+                    if (!isCaloriesVisible && !isMealsVisible) {
                         isEditMode = false
                     }
                 }
@@ -273,7 +257,7 @@ fun NutritionScreen(
                                 value = "${state.todayCalories.toInt()} kcal",
                                 badgeText = targetBadge,
                                 note = remNote,
-                                valueIcon = Icons.Default.LocalFireDepartment,
+                                valueIcon = Icons.Rounded.LocalFireDepartment,
                                 valueIconTint = recordCategoryColors(RecordCategory.Nutrition).accent,
                                 badgeBg = recordCategoryColors(RecordCategory.Nutrition).container,
                                 badgeColor = recordCategoryColors(RecordCategory.Nutrition).onContainer,
@@ -284,38 +268,12 @@ fun NutritionScreen(
                             MetricCard(
                                 title = stringResource(R.string.records_item_nutrition_title),
                                 value = "${state.todayEntriesCount}",
-                                badgeText = stringResource(R.string.nutrition_filter_all_meals),
+                                badgeText = "",
                                 note = stringResource(R.string.overview_metric_meals_count, state.foodEntries.size),
-                                valueIcon = Icons.Default.Restaurant,
+                                valueIcon = Icons.Rounded.Restaurant,
                                 valueIconTint = MaterialTheme.colorScheme.secondary,
                                 badgeBg = MaterialTheme.colorScheme.secondaryContainer,
                                 badgeColor = MaterialTheme.colorScheme.onSecondaryContainer,
-                                onLongClick = { isEditMode = true }
-                            )
-                        }
-                        "nutrition_protein" -> {
-                            MetricCard(
-                                title = stringResource(R.string.nutrition_label_protein),
-                                value = "${state.todayProtein.toInt()}g",
-                                badgeText = "$protPct%",
-                                note = stringResource(R.string.badge_daily) + " protein",
-                                valueIcon = Icons.Default.FitnessCenter,
-                                valueIconTint = recordCategoryColors(RecordCategory.Nutrition).accent,
-                                badgeBg = recordCategoryColors(RecordCategory.Nutrition).container,
-                                badgeColor = recordCategoryColors(RecordCategory.Nutrition).onContainer,
-                                onLongClick = { isEditMode = true }
-                            )
-                        }
-                        "nutrition_carbfat" -> {
-                            MetricCard(
-                                title = "${stringResource(R.string.nutrition_label_carb)} / ${stringResource(R.string.nutrition_label_fat)}",
-                                value = "${state.todayCarb.toInt()}g · ${state.todayFat.toInt()}g",
-                                badgeText = "$carbPct% / $fatPct%",
-                                note = stringResource(R.string.nutrition_carbfat_note),
-                                valueIcon = Icons.Default.PieChart,
-                                valueIconTint = recordCategoryColors(RecordCategory.Books).accent,
-                                badgeBg = recordCategoryColors(RecordCategory.Books).container,
-                                badgeColor = recordCategoryColors(RecordCategory.Books).onContainer,
                                 onLongClick = { isEditMode = true }
                             )
                         }
@@ -347,7 +305,7 @@ fun NutritionScreen(
                                 horizontalArrangement = Arrangement.spacedBy(8.dp)
                             ) {
                                 Icon(
-                                    imageVector = Icons.Default.LocalFireDepartment,
+                                    imageVector = Icons.Rounded.LocalFireDepartment,
                                     contentDescription = null,
                                     tint = recordCategoryColors(RecordCategory.Nutrition).accent,
                                     modifier = Modifier.size(18.dp)
@@ -373,7 +331,7 @@ fun NutritionScreen(
                                     horizontalArrangement = Arrangement.spacedBy(4.dp)
                                 ) {
                                     Icon(
-                                        imageVector = Icons.Default.Settings,
+                                        imageVector = Icons.Rounded.Settings,
                                         contentDescription = null,
                                         modifier = Modifier.size(14.dp)
                                     )
@@ -471,21 +429,21 @@ fun NutritionScreen(
                                 label = stringResource(R.string.nutrition_label_carb_short),
                                 grams = state.todayCarb.toInt(),
                                 pct = todayCarbPct,
-                                icon = Icons.Default.Grain
+                                icon = Icons.Rounded.Grain
                             )
                             MacroLegendItem(
                                 color = protColor,
                                 label = stringResource(R.string.nutrition_label_protein_short),
                                 grams = state.todayProtein.toInt(),
                                 pct = todayProtPct,
-                                icon = Icons.Default.FitnessCenter
+                                icon = Icons.Rounded.FitnessCenter
                             )
                             MacroLegendItem(
                                 color = fatColor,
                                 label = stringResource(R.string.nutrition_label_fat_short),
                                 grams = state.todayFat.toInt(),
                                 pct = todayFatPct,
-                                icon = Icons.Default.Opacity
+                                icon = Icons.Rounded.Opacity
                             )
                         }
                     }
@@ -511,7 +469,7 @@ fun NutritionScreen(
                             horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
                             Icon(
-                                imageVector = Icons.Default.PieChart,
+                                imageVector = Icons.Rounded.PieChart,
                                 contentDescription = null,
                                 tint = recordCategoryColors(RecordCategory.Nutrition).accent,
                                 modifier = Modifier.size(18.dp)
@@ -572,23 +530,14 @@ fun NutritionScreen(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
-                            MacroLegendItem(color = carbColor, label = stringResource(R.string.nutrition_label_carb_short), grams = state.totalCarb.toInt(), pct = (carbPct * 100).toInt(), icon = Icons.Default.Grain)
-                            MacroLegendItem(color = protColor, label = stringResource(R.string.nutrition_label_protein_short), grams = state.totalProtein.toInt(), pct = (protPct * 100).toInt(), icon = Icons.Default.FitnessCenter)
-                            MacroLegendItem(color = fatColor, label = stringResource(R.string.nutrition_label_fat_short), grams = state.totalFat.toInt(), pct = (fatPct * 100).toInt(), icon = Icons.Default.Opacity)
+                            MacroLegendItem(color = carbColor, label = stringResource(R.string.nutrition_label_carb_short), grams = state.totalCarb.toInt(), pct = (carbPct * 100).toInt(), icon = Icons.Rounded.Grain)
+                            MacroLegendItem(color = protColor, label = stringResource(R.string.nutrition_label_protein_short), grams = state.totalProtein.toInt(), pct = (protPct * 100).toInt(), icon = Icons.Rounded.FitnessCenter)
+                            MacroLegendItem(color = fatColor, label = stringResource(R.string.nutrition_label_fat_short), grams = state.totalFat.toInt(), pct = (fatPct * 100).toInt(), icon = Icons.Rounded.Opacity)
                         }
                     }
                 }
             }
 
-            state.error?.let { err ->
-                item(key = "nutrition_error_banner", span = { GridItemSpan(maxLineSpan) }, contentType = "error_banner") {
-                    ExpressiveErrorBanner(
-                        message = err,
-                        onRetry = { viewModel.loadData() },
-                        modifier = expressiveItemModifier().padding(bottom = 8.dp)
-                    )
-                }
-            }
 
             // Food Entries Log Header & Filters
             stickyHeader(key = "nutrition_sticky_header", contentType = "sticky_header") {
@@ -602,31 +551,6 @@ fun NutritionScreen(
                             .fillMaxWidth()
                             .filterHeaderItem()
                     )
-                    ExpressiveFilterRow {
-                        ExpressiveConnectedButtonGroup(
-                            items = NutritionMealKeys,
-                            selectedItem = state.selectedMeal,
-                            onItemSelected = { key -> viewModel.setMeal(key) },
-                            labelProvider = { key ->
-                                when (key) {
-                                    "Breakfast" -> stringResource(R.string.nutrition_filter_breakfast)
-                                    "Lunch" -> stringResource(R.string.nutrition_filter_lunch)
-                                    "Dinner" -> stringResource(R.string.nutrition_filter_dinner)
-                                    "Other" -> stringResource(R.string.nutrition_filter_snack)
-                                    else -> stringResource(R.string.filter_all)
-                                }
-                            },
-                            iconProvider = { key, _ ->
-                                when (key) {
-                                    "Breakfast" -> Icons.Default.BakeryDining
-                                    "Lunch" -> Icons.Default.LunchDining
-                                    "Dinner" -> Icons.Default.DinnerDining
-                                    "Other" -> Icons.Default.Fastfood
-                                    else -> null
-                                }
-                            }
-                        )
-                    }
                     val hasActiveDate = state.selectedDateFilter != null || state.fromDateFilter != null
                     val hasActiveFilters = state.searchQuery.isNotEmpty() || hasActiveDate || state.selectedMeal != "all"
                     ExpressiveFilterRow {
@@ -656,8 +580,31 @@ fun NutritionScreen(
                                     else -> stringResource(R.string.action_sort)
                                 }
                             },
-                            leadingIcon = Icons.AutoMirrored.Filled.Sort,
+                            leadingIcon = Icons.AutoMirrored.Rounded.Sort,
                             isActive = false
+                        )
+                        ExpressiveConnectedButtonGroup(
+                            items = NutritionMealKeys,
+                            selectedItem = state.selectedMeal,
+                            onItemSelected = { key -> viewModel.setMeal(key) },
+                            labelProvider = { key ->
+                                when (key) {
+                                    "Breakfast" -> stringResource(R.string.nutrition_filter_breakfast)
+                                    "Lunch" -> stringResource(R.string.nutrition_filter_lunch)
+                                    "Dinner" -> stringResource(R.string.nutrition_filter_dinner)
+                                    "Other" -> stringResource(R.string.nutrition_filter_snack)
+                                    else -> stringResource(R.string.filter_all)
+                                }
+                            },
+                            iconProvider = { key, _ ->
+                                when (key) {
+                                    "Breakfast" -> Icons.Rounded.BakeryDining
+                                    "Lunch" -> Icons.Rounded.LunchDining
+                                    "Dinner" -> Icons.Rounded.DinnerDining
+                                    "Other" -> Icons.Rounded.Fastfood
+                                    else -> null
+                                }
+                            }
                         )
                     }
                     if (hasActiveFilters) {
@@ -684,7 +631,7 @@ fun NutritionScreen(
                 item(key = "nutrition_empty", span = { GridItemSpan(maxLineSpan) }, contentType = "empty") {
                     ExpressiveEmptyState(
                         title = stringResource(R.string.nutrition_empty),
-                        icon = Icons.Default.Restaurant,
+                        icon = Icons.Rounded.Restaurant,
                         iconContainerColor = recordCategoryColors(RecordCategory.Nutrition).container,
                         iconContentColor = recordCategoryColors(RecordCategory.Nutrition).onContainer
                     )
@@ -702,7 +649,8 @@ fun NutritionScreen(
                         index = if (isWideScreen) 0 else index,
                         count = if (isWideScreen) 1 else state.filteredFoods.size,
                         addLeadingGap = !isWideScreen,
-                        modifier = expressiveItemModifier()
+                        modifier = expressiveItemModifier(),
+                        selected = if (isTwoPane) selectedFood == food else null
                     )
                 }
             }
@@ -720,7 +668,7 @@ fun NutritionScreen(
                     ) { selectedFood = null }
                 } else {
                     DetailPlaceholderPane(
-                        icon = Icons.Default.Restaurant,
+                        icon = Icons.Rounded.Restaurant,
                         title = stringResource(R.string.adaptive_select_item_title),
                         subtitle = stringResource(R.string.adaptive_select_item_subtitle)
                     )
@@ -779,10 +727,10 @@ private fun formatMealName(meal: String): String {
 
 private fun getMealIcon(meal: String): androidx.compose.ui.graphics.vector.ImageVector {
     return when (meal.trim().lowercase()) {
-        "breakfast" -> Icons.Default.BakeryDining
-        "lunch" -> Icons.Default.LunchDining
-        "dinner" -> Icons.Default.DinnerDining
-        else -> Icons.Default.Restaurant
+        "breakfast" -> Icons.Rounded.BakeryDining
+        "lunch" -> Icons.Rounded.LunchDining
+        "dinner" -> Icons.Rounded.DinnerDining
+        else -> Icons.Rounded.Restaurant
     }
 }
 
@@ -829,6 +777,7 @@ fun FoodEntryRowItem(
     index: Int = 0,
     count: Int = 1,
     modifier: Modifier = Modifier,
+    selected: Boolean? = null,
     addLeadingGap: Boolean = false,
     onClick: () -> Unit = {}
 ) {
@@ -841,6 +790,7 @@ fun FoodEntryRowItem(
         index = index,
         count = count,
         modifier = modifier,
+        selected = selected,
         addLeadingGap = addLeadingGap,
         onClick = onClick,
         verticalAlignment = Alignment.CenterVertically,

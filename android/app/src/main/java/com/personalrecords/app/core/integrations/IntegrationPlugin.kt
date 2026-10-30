@@ -1,18 +1,18 @@
 package com.personalrecords.app.core.integrations
 
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.MenuBook
-import androidx.compose.material.icons.filled.Equalizer
-import androidx.compose.material.icons.filled.Extension
-import androidx.compose.material.icons.filled.Favorite
-import androidx.compose.material.icons.filled.Headset
-import androidx.compose.material.icons.filled.Movie
-import androidx.compose.material.icons.filled.MusicNote
-import androidx.compose.material.icons.filled.Notifications
-import androidx.compose.material.icons.filled.Podcasts
-import androidx.compose.material.icons.filled.Restaurant
-import androidx.compose.material.icons.filled.Tv
-import androidx.compose.material.icons.filled.VideoLibrary
+import androidx.compose.material.icons.automirrored.rounded.MenuBook
+import androidx.compose.material.icons.rounded.Equalizer
+import androidx.compose.material.icons.rounded.Extension
+import androidx.compose.material.icons.rounded.Favorite
+import androidx.compose.material.icons.rounded.Headset
+import androidx.compose.material.icons.rounded.Movie
+import androidx.compose.material.icons.rounded.MusicNote
+import androidx.compose.material.icons.rounded.Notifications
+import androidx.compose.material.icons.rounded.Podcasts
+import androidx.compose.material.icons.rounded.Restaurant
+import androidx.compose.material.icons.rounded.Tv
+import androidx.compose.material.icons.rounded.VideoLibrary
 import androidx.compose.ui.graphics.vector.ImageVector
 import com.personalrecords.app.R
 
@@ -28,7 +28,7 @@ enum class IntegrationType(val displayNameRes: Int, val displayName: String) {
     API_SYNC(R.string.integration_type_api_sync, "API Senkronizasyonu"),
     RSS_FEED(R.string.integration_type_rss_feed, "RSS Beslemesi"),
     WEBHOOK(R.string.integration_type_webhook, "Webhook Entegrasyonu"),
-    OAUTH_BYOK(R.string.integration_type_oauth_byok, "OAuth 1.0 (BYOK)")
+    OAUTH_BYOK(R.string.integration_type_oauth_byok, "Your own API key")
 }
 
 data class IntegrationPlugin(
@@ -61,7 +61,7 @@ object PluginRegistry {
             name = "Web Scrobbler",
             category = IntegrationCategory.MUSIC,
             type = IntegrationType.WEBHOOK,
-            icon = Icons.Default.Extension,
+            icon = Icons.Rounded.Extension,
             badgeRes = R.string.plugin_badge_browser_extension,
             shortDescRes = R.string.plugin_desc_web_scrobbler,
             longDescRes = R.string.plugin_long_desc_web_scrobbler,
@@ -85,7 +85,7 @@ object PluginRegistry {
             name = "Last.fm",
             category = IntegrationCategory.MUSIC,
             type = IntegrationType.API_SYNC,
-            icon = Icons.Default.MusicNote,
+            icon = Icons.Rounded.MusicNote,
             badgeRes = R.string.plugin_badge_api_sync,
             shortDescRes = R.string.plugin_desc_lastfm,
             longDescRes = R.string.plugin_long_desc_lastfm,
@@ -108,7 +108,7 @@ object PluginRegistry {
             name = "Goodreads RSS",
             category = IntegrationCategory.MEDIA,
             type = IntegrationType.RSS_FEED,
-            icon = Icons.AutoMirrored.Filled.MenuBook,
+            icon = Icons.AutoMirrored.Rounded.MenuBook,
             badgeRes = R.string.plugin_badge_rss_feed,
             shortDescRes = R.string.plugin_desc_goodreads,
             longDescRes = R.string.plugin_long_desc_goodreads,
@@ -131,7 +131,7 @@ object PluginRegistry {
             name = "Letterboxd RSS",
             category = IntegrationCategory.MEDIA,
             type = IntegrationType.RSS_FEED,
-            icon = Icons.Default.Movie,
+            icon = Icons.Rounded.Movie,
             badgeRes = R.string.plugin_badge_rss_feed,
             shortDescRes = R.string.plugin_desc_letterboxd,
             longDescRes = R.string.plugin_long_desc_letterboxd,
@@ -154,13 +154,13 @@ object PluginRegistry {
             name = "FatSecret",
             category = IntegrationCategory.HEALTH,
             type = IntegrationType.OAUTH_BYOK,
-            icon = Icons.Default.Restaurant,
+            icon = Icons.Rounded.Restaurant,
             badgeRes = R.string.plugin_badge_oauth_byok,
             shortDescRes = R.string.plugin_desc_fatsecret,
             longDescRes = R.string.plugin_long_desc_fatsecret,
-            badge = "OAuth 1.0 (BYOK)",
+            badge = "Your own API key",
             shortDescription = "Günlük kalori, makro ve öğün günlüğü entegrasyonu.",
-            longDescription = "Kendi FatSecret Platform API anahtarlarınız (BYOK) ile güvenli bağlantı kurarak besin tüketim verilerinizi eşitler.",
+            longDescription = "Kendi FatSecret Platform API anahtarlarınla bağlanarak yemek ve öğün kayıtlarını eşitler.",
             syncServiceKey = "fatsecret",
             officialUrl = "https://platform.fatsecret.com",
             setupSteps = listOf(
@@ -177,7 +177,7 @@ object PluginRegistry {
             name = "Health Connect Webhook",
             category = IntegrationCategory.HEALTH,
             type = IntegrationType.WEBHOOK,
-            icon = Icons.Default.Favorite,
+            icon = Icons.Rounded.Favorite,
             badgeRes = R.string.plugin_badge_android_webhook,
             shortDescRes = R.string.plugin_desc_health_connect,
             longDescRes = R.string.plugin_long_desc_health_connect,
@@ -202,7 +202,7 @@ object PluginRegistry {
             name = "Notification Relay",
             category = IntegrationCategory.SYSTEM,
             type = IntegrationType.WEBHOOK,
-            icon = Icons.Default.Notifications,
+            icon = Icons.Rounded.Notifications,
             badgeRes = R.string.plugin_badge_system_webhook,
             shortDescRes = R.string.plugin_desc_notification_relay,
             longDescRes = R.string.plugin_long_desc_notification_relay,
@@ -227,7 +227,7 @@ object PluginRegistry {
             name = "Spotify Direct API",
             category = IntegrationCategory.MUSIC,
             type = IntegrationType.API_SYNC,
-            icon = Icons.Default.Podcasts,
+            icon = Icons.Rounded.Podcasts,
             badgeRes = R.string.plugin_badge_in_development,
             shortDescRes = R.string.plugin_desc_spotify,
             longDescRes = R.string.plugin_long_desc_spotify,
@@ -249,7 +249,7 @@ object PluginRegistry {
             name = "ListenBrainz",
             category = IntegrationCategory.MUSIC,
             type = IntegrationType.API_SYNC,
-            icon = Icons.Default.Headset,
+            icon = Icons.Rounded.Headset,
             badgeRes = R.string.plugin_badge_listenbrainz,
             shortDescRes = R.string.plugin_desc_listenbrainz,
             longDescRes = R.string.plugin_long_desc_listenbrainz,
@@ -272,7 +272,7 @@ object PluginRegistry {
             name = "Stats.fm",
             category = IntegrationCategory.MUSIC,
             type = IntegrationType.API_SYNC,
-            icon = Icons.Default.Equalizer,
+            icon = Icons.Rounded.Equalizer,
             badgeRes = R.string.plugin_badge_statsfm,
             shortDescRes = R.string.plugin_desc_statsfm,
             longDescRes = R.string.plugin_long_desc_statsfm,
@@ -295,7 +295,7 @@ object PluginRegistry {
             name = "Trakt.tv",
             category = IntegrationCategory.MEDIA,
             type = IntegrationType.API_SYNC,
-            icon = Icons.Default.Tv,
+            icon = Icons.Rounded.Tv,
             badgeRes = R.string.plugin_badge_trakt,
             shortDescRes = R.string.plugin_desc_trakt,
             longDescRes = R.string.plugin_long_desc_trakt,
@@ -319,7 +319,7 @@ object PluginRegistry {
             name = "MDBList",
             category = IntegrationCategory.MEDIA,
             type = IntegrationType.API_SYNC,
-            icon = Icons.Default.VideoLibrary,
+            icon = Icons.Rounded.VideoLibrary,
             badgeRes = R.string.plugin_badge_mdblist,
             shortDescRes = R.string.plugin_desc_mdblist,
             longDescRes = R.string.plugin_long_desc_mdblist,
@@ -343,7 +343,7 @@ object PluginRegistry {
             name = "Simkl",
             category = IntegrationCategory.MEDIA,
             type = IntegrationType.API_SYNC,
-            icon = Icons.Default.Tv,
+            icon = Icons.Rounded.Tv,
             badgeRes = R.string.plugin_badge_simkl,
             shortDescRes = R.string.plugin_desc_simkl,
             longDescRes = R.string.plugin_long_desc_simkl,

@@ -1,6 +1,14 @@
 package com.personalrecords.app.ui.components
 
 import androidx.compose.foundation.background
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.material3.VerticalDragHandle
+import androidx.compose.foundation.gestures.rememberDraggableState
+import androidx.compose.foundation.gestures.draggable
+import androidx.compose.foundation.gestures.Orientation
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -11,8 +19,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Clear
-import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.rounded.Clear
+import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -22,7 +30,6 @@ import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.VerticalDivider
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.TopAppBarScrollBehavior
 import androidx.compose.runtime.Composable
@@ -35,10 +42,10 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.material.icons.filled.Inbox
+import androidx.compose.material.icons.rounded.Inbox
 import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.clickable
-import androidx.compose.material.icons.filled.ErrorOutline
+import androidx.compose.material.icons.rounded.ErrorOutline
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.ListItemDefaults
@@ -54,6 +61,8 @@ import com.personalrecords.app.R
 import com.personalrecords.app.core.theme.currentAdaptiveLayout
 import com.personalrecords.app.core.theme.M3NavigationMetrics
 import com.personalrecords.app.core.theme.M3Shapes
+import com.personalrecords.app.core.theme.recordCategoryColors
+import com.personalrecords.app.core.theme.RecordCategory
 import com.personalrecords.app.core.theme.StatusTone
 import com.personalrecords.app.core.theme.statusColors
 
@@ -68,8 +77,7 @@ fun floatingBottomNavigationContentPadding(): androidx.compose.ui.unit.Dp {
     val floatingBarTopClearance = navigationInset +
         M3NavigationMetrics.FloatingBarBottomOffset +
         M3NavigationMetrics.FloatingBarHeight
-    return maxOf(M3NavigationMetrics.BottomFadeHeight, floatingBarTopClearance) +
-        M3NavigationMetrics.BottomContentClearance
+    return floatingBarTopClearance + M3NavigationMetrics.BottomContentClearance
 }
 
 /**
@@ -158,7 +166,7 @@ fun ExpressiveSearchField(
         },
         leadingIcon = {
             Icon(
-                imageVector = Icons.Default.Search,
+                imageVector = Icons.Rounded.Search,
                 contentDescription = null,
                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.size(20.dp)
@@ -168,7 +176,7 @@ fun ExpressiveSearchField(
             if (value.isNotEmpty()) {
                 IconButton(onClick = { onValueChange("") }) {
                     Icon(
-                        imageVector = Icons.Default.Clear,
+                        imageVector = Icons.Rounded.Clear,
                         contentDescription = clearContentDescription,
                         tint = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.size(18.dp)
@@ -177,11 +185,12 @@ fun ExpressiveSearchField(
             }
         },
         shape = M3Shapes.CornerFull,
+        // M3 search field: filled surfaceContainerHigh, no outline.
         colors = OutlinedTextFieldDefaults.colors(
             focusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-            unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainerLow,
-            focusedBorderColor = MaterialTheme.colorScheme.primary,
-            unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant
+            unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+            focusedBorderColor = Color.Transparent,
+            unfocusedBorderColor = Color.Transparent
         ),
         singleLine = true
     )
@@ -220,6 +229,52 @@ fun ExpressiveStatusBadge(
     }
 }
 
+/**
+ * Round avatar with the first letter of an app name, used for notification rows so apps can be
+ * told apart at a glance. Each app always gets the same tonal color pair.
+ */
+@Composable
+fun AppLetterAvatar(
+    appName: String,
+    modifier: Modifier = Modifier,
+    size: androidx.compose.ui.unit.Dp = 40.dp
+) {
+    val scheme = MaterialTheme.colorScheme
+    val palette = listOf(
+        scheme.primaryContainer to scheme.onPrimaryContainer,
+        scheme.secondaryContainer to scheme.onSecondaryContainer,
+        scheme.tertiaryContainer to scheme.onTertiaryContainer,
+        recordCategoryColors(RecordCategory.Nutrition).let { it.container to it.onContainer },
+        recordCategoryColors(RecordCategory.Books).let { it.container to it.onContainer },
+        recordCategoryColors(RecordCategory.Movies).let { it.container to it.onContainer },
+        recordCategoryColors(RecordCategory.Music).let { it.container to it.onContainer },
+        recordCategoryColors(RecordCategory.Health).let { it.container to it.onContainer }
+    )
+    val key = appName.trim().lowercase()
+    val (container, content) = palette[Math.floorMod(key.hashCode(), palette.size)]
+    val letter = appName.trim().firstOrNull { it.isLetterOrDigit() }?.uppercaseChar()?.toString() ?: "?"
+    Box(
+        modifier = modifier
+            .size(size)
+            .background(container, CircleShape),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(
+            text = letter,
+            style = MaterialTheme.typography.titleMediumEmphasized,
+            color = content,
+            maxLines = 1
+        )
+    }
+}
+
+/** App name of a notification activity item: the stored app name, or the "App: title" prefix. */
+fun notificationAppName(item: com.personalrecords.app.core.network.model.ActivityItemDto): String {
+    val stored = (item.details["app_name"] as? kotlinx.serialization.json.JsonPrimitive)
+        ?.takeIf { it.isString }?.content.orEmpty()
+    return stored.ifBlank { item.title.substringBefore(':').trim() }
+}
+
 /** Subheader above a segmented list group: titleSmall in primary, aligned with row content. */
 @Composable
 fun ExpressiveListSubheader(
@@ -252,6 +307,8 @@ fun ExpressiveListRow(
     modifier: Modifier = Modifier,
     onClick: (() -> Unit)? = null,
     onLongClick: (() -> Unit)? = null,
+    /** Non-null only where the row can show a selection, e.g. the item open in a detail pane. */
+    selected: Boolean? = null,
     addLeadingGap: Boolean = true,
     containerColor: Color = MaterialTheme.colorScheme.surfaceContainerLow,
     /** Rows with a poster or avatar read better centered; text-only rows keep the M3 default. */
@@ -270,7 +327,21 @@ fun ExpressiveListRow(
         .fillMaxWidth()
     val shapes = ListItemDefaults.segmentedShapes(index = index, count = count)
     val colors = ListItemDefaults.segmentedColors(containerColor = containerColor)
-    if (onClick != null) {
+    if (onClick != null && selected != null) {
+        SegmentedListItem(
+            selected = selected,
+            onClick = onClick,
+            shapes = shapes,
+            colors = colors,
+            modifier = rowModifier,
+            leadingContent = leadingContent,
+            trailingContent = trailingContent,
+            overlineContent = overlineContent,
+            supportingContent = supportingContent,
+            verticalAlignment = verticalAlignment,
+            content = headlineContent
+        )
+    } else if (onClick != null) {
         SegmentedListItem(
             onClick = onClick,
             onLongClick = onLongClick,
@@ -309,7 +380,7 @@ fun ExpressiveErrorBanner(
     message: String,
     modifier: Modifier = Modifier,
     title: String = stringResource(R.string.common_error_title),
-    icon: ImageVector = Icons.Default.ErrorOutline,
+    icon: ImageVector = Icons.Rounded.ErrorOutline,
     onRetry: (() -> Unit)? = null,
     onClick: (() -> Unit)? = null
 ) {
@@ -372,7 +443,7 @@ fun ExpressiveEmptyState(
     title: String,
     modifier: Modifier = Modifier,
     message: String? = null,
-    icon: ImageVector = Icons.Default.Inbox,
+    icon: ImageVector = Icons.Rounded.Inbox,
     iconContainerColor: Color = MaterialTheme.colorScheme.surfaceContainerHigh,
     iconContentColor: Color = MaterialTheme.colorScheme.onSurfaceVariant,
     action: (@Composable () -> Unit)? = null
@@ -434,25 +505,42 @@ fun ExpressiveListDetailLayout(
         Box(modifier = modifier.fillMaxSize()) { list() }
         return
     }
-    Row(modifier = modifier.fillMaxSize()) {
-        Box(
-            modifier = Modifier
-                .weight(1.15f)
-                .fillMaxHeight()
-        ) {
-            list()
+    // The user can resize the panes with the M3 drag handle between them.
+    var listFraction by rememberSaveable { mutableFloatStateOf(0.575f) }
+    BoxWithConstraints(modifier = modifier.fillMaxSize()) {
+        val totalWidthPx = constraints.maxWidth.toFloat().coerceAtLeast(1f)
+        val dragState = rememberDraggableState { delta ->
+            listFraction = (listFraction + delta / totalWidthPx).coerceIn(0.35f, 0.7f)
         }
-        VerticalDivider(
-            modifier = Modifier.fillMaxHeight(),
-            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
-        )
-        Box(
-            modifier = Modifier
-                .weight(0.85f)
-                .fillMaxHeight()
-                .padding(top = 10.dp, end = 12.dp, bottom = 32.dp)
-        ) {
-            detailPane()
+        Row(modifier = Modifier.fillMaxSize()) {
+            Box(
+                modifier = Modifier
+                    .weight(listFraction)
+                    .fillMaxHeight()
+            ) {
+                list()
+            }
+            Box(
+                modifier = Modifier
+                    .fillMaxHeight()
+                    .width(24.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                VerticalDragHandle(
+                    modifier = Modifier.draggable(
+                        state = dragState,
+                        orientation = Orientation.Horizontal
+                    )
+                )
+            }
+            Box(
+                modifier = Modifier
+                    .weight(1f - listFraction)
+                    .fillMaxHeight()
+                    .padding(top = 10.dp, end = 12.dp, bottom = 32.dp)
+            ) {
+                detailPane()
+            }
         }
     }
 }

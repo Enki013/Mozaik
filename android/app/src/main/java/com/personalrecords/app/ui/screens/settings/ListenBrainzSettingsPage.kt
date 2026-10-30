@@ -23,10 +23,10 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.automirrored.filled.HelpOutline
-import androidx.compose.material.icons.automirrored.filled.MenuBook
-import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.automirrored.rounded.ArrowBack
+import androidx.compose.material.icons.automirrored.rounded.HelpOutline
+import androidx.compose.material.icons.automirrored.rounded.MenuBook
+import androidx.compose.material.icons.rounded.*
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material3.*
 import androidx.compose.foundation.lazy.itemsIndexed
@@ -108,7 +108,7 @@ internal fun ListenBrainzSettingsPage(
                 horizontalArrangement = Arrangement.spacedBy(10.dp)
             ) {
                 SettingsIconBox(
-                    icon = Icons.Default.Headset,
+                    icon = Icons.Rounded.Headset,
                     containerColor = MaterialTheme.colorScheme.primaryContainer,
                     contentColor = MaterialTheme.colorScheme.onPrimaryContainer
                 )
@@ -157,7 +157,7 @@ internal fun ListenBrainzSettingsPage(
                         modifier = Modifier.weight(1f)
                     ) {
                         Icon(
-                            imageVector = Icons.Default.CheckCircle,
+                            imageVector = Icons.Rounded.CheckCircle,
                             contentDescription = null,
                             tint = statusColors(StatusTone.Active).indicator,
                             modifier = Modifier.size(20.dp)
@@ -192,7 +192,7 @@ internal fun ListenBrainzSettingsPage(
                             horizontalArrangement = Arrangement.spacedBy(4.dp)
                         ) {
                             Icon(
-                                imageVector = if (showListenBrainzEditor) Icons.Default.ExpandLess else Icons.Default.Edit,
+                                imageVector = if (showListenBrainzEditor) Icons.Rounded.ExpandLess else Icons.Rounded.Edit,
                                 contentDescription = null,
                                 modifier = Modifier.size(14.dp)
                             )
@@ -235,7 +235,7 @@ internal fun ListenBrainzSettingsPage(
                         singleLine = true,
                         leadingIcon = {
                             Icon(
-                                imageVector = Icons.Default.AlternateEmail,
+                                imageVector = Icons.Rounded.AlternateEmail,
                                 contentDescription = null,
                                 tint = MaterialTheme.colorScheme.primary
                             )
@@ -243,7 +243,7 @@ internal fun ListenBrainzSettingsPage(
                         trailingIcon = if (state.listenbrainzUsername.isNotBlank()) {
                             {
                                 IconButton(onClick = { viewModel.updateListenBrainzUsername("") }) {
-                                    Icon(Icons.Default.Clear, contentDescription = stringResource(R.string.action_clear))
+                                    Icon(Icons.Rounded.Clear, contentDescription = stringResource(R.string.action_clear))
                                 }
                             }
                         } else null,
@@ -276,7 +276,7 @@ internal fun ListenBrainzSettingsPage(
                         visualTransformation = if (listenBrainzTokenVisible) VisualTransformation.None else PasswordVisualTransformation(),
                         leadingIcon = {
                             Icon(
-                                imageVector = Icons.Default.Key,
+                                imageVector = Icons.Rounded.Key,
                                 contentDescription = null,
                                 tint = MaterialTheme.colorScheme.primary
                             )
@@ -286,7 +286,7 @@ internal fun ListenBrainzSettingsPage(
                                 Row(verticalAlignment = Alignment.CenterVertically) {
                                     IconButton(onClick = { listenBrainzTokenVisible = !listenBrainzTokenVisible }) {
                                         Icon(
-                                            imageVector = if (listenBrainzTokenVisible) Icons.Default.VisibilityOff else Icons.Default.Visibility,
+                                            imageVector = if (listenBrainzTokenVisible) Icons.Rounded.VisibilityOff else Icons.Rounded.Visibility,
                                             contentDescription = null,
                                             tint = MaterialTheme.colorScheme.onSurfaceVariant
                                         )
@@ -298,7 +298,7 @@ internal fun ListenBrainzSettingsPage(
                                         }
                                     ) {
                                         Icon(
-                                            imageVector = Icons.Default.Clear,
+                                            imageVector = Icons.Rounded.Clear,
                                             contentDescription = stringResource(R.string.action_clear),
                                             tint = MaterialTheme.colorScheme.onSurfaceVariant
                                         )
@@ -334,7 +334,7 @@ internal fun ListenBrainzSettingsPage(
                                 verticalAlignment = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.spacedBy(6.dp)
                             ) {
-                                Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(16.dp))
+                                Icon(Icons.Rounded.Check, contentDescription = null, modifier = Modifier.size(16.dp))
                                 Text(
                                     text = stringResource(R.string.action_save),
                                     style = MaterialTheme.typography.labelLargeEmphasized,
@@ -380,7 +380,7 @@ internal fun ListenBrainzSettingsPage(
                         horizontalArrangement = Arrangement.spacedBy(6.dp)
                     ) {
                         Icon(
-                            imageVector = Icons.Default.Sync,
+                            imageVector = Icons.Rounded.Sync,
                             contentDescription = null,
                             modifier = Modifier.size(16.dp)
                         )

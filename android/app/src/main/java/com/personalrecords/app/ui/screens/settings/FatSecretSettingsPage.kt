@@ -23,10 +23,10 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.automirrored.filled.HelpOutline
-import androidx.compose.material.icons.automirrored.filled.MenuBook
-import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.automirrored.rounded.ArrowBack
+import androidx.compose.material.icons.automirrored.rounded.HelpOutline
+import androidx.compose.material.icons.automirrored.rounded.MenuBook
+import androidx.compose.material.icons.rounded.*
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material3.*
 import androidx.compose.foundation.lazy.itemsIndexed
@@ -104,7 +104,7 @@ internal fun FatSecretSettingsPage(
                 horizontalArrangement = Arrangement.spacedBy(10.dp)
             ) {
                 SettingsIconBox(
-                    icon = Icons.Default.Key,
+                    icon = Icons.Rounded.Key,
                     containerColor = MaterialTheme.colorScheme.secondaryContainer,
                     contentColor = MaterialTheme.colorScheme.onSecondaryContainer
                 )
@@ -168,7 +168,7 @@ internal fun FatSecretSettingsPage(
                         modifier = Modifier.weight(1f)
                     ) {
                         Icon(
-                            imageVector = Icons.Default.CheckCircle,
+                            imageVector = Icons.Rounded.CheckCircle,
                             contentDescription = null,
                             tint = statusColors(StatusTone.Active).indicator,
                             modifier = Modifier.size(20.dp)
@@ -202,7 +202,7 @@ internal fun FatSecretSettingsPage(
                             horizontalArrangement = Arrangement.spacedBy(4.dp)
                         ) {
                             Icon(
-                                imageVector = if (showKeyEditor) Icons.Default.ExpandLess else Icons.Default.Edit,
+                                imageVector = if (showKeyEditor) Icons.Rounded.ExpandLess else Icons.Rounded.Edit,
                                 contentDescription = null,
                                 modifier = Modifier.size(14.dp)
                             )
@@ -245,7 +245,7 @@ internal fun FatSecretSettingsPage(
                         singleLine = true,
                         leadingIcon = {
                             Icon(
-                                imageVector = Icons.Default.VpnKey,
+                                imageVector = Icons.Rounded.VpnKey,
                                 contentDescription = null,
                                 tint = MaterialTheme.colorScheme.primary
                             )
@@ -253,7 +253,7 @@ internal fun FatSecretSettingsPage(
                         trailingIcon = if (state.consumerKey.isNotBlank()) {
                             {
                                 IconButton(onClick = { viewModel.updateConsumerKey("") }) {
-                                    Icon(Icons.Default.Clear, contentDescription = stringResource(R.string.action_clear))
+                                    Icon(Icons.Rounded.Clear, contentDescription = stringResource(R.string.action_clear))
                                 }
                             }
                         } else null,
@@ -271,7 +271,7 @@ internal fun FatSecretSettingsPage(
                         visualTransformation = if (secretVisible) VisualTransformation.None else PasswordVisualTransformation(),
                         leadingIcon = {
                             Icon(
-                                imageVector = Icons.Default.Lock,
+                                imageVector = Icons.Rounded.Lock,
                                 contentDescription = null,
                                 tint = MaterialTheme.colorScheme.primary
                             )
@@ -279,7 +279,7 @@ internal fun FatSecretSettingsPage(
                         trailingIcon = {
                             IconButton(onClick = { secretVisible = !secretVisible }) {
                                 Icon(
-                                    imageVector = if (secretVisible) Icons.Default.VisibilityOff else Icons.Default.Visibility,
+                                    imageVector = if (secretVisible) Icons.Rounded.VisibilityOff else Icons.Rounded.Visibility,
                                     contentDescription = null,
                                     tint = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
@@ -313,7 +313,7 @@ internal fun FatSecretSettingsPage(
                                 horizontalArrangement = Arrangement.spacedBy(6.dp)
                             ) {
                                 Icon(
-                                    imageVector = Icons.Default.Check,
+                                    imageVector = Icons.Rounded.Check,
                                     contentDescription = null,
                                     modifier = Modifier.size(16.dp)
                                 )
@@ -356,7 +356,7 @@ internal fun FatSecretSettingsPage(
                                 horizontalArrangement = Arrangement.spacedBy(6.dp)
                             ) {
                                 Icon(
-                                    imageVector = Icons.Default.OpenInBrowser,
+                                    imageVector = Icons.Rounded.OpenInBrowser,
                                     contentDescription = null,
                                     modifier = Modifier.size(18.dp)
                                 )
@@ -383,7 +383,7 @@ internal fun FatSecretSettingsPage(
                                 horizontalArrangement = Arrangement.spacedBy(6.dp)
                             ) {
                                 Icon(
-                                    imageVector = Icons.AutoMirrored.Filled.HelpOutline,
+                                    imageVector = Icons.AutoMirrored.Rounded.HelpOutline,
                                     contentDescription = null,
                                     modifier = Modifier.size(16.dp),
                                     tint = MaterialTheme.colorScheme.primary
@@ -419,7 +419,7 @@ internal fun FatSecretSettingsPage(
                                         style = MaterialTheme.typography.labelSmall
                                     )
                                     Icon(
-                                        imageVector = Icons.Default.ArrowOutward,
+                                        imageVector = Icons.Rounded.ArrowOutward,
                                         contentDescription = null,
                                         modifier = Modifier.size(14.dp)
                                     )
@@ -443,7 +443,7 @@ internal fun FatSecretSettingsPage(
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             Icon(
-                imageVector = Icons.Default.Restaurant,
+                imageVector = Icons.Rounded.Restaurant,
                 contentDescription = null,
                 tint = MaterialTheme.colorScheme.primary,
                 modifier = Modifier.size(18.dp)

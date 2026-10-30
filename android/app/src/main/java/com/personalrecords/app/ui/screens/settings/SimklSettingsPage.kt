@@ -23,10 +23,10 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.automirrored.filled.HelpOutline
-import androidx.compose.material.icons.automirrored.filled.MenuBook
-import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.automirrored.rounded.ArrowBack
+import androidx.compose.material.icons.automirrored.rounded.HelpOutline
+import androidx.compose.material.icons.automirrored.rounded.MenuBook
+import androidx.compose.material.icons.rounded.*
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material3.*
 import androidx.compose.foundation.lazy.itemsIndexed
@@ -113,7 +113,7 @@ internal fun SimklSettingsPage(
                 horizontalArrangement = Arrangement.spacedBy(10.dp)
             ) {
                 SettingsIconBox(
-                    icon = Icons.Default.Tv,
+                    icon = Icons.Rounded.Tv,
                     containerColor = MaterialTheme.colorScheme.tertiaryContainer,
                     contentColor = MaterialTheme.colorScheme.onTertiaryContainer
                 )
@@ -164,7 +164,7 @@ internal fun SimklSettingsPage(
                         modifier = Modifier.weight(1f, fill = false)
                     ) {
                         Icon(
-                            imageVector = Icons.Default.CheckCircle,
+                            imageVector = Icons.Rounded.CheckCircle,
                             contentDescription = null,
                             tint = MaterialTheme.colorScheme.primary,
                             modifier = Modifier.size(18.dp)
@@ -202,7 +202,7 @@ internal fun SimklSettingsPage(
                             horizontalArrangement = Arrangement.spacedBy(4.dp)
                         ) {
                             Icon(
-                                imageVector = if (showSimklEditor) Icons.Default.ExpandLess else Icons.Default.Edit,
+                                imageVector = if (showSimklEditor) Icons.Rounded.ExpandLess else Icons.Rounded.Edit,
                                 contentDescription = null,
                                 modifier = Modifier.size(14.dp)
                             )
@@ -245,7 +245,7 @@ internal fun SimklSettingsPage(
                         visualTransformation = if (simklAccessTokenVisible) VisualTransformation.None else PasswordVisualTransformation(),
                         leadingIcon = {
                             Icon(
-                                imageVector = Icons.Default.VpnKey,
+                                imageVector = Icons.Rounded.VpnKey,
                                 contentDescription = null,
                                 tint = MaterialTheme.colorScheme.primary
                             )
@@ -253,7 +253,7 @@ internal fun SimklSettingsPage(
                         trailingIcon = {
                             IconButton(onClick = { simklAccessTokenVisible = !simklAccessTokenVisible }) {
                                 Icon(
-                                    imageVector = if (simklAccessTokenVisible) Icons.Default.VisibilityOff else Icons.Default.Visibility,
+                                    imageVector = if (simklAccessTokenVisible) Icons.Rounded.VisibilityOff else Icons.Rounded.Visibility,
                                     contentDescription = null
                                 )
                             }
@@ -274,7 +274,7 @@ internal fun SimklSettingsPage(
                         singleLine = true,
                         leadingIcon = {
                             Icon(
-                                imageVector = Icons.Default.Settings,
+                                imageVector = Icons.Rounded.Settings,
                                 contentDescription = null,
                                 tint = MaterialTheme.colorScheme.primary
                             )
@@ -387,7 +387,7 @@ internal fun SimklSettingsPage(
                                 verticalAlignment = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.spacedBy(6.dp)
                             ) {
-                                Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(16.dp))
+                                Icon(Icons.Rounded.Check, contentDescription = null, modifier = Modifier.size(16.dp))
                                 Text(
                                     text = stringResource(R.string.action_save),
                                     style = MaterialTheme.typography.labelLargeEmphasized,
@@ -433,7 +433,7 @@ internal fun SimklSettingsPage(
                         horizontalArrangement = Arrangement.spacedBy(6.dp)
                     ) {
                         Icon(
-                            imageVector = Icons.Default.Sync,
+                            imageVector = Icons.Rounded.Sync,
                             contentDescription = null,
                             modifier = Modifier.size(16.dp)
                         )

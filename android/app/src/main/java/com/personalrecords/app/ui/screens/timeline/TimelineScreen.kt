@@ -10,8 +10,8 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.*
-import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.automirrored.rounded.*
+import androidx.compose.material.icons.rounded.*
 import androidx.compose.material3.*
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.runtime.*
@@ -155,35 +155,6 @@ fun TimelineScreen(
                                 .filterHeaderItem()
                         )
                         ExpressiveFilterRow {
-                            ExpressiveConnectedButtonGroup(
-                                items = TimelineSourceKeys,
-                                selectedItem = state.selectedSource,
-                                onItemSelected = { key -> viewModel.setSource(key) },
-                                labelProvider = { key ->
-                                    when (key) {
-                                        "fatsecret" -> stringResource(R.string.timeline_filter_nutrition)
-                                        "health_connect" -> stringResource(R.string.timeline_filter_health)
-                                        "music" -> stringResource(R.string.timeline_filter_music)
-                                        "goodreads" -> stringResource(R.string.timeline_filter_books)
-                                        "letterboxd" -> stringResource(R.string.timeline_filter_movies)
-                                        "notification" -> stringResource(R.string.timeline_filter_notifications)
-                                        else -> stringResource(R.string.timeline_filter_all)
-                                    }
-                                },
-                                iconProvider = { key, _ ->
-                                    when (key) {
-                                        "fatsecret" -> Icons.Default.Restaurant
-                                        "health_connect" -> Icons.Default.Favorite
-                                        "music" -> Icons.Default.MusicNote
-                                        "goodreads" -> Icons.AutoMirrored.Filled.MenuBook
-                                        "letterboxd" -> Icons.Default.Movie
-                                        "notification" -> Icons.Default.Notifications
-                                        else -> null
-                                    }
-                                }
-                            )
-                        }
-                        ExpressiveFilterRow {
                             if (hasActiveFilters) {
                                 ExpressiveClearFiltersChip(onClick = { viewModel.resetFilters() })
                             }
@@ -201,6 +172,33 @@ fun TimelineScreen(
                                 onClearDate = { viewModel.setDays(state.selectedDays) },
                                 onQuickRange = { range ->
                                     if (range == 0) viewModel.setToday() else viewModel.setDays(range)
+                                }
+                            )
+                            ExpressiveConnectedButtonGroup(
+                                items = TimelineSourceKeys,
+                                selectedItem = state.selectedSource,
+                                onItemSelected = { key -> viewModel.setSource(key) },
+                                labelProvider = { key ->
+                                    when (key) {
+                                        "fatsecret" -> stringResource(R.string.timeline_filter_nutrition)
+                                        "health_connect" -> stringResource(R.string.timeline_filter_health)
+                                        "music" -> stringResource(R.string.timeline_filter_music)
+                                        "goodreads" -> stringResource(R.string.timeline_filter_books)
+                                        "letterboxd" -> stringResource(R.string.timeline_filter_movies)
+                                        "notification" -> stringResource(R.string.timeline_filter_notifications)
+                                        else -> stringResource(R.string.timeline_filter_all)
+                                    }
+                                },
+                                iconProvider = { key, _ ->
+                                    when (key) {
+                                        "fatsecret" -> Icons.Rounded.Restaurant
+                                        "health_connect" -> Icons.Rounded.Favorite
+                                        "music" -> Icons.Rounded.MusicNote
+                                        "goodreads" -> Icons.AutoMirrored.Rounded.MenuBook
+                                        "letterboxd" -> Icons.Rounded.Movie
+                                        "notification" -> Icons.Rounded.Notifications
+                                        else -> null
+                                    }
                                 }
                             )
                         }
@@ -221,7 +219,7 @@ fun TimelineScreen(
                                 modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp)
                             ) {
                                 Icon(
-                                    imageVector = Icons.Default.CalendarMonth,
+                                    imageVector = Icons.Rounded.CalendarMonth,
                                     contentDescription = null,
                                     tint = MaterialTheme.colorScheme.onSecondaryContainer,
                                     modifier = Modifier.size(16.dp)
@@ -254,7 +252,7 @@ fun TimelineScreen(
                         ExpressiveEmptyState(
                             title = stringResource(R.string.timeline_empty_title),
                             message = stringResource(R.string.timeline_empty_desc),
-                            icon = Icons.Default.SearchOff
+                            icon = Icons.Rounded.SearchOff
                         )
                     }
                 } else {
@@ -446,37 +444,37 @@ private fun TimelineSectionHeaderItem(
                 val color: androidx.compose.ui.graphics.Color
                 when (entry.source) {
                     "fatsecret" -> {
-                        icon = Icons.Default.Restaurant
+                        icon = Icons.Rounded.Restaurant
                         title = stringResource(R.string.timeline_filter_nutrition)
                         color = recordCategoryColors(RecordCategory.Nutrition).accent
                     }
                     "health_connect" -> {
-                        icon = Icons.Default.Favorite
+                        icon = Icons.Rounded.Favorite
                         title = stringResource(R.string.title_health_connect)
                         color = recordCategoryColors(RecordCategory.Health).accent
                     }
                     "notification" -> {
-                        icon = Icons.Default.Notifications
+                        icon = Icons.Rounded.Notifications
                         title = stringResource(R.string.timeline_filter_notifications)
                         color = recordCategoryColors(RecordCategory.Notifications).accent
                     }
                     "music" -> {
-                        icon = Icons.Default.MusicNote
+                        icon = Icons.Rounded.MusicNote
                         title = stringResource(R.string.timeline_filter_music)
                         color = recordCategoryColors(RecordCategory.Music).accent
                     }
                     "letterboxd" -> {
-                        icon = Icons.Default.Movie
+                        icon = Icons.Rounded.Movie
                         title = stringResource(R.string.timeline_filter_movies)
                         color = recordCategoryColors(RecordCategory.Movies).accent
                     }
                     "goodreads" -> {
-                        icon = Icons.AutoMirrored.Filled.MenuBook
+                        icon = Icons.AutoMirrored.Rounded.MenuBook
                         title = stringResource(R.string.timeline_filter_books)
                         color = recordCategoryColors(RecordCategory.Books).accent
                     }
                     else -> {
-                        icon = Icons.Default.Bookmark
+                        icon = Icons.Rounded.Bookmark
                         title = stringResource(R.string.common_other)
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     }
@@ -612,13 +610,13 @@ fun TimelineItemCard(
 ) {
 
     val fallbackIcon = when (item.source) {
-        "fatsecret" -> Icons.Default.Restaurant
-        "health_connect" -> Icons.Default.Favorite
-        "music" -> Icons.Default.MusicNote
-        "goodreads" -> Icons.AutoMirrored.Filled.MenuBook
-        "letterboxd" -> Icons.Default.Movie
-        "notification" -> Icons.Default.Notifications
-        else -> Icons.Default.Bookmark
+        "fatsecret" -> Icons.Rounded.Restaurant
+        "health_connect" -> Icons.Rounded.Favorite
+        "music" -> Icons.Rounded.MusicNote
+        "goodreads" -> Icons.AutoMirrored.Rounded.MenuBook
+        "letterboxd" -> Icons.Rounded.Movie
+        "notification" -> Icons.Rounded.Notifications
+        else -> Icons.Rounded.Bookmark
     }
 
     
@@ -632,20 +630,7 @@ fun TimelineItemCard(
         leadingContent = {
             when (item.source) {
                 "notification" -> {
-                    Box(
-                        modifier = Modifier
-                            .size(38.dp)
-                            .clip(M3Shapes.CornerFull)
-                            .background(recordCategoryColors(RecordCategory.Notifications).container),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Notifications,
-                            contentDescription = null,
-                            tint = recordCategoryColors(RecordCategory.Notifications).onContainer,
-                            modifier = Modifier.size(18.dp)
-                        )
-                    }
+                    AppLetterAvatar(appName = notificationAppName(item), size = 38.dp)
                 }
                 "fatsecret" -> {
                     Box(
@@ -656,7 +641,7 @@ fun TimelineItemCard(
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
-                            imageVector = Icons.Default.Restaurant,
+                            imageVector = Icons.Rounded.Restaurant,
                             contentDescription = null,
                             tint = recordCategoryColors(RecordCategory.Nutrition).onContainer,
                             modifier = Modifier.size(18.dp)
@@ -665,10 +650,10 @@ fun TimelineItemCard(
                 }
                 "health_connect" -> {
                     val hcIcon = when (item.type) {
-                        "sleep" -> Icons.Default.Bedtime
-                        "exercise" -> Icons.AutoMirrored.Filled.DirectionsRun
-                        "weight" -> Icons.Default.MonitorWeight
-                        else -> Icons.Default.Favorite
+                        "sleep" -> Icons.Rounded.Bedtime
+                        "exercise" -> Icons.AutoMirrored.Rounded.DirectionsRun
+                        "weight" -> Icons.Rounded.MonitorWeight
+                        else -> Icons.Rounded.Favorite
                     }
                     Box(
                         modifier = Modifier
@@ -702,7 +687,7 @@ fun TimelineItemCard(
                             )
                         } else {
                             Icon(
-                                imageVector = Icons.Default.MusicNote,
+                                imageVector = Icons.Rounded.MusicNote,
                                 contentDescription = null,
                                 tint = recordCategoryColors(RecordCategory.Music).onContainer,
                                 modifier = Modifier.size(18.dp)
@@ -736,7 +721,7 @@ fun TimelineItemCard(
                             modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
                         ) {
                             Icon(
-                                imageVector = Icons.Default.Repeat,
+                                imageVector = Icons.Rounded.Repeat,
                                 contentDescription = null,
                                 tint = recordCategoryColors(RecordCategory.Movies).onContainer,
                                 modifier = Modifier.size(10.dp)

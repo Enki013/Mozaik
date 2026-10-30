@@ -16,14 +16,20 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowDropDown
-import androidx.compose.material.icons.filled.CalendarMonth
-import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.FilterListOff
+import androidx.compose.material.icons.rounded.ArrowDropDown
+import androidx.compose.material.icons.rounded.CalendarMonth
+import androidx.compose.material.icons.rounded.Check
+import androidx.compose.material.icons.rounded.Close
+import androidx.compose.material.icons.rounded.FilterListOff
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.FilterChipDefaults
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import androidx.compose.material3.MenuDefaults
+import androidx.compose.material3.SelectableDropdownMenuItem
+import androidx.compose.material3.DropdownMenuGroup
+import androidx.compose.material3.DropdownMenuPopup
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -50,7 +56,8 @@ import androidx.compose.ui.unit.dp
 import com.personalrecords.app.R
 
 /** Horizontal gutter every list screen uses; filter rows bleed past it to the screen edge. */
-val FilterGutter: Dp = 12.dp
+/** Page side margin for list screens: the M3 compact-window margin. */
+val FilterGutter: Dp = com.personalrecords.app.core.theme.M3Spacing.Large
 
 /**
  * Lets a child draw [amount] past its parent's horizontal padding on both sides.
@@ -131,7 +138,7 @@ fun ExpressiveDateFilterChip(
         modifier = modifier,
         leadingIcon = {
             Icon(
-                imageVector = Icons.Default.CalendarMonth,
+                imageVector = Icons.Rounded.CalendarMonth,
                 contentDescription = null,
                 modifier = Modifier.size(FilterChipDefaults.IconSize)
             )
@@ -148,14 +155,22 @@ fun ExpressiveDateFilterChip(
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
-                        imageVector = Icons.Default.Close,
+                        imageVector = Icons.Rounded.Close,
                         contentDescription = null,
                         modifier = Modifier.size(FilterChipDefaults.IconSize)
                     )
                 }
             }
-        } else null,
-        label = { Text(text = label, style = MaterialTheme.typography.labelLarge) }
+        } else {
+            {
+                Icon(
+                    imageVector = Icons.Rounded.ArrowDropDown,
+                    contentDescription = null,
+                    modifier = Modifier.size(FilterChipDefaults.IconSize)
+                )
+            }
+        },
+        label = { Text(text = label, style = MaterialTheme.typography.labelLarge, maxLines = 1) }
     )
 }
 
@@ -163,6 +178,7 @@ fun ExpressiveDateFilterChip(
  * Filter chip that opens a menu of options: used for sorting and for filters with many or
  * dynamic values (apps, artists). The current value is the label; the menu marks it with a check.
  */
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun <T> ExpressiveDropdownFilterChip(
     options: List<T>,
@@ -199,35 +215,37 @@ fun <T> ExpressiveDropdownFilterChip(
             },
             trailingIcon = {
                 Icon(
-                    imageVector = Icons.Default.ArrowDropDown,
+                    imageVector = Icons.Rounded.ArrowDropDown,
                     contentDescription = null,
                     modifier = Modifier.size(FilterChipDefaults.IconSize)
                 )
             },
             label = { Text(text = label, style = MaterialTheme.typography.labelLarge, maxLines = 1) }
         )
-        DropdownMenu(
+        DropdownMenuPopup(
             expanded = expanded,
-            onDismissRequest = { expanded = false },
-            shape = MaterialTheme.shapes.large
+            onDismissRequest = { expanded = false }
         ) {
-            options.forEachIndexed { index, option ->
-                val isSelected = option == selected
-                DropdownMenuItem(
-                    text = {
-                        Text(
-                            text = optionLabels[index],
-                            style = MaterialTheme.typography.bodyLarge
-                        )
-                    },
-                    trailingIcon = if (isSelected) {
-                        { Icon(imageVector = Icons.Default.Check, contentDescription = null) }
-                    } else null,
-                    onClick = {
-                        expanded = false
-                        if (!isSelected) onSelect(option)
-                    }
-                )
+            DropdownMenuGroup(shapes = MenuDefaults.groupShape(index = 0, count = 1)) {
+                options.forEachIndexed { index, option ->
+                    val isSelected = option == selected
+                    SelectableDropdownMenuItem(
+                        selected = isSelected,
+                        onClick = {
+                            expanded = false
+                            if (!isSelected) onSelect(option)
+                        },
+                        text = { Text(text = optionLabels[index]) },
+                        shapes = MenuDefaults.itemShape(index = index, count = options.size),
+                        selectedLeadingIcon = {
+                            Icon(
+                                imageVector = Icons.Rounded.Check,
+                                contentDescription = null,
+                                modifier = Modifier.size(MenuDefaults.LeadingIconSize)
+                            )
+                        }
+                    )
+                }
             }
         }
     }
@@ -244,7 +262,7 @@ fun ExpressiveClearFiltersChip(
         modifier = modifier,
         leadingIcon = {
             Icon(
-                imageVector = Icons.Default.FilterListOff,
+                imageVector = Icons.Rounded.FilterListOff,
                 contentDescription = null,
                 modifier = Modifier.size(FilterChipDefaults.IconSize)
             )
@@ -301,10 +319,11 @@ fun applyQuickRange(
 }
 
 /**
- * Date controls shared by every list screen: the custom date chip followed by the quick range
- * group (Today, 7d, 14d, 30d, 90d). The date chip only looks active for a custom date, so the
- * same filter is never highlighted twice.
+ * Date filter shared by every list screen: one chip that opens a menu of quick ranges (Today,
+ * last 7 / 14 / 30 / 90 days) and a custom range. The chip shows the active range and a clear
+ * button; it takes one slot in the filter row instead of six.
  */
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun ExpressiveQuickDateFilters(
     selectedDate: String?,
@@ -315,30 +334,75 @@ fun ExpressiveQuickDateFilters(
     onQuickRange: (Int) -> Unit,
     selectedQuickRange: Int? = quickRangeOf(selectedDate, fromDate, toDate)
 ) {
+    var expanded by remember { mutableStateOf(false) }
     val hasCustomDate = (selectedDate != null || fromDate != null) && selectedQuickRange == null
-    ExpressiveDateFilterChip(
-        label = if (hasCustomDate) {
-            formatDateRangeChipLabel(
-                singleDate = selectedDate,
-                fromDate = fromDate,
-                toDate = toDate,
-                defaultText = stringResource(R.string.filter_pick_date)
-            )
-        } else {
-            stringResource(R.string.filter_pick_date)
-        },
-        isActive = hasCustomDate,
-        onClick = onPickDate,
-        onClear = onClearDate
-    )
-    ExpressiveConnectedButtonGroup(
-        items = QuickDateRanges,
-        selectedItem = selectedQuickRange ?: -1,
-        onItemSelected = onQuickRange,
-        labelProvider = { range ->
-            if (range == 0) stringResource(R.string.filter_today) else stringResource(R.string.filter_days_short, range)
+    // Resolve labels here, not inside the menu: the menu is a separate window.
+    val rangeLabels = QuickDateRanges.map { range ->
+        if (range == 0) stringResource(R.string.filter_today) else stringResource(R.string.filter_last_days, range)
+    }
+    val customLabel = stringResource(R.string.filter_custom_range)
+    val chipLabel = when {
+        selectedQuickRange != null -> rangeLabels[QuickDateRanges.indexOf(selectedQuickRange)]
+        hasCustomDate -> formatDateRangeChipLabel(
+            singleDate = selectedDate,
+            fromDate = fromDate,
+            toDate = toDate,
+            defaultText = stringResource(R.string.filter_date)
+        )
+        else -> stringResource(R.string.filter_date)
+    }
+    Box {
+        ExpressiveDateFilterChip(
+            label = chipLabel,
+            isActive = selectedQuickRange != null || hasCustomDate,
+            onClick = { expanded = true },
+            onClear = onClearDate
+        )
+        DropdownMenuPopup(
+            expanded = expanded,
+            onDismissRequest = { expanded = false }
+        ) {
+            DropdownMenuGroup(shapes = MenuDefaults.groupShape(index = 0, count = 2)) {
+                QuickDateRanges.forEachIndexed { index, range ->
+                    SelectableDropdownMenuItem(
+                        selected = selectedQuickRange == range,
+                        onClick = {
+                            expanded = false
+                            onQuickRange(range)
+                        },
+                        text = { Text(text = rangeLabels[index]) },
+                        shapes = MenuDefaults.itemShape(index = index, count = QuickDateRanges.size),
+                        selectedLeadingIcon = {
+                            Icon(
+                                imageVector = Icons.Rounded.Check,
+                                contentDescription = null,
+                                modifier = Modifier.size(MenuDefaults.LeadingIconSize)
+                            )
+                        }
+                    )
+                }
+            }
+            Spacer(modifier = Modifier.height(MenuDefaults.GroupSpacing))
+            DropdownMenuGroup(shapes = MenuDefaults.groupShape(index = 1, count = 2)) {
+                SelectableDropdownMenuItem(
+                    selected = hasCustomDate,
+                    onClick = {
+                        expanded = false
+                        onPickDate()
+                    },
+                    text = { Text(text = customLabel) },
+                    shapes = MenuDefaults.itemShape(index = 0, count = 1),
+                    leadingIcon = {
+                        Icon(
+                            imageVector = Icons.Rounded.CalendarMonth,
+                            contentDescription = null,
+                            modifier = Modifier.size(MenuDefaults.LeadingIconSize)
+                        )
+                    }
+                )
+            }
         }
-    )
+    }
 }
 
 private val M3FilterControlHeight = com.personalrecords.app.core.theme.M3ComponentSize.FilterControlHeight

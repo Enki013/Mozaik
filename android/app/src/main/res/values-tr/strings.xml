@@ -222,7 +222,7 @@
     <string name="toast_webhook_auth_copied">Anahtarlı Webhook URL\'si kopyalandı</string>
 
     <string name="settings_section_fatsecret">Beslenme Entegrasyonu (FatSecret)</string>
-    <string name="settings_fatsecret_title">FatSecret API (BYOK)</string>
+    <string name="settings_fatsecret_title">FatSecret API</string>
     <string name="settings_fatsecret_desc">Kendi API anahtarınız ile güvenli bağlantı</string>
     <string name="settings_fatsecret_connected_banner">FatSecret Hesabı Başarıyla Bağlandı</string>
     <string name="settings_fatsecret_reconnect">Yeniden Bağla</string>
@@ -281,7 +281,7 @@
     <string name="settings_plugin_rss_title">2. RSS Eklentileri (Pull / Polling)</string>
     <string name="settings_plugin_rss_desc">Letterboxd ve Goodreads gibi halka açık RSS beslemeleri periyodik olarak taranır.</string>
     <string name="settings_plugin_api_title">3. OTT / OAuth Eklentileri (API)</string>
-    <string name="settings_plugin_api_desc">FatSecret OAuth BYOK. Gelecek: Spotify dinleme geçmişi ve Steam kütüphanesi.</string>
+    <string name="settings_plugin_api_desc">Kendi API anahtarınla FatSecret. Gelecek: Spotify dinleme geçmişi ve Steam kütüphanesi.</string>
 
     <string name="settings_section_export">Veri Egemenliği &amp; Yedekleme</string>
     <string name="settings_export_title">Veri Dışa Aktarma</string>
@@ -516,13 +516,13 @@
     <string name="integration_type_api_sync">API Senkronizasyonu</string>
     <string name="integration_type_rss_feed">RSS Beslemesi</string>
     <string name="integration_type_webhook">Webhook</string>
-    <string name="integration_type_oauth_byok">OAuth 1.0 (BYOK)</string>
+    <string name="integration_type_oauth_byok">Kendi API anahtarın</string>
 
     <!-- Plugin Badges -->
     <string name="plugin_badge_browser_extension">Tarayıcı Eklentisi</string>
     <string name="plugin_badge_api_sync">API Senkronizasyonu</string>
     <string name="plugin_badge_rss_feed">RSS Beslemesi</string>
-    <string name="plugin_badge_oauth_byok">OAuth 1.0 (BYOK)</string>
+    <string name="plugin_badge_oauth_byok">Kendi API anahtarın</string>
     <string name="plugin_badge_android_webhook">Android Webhook</string>
     <string name="plugin_badge_system_webhook">Sistem Webhook</string>
     <string name="plugin_badge_in_development">Geliştirme Aşamasında</string>
@@ -539,7 +539,7 @@
     <string name="plugin_desc_letterboxd">Film izleme günlüğü ve puanlar senkronizasyonu.</string>
     <string name="plugin_long_desc_letterboxd">Letterboxd profilinizin RSS beslemesini okuyarak izlediğiniz filmleri, puanları ve günlük kayıtlarını sunucunuza aktarır.</string>
     <string name="plugin_desc_fatsecret">Günlük kalori, makro ve öğün günlüğü entegrasyonu.</string>
-    <string name="plugin_long_desc_fatsecret">Kendi FatSecret Platform API anahtarlarınız (BYOK) ile güvenli bağlantı kurarak besin tüketim verilerinizi eşitler.</string>
+    <string name="plugin_long_desc_fatsecret">Kendi FatSecret Platform API anahtarlarınla bağlanarak yemek ve öğün kayıtlarını eşitler.</string>
     <string name="plugin_desc_health_connect">Adım, uyku, nabız ve antrenman verilerini aktarın.</string>
     <string name="plugin_long_desc_health_connect">Açık kaynaklı Health Connect Webhook yardımcısı ile Android cihazınızdaki sağlık ve aktivite ölçümlerini sunucunuza iletir.</string>
     <string name="plugin_desc_notification_relay">Android bildirim akışını güvenli biçimde sunucuya aktarın.</string>
@@ -704,5 +704,8 @@
     <string name="settings_server_not_configured">Ayarlanmadı</string>
     <string name="settings_integrations_add">Entegrasyon ekle</string>
     <string name="settings_integrations_add_desc">Entegrasyon kataloğuna göz at</string>
+    <string name="filter_date">Tarih</string>
+    <string name="filter_last_days">Son %1$d gün</string>
+    <string name="filter_custom_range">Özel aralık…</string>
 </resources>
 

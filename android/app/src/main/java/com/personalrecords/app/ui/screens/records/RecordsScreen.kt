@@ -6,9 +6,9 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowForwardIos
-import androidx.compose.material.icons.automirrored.filled.MenuBook
-import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.automirrored.rounded.ArrowForwardIos
+import androidx.compose.material.icons.automirrored.rounded.MenuBook
+import androidx.compose.material.icons.rounded.*
 import androidx.compose.material3.*
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.runtime.*
@@ -104,7 +104,7 @@ fun RecordsScreen(
                 state = listState,
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(horizontal = 12.dp),
+                    .padding(horizontal = M3Spacing.Large),
                 contentPadding = PaddingValues(
                     top = 8.dp,
                     bottom = floatingBottomNavigationContentPadding()
@@ -135,7 +135,7 @@ fun RecordsScreen(
                         rows = listOf(
                             RecordRowSpec(
                                 category = RecordCategory.Nutrition,
-                                icon = Icons.Default.Restaurant,
+                                icon = Icons.Rounded.Restaurant,
                                 title = stringResource(R.string.records_item_nutrition_title),
                                 subtitle = if (foodsCount > 0) {
                                     stringResource(R.string.records_item_nutrition_sub, foodsCount)
@@ -146,7 +146,7 @@ fun RecordsScreen(
                             ),
                             RecordRowSpec(
                                 category = RecordCategory.Health,
-                                icon = Icons.Default.Favorite,
+                                icon = Icons.Rounded.Favorite,
                                 title = stringResource(R.string.records_item_healthconnect_title),
                                 subtitle = if (healthCount > 0) {
                                     stringResource(R.string.records_item_healthconnect_count, healthCount)
@@ -172,7 +172,7 @@ fun RecordsScreen(
                         rows = listOf(
                             RecordRowSpec(
                                 category = RecordCategory.Movies,
-                                icon = Icons.Default.Movie,
+                                icon = Icons.Rounded.Movie,
                                 title = stringResource(R.string.records_item_movies_title),
                                 subtitle = if (filmsCount > 0) {
                                     stringResource(R.string.records_item_movies_sub, filmsCount)
@@ -183,7 +183,7 @@ fun RecordsScreen(
                             ),
                             RecordRowSpec(
                                 category = RecordCategory.Books,
-                                icon = Icons.AutoMirrored.Filled.MenuBook,
+                                icon = Icons.AutoMirrored.Rounded.MenuBook,
                                 title = stringResource(R.string.records_item_books_title),
                                 subtitle = if (booksCount > 0) {
                                     stringResource(R.string.records_item_books_sub, booksCount)
@@ -194,7 +194,7 @@ fun RecordsScreen(
                             ),
                             RecordRowSpec(
                                 category = RecordCategory.Music,
-                                icon = Icons.Default.MusicNote,
+                                icon = Icons.Rounded.MusicNote,
                                 title = stringResource(R.string.records_item_music_title),
                                 subtitle = if (musicCount > 0) {
                                     stringResource(R.string.records_item_music_count, musicCount)
@@ -220,7 +220,7 @@ fun RecordsScreen(
                         rows = listOf(
                             RecordRowSpec(
                                 category = RecordCategory.Notifications,
-                                icon = Icons.Default.Notifications,
+                                icon = Icons.Rounded.Notifications,
                                 title = stringResource(R.string.records_item_notifications_title),
                                 subtitle = if (notifsCount > 0) {
                                     stringResource(R.string.records_item_notifications_sub, notifsCount)
@@ -288,7 +288,7 @@ private fun RecordsGroup(
                     }
                 },
                 trailingContent = {
-                    Icon(imageVector = Icons.Default.ChevronRight, contentDescription = null)
+                    Icon(imageVector = Icons.Rounded.ChevronRight, contentDescription = null)
                 },
                 supportingContent = {
                     Text(text = row.subtitle, maxLines = 1, overflow = TextOverflow.Ellipsis)

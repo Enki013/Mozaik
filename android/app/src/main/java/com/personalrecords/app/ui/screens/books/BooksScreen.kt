@@ -13,8 +13,8 @@ import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.*
-import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.automirrored.rounded.*
+import androidx.compose.material.icons.rounded.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -62,14 +62,14 @@ fun BooksScreen(
                 id = "books_total",
                 title = booksTotalTitle,
                 description = booksTotalDesc,
-                icon = Icons.AutoMirrored.Filled.MenuBook,
+                icon = Icons.AutoMirrored.Rounded.MenuBook,
                 iconTint = booksColor
             ),
             StatCardItem(
                 id = "books_to_read",
                 title = booksToReadTitle,
                 description = booksToReadDesc,
-                icon = Icons.Default.Bookmark,
+                icon = Icons.Rounded.Bookmark,
                 iconTint = ratingColor
             )
         )
@@ -112,7 +112,7 @@ fun BooksScreen(
                     if (onNavigateBack != null) {
                         IconButton(onClick = onNavigateBack) {
                             Icon(
-                                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                                imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
                                 contentDescription = stringResource(R.string.action_back)
                             )
                         }
@@ -189,9 +189,9 @@ fun BooksScreen(
                                 MetricCard(
                                     title = stringResource(R.string.books_stats_total),
                                     value = "$totalBooks",
-                                    badgeText = stringResource(R.string.books_badge_book),
+                                    badgeText = "",
                                     note = stringResource(R.string.books_stats_read, readBooks),
-                                    valueIcon = Icons.AutoMirrored.Filled.MenuBook,
+                                    valueIcon = Icons.AutoMirrored.Rounded.MenuBook,
                                     valueIconTint = recordCategoryColors(RecordCategory.Books).accent,
                                     badgeBg = recordCategoryColors(RecordCategory.Books).container,
                                     badgeColor = recordCategoryColors(RecordCategory.Books).onContainer,
@@ -202,11 +202,11 @@ fun BooksScreen(
                                 MetricCard(
                                     title = stringResource(R.string.books_stats_to_read),
                                     value = "$toReadBooks",
-                                    badgeText = stringResource(R.string.badge_list),
+                                    badgeText = "",
                                     note = stringResource(R.string.books_stats_avg_rating, avgRating),
-                                    valueIcon = Icons.Default.Bookmark,
+                                    valueIcon = Icons.Rounded.Bookmark,
                                     valueIconTint = domainRatingColor(),
-                                    noteIcon = Icons.Filled.Star,
+                                    noteIcon = Icons.Rounded.Star,
                                     noteIconTint = domainRatingOnContainer(),
                                     badgeBg = domainRatingContainer(),
                                     badgeColor = domainRatingOnContainer(),
@@ -239,29 +239,6 @@ fun BooksScreen(
                                 .fillMaxWidth()
                                 .filterHeaderItem()
                         )
-                        ExpressiveFilterRow {
-                            ExpressiveConnectedButtonGroup(
-                                items = BookShelfKeys,
-                                selectedItem = state.selectedShelf,
-                                onItemSelected = { key -> viewModel.setShelf(key) },
-                                labelProvider = { key ->
-                                    when (key) {
-                                        "read" -> stringResource(R.string.books_shelf_read)
-                                        "to-read" -> stringResource(R.string.books_shelf_to_read)
-                                        "currently-reading" -> stringResource(R.string.books_shelf_currently_reading)
-                                        else -> stringResource(R.string.filter_all)
-                                    }
-                                },
-                                iconProvider = { key, _ ->
-                                    when (key) {
-                                        "read" -> Icons.AutoMirrored.Filled.LibraryBooks
-                                        "to-read" -> Icons.Default.HourglassEmpty
-                                        "currently-reading" -> Icons.AutoMirrored.Filled.MenuBook
-                                        else -> null
-                                    }
-                                }
-                            )
-                        }
                         val hasActiveDate = state.selectedDateFilter != null || state.fromDateFilter != null
                         val hasActiveFilters = state.searchQuery.isNotEmpty() || hasActiveDate || state.selectedShelf != "all"
                         ExpressiveFilterRow {
@@ -291,8 +268,29 @@ fun BooksScreen(
                                         else -> stringResource(R.string.action_sort)
                                     }
                                 },
-                                leadingIcon = Icons.AutoMirrored.Filled.Sort,
+                                leadingIcon = Icons.AutoMirrored.Rounded.Sort,
                                 isActive = false
+                            )
+                            ExpressiveConnectedButtonGroup(
+                                items = BookShelfKeys,
+                                selectedItem = state.selectedShelf,
+                                onItemSelected = { key -> viewModel.setShelf(key) },
+                                labelProvider = { key ->
+                                    when (key) {
+                                        "read" -> stringResource(R.string.books_shelf_read)
+                                        "to-read" -> stringResource(R.string.books_shelf_to_read)
+                                        "currently-reading" -> stringResource(R.string.books_shelf_currently_reading)
+                                        else -> stringResource(R.string.filter_all)
+                                    }
+                                },
+                                iconProvider = { key, _ ->
+                                    when (key) {
+                                        "read" -> Icons.AutoMirrored.Rounded.LibraryBooks
+                                        "to-read" -> Icons.Rounded.HourglassEmpty
+                                        "currently-reading" -> Icons.AutoMirrored.Rounded.MenuBook
+                                        else -> null
+                                    }
+                                }
                             )
                         }
                         if (hasActiveFilters) {
@@ -318,7 +316,7 @@ fun BooksScreen(
                     item(key = "books_empty", span = { GridItemSpan(maxLineSpan) }, contentType = "empty") {
                         ExpressiveEmptyState(
                             title = stringResource(R.string.books_empty),
-                            icon = Icons.AutoMirrored.Filled.MenuBook,
+                            icon = Icons.AutoMirrored.Rounded.MenuBook,
                             iconContainerColor = recordCategoryColors(RecordCategory.Books).container,
                             iconContentColor = recordCategoryColors(RecordCategory.Books).onContainer
                         )
@@ -336,7 +334,8 @@ fun BooksScreen(
                             count = if (isWideScreen) 1 else state.filteredBooks.size,
                             addLeadingGap = !isWideScreen,
                             modifier = expressiveItemModifier(),
-                            onClick = { selectedBook = book }
+                            onClick = { selectedBook = book },
+                            selected = if (isTwoPane) selectedBook == book else null
                         )
                     }
                 }
@@ -355,7 +354,7 @@ fun BooksScreen(
                     )
                 } else {
                     DetailPlaceholderPane(
-                        icon = Icons.AutoMirrored.Filled.MenuBook,
+                        icon = Icons.AutoMirrored.Rounded.MenuBook,
                         title = stringResource(R.string.adaptive_select_item_title),
                         subtitle = stringResource(R.string.adaptive_select_item_subtitle)
                     )
@@ -407,6 +406,7 @@ fun BookRowItem(
     index: Int = 0,
     count: Int = 1,
     modifier: Modifier = Modifier,
+    selected: Boolean? = null,
     addLeadingGap: Boolean = false,
     onClick: () -> Unit = {}
 ) {
@@ -421,11 +421,12 @@ fun BookRowItem(
         index = index,
         count = count,
         modifier = modifier,
+        selected = selected,
         addLeadingGap = addLeadingGap,
         onClick = onClick,
         verticalAlignment = Alignment.CenterVertically,
         leadingContent = {
-            PosterThumbnail(imageUrl = book.image_url, fallbackIcon = Icons.AutoMirrored.Filled.MenuBook, width = 36, height = 52)
+            PosterThumbnail(imageUrl = book.image_url, fallbackIcon = Icons.AutoMirrored.Rounded.MenuBook, width = 36, height = 52)
         },
         trailingContent = if (book.my_rating > 0) {
             { RatingBadge(rating = book.my_rating) }

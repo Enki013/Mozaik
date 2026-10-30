@@ -23,10 +23,10 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.automirrored.filled.HelpOutline
-import androidx.compose.material.icons.automirrored.filled.MenuBook
-import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.automirrored.rounded.ArrowBack
+import androidx.compose.material.icons.automirrored.rounded.HelpOutline
+import androidx.compose.material.icons.automirrored.rounded.MenuBook
+import androidx.compose.material.icons.rounded.*
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material3.*
 import androidx.compose.foundation.lazy.itemsIndexed
@@ -218,7 +218,7 @@ fun SettingsScreen(
                     if (pageId != null) {
                         IconButton(onClick = onNavigateBack) {
                             Icon(
-                                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                                imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
                                 contentDescription = stringResource(R.string.action_back)
                             )
                         }
@@ -244,7 +244,7 @@ fun SettingsScreen(
                 state = listState,
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(horizontal = 16.dp),
+                    .padding(horizontal = M3Spacing.Large),
                 contentPadding = PaddingValues(top = 4.dp, bottom = floatingBottomNavigationContentPadding()),
                 verticalArrangement = Arrangement.spacedBy(if (pageId == null) 16.dp else 8.dp)
             ) {
@@ -288,7 +288,7 @@ fun SettingsScreen(
                                 horizontalArrangement = Arrangement.spacedBy(10.dp)
                             ) {
                                 SettingsIconBox(
-                                    icon = Icons.Default.Dns,
+                                    icon = Icons.Rounded.Dns,
                                     containerColor = MaterialTheme.colorScheme.primaryContainer,
                                     contentColor = MaterialTheme.colorScheme.onPrimaryContainer
                                 )
@@ -353,7 +353,7 @@ fun SettingsScreen(
                             singleLine = true,
                             leadingIcon = {
                                 Icon(
-                                    imageVector = Icons.Default.Dns,
+                                    imageVector = Icons.Rounded.Dns,
                                     contentDescription = null,
                                     tint = MaterialTheme.colorScheme.primary
                                 )
@@ -361,7 +361,7 @@ fun SettingsScreen(
                             trailingIcon = if (state.serverUrl.isNotBlank()) {
                                 {
                                     IconButton(onClick = { viewModel.updateServerUrlInput("") }) {
-                                        Icon(Icons.Default.Clear, contentDescription = stringResource(R.string.action_clear))
+                                        Icon(Icons.Rounded.Clear, contentDescription = stringResource(R.string.action_clear))
                                     }
                                 }
                             } else null,
@@ -384,7 +384,7 @@ fun SettingsScreen(
                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
                             leadingIcon = {
                                 Icon(
-                                    imageVector = Icons.Default.Key,
+                                    imageVector = Icons.Rounded.Key,
                                     contentDescription = null,
                                     tint = MaterialTheme.colorScheme.primary
                                 )
@@ -392,7 +392,7 @@ fun SettingsScreen(
                             trailingIcon = {
                                 IconButton(onClick = { apiKeyVisible = !apiKeyVisible }) {
                                     Icon(
-                                        imageVector = if (apiKeyVisible) Icons.Default.VisibilityOff else Icons.Default.Visibility,
+                                        imageVector = if (apiKeyVisible) Icons.Rounded.VisibilityOff else Icons.Rounded.Visibility,
                                         contentDescription = stringResource(if (apiKeyVisible) R.string.action_hide_key else R.string.action_show_key)
                                     )
                                 }
@@ -419,7 +419,7 @@ fun SettingsScreen(
                                     verticalAlignment = Alignment.CenterVertically,
                                     horizontalArrangement = Arrangement.spacedBy(6.dp)
                                 ) {
-                                    Icon(Icons.Default.Save, contentDescription = null, modifier = Modifier.size(16.dp))
+                                    Icon(Icons.Rounded.Save, contentDescription = null, modifier = Modifier.size(16.dp))
                                     Text(
                                         text = stringResource(R.string.action_save),
                                         style = MaterialTheme.typography.labelLargeEmphasized,
@@ -450,7 +450,7 @@ fun SettingsScreen(
                                         verticalAlignment = Alignment.CenterVertically,
                                         horizontalArrangement = Arrangement.spacedBy(6.dp)
                                     ) {
-                                        Icon(Icons.Default.NetworkCheck, contentDescription = null, modifier = Modifier.size(16.dp))
+                                        Icon(Icons.Rounded.NetworkCheck, contentDescription = null, modifier = Modifier.size(16.dp))
                                         Text(
                                             text = stringResource(R.string.action_test_connection),
                                             style = MaterialTheme.typography.labelLarge,
@@ -620,7 +620,7 @@ private fun LazyListScope.settingsMainPage(
                 onClick = onNavigateToLanguage,
                 leadingContent = {
                     SettingsIconBox(
-                        icon = Icons.Default.Language,
+                        icon = Icons.Rounded.Language,
                         containerColor = MaterialTheme.colorScheme.tertiaryContainer,
                         contentColor = MaterialTheme.colorScheme.onTertiaryContainer
                     )
@@ -644,7 +644,7 @@ private fun LazyListScope.settingsMainPage(
                 addLeadingGap = false,
                 leadingContent = {
                     SettingsIconBox(
-                        icon = Icons.Default.DarkMode,
+                        icon = Icons.Rounded.DarkMode,
                         containerColor = MaterialTheme.colorScheme.secondaryContainer,
                         contentColor = MaterialTheme.colorScheme.onSecondaryContainer
                     )
@@ -672,7 +672,7 @@ private fun LazyListScope.settingsMainPage(
                     ),
                     leadingContent = {
                         SettingsIconBox(
-                            icon = Icons.Default.Palette,
+                            icon = Icons.Rounded.Palette,
                             containerColor = MaterialTheme.colorScheme.primaryContainer,
                             contentColor = MaterialTheme.colorScheme.onPrimaryContainer
                         )
@@ -700,7 +700,7 @@ private fun LazyListScope.settingsMainPage(
                 onClick = { onOpenSettingsPage(SERVER_PAGE_ID) },
                 leadingContent = {
                     SettingsIconBox(
-                        icon = Icons.Default.Dns,
+                        icon = Icons.Rounded.Dns,
                         containerColor = MaterialTheme.colorScheme.primaryContainer,
                         contentColor = MaterialTheme.colorScheme.onPrimaryContainer
                     )
@@ -763,7 +763,7 @@ private fun LazyListScope.settingsMainPage(
                 onClick = onNavigateToIntegrationsCatalog,
                 leadingContent = {
                     SettingsIconBox(
-                        icon = Icons.Default.Add,
+                        icon = Icons.Rounded.Add,
                         containerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
                         contentColor = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -793,7 +793,7 @@ private fun LazyListScope.settingsMainPage(
                 onClick = { onExport("/api/export/all", "json") },
                 leadingContent = {
                     SettingsIconBox(
-                        icon = Icons.Default.Download,
+                        icon = Icons.Rounded.Download,
                         containerColor = MaterialTheme.colorScheme.primaryContainer,
                         contentColor = MaterialTheme.colorScheme.onPrimaryContainer
                     )
@@ -809,7 +809,7 @@ private fun LazyListScope.settingsMainPage(
                 onClick = { onExport("/api/export/db", "sqlite3") },
                 leadingContent = {
                     SettingsIconBox(
-                        icon = Icons.Default.Storage,
+                        icon = Icons.Rounded.Storage,
                         containerColor = MaterialTheme.colorScheme.primaryContainer,
                         contentColor = MaterialTheme.colorScheme.onPrimaryContainer
                     )
@@ -859,7 +859,7 @@ private fun SettingsGroup(
 @Composable
 private fun SettingsChevron() {
     Icon(
-        imageVector = Icons.Default.ChevronRight,
+        imageVector = Icons.Rounded.ChevronRight,
         contentDescription = null
     )
 }
@@ -997,7 +997,7 @@ fun LanguageSelectionScreen(
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
                         Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                            imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
                             contentDescription = stringResource(R.string.action_back)
                         )
                     }
@@ -1189,7 +1189,7 @@ private fun GenericPluginSettingsCard(
                     horizontalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
                     Icon(
-                        imageVector = Icons.Default.ContentCopy,
+                        imageVector = Icons.Rounded.ContentCopy,
                         contentDescription = null,
                         modifier = Modifier.size(16.dp)
                     )
@@ -1232,7 +1232,7 @@ private fun GenericPluginSettingsCard(
                             horizontalArrangement = Arrangement.spacedBy(4.dp)
                         ) {
                             Icon(
-                                imageVector = Icons.Default.OpenInBrowser,
+                                imageVector = Icons.Rounded.OpenInBrowser,
                                 contentDescription = null,
                                 modifier = Modifier.size(16.dp)
                             )
@@ -1260,7 +1260,7 @@ private fun GenericPluginSettingsCard(
                         horizontalArrangement = Arrangement.spacedBy(4.dp)
                     ) {
                         Icon(
-                            imageVector = Icons.Default.Extension,
+                            imageVector = Icons.Rounded.Extension,
                             contentDescription = null,
                             modifier = Modifier.size(16.dp)
                         )
@@ -1290,7 +1290,7 @@ private fun GenericPluginSettingsCard(
                         horizontalArrangement = Arrangement.spacedBy(6.dp)
                     ) {
                         Icon(
-                            imageVector = Icons.AutoMirrored.Filled.HelpOutline,
+                            imageVector = Icons.AutoMirrored.Rounded.HelpOutline,
                             contentDescription = null,
                             modifier = Modifier.size(16.dp),
                             tint = MaterialTheme.colorScheme.primary

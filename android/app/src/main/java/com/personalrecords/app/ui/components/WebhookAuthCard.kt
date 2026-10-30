@@ -9,8 +9,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Key
-import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.rounded.Key
+import androidx.compose.material.icons.rounded.Lock
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
@@ -25,7 +25,6 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.personalrecords.app.R
 import com.personalrecords.app.core.theme.M3Shapes
-import com.personalrecords.app.core.theme.titleSmallEmphasized
 
 /**
  * Shown under a webhook URL when the server requires an API key. Calm secondary tonal
@@ -52,7 +51,7 @@ fun WebhookAuthCard(
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 Icon(
-                    imageVector = Icons.Default.Lock,
+                    imageVector = Icons.Rounded.Lock,
                     contentDescription = null,
                     modifier = Modifier.size(18.dp)
                 )
@@ -75,7 +74,7 @@ fun WebhookAuthCard(
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Icon(
-                    imageVector = Icons.Default.Key,
+                    imageVector = Icons.Rounded.Key,
                     contentDescription = null,
                     modifier = Modifier.size(ButtonDefaults.IconSize)
                 )

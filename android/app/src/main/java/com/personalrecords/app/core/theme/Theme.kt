@@ -121,8 +121,8 @@ fun PersonalRecordsTheme(
     if (!view.isInEditMode) {
         SideEffect {
             val window = (view.context as Activity).window
-            window.statusBarColor = android.graphics.Color.TRANSPARENT
-            window.navigationBarColor = android.graphics.Color.TRANSPARENT
+            // Bars are already transparent through enableEdgeToEdge(); only the icon tone follows
+            // the in-app theme choice here.
             val insetsController = WindowCompat.getInsetsController(window, view)
             insetsController.isAppearanceLightStatusBars = !darkTheme
             insetsController.isAppearanceLightNavigationBars = !darkTheme
@@ -150,7 +150,8 @@ fun PersonalRecordsTheme(
             colorScheme = colorScheme,
             typography = Typography,
             shapes = Shapes,
-            motionScheme = MotionScheme.expressive(),
+            // Calmer, non-bouncy springs when the system "remove animations" setting is on.
+            motionScheme = if (isReducedMotion) MotionScheme.standard() else MotionScheme.expressive(),
             content = content
         )
     }
