@@ -49,8 +49,8 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.heading
 import com.personalrecords.app.R
-import com.personalrecords.app.core.theme.M3ListMetrics
 import com.personalrecords.app.core.theme.currentAdaptiveLayout
 import com.personalrecords.app.core.theme.M3NavigationMetrics
 import com.personalrecords.app.core.theme.M3Shapes
@@ -220,6 +220,22 @@ fun ExpressiveStatusBadge(
     }
 }
 
+/** Subheader above a segmented list group: titleSmall in primary, aligned with row content. */
+@Composable
+fun ExpressiveListSubheader(
+    title: String,
+    modifier: Modifier = Modifier
+) {
+    Text(
+        text = title,
+        style = MaterialTheme.typography.titleSmallEmphasized,
+        color = MaterialTheme.colorScheme.primary,
+        modifier = modifier
+            .padding(start = 16.dp, top = 4.dp, bottom = 6.dp)
+            .semantics { heading() }
+    )
+}
+
 /**
  * One row of an M3 Expressive segmented list, built on [SegmentedListItem]: grouped corners
  * from [ListItemDefaults.segmentedShapes], a shape change and state layer on press, focus and
@@ -281,35 +297,6 @@ fun ExpressiveListRow(
             content = headlineContent
         )
     }
-}
-
-/**
- * One segment of an M3 Expressive segmented list: 16dp outer corners, 4dp inner corners.
- * Segments are separated by [M3ListMetrics.SegmentGap] instead of dividers.
- *
- * In a lazy list, set [addLeadingGap] so each segment after the first adds the gap itself.
- * In a plain Column, leave it off and use `Arrangement.spacedBy(M3ListMetrics.SegmentGap)`.
- */
-@Composable
-fun GroupedListItemSurface(
-    index: Int,
-    itemCount: Int,
-    modifier: Modifier = Modifier,
-    containerColor: Color = MaterialTheme.colorScheme.surfaceContainerLow,
-    addLeadingGap: Boolean = false,
-    content: @Composable () -> Unit
-) {
-    Surface(
-        modifier = modifier
-            .then(
-                if (addLeadingGap && index > 0) Modifier.padding(top = M3ListMetrics.SegmentGap)
-                else Modifier
-            )
-            .fillMaxWidth(),
-        shape = M3Shapes.groupedListItem(index, itemCount),
-        color = containerColor,
-        content = content
-    )
 }
 
 /**

@@ -14,6 +14,9 @@ import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.*
+import androidx.compose.material3.ripple
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.indication
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -375,7 +378,9 @@ fun MainAppHost() {
         navigator.goBack()
     }
 
-    val showFloatingNav = !isDetailRoute && (isWideScreen || bottomNavVisible.value)
+    // Phones hide the bar on detail screens and while scrolling down; the rail stays on every
+    // screen so wide layouts keep one-tap access to the top-level tabs.
+    val showFloatingNav = isWideScreen || (!isDetailRoute && bottomNavVisible.value)
 
     Box(
         modifier = Modifier
@@ -385,7 +390,7 @@ fun MainAppHost() {
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(start = if (isWideScreen && showFloatingNav) 88.dp else 0.dp)
+                .padding(start = if (isWideScreen) RailContentStartPadding else 0.dp)
         ) {
             Box(
                 modifier = Modifier
@@ -667,7 +672,7 @@ private fun ExpressiveAdaptiveNavigation(
     val currentRoute = navigator.currentRoute()
 
     fun handleNavClick(screen: Screen, isSelected: Boolean) {
-        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+        haptic.performHapticFeedback(HapticFeedbackType.SegmentTick)
 
         if (isSelected) {
             val currentStack = navigator.state.backStacks[screen]
@@ -713,7 +718,7 @@ private fun ExpressiveAdaptiveNavigation(
                     color = MaterialTheme.colorScheme.surfaceContainer,
                     tonalElevation = 3.dp,
                     shadowElevation = 4.dp,
-                    modifier = Modifier.width(64.dp)
+                    modifier = Modifier.width(RailWidth)
                 ) {
                     Column(
                         modifier = Modifier
@@ -760,40 +765,70 @@ private fun ExpressiveAdaptiveNavigation(
                                     MaterialTheme.colorScheme.onSurfaceVariant
                                 }
 
-                                Box(
+                                // Whole item (icon + label) is the touch target; the ripple and the
+                                // selection pill stay on the icon, as on M3 navigation rails.
+                                Column(
                                     modifier = Modifier
-                                        .size(48.dp)
-                                        .expressivePressScale(interactionSource, scaleDown = 0.94f)
-                                        .drawBehind {
-                                            val alpha = selectionProgressState.value.coerceIn(0f, 1f)
-                                            if (alpha > 0.005f) {
-                                                val r = indicatorCornerState.value.toPx()
-                                                drawRoundRect(
-                                                    color = secondaryContainerColor.copy(alpha = alpha),
-                                                    cornerRadius = CornerRadius(r, r)
-                                                )
-                                            }
-                                        }
+                                        .fillMaxWidth()
                                         .clickable(
                                             interactionSource = interactionSource,
                                             indication = null,
                                             role = Role.Tab,
                                             onClick = { handleNavClick(screen, selected) }
                                         )
-                                        .semantics { this.selected = selected },
-                                    contentAlignment = Alignment.Center
+                                        .semantics { this.selected = selected }
+                                        .padding(vertical = 4.dp),
+                                    horizontalAlignment = Alignment.CenterHorizontally,
+                                    verticalArrangement = Arrangement.spacedBy(4.dp)
                                 ) {
-                                    Icon(
-                                        imageVector = if (selected) screen.selectedIcon else screen.icon,
-                                        contentDescription = stringResource(screen.titleRes),
-                                        tint = contentColor,
+                                    Box(
                                         modifier = Modifier
-                                            .size(24.dp)
+                                            .size(48.dp)
+                                            .expressivePressScale(interactionSource, scaleDown = 0.94f)
                                             .graphicsLayer {
-                                                val s = iconScaleState.value
-                                                scaleX = s
-                                                scaleY = s
+                                                shape = RoundedCornerShape(indicatorCornerState.value)
+                                                clip = true
                                             }
+                                            .drawBehind {
+                                                val alpha = selectionProgressState.value.coerceIn(0f, 1f)
+                                                if (alpha > 0.005f) {
+                                                    val r = indicatorCornerState.value.toPx()
+                                                    drawRoundRect(
+                                                        color = secondaryContainerColor.copy(alpha = alpha),
+                                                        cornerRadius = CornerRadius(r, r)
+                                                    )
+                                                }
+                                            }
+                                            .indication(interactionSource, ripple()),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Icon(
+                                            imageVector = if (selected) screen.selectedIcon else screen.icon,
+                                            contentDescription = null,
+                                            tint = contentColor,
+                                            modifier = Modifier
+                                                .size(24.dp)
+                                                .graphicsLayer {
+                                                    val s = iconScaleState.value
+                                                    scaleX = s
+                                                    scaleY = s
+                                                }
+                                        )
+                                    }
+                                    Text(
+                                        text = stringResource(screen.navLabelRes),
+                                        style = if (selected) {
+                                            MaterialTheme.typography.labelMediumEmphasized
+                                        } else {
+                                            MaterialTheme.typography.labelMedium
+                                        },
+                                        color = if (selected) {
+                                            MaterialTheme.colorScheme.onSurface
+                                        } else {
+                                            MaterialTheme.colorScheme.onSurfaceVariant
+                                        },
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
                                     )
                                 }
                             }
@@ -872,6 +907,11 @@ private fun ExpressiveAdaptiveNavigation(
                                     modifier = Modifier
                                         .height(48.dp)
                                         .expressivePressScale(interactionSource, scaleDown = 0.94f)
+                                        // Clips the ripple to the pill, following its pressed corners.
+                                        .graphicsLayer {
+                                            shape = RoundedCornerShape(indicatorCornerState.value)
+                                            clip = true
+                                        }
                                         .drawBehind {
                                             val alpha = selectionProgressState.value.coerceIn(0f, 1f)
                                             if (alpha > 0.005f) {
@@ -884,7 +924,7 @@ private fun ExpressiveAdaptiveNavigation(
                                         }
                                         .clickable(
                                             interactionSource = interactionSource,
-                                            indication = null,
+                                            indication = ripple(),
                                             role = Role.Tab,
                                             onClick = { handleNavClick(screen, selected) }
                                         )
@@ -950,3 +990,8 @@ private fun ExpressiveAdaptiveNavigation(
         }
     }
 }
+
+/** Floating rail width: fits the 48dp icon pill and a one-line label under it. */
+private val RailWidth = 80.dp
+/** Start padding for content next to the floating rail (12dp offset + rail + 12dp gap). */
+private val RailContentStartPadding = 12.dp + RailWidth + 12.dp

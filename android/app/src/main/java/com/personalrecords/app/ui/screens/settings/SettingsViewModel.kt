@@ -754,6 +754,18 @@ class SettingsViewModel(
         _uiState.update { it.copy(syncStatusMessage = null) }
     }
 
+    fun clearKeySaveMessage() {
+        _uiState.update { it.copy(keySaveMessage = null) }
+    }
+
+    fun clearLetterboxdSaveMessage() {
+        _uiState.update { it.copy(letterboxdSaveMessage = null) }
+    }
+
+    fun clearGoodreadsSaveMessage() {
+        _uiState.update { it.copy(goodreadsSaveMessage = null) }
+    }
+
     fun clearMusicSaveMessage() {
         _uiState.update { it.copy(musicSaveMessage = null) }
     }

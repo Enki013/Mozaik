@@ -244,12 +244,7 @@ private fun SectionTitle(
     title: String,
     modifier: Modifier = Modifier
 ) {
-    Text(
-        text = title,
-        style = MaterialTheme.typography.labelLargeEmphasized,
-        color = MaterialTheme.colorScheme.primary,
-        modifier = modifier.padding(start = 4.dp, top = 6.dp, bottom = 2.dp)
-    )
+    ExpressiveListSubheader(title = title, modifier = modifier)
 }
 
 private data class RecordRowSpec(
@@ -268,100 +263,39 @@ private fun RecordsGroup(
 ) {
     Column(
         modifier = modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(M3ListMetrics.SegmentGap)
+        verticalArrangement = Arrangement.spacedBy(ListItemDefaults.SegmentedGap)
     ) {
         rows.forEachIndexed { index, row ->
             val colors = recordCategoryColors(row.category)
-            GroupedListItemSurface(index = index, itemCount = rows.size) {
-                RecordItemRow(
-                    icon = row.icon,
-                    iconBg = colors.container,
-                    iconTint = colors.onContainer,
-                    title = row.title,
-                    subtitle = row.subtitle,
-                    onClick = row.onClick
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun RecordItemRow(
-    icon: ImageVector,
-    iconBg: Color,
-    iconTint: Color,
-    title: String,
-    subtitle: String,
-    badgeText: String? = null,
-    onClick: () -> Unit
-) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .expressiveBounceClick(onClick = onClick)
-            .padding(horizontal = 12.dp, vertical = 12.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        // Leading icon box: same 40dp / 8dp anatomy as the other list rows
-        Box(
-            modifier = Modifier
-                .size(40.dp)
-                .clip(M3Shapes.CornerSmall)
-                .background(iconBg),
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(
-                imageVector = icon,
-                contentDescription = null,
-                tint = iconTint,
-                modifier = Modifier.size(20.dp)
-            )
-        }
-
-        Spacer(modifier = Modifier.width(12.dp))
-
-        // Center Content
-        Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = title,
-                style = MaterialTheme.typography.titleSmallEmphasized,
-                color = MaterialTheme.colorScheme.onSurface,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
-            Spacer(modifier = Modifier.height(2.dp))
-            Text(
-                text = subtitle,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
-        }
-
-        Spacer(modifier = Modifier.width(8.dp))
-
-        // Trailing Badge or Chevron
-        if (badgeText != null) {
-            Surface(
-                shape = M3Shapes.CornerFull,
-                color = MaterialTheme.colorScheme.surfaceContainerHighest
+            ExpressiveListRow(
+                index = index,
+                count = rows.size,
+                onClick = row.onClick,
+                leadingContent = {
+                    Box(
+                        modifier = Modifier
+                            .size(40.dp)
+                            .clip(M3Shapes.CornerSmall)
+                            .background(colors.container),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = row.icon,
+                            contentDescription = null,
+                            tint = colors.onContainer,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+                },
+                trailingContent = {
+                    Icon(imageVector = Icons.Default.ChevronRight, contentDescription = null)
+                },
+                supportingContent = {
+                    Text(text = row.subtitle, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                }
             ) {
-                Text(
-                    text = badgeText,
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.5.dp)
-                )
+                Text(text = row.title, maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
-        } else {
-            Icon(
-                imageVector = Icons.AutoMirrored.Filled.ArrowForwardIos,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
-                modifier = Modifier.size(14.dp)
-            )
         }
     }
 }

@@ -788,30 +788,21 @@ fun OverviewScreen(
                                     activePlugins.forEachIndexed { index, plugin ->
                                         val syncKey = plugin.syncServiceKey ?: plugin.id
                                         val isItemSyncing = state.isSyncing == syncKey || state.isSyncing == "all"
-                                        GroupedListItemSurface(
+                                        val desc = if (plugin.shortDescRes != 0) stringResource(plugin.shortDescRes) else plugin.shortDescription
+                                        ExpressiveListRow(
                                             index = index,
-                                            itemCount = activePlugins.size,
-                                            modifier = Modifier
-                                                .fillMaxWidth()
-                                                .expressiveBounceClick(
-                                                    onClick = {
-                                                        if (state.isSyncing == null) {
-                                                            viewModel.syncService(syncKey)
-                                                        }
-                                                    }
-                                                )
-                                        ) {
-                                            Row(
-                                                modifier = Modifier
-                                                    .fillMaxWidth()
-                                                    .padding(horizontal = 14.dp, vertical = 11.dp),
-                                                horizontalArrangement = Arrangement.SpaceBetween,
-                                                verticalAlignment = Alignment.CenterVertically
-                                            ) {
+                                            count = activePlugins.size,
+                                            addLeadingGap = false,
+                                            onClick = {
+                                                if (state.isSyncing == null) {
+                                                    viewModel.syncService(syncKey)
+                                                }
+                                            },
+                                            leadingContent = {
                                                 Box(
                                                     modifier = Modifier
-                                                        .size(36.dp)
-                                                        .clip(RoundedCornerShape(10.dp))
+                                                        .size(40.dp)
+                                                        .clip(M3Shapes.CornerMedium)
                                                         .background(MaterialTheme.colorScheme.surfaceContainerHigh),
                                                     contentAlignment = Alignment.Center
                                                 ) {
@@ -819,33 +810,14 @@ fun OverviewScreen(
                                                         imageVector = plugin.icon,
                                                         contentDescription = null,
                                                         tint = MaterialTheme.colorScheme.primary,
-                                                        modifier = Modifier.size(18.dp)
+                                                        modifier = Modifier.size(20.dp)
                                                     )
                                                 }
-
-                                                Spacer(modifier = Modifier.width(12.dp))
-
-                                                Column(modifier = Modifier.weight(1f)) {
-                                                    Text(
-                                                        text = plugin.name,
-                                                        style = MaterialTheme.typography.bodyMediumEmphasized,
-                                                        color = MaterialTheme.colorScheme.onSurface
-                                                    )
-                                                    val desc = plugin.shortDescRes?.let { stringResource(it) } ?: plugin.shortDescription
-                                                    Text(
-                                                        text = desc,
-                                                        style = MaterialTheme.typography.bodySmall,
-                                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                                        maxLines = 1,
-                                                        overflow = TextOverflow.Ellipsis
-                                                    )
-                                                }
-
-                                                Spacer(modifier = Modifier.width(8.dp))
-
+                                            },
+                                            trailingContent = {
                                                 if (isItemSyncing) {
                                                     ExpressiveLoadingIndicator(
-                                                        size = 14.dp,
+                                                        size = 16.dp,
                                                         color = MaterialTheme.colorScheme.primary
                                                     )
                                                 } else {
@@ -854,7 +826,12 @@ fun OverviewScreen(
                                                         tone = StatusTone.Active
                                                     )
                                                 }
-                                            }
+                                            },
+                                            supportingContent = if (desc.isNotBlank()) {
+                                                { Text(text = desc, maxLines = 1, overflow = TextOverflow.Ellipsis) }
+                                            } else null
+                                        ) {
+                                            Text(text = plugin.name, maxLines = 1, overflow = TextOverflow.Ellipsis)
                                         }
                                     }
                                 }
