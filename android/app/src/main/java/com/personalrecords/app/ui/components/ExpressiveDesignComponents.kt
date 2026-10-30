@@ -168,7 +168,6 @@ fun ExpressiveSearchField(
             Icon(
                 imageVector = Icons.Rounded.Search,
                 contentDescription = null,
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.size(20.dp)
             )
         },
@@ -185,12 +184,15 @@ fun ExpressiveSearchField(
             }
         },
         shape = M3Shapes.CornerFull,
-        // M3 search field: filled surfaceContainerHigh, no outline.
+        // Filled M3 search look at rest (surfaceContainerHigh, no outline). Focus must stay
+        // visible, as on every M3 text field: a primary outline and a primary search icon.
         colors = OutlinedTextFieldDefaults.colors(
             focusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
             unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-            focusedBorderColor = Color.Transparent,
-            unfocusedBorderColor = Color.Transparent
+            focusedBorderColor = MaterialTheme.colorScheme.primary,
+            unfocusedBorderColor = Color.Transparent,
+            focusedLeadingIconColor = MaterialTheme.colorScheme.primary,
+            unfocusedLeadingIconColor = MaterialTheme.colorScheme.onSurfaceVariant
         ),
         singleLine = true
     )
