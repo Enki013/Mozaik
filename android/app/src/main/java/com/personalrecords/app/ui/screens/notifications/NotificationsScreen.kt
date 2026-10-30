@@ -247,7 +247,16 @@ fun NotificationsScreen(
                         val hasActiveDate = state.selectedDateFilter != null || state.fromDateFilter != null
                         val hasActiveFilters = state.searchQuery.isNotEmpty() || hasActiveDate || state.selectedApp != null
                         ExpressiveFilterRow {
-                            // Sort first, so it keeps its place when the clear chip appears.
+                            ExpressiveDropdownFilterChip(
+                                options = remember(appList) { listOf<String?>(null) + appList },
+                                selected = state.selectedApp,
+                                onSelect = { viewModel.setAppFilter(it) },
+                                optionLabel = { app -> app ?: stringResource(R.string.filter_all) },
+                                label = state.selectedApp ?: stringResource(R.string.filter_app),
+                                leadingIcon = Icons.Rounded.Apps,
+                                isActive = state.selectedApp != null
+                            )
+                            // Then sort, ahead of the clear chip so it keeps its place.
                             ExpressiveDropdownFilterChip(
                                 options = listOf("date_desc", "date_asc"),
                                 selected = state.sortBy,
@@ -274,15 +283,6 @@ fun NotificationsScreen(
                                 onQuickRange = { range ->
                                     applyQuickRange(range, viewModel::setDateFilter, viewModel::setDateRangeFilter)
                                 }
-                            )
-                            ExpressiveDropdownFilterChip(
-                                options = remember(appList) { listOf<String?>(null) + appList },
-                                selected = state.selectedApp,
-                                onSelect = { viewModel.setAppFilter(it) },
-                                optionLabel = { app -> app ?: stringResource(R.string.filter_all) },
-                                label = state.selectedApp ?: stringResource(R.string.filter_app),
-                                leadingIcon = Icons.Rounded.Apps,
-                                isActive = state.selectedApp != null
                             )
                         }
                         if (hasActiveFilters) {

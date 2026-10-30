@@ -326,7 +326,30 @@ fun MusicScreen(
                                 val hasActiveDate = state.selectedDateFilter != null || state.fromDateFilter != null
                                 val hasActiveFilters = state.searchQuery.isNotEmpty() || hasActiveDate || state.selectedFilter != "all" || state.selectedArtist != null
                                 ExpressiveFilterRow {
-                                    // Sort first, so it keeps its place when the clear chip appears.
+                                    val artistCounts = remember(state.stats.topArtists) {
+                                        state.stats.topArtists.take(20).associate { it.artist to it.count }
+                                    }
+                                    val artistOptions = remember(artistCounts, state.selectedArtist) {
+                                        (listOf<String?>(null) + artistCounts.keys + listOfNotNull(state.selectedArtist)).distinct()
+                                    }
+                                    if (artistOptions.size > 1) {
+                                        ExpressiveDropdownFilterChip(
+                                            options = artistOptions,
+                                            selected = state.selectedArtist,
+                                            onSelect = { viewModel.setArtistFilter(it) },
+                                            optionLabel = { artist ->
+                                                when {
+                                                    artist == null -> stringResource(R.string.filter_all)
+                                                    artistCounts[artist] != null -> "$artist (${artistCounts[artist]})"
+                                                    else -> artist
+                                                }
+                                            },
+                                            label = state.selectedArtist ?: stringResource(R.string.filter_artist),
+                                            leadingIcon = Icons.Rounded.Person,
+                                            isActive = state.selectedArtist != null
+                                        )
+                                    }
+                                    // Then sort, ahead of the clear chip so it keeps its place.
                                     ExpressiveDropdownFilterChip(
                                         options = listOf("date_desc", "date_asc", "track", "artist"),
                                         selected = state.sortBy,
@@ -356,29 +379,6 @@ fun MusicScreen(
                                             applyQuickRange(range, viewModel::setDateFilter, viewModel::setDateRangeFilter)
                                         }
                                     )
-                                    val artistCounts = remember(state.stats.topArtists) {
-                                        state.stats.topArtists.take(20).associate { it.artist to it.count }
-                                    }
-                                    val artistOptions = remember(artistCounts, state.selectedArtist) {
-                                        (listOf<String?>(null) + artistCounts.keys + listOfNotNull(state.selectedArtist)).distinct()
-                                    }
-                                    if (artistOptions.size > 1) {
-                                        ExpressiveDropdownFilterChip(
-                                            options = artistOptions,
-                                            selected = state.selectedArtist,
-                                            onSelect = { viewModel.setArtistFilter(it) },
-                                            optionLabel = { artist ->
-                                                when {
-                                                    artist == null -> stringResource(R.string.filter_all)
-                                                    artistCounts[artist] != null -> "$artist (${artistCounts[artist]})"
-                                                    else -> artist
-                                                }
-                                            },
-                                            label = state.selectedArtist ?: stringResource(R.string.filter_artist),
-                                            leadingIcon = Icons.Rounded.Person,
-                                            isActive = state.selectedArtist != null
-                                        )
-                                    }
                                 }
                                 if (hasActiveFilters) {
                                     ExpressiveFilterResultCount(count = state.filteredScrobbles.size)

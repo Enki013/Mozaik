@@ -262,7 +262,19 @@ fun MoviesScreen(
                         val hasActiveDate = state.selectedDateFilter != null || state.fromDateFilter != null
                         val hasActiveFilters = state.searchQuery.isNotEmpty() || hasActiveDate || state.onlyRewatches || state.onlyLetterboxd || state.onlyMdbList
                         ExpressiveFilterRow {
-                            // Sort first, so it keeps its place when the clear chip appears.
+                            ExpressiveFilterChip(
+                                selected = state.onlyRewatches,
+                                onClick = { viewModel.toggleRewatches() },
+                                leadingIcon = {
+                                    Icon(
+                                        imageVector = Icons.Rounded.Repeat,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(FilterChipDefaults.IconSize)
+                                    )
+                                },
+                                label = { Text(text = stringResource(R.string.movies_filter_rewatches), style = MaterialTheme.typography.labelLarge) }
+                            )
+                            // Then sort, ahead of the clear chip so it keeps its place.
                             ExpressiveDropdownFilterChip(
                                 options = listOf("date", "rating_desc", "rating_asc", "year", "title"),
                                 selected = state.sortBy,
@@ -292,18 +304,6 @@ fun MoviesScreen(
                                 onQuickRange = { range ->
                                     applyQuickRange(range, viewModel::setDateFilter, viewModel::setDateRangeFilter)
                                 }
-                            )
-                            ExpressiveFilterChip(
-                                selected = state.onlyRewatches,
-                                onClick = { viewModel.toggleRewatches() },
-                                leadingIcon = {
-                                    Icon(
-                                        imageVector = Icons.Rounded.Repeat,
-                                        contentDescription = null,
-                                        modifier = Modifier.size(FilterChipDefaults.IconSize)
-                                    )
-                                },
-                                label = { Text(text = stringResource(R.string.movies_filter_rewatches), style = MaterialTheme.typography.labelLarge) }
                             )
                         }
                         if (hasActiveFilters) {
