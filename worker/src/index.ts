@@ -313,7 +313,27 @@ app.get("/api/health", async (c) => {
   }
 });
 
-async function ensureHealthTable(db: D1Database) {
+// Schema setup (CREATE TABLE / ALTER TABLE) runs once per Worker isolate instead of on every
+// request. Each statement is a round trip to D1, and the dashboard alone used to run about 30
+// of them before reading any data.
+const schemaReady = new Map<string, Promise<void>>();
+function ensureSchemaOnce(key: string, db: D1Database, create: (db: D1Database) => Promise<void>): Promise<void> {
+  let ready = schemaReady.get(key);
+  if (!ready) {
+    ready = create(db).catch((err) => {
+      schemaReady.delete(key); // retry on the next request
+      throw err;
+    });
+    schemaReady.set(key, ready);
+  }
+  return ready;
+}
+
+function ensureHealthTable(db: D1Database): Promise<void> {
+  return ensureSchemaOnce("health", db, createHealthTable);
+}
+
+async function createHealthTable(db: D1Database) {
   await db.prepare(`
     CREATE TABLE IF NOT EXISTS health_records (
       id TEXT PRIMARY KEY,
@@ -335,7 +355,11 @@ async function ensureHealthTable(db: D1Database) {
   `).run();
 }
 
-async function ensureMusicTables(db: D1Database) {
+function ensureMusicTables(db: D1Database): Promise<void> {
+  return ensureSchemaOnce("music", db, createMusicTables);
+}
+
+async function createMusicTables(db: D1Database) {
   await db.prepare(`
     CREATE TABLE IF NOT EXISTS music_scrobbles (
       id TEXT PRIMARY KEY,
@@ -398,7 +422,11 @@ async function ensureMusicTables(db: D1Database) {
   `).run();
 }
 
-async function ensureTraktTables(db: D1Database) {
+function ensureTraktTables(db: D1Database): Promise<void> {
+  return ensureSchemaOnce("trakt", db, createTraktTables);
+}
+
+async function createTraktTables(db: D1Database) {
   await db.prepare(`
     CREATE TABLE IF NOT EXISTS trakt_sync_settings (
       id INTEGER PRIMARY KEY CHECK (id = 1),
@@ -446,7 +474,11 @@ async function ensureTraktTables(db: D1Database) {
   `).run();
 }
 
-async function ensureMdbListTables(db: D1Database) {
+function ensureMdbListTables(db: D1Database): Promise<void> {
+  return ensureSchemaOnce("mdblist", db, createMdbListTables);
+}
+
+async function createMdbListTables(db: D1Database) {
   await db.prepare(`
     CREATE TABLE IF NOT EXISTS mdblist_settings (
       id INTEGER PRIMARY KEY CHECK (id = 1),
@@ -497,7 +529,11 @@ async function ensureMdbListTables(db: D1Database) {
   `).run();
 }
 
-async function ensureSimklTables(db: D1Database) {
+function ensureSimklTables(db: D1Database): Promise<void> {
+  return ensureSchemaOnce("simkl", db, createSimklTables);
+}
+
+async function createSimklTables(db: D1Database) {
   await db.prepare(`
     CREATE TABLE IF NOT EXISTS simkl_sync_settings (
       id INTEGER PRIMARY KEY CHECK (id = 1),
@@ -550,11 +586,9 @@ async function ensureSimklTables(db: D1Database) {
 // 2. Dashboard
 app.get("/api/dashboard", async (c) => {
   const db = c.env.DB;
-  await ensureHealthTable(db);
-  await ensureMusicTables(db);
-  await ensureTraktTables(db);
-  await ensureMdbListTables(db);
-  await ensureSimklTables(db);
+  await Promise.all([
+    ensureHealthTable(db), ensureMusicTables(db), ensureTraktTables(db), ensureMdbListTables(db), ensureSimklTables(db),
+  ]);
 
   const [booksCount, filmsCount, foodsCount, notifCount, healthCount, musicCount, traktCount, mdblistCount, simklCount, totalFilmsCount] = await Promise.all([
     db.prepare("SELECT count(*) as c FROM goodreads_books").first<any>(),
@@ -588,13 +622,15 @@ app.get("/api/dashboard", async (c) => {
       .first<any>(),
   ]);
 
-  const token = await db.prepare("SELECT id FROM fatsecret_tokens WHERE id = 1").first();
-  const grSettings = await db.prepare("SELECT feed_url FROM goodreads_sync_settings WHERE id = 1").first<any>();
-  const lbSettings = await db.prepare("SELECT feed_url FROM letterboxd_sync_settings WHERE id = 1").first<any>();
-  const musicSettings = await db.prepare("SELECT lastfm_username FROM music_sync_settings WHERE id = 1").first<any>();
-  const traktSettings = await db.prepare("SELECT username FROM trakt_sync_settings WHERE id = 1").first<any>();
-  const mdbSettings = await db.prepare("SELECT api_key FROM mdblist_settings WHERE id = 1").first<any>();
-  const simklSettings = await db.prepare("SELECT access_token FROM simkl_sync_settings WHERE id = 1").first<any>();
+  const [token, grSettings, lbSettings, musicSettings, traktSettings, mdbSettings, simklSettings] = await Promise.all([
+    db.prepare("SELECT id FROM fatsecret_tokens WHERE id = 1").first<any>(),
+    db.prepare("SELECT feed_url FROM goodreads_sync_settings WHERE id = 1").first<any>(),
+    db.prepare("SELECT feed_url FROM letterboxd_sync_settings WHERE id = 1").first<any>(),
+    db.prepare("SELECT lastfm_username FROM music_sync_settings WHERE id = 1").first<any>(),
+    db.prepare("SELECT username FROM trakt_sync_settings WHERE id = 1").first<any>(),
+    db.prepare("SELECT api_key FROM mdblist_settings WHERE id = 1").first<any>(),
+    db.prepare("SELECT access_token FROM simkl_sync_settings WHERE id = 1").first<any>(),
+  ]);
 
   const [fatRun, grRun, lbRun, musicRun, traktRun, mdbRun, simklRun] = await Promise.all([
     db.prepare("SELECT * FROM fatsecret_sync_runs ORDER BY id DESC LIMIT 1").first(),
@@ -679,11 +715,34 @@ app.get("/api/activity", async (c) => {
 
   const allItems: any[] = [];
 
+  // Read every source in one D1 round trip instead of nine sequential queries.
+  await Promise.all([ensureHealthTable(db), ensureMusicTables(db), ensureTraktTables(db), ensureSimklTables(db)]);
+  const [foods, books, films, notifs, discreteHealth, dailyHealthAgg, musicEntries, traktEntries, simklEntries] = (await db.batch([
+    db.prepare("SELECT * FROM fatsecret_food_entries ORDER BY date_int DESC, food_entry_id DESC LIMIT ?").bind(limit * 3),
+    db.prepare("SELECT * FROM goodreads_books WHERE coalesce(date_read, '') <> '' OR coalesce(date_added, '') <> '' ORDER BY imported_at DESC LIMIT ?").bind(limit * 3),
+    db.prepare("SELECT * FROM letterboxd_films ORDER BY coalesce(watched_date, diary_date, imported_at) DESC LIMIT ?").bind(limit * 3),
+    db.prepare("SELECT * FROM notifications ORDER BY post_time DESC LIMIT ?").bind(limit),
+    db.prepare("SELECT * FROM health_records WHERE record_type IN ('sleep', 'exercise', 'weight') ORDER BY date_iso DESC, start_time DESC LIMIT ?").bind(limit),
+    db.prepare(`
+      SELECT
+        date_iso,
+        coalesce(sum(CASE WHEN record_type = 'steps' THEN value_primary ELSE 0 END), 0) as total_steps,
+        coalesce(sum(CASE WHEN record_type = 'active_calories' THEN value_primary ELSE 0 END), 0) as active_kcal,
+        coalesce(sum(CASE WHEN record_type = 'distance' THEN value_primary ELSE 0 END), 0) as distance_m,
+        coalesce(avg(CASE WHEN record_type IN ('heart_rate', 'resting_heart_rate') THEN value_primary ELSE NULL END), 0) as avg_bpm,
+        max(end_time) as last_time
+      FROM health_records
+      WHERE record_type IN ('steps', 'active_calories', 'distance', 'heart_rate', 'resting_heart_rate')
+      GROUP BY date_iso
+      ORDER BY date_iso DESC
+      LIMIT 60
+    `),
+    db.prepare("SELECT * FROM music_scrobbles ORDER BY uts DESC LIMIT ?").bind(limit * 3),
+    db.prepare("SELECT * FROM trakt_history ORDER BY watched_at DESC LIMIT ?").bind(limit * 3),
+    db.prepare("SELECT * FROM simkl_history ORDER BY watched_at DESC LIMIT ?").bind(limit * 3)
+  ])) as D1Result<any>[];
+
   // FatSecret entries
-  const foods = await db
-    .prepare("SELECT * FROM fatsecret_food_entries ORDER BY date_int DESC, food_entry_id DESC LIMIT ?")
-    .bind(limit * 3)
-    .all<any>();
 
   for (const f of foods.results) {
     const dISO = dateIntToISO(f.date_int);
@@ -713,10 +772,6 @@ app.get("/api/activity", async (c) => {
   }
 
   // Goodreads books
-  const books = await db
-    .prepare("SELECT * FROM goodreads_books WHERE coalesce(date_read, '') <> '' OR coalesce(date_added, '') <> '' ORDER BY imported_at DESC LIMIT ?")
-    .bind(limit * 3)
-    .all<any>();
 
   for (const b of books.results) {
     let dISO = "";
@@ -758,10 +813,6 @@ app.get("/api/activity", async (c) => {
   }
 
   // Letterboxd films
-  const films = await db
-    .prepare("SELECT * FROM letterboxd_films ORDER BY coalesce(watched_date, diary_date, imported_at) DESC LIMIT ?")
-    .bind(limit * 3)
-    .all<any>();
 
   for (const flm of films.results) {
     let dISO = flm.watched_date || "";
@@ -799,10 +850,6 @@ app.get("/api/activity", async (c) => {
   }
 
   // Notifications
-  const notifs = await db
-    .prepare("SELECT * FROM notifications ORDER BY post_time DESC LIMIT ?")
-    .bind(limit)
-    .all<any>();
 
   for (const n of notifs.results) {
     const dISO = n.post_time ? n.post_time.substring(0, 10) : "";
@@ -833,11 +880,6 @@ app.get("/api/activity", async (c) => {
   }
 
   // Health Connect (Smart Timeline: Discrete Sleep/Exercise/Weight + Daily Activity Summary)
-  await ensureHealthTable(db);
-  const discreteHealth = await db
-    .prepare("SELECT * FROM health_records WHERE record_type IN ('sleep', 'exercise', 'weight') ORDER BY date_iso DESC, start_time DESC LIMIT ?")
-    .bind(limit)
-    .all<any>();
 
   for (const h of discreteHealth.results) {
     const dISO = h.date_iso || "";
@@ -867,22 +909,6 @@ app.get("/api/activity", async (c) => {
     });
   }
 
-  const dailyHealthAgg = await db
-    .prepare(`
-      SELECT
-        date_iso,
-        coalesce(sum(CASE WHEN record_type = 'steps' THEN value_primary ELSE 0 END), 0) as total_steps,
-        coalesce(sum(CASE WHEN record_type = 'active_calories' THEN value_primary ELSE 0 END), 0) as active_kcal,
-        coalesce(sum(CASE WHEN record_type = 'distance' THEN value_primary ELSE 0 END), 0) as distance_m,
-        coalesce(avg(CASE WHEN record_type IN ('heart_rate', 'resting_heart_rate') THEN value_primary ELSE NULL END), 0) as avg_bpm,
-        max(end_time) as last_time
-      FROM health_records
-      WHERE record_type IN ('steps', 'active_calories', 'distance', 'heart_rate', 'resting_heart_rate')
-      GROUP BY date_iso
-      ORDER BY date_iso DESC
-      LIMIT 60
-    `)
-    .all<any>();
 
   for (const d of dailyHealthAgg.results) {
     const dISO = d.date_iso || "";
@@ -922,11 +948,6 @@ app.get("/api/activity", async (c) => {
   }
 
   // Music scrobbles
-  await ensureMusicTables(db);
-  const musicEntries = await db
-    .prepare("SELECT * FROM music_scrobbles ORDER BY uts DESC LIMIT ?")
-    .bind(limit * 3)
-    .all<any>();
 
   for (const m of musicEntries.results) {
     const dISO = m.listened_at ? m.listened_at.substring(0, 10) : "";
@@ -959,11 +980,6 @@ app.get("/api/activity", async (c) => {
   }
 
   // Trakt history (Movies and Shows/Episodes)
-  await ensureTraktTables(db);
-  const traktEntries = await db
-    .prepare("SELECT * FROM trakt_history ORDER BY watched_at DESC LIMIT ?")
-    .bind(limit * 3)
-    .all<any>();
 
   for (const t of traktEntries.results) {
     const dISO = t.watched_at ? t.watched_at.substring(0, 10) : "";
@@ -1003,11 +1019,6 @@ app.get("/api/activity", async (c) => {
     });
   }
 
-  await ensureSimklTables(db);
-  const simklEntries = await db
-    .prepare("SELECT * FROM simkl_history ORDER BY watched_at DESC LIMIT ?")
-    .bind(limit * 3)
-    .all<any>();
 
   for (const s of simklEntries.results || []) {
     const dISO = s.watched_at ? s.watched_at.substring(0, 10) : "";
