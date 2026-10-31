@@ -614,12 +614,14 @@ fun OverviewScreen(
                                 // uncontained carousel, it composes the cards next to the visible
                                 // ones ahead of time, so the next card never pops in.
                                 BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
-                                    val peek = if (slides.size > 1) HeroCardPeek else 0.dp
+                                    // The carousel fits hero + spacing + small card into the width,
+                                    // so ask for exactly that; otherwise it shrinks the hero card.
+                                    val peek = if (slides.size > 1) HeroCardPeek + HeroCardSpacing else 0.dp
                                     val heroItemWidth = (maxWidth - peek).coerceAtMost(840.dp)
                                     HorizontalMultiBrowseCarousel(
                                         state = statsPagerState,
                                         preferredItemWidth = heroItemWidth,
-                                        itemSpacing = 8.dp,
+                                        itemSpacing = HeroCardSpacing,
                                         minSmallItemWidth = HeroCardPeek,
                                         maxSmallItemWidth = HeroCardPeek,
                                         flingBehavior = CarouselDefaults.singleAdvanceFlingBehavior(statsPagerState),
@@ -1099,33 +1101,45 @@ private fun OverviewHeroCard(
                     horizontalArrangement = Arrangement.spacedBy(16.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
+                    // A smaller dial on narrow phones leaves room for the goal and percent.
+                    val windowWidth = with(androidx.compose.ui.platform.LocalDensity.current) {
+                        androidx.compose.ui.platform.LocalWindowInfo.current.containerSize.width.toDp()
+                    }
                     LeafitCalorieDial(
                         progress = slide.progress ?: 0f,
                         consumed = slide.count.toIntOrNull() ?: 0,
                         accentColor = slide.accentColor,
-                        contentColor = slide.contentColor
+                        contentColor = slide.contentColor,
+                        size = if (windowWidth < 400.dp) 80.dp else 96.dp
                     )
 
                     Column(
                         modifier = Modifier.weight(1f),
                         verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
+                        // One line each: on narrow phones or large font sizes the goal is
+                        // shortened instead of the percent wrapping into it.
                         Row(
                             modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
                             verticalAlignment = Alignment.Bottom
                         ) {
                             val targetStr = slide.secondaryText.substringAfterLast("·").trim().removePrefix("/").trim()
                             Text(
                                 text = targetStr.ifBlank { "${slide.count} ${stringResource(R.string.overview_hero_unit_kcal)}" },
                                 style = MaterialTheme.typography.titleSmallEmphasized,
-                                color = slide.contentColor
+                                color = slide.contentColor,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                modifier = Modifier.weight(1f)
                             )
                             if (slide.progressLabel != null) {
                                 Text(
                                     text = slide.progressLabel,
                                     style = MaterialTheme.typography.labelSmallEmphasized,
-                                    color = slide.contentColor
+                                    color = slide.contentColor,
+                                    maxLines = 1,
+                                    softWrap = false
                                 )
                             }
                         }
@@ -1163,55 +1177,14 @@ private fun OverviewHeroCard(
                 }
             } else {
                 // Media Hero Bento: Left Cover Poster + Right Stats & Bento Docks
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(16.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    // Left Hero Media Showcase
-                    HeroMediaPoster(
-                        category = slide.id,
-                        spotlight = slide.spotlight,
-                        isMusic = slide.id == "music",
-                        iconOnly = slide.id == "health" || slide.id == "notifications",
-                        contentColor = slide.contentColor,
-                        accentColor = slide.accentColor
-                    )
-
-                    // Right Column: Hero Count + Bento Docks
-                    Column(
-                        modifier = Modifier.weight(1f),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        Row(
-                            verticalAlignment = Alignment.Bottom,
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            Text(
-                                text = slide.count,
-                                style = MaterialTheme.typography.displayMediumEmphasized.copy(
-                                    fontFeatureSettings = "tnum"
-                                ),
-                                color = slide.contentColor
-                            )
-                            Text(
-                                text = slide.unitText,
-                                style = MaterialTheme.typography.titleMediumEmphasized,
-                                color = slide.contentColor,
-                                modifier = Modifier.padding(bottom = 4.dp)
-                            )
-                        }
-
-                        if (slide.secondaryText.isNotBlank()) {
-                            Text(
-                                text = slide.secondaryText,
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
-                            )
-                        }
-
+                // The top padding keeps the cover off the title when the card is full and the
+                // column's SpaceBetween leaves no gap.
+                BoxWithConstraints(modifier = Modifier.fillMaxWidth().padding(top = 8.dp)) {
+                    // On narrow cards (small phones) three stats beside the cover get about 40dp
+                    // each, which breaks words such as "Rewatch". Put them in a full-width row
+                    // under the cover instead.
+                    val statsBelowCover = maxWidth < 300.dp
+                    val metricPillsRow: @Composable () -> Unit = {
                         if (slide.metricPills.isNotEmpty()) {
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
@@ -1227,6 +1200,61 @@ private fun OverviewHeroCard(
                                 }
                             }
                         }
+                    }
+                    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(16.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            // Left Hero Media Showcase
+                            HeroMediaPoster(
+                                category = slide.id,
+                                spotlight = slide.spotlight,
+                                isMusic = slide.id == "music",
+                                iconOnly = slide.id == "health" || slide.id == "notifications",
+                                contentColor = slide.contentColor,
+                                accentColor = slide.accentColor
+                            )
+
+                            // Right Column: Hero Count + Bento Docks
+                            Column(
+                                modifier = Modifier.weight(1f),
+                                verticalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.Bottom,
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    Text(
+                                        text = slide.count,
+                                        style = MaterialTheme.typography.displayMediumEmphasized.copy(
+                                            fontFeatureSettings = "tnum"
+                                        ),
+                                        color = slide.contentColor
+                                    )
+                                    Text(
+                                        text = slide.unitText,
+                                        style = MaterialTheme.typography.titleMediumEmphasized,
+                                        color = slide.contentColor,
+                                        modifier = Modifier.padding(bottom = 4.dp)
+                                    )
+                                }
+
+                                if (slide.secondaryText.isNotBlank()) {
+                                    Text(
+                                        text = slide.secondaryText,
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                }
+
+                                if (!statsBelowCover) metricPillsRow()
+                            }
+                        }
+                        if (statsBelowCover) metricPillsRow()
                     }
                 }
             }
@@ -1616,4 +1644,7 @@ fun ActivityRowItem(
 }
 
 /** How much of the next hero card shows at the carousel edge. */
-private val HeroCardPeek = 40.dp
+private val HeroCardPeek = 32.dp
+
+/** Gap between hero cards in the carousel. */
+private val HeroCardSpacing = 8.dp
