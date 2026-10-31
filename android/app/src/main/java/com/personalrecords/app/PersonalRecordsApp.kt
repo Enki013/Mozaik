@@ -7,6 +7,7 @@ import coil.disk.DiskCache
 import coil.memory.MemoryCache
 import com.personalrecords.app.core.database.PersonalRecordsDatabase
 import com.personalrecords.app.core.datastore.AppPreferences
+import com.personalrecords.app.core.theme.AppNightMode
 import com.personalrecords.app.core.network.NetworkClient
 import com.personalrecords.app.data.repository.PersonalRecordsRepository
 
@@ -24,6 +25,8 @@ class PersonalRecordsApp : Application(), ImageLoaderFactory {
         super.onCreate()
         instance = this
         preferences = AppPreferences(this)
+        // Sync the in-app theme to the system once (e.g. after an update), so launch screens match.
+        AppNightMode.apply(this, preferences.readStartupPreferences().themeMode)
         database = PersonalRecordsDatabase.getInstance(this)
         val apiService = NetworkClient.createApiService(preferences)
         repository = PersonalRecordsRepository(apiService, database)

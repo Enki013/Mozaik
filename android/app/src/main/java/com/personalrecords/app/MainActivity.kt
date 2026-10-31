@@ -57,6 +57,7 @@ import com.personalrecords.app.ui.navigation.Screen
 import com.personalrecords.app.ui.navigation.bottomNavScreens
 import com.personalrecords.app.ui.navigation.detailScreens
 import com.personalrecords.app.ui.navigation.recordsSubScreens
+import com.personalrecords.app.core.theme.AppNightMode
 import com.personalrecords.app.ui.navigation.rememberAppNavigationState
 import com.personalrecords.app.ui.navigation.topLevelScreens
 import com.personalrecords.app.ui.screens.books.*
@@ -80,12 +81,17 @@ import kotlinx.coroutines.launch
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        // Start from the stored settings, not defaults, so the first frame already has the
+        // right theme and language instead of switching a moment later.
+        // Read on every create: the activity is recreated when the theme changes.
+        val startup = PersonalRecordsApp.instance.preferences.readStartupPreferences()
+        AppNightMode.paintWindowBackground(this, AppNightMode.isDark(this, startup.themeMode))
         enableEdgeToEdge()
         setContent {
             val preferences = remember { PersonalRecordsApp.instance.preferences }
-            val language by preferences.appLanguage.collectAsState(initial = "system")
-            val themeMode by preferences.themeMode.collectAsState(initial = "system")
-            val dynamicColor by preferences.dynamicColor.collectAsState(initial = true)
+            val language by preferences.appLanguage.collectAsState(initial = startup.language)
+            val themeMode by preferences.themeMode.collectAsState(initial = startup.themeMode)
+            val dynamicColor by preferences.dynamicColor.collectAsState(initial = startup.dynamicColor)
             val darkTheme = when (themeMode) {
                 "light" -> false
                 "dark" -> true

@@ -9,10 +9,20 @@ import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.core.stringSetPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
+import com.personalrecords.app.core.theme.AppNightMode
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.runBlocking
 
 val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "app_preferences")
+
+/** Settings the first frame needs before the DataStore flows emit. */
+data class StartupPreferences(
+    val themeMode: String,
+    val dynamicColor: Boolean,
+    val language: String
+)
 
 class AppPreferences(private val context: Context) {
     companion object {
@@ -101,6 +111,21 @@ class AppPreferences(private val context: Context) {
 
     suspend fun setThemeMode(mode: String) {
         context.dataStore.edit { prefs -> prefs[THEME_MODE] = mode }
+        AppNightMode.apply(context, mode)
+    }
+
+    /**
+     * Reads the theme and language once, blocking. Called before the first frame so the app
+     * does not draw with defaults and then switch (a light flash in dark mode). It is a single
+     * small file read; DataStore keeps the result cached for the flows that follow.
+     */
+    fun readStartupPreferences(): StartupPreferences = runBlocking {
+        val prefs = context.dataStore.data.first()
+        StartupPreferences(
+            themeMode = prefs[THEME_MODE] ?: "system",
+            dynamicColor = prefs[DYNAMIC_COLOR] ?: true,
+            language = prefs[APP_LANGUAGE] ?: "system"
+        )
     }
 
     suspend fun setDynamicColor(enabled: Boolean) {
