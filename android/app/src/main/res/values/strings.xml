@@ -673,6 +673,8 @@
     <string name="stats_card_nutrition_calories_desc">Calories eaten and remaining goal</string>
     <string name="stats_card_nutrition_meals_title">Meal Entries</string>
     <string name="stats_card_nutrition_meals_desc">Today\'s meals and total entries</string>
+    <string name="stats_card_nutrition_budget_desc">Calorie goal progress and what is left today</string>
+    <string name="stats_card_nutrition_macros_desc">Carbs, protein and fat split of today\'s meals</string>
     <string name="stats_card_nutrition_protein_title">Protein</string>
     <string name="stats_card_nutrition_protein_desc">Daily protein grams and share</string>
     <string name="stats_card_nutrition_carbfat_title">Carbs &amp; Fat</string>

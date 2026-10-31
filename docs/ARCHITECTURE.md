@@ -61,7 +61,7 @@ The server acts as a centralized personal records collector with three distinct 
 - **Implementations:**
   - **[Notification Relay Webhook](https://github.com/Enki013/notification-relay-webhook):** lightweight open-source Android listener that forwards device notifications to `/api/webhooks/notification`.
   - **[Health Connect Webhook](https://github.com/mcnaveen/health-connect-webhook):** sends steps, sleep, heart rate, workouts, weight and more to `/api/webhooks/health`.
-  - **[Web Scrobbler](https://web-scrobbler.com/):** browser extension that sends played tracks to `/api/webhooks/music`.
+  - **[Web Scrobbler](https://webscrobbler.com/):** browser extension that sends played tracks to `/api/webhooks/music`.
   - **Tasker / Home Assistant:** can send custom webhooks to the notification endpoint.
 
 ### B. RSS Plugins (Pull / Polling)

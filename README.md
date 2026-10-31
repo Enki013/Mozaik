@@ -112,7 +112,7 @@ flowchart LR
 | 🥗 Nutrition | [FatSecret](https://platform.fatsecret.com/) | API (bring your own key) |
 | 📚 Books | [Goodreads](https://www.goodreads.com/) | RSS |
 | 🎬 Films and series | [Letterboxd](https://letterboxd.com/), [Trakt.tv](https://trakt.tv/), [Simkl](https://simkl.com/), [MDBList](https://mdblist.com/) ratings | RSS / API |
-| 🎵 Music | [Last.fm](https://www.last.fm/), [ListenBrainz](https://listenbrainz.org/), [Stats.fm](https://stats.fm/), [Web Scrobbler](https://web-scrobbler.com/) | API / webhook |
+| 🎵 Music | [Last.fm](https://www.last.fm/), [ListenBrainz](https://listenbrainz.org/), [Stats.fm](https://stats.fm/), [Web Scrobbler](https://webscrobbler.com/) | API / webhook |
 | ❤️ Health | Health Connect (Samsung Health, Google Fit, Fitbit and others) | Webhook, via [Health Connect Webhook](#companion-apps) |
 | 🔔 Notifications | Android notifications | Webhook, via [Notification Relay](#companion-apps) |
 
@@ -332,7 +332,7 @@ Sending `GET` to the same URL returns the endpoint status, which is handy for ch
 
 ### Music: Web Scrobbler
 
-1. Install the [Web Scrobbler](https://web-scrobbler.com/) extension for Chrome or Firefox.
+1. Install the [Web Scrobbler](https://webscrobbler.com/) extension for Chrome or Firefox.
 2. In its settings, enable the **Webhook** service.
 3. URL: `https://<your-server>/api/webhooks/music`, header `X-API-Key: <API_KEY>`.
 4. Songs played on YouTube, SoundCloud, Bandcamp and other web players now appear in your timeline.
@@ -456,7 +456,7 @@ Issues and pull requests are welcome. Please read [CONTRIBUTING.md](CONTRIBUTING
 
 - [cobanov/notification-relay-webhook](https://github.com/cobanov/notification-relay-webhook), the original Notification Relay app that my fork builds on
 - [mcnaveen/health-connect-webhook](https://github.com/mcnaveen/health-connect-webhook), which sends Health Connect data to Mozaik
-- [Web Scrobbler](https://web-scrobbler.com/), the browser scrobbling extension
+- [Web Scrobbler](https://webscrobbler.com/), the browser scrobbling extension
 - [Hono](https://hono.dev/), [Cloudflare D1](https://developers.cloudflare.com/d1/), [Jetpack Compose](https://developer.android.com/jetpack/compose) and [Material 3](https://m3.material.io/)
 
 Mozaik is not affiliated with Goodreads, Letterboxd, FatSecret, Last.fm, Trakt, MDBList, Google or Samsung. All trademarks belong to their owners.

@@ -187,7 +187,7 @@ GET  /api/webhooks/health            # endpoint status and record count
 
 ### Music
 
-Receives scrobbles from the [Web Scrobbler](https://web-scrobbler.com/) browser extension.
+Receives scrobbles from the [Web Scrobbler](https://webscrobbler.com/) browser extension.
 
 ```text
 POST /api/webhooks/music

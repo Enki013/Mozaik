@@ -139,7 +139,7 @@ internal fun NotificationSettingsPage(
                 shapes = expressiveButtonShapes(),
                 onClick = {
                     val intent = Intent(Intent.ACTION_VIEW,
-                        "https://github.com/cobanov/notification-relay-webhook/releases".toUri())
+                        "https://github.com/Enki013/notification-relay-webhook/releases/latest".toUri())
                     context.startActivity(intent)
                 },
                 modifier = Modifier

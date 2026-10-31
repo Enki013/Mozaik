@@ -70,7 +70,7 @@ object PluginRegistry {
             longDescription = "YouTube, Spotify Web, SoundCloud, Bandcamp ve 300'den fazla web müzik çalarını destekleyen açık kaynaklı Web Scrobbler eklentisi. Dinlemelerinizi doğrudan sunucunuzun webhook adresine iletir.",
             syncServiceKey = "web_scrobbler",
             webhookPath = "/api/webhooks/music",
-            officialUrl = "https://web-scrobbler.com/",
+            officialUrl = "https://webscrobbler.com/",
             setupSteps = listOf(
                 "Web Scrobbler eklenti ayarlarında Accounts -> Webhook bölümünü açın.",
                 "Hedef Webhook URL'sini yapıştırın ve kaydedin.",

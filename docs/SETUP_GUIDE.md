@@ -197,7 +197,7 @@ Use this to archive notifications such as bank alerts, delivery updates or remin
 Turn services on in the **Integration catalog** (the `+` button next to **Integrations** on the Overview screen), then configure them in **Settings**:
 
 - **Last.fm, ListenBrainz, Stats.fm:** enter your username and sync. Both servers also sync Last.fm automatically in the background.
-- **Web Scrobbler:** install the [browser extension](https://web-scrobbler.com/), enable its **Webhook** service and use `https://…/api/webhooks/music` with the header `X-API-Key: <API_KEY>`.
+- **Web Scrobbler:** install the [browser extension](https://webscrobbler.com/), enable its **Webhook** service and use `https://…/api/webhooks/music` with the header `X-API-Key: <API_KEY>`.
 - **Trakt.tv:** enter your username. Public profiles need no password.
 - **Simkl:** create a Client ID and Access Token at [simkl.com/settings/developer](https://simkl.com/settings/developer/).
 - **MDBList:** add a free API key from [mdblist.com/preferences](https://mdblist.com/preferences) to show IMDb, Rotten Tomatoes, Metacritic and Letterboxd ratings on film details.

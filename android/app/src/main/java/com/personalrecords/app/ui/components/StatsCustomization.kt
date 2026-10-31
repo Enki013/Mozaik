@@ -597,7 +597,7 @@ fun rememberStatCardOrder(screenKey: String, defaultOrder: List<String>): StatCa
 
 /**
  * Two-column grid of customizable stat cards in the given order. A lone card on the last row
- * takes the full width.
+ * takes the full width, and so does every card in [fullWidthIds] (larger cards such as charts).
  *
  * In edit mode a card can be dragged: it follows the finger, swaps with the card it is held
  * over, and the other cards glide to their new slots. The new order is saved when the finger
@@ -610,6 +610,7 @@ fun StatCardGrid(
     onHideCard: (String) -> Unit,
     modifier: Modifier = Modifier,
     onReorder: ((visibleOrder: List<String>) -> Unit)? = null,
+    fullWidthIds: Set<String> = emptySet(),
     card: @Composable (cardId: String) -> Unit
 ) {
     if (cardIds.isEmpty()) return
@@ -694,7 +695,7 @@ fun StatCardGrid(
             .onGloballyPositioned { gridCoords = it },
         verticalArrangement = Arrangement.spacedBy(6.dp)
     ) {
-        order.chunked(2).forEachIndexed { rowIndex, rowIds ->
+        statCardRows(order, fullWidthIds).forEachIndexed { rowIndex, rowIds ->
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(6.dp)
@@ -759,4 +760,28 @@ fun StatCardGrid(
             }
         }
     }
+}
+
+/** Splits cards into rows of two; a card in [fullWidthIds] gets a row of its own. */
+private fun statCardRows(order: List<String>, fullWidthIds: Set<String>): List<List<String>> {
+    if (fullWidthIds.isEmpty()) return order.chunked(2)
+    val rows = mutableListOf<List<String>>()
+    val pending = mutableListOf<String>()
+    for (id in order) {
+        if (id in fullWidthIds) {
+            if (pending.isNotEmpty()) {
+                rows += pending.toList()
+                pending.clear()
+            }
+            rows += listOf(id)
+        } else {
+            pending += id
+            if (pending.size == 2) {
+                rows += pending.toList()
+                pending.clear()
+            }
+        }
+    }
+    if (pending.isNotEmpty()) rows += pending.toList()
+    return rows
 }

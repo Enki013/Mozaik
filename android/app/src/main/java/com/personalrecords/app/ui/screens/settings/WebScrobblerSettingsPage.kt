@@ -215,7 +215,7 @@ internal fun WebScrobblerSettingsPage(
                 onClick = {
                     val intent = Intent(
                         Intent.ACTION_VIEW,
-                        "https://web-scrobbler.com/".toUri()
+                        "https://webscrobbler.com/".toUri()
                     )
                     context.startActivity(intent)
                 },

@@ -112,7 +112,7 @@ flowchart LR
 | 🥗 Beslenme | [FatSecret](https://platform.fatsecret.com/) | API (kendi anahtarınla) |
 | 📚 Kitaplar | [Goodreads](https://www.goodreads.com/) | RSS |
 | 🎬 Film ve dizi | [Letterboxd](https://letterboxd.com/), [Trakt.tv](https://trakt.tv/), [Simkl](https://simkl.com/), [MDBList](https://mdblist.com/) puanları | RSS / API |
-| 🎵 Müzik | [Last.fm](https://www.last.fm/), [ListenBrainz](https://listenbrainz.org/), [Stats.fm](https://stats.fm/), [Web Scrobbler](https://web-scrobbler.com/) | API / webhook |
+| 🎵 Müzik | [Last.fm](https://www.last.fm/), [ListenBrainz](https://listenbrainz.org/), [Stats.fm](https://stats.fm/), [Web Scrobbler](https://webscrobbler.com/) | API / webhook |
 | ❤️ Sağlık | Health Connect (Samsung Health, Google Fit, Fitbit ve diğerleri) | Webhook, [Health Connect Webhook](#yardımcı-uygulamalar) ile |
 | 🔔 Bildirimler | Android bildirimleri | Webhook, [Notification Relay](#yardımcı-uygulamalar) ile |
 
@@ -332,7 +332,7 @@ Aynı adrese `GET` isteği gönderirsen uç noktanın durumunu döndürür. Kuru
 
 ### Müzik: Web Scrobbler
 
-1. Chrome ya da Firefox için [Web Scrobbler](https://web-scrobbler.com/) eklentisini kur.
+1. Chrome ya da Firefox için [Web Scrobbler](https://webscrobbler.com/) eklentisini kur.
 2. Eklenti ayarlarında **Webhook** servisini aç.
 3. Adres: `https://<sunucun>/api/webhooks/music`, başlık: `X-API-Key: <API_KEY>`.
 4. YouTube, SoundCloud, Bandcamp ve diğer web oynatıcılarda çalan şarkılar artık zaman çizelgende görünür.
@@ -456,7 +456,7 @@ Issue ve pull request'ler memnuniyetle karşılanır. Önce [CONTRIBUTING.md](CO
 
 - [cobanov/notification-relay-webhook](https://github.com/cobanov/notification-relay-webhook): forkumun dayandığı orijinal Notification Relay uygulaması
 - [mcnaveen/health-connect-webhook](https://github.com/mcnaveen/health-connect-webhook): Health Connect verilerini Mozaik'e gönderen uygulama
-- [Web Scrobbler](https://web-scrobbler.com/): tarayıcıda dinlenen şarkıları kaydeden eklenti
+- [Web Scrobbler](https://webscrobbler.com/): tarayıcıda dinlenen şarkıları kaydeden eklenti
 - [Hono](https://hono.dev/), [Cloudflare D1](https://developers.cloudflare.com/d1/), [Jetpack Compose](https://developer.android.com/jetpack/compose) ve [Material 3](https://m3.material.io/)
 
 Mozaik; Goodreads, Letterboxd, FatSecret, Last.fm, Trakt, MDBList, Google ya da Samsung ile bağlantılı değildir. Tüm markalar sahiplerine aittir.
