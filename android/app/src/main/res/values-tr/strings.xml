@@ -669,6 +669,8 @@
     <string name="stats_card_nutrition_calories_desc">Tüketilen kalori ve kalan hedef</string>
     <string name="stats_card_nutrition_meals_title">Öğün Kayıtları</string>
     <string name="stats_card_nutrition_meals_desc">Bugünkü öğün sayısı ve toplam kayıt</string>
+    <string name="stats_card_nutrition_budget_desc">Kalori hedefine ilerleme ve bugün kalan</string>
+    <string name="stats_card_nutrition_macros_desc">Bugünkü öğünlerde karbonhidrat, protein ve yağ dağılımı</string>
     <string name="stats_card_nutrition_protein_title">Protein</string>
     <string name="stats_card_nutrition_protein_desc">Günlük protein gramı ve yüzdesi</string>
     <string name="stats_card_nutrition_carbfat_title">Karbonhidrat &amp; Yağ</string>

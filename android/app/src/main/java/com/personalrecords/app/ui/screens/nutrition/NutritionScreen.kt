@@ -19,6 +19,10 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.material.icons.rounded.PieChart
+import androidx.compose.material.icons.rounded.TrackChanges
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -63,7 +67,14 @@ fun NutritionScreen(
     val nutritionCaloriesDesc = stringResource(R.string.stats_card_nutrition_calories_desc)
     val nutritionMealsTitle = stringResource(R.string.stats_card_nutrition_meals_title)
     val nutritionMealsDesc = stringResource(R.string.stats_card_nutrition_meals_desc)
-    val nutritionStatCards = remember(nutritionColor, secondaryColor, nutritionCaloriesTitle, nutritionCaloriesDesc, nutritionMealsTitle, nutritionMealsDesc) {
+    val nutritionBudgetTitle = stringResource(R.string.nutrition_calorie_target_title)
+    val nutritionBudgetDesc = stringResource(R.string.stats_card_nutrition_budget_desc)
+    val nutritionMacrosTitle = stringResource(R.string.nutrition_macro_title)
+    val nutritionMacrosDesc = stringResource(R.string.stats_card_nutrition_macros_desc)
+    val nutritionStatCards = remember(
+        nutritionColor, secondaryColor, nutritionCaloriesTitle, nutritionCaloriesDesc, nutritionMealsTitle,
+        nutritionMealsDesc, nutritionBudgetTitle, nutritionBudgetDesc, nutritionMacrosTitle, nutritionMacrosDesc
+    ) {
         listOf(
             StatCardItem(
                 id = "nutrition_calories",
@@ -77,6 +88,20 @@ fun NutritionScreen(
                 title = nutritionMealsTitle,
                 description = nutritionMealsDesc,
                 icon = Icons.Rounded.Restaurant,
+                iconTint = secondaryColor
+            ),
+            StatCardItem(
+                id = "nutrition_budget",
+                title = nutritionBudgetTitle,
+                description = nutritionBudgetDesc,
+                icon = Icons.Rounded.TrackChanges,
+                iconTint = nutritionColor
+            ),
+            StatCardItem(
+                id = "nutrition_macros",
+                title = nutritionMacrosTitle,
+                description = nutritionMacrosDesc,
+                icon = Icons.Rounded.PieChart,
                 iconTint = secondaryColor
             )
         )
@@ -233,14 +258,9 @@ fun NutritionScreen(
                 } ?: stringResource(R.string.overview_metric_today_calories)
 
 
-                val isCaloriesVisible = "nutrition_calories" !in hiddenCardIds
-                val isMealsVisible = "nutrition_meals" !in hiddenCardIds
-
-
-                LaunchedEffect(isCaloriesVisible, isMealsVisible) {
-                    if (!isCaloriesVisible && !isMealsVisible) {
-                        isEditMode = false
-                    }
+                val anyCardVisible = nutritionStatCards.any { it.id !in hiddenCardIds }
+                LaunchedEffect(anyCardVisible) {
+                    if (!anyCardVisible) isEditMode = false
                 }
 
                 StatCardGrid(
@@ -250,6 +270,8 @@ fun NutritionScreen(
                         coroutineScope.launch { preferences.toggleStatCardVisibility(id, false) }
                     },
                     onReorder = { statCardOrder.setVisibleOrder(it) },
+                    // The calorie budget and macro charts span the full width.
+                    fullWidthIds = setOf("nutrition_budget", "nutrition_macros"),
                     modifier = Modifier.padding(bottom = 8.dp)
                 ) { cardId ->
                     when (cardId) {
@@ -279,267 +301,264 @@ fun NutritionScreen(
                                 onLongClick = { isEditMode = true }
                             )
                         }
-                    }
-                }
-            }
-
-            // Calorie Budget Card (Card MD3)
-            item(key = "nutrition_budget_card", span = { GridItemSpan(if (isWideScreen) 1 else maxLineSpan) }, contentType = "budget_card") {
-                Card(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(bottom = 8.dp),
-                    shape = MaterialTheme.shapes.large,
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.surfaceContainerLow
-                    ),
-                    elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
-                    border = null
-                ) {
-                    Column(modifier = Modifier.padding(12.dp)) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(8.dp)
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Rounded.LocalFireDepartment,
-                                    contentDescription = null,
-                                    tint = recordCategoryColors(RecordCategory.Nutrition).accent,
-                                    modifier = Modifier.size(18.dp)
-                                )
-                                Text(
-                                    text = stringResource(R.string.nutrition_calorie_target_title),
-                                    style = MaterialTheme.typography.titleMediumEmphasized,
-                                    color = MaterialTheme.colorScheme.onSurface
-                                )
-                            }
-                            val targetBtnInteraction = remember { MutableInteractionSource() }
-                            FilledTonalButton(
-                                onClick = { showTargetDialog = true },
-                                interactionSource = targetBtnInteraction,
-                                shapes = expressiveButtonShapes(),
-                                contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
+                        "nutrition_budget" -> {
+                            Card(
                                 modifier = Modifier
-
-                                    .expressivePressScale(targetBtnInteraction)
+                                    .fillMaxWidth()
+                                    // Long-press enters edit mode, like the small stat cards.
+                                    .pointerInput(Unit) { detectTapGestures(onLongPress = { isEditMode = true }) },
+                                shape = MaterialTheme.shapes.large,
+                                colors = CardDefaults.cardColors(
+                                    containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+                                ),
+                                elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+                                border = null
                             ) {
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(4.dp)
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Rounded.Settings,
-                                        contentDescription = null,
-                                        modifier = Modifier.size(14.dp)
+                                Column(modifier = Modifier.padding(12.dp)) {
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Rounded.LocalFireDepartment,
+                                                contentDescription = null,
+                                                tint = recordCategoryColors(RecordCategory.Nutrition).accent,
+                                                modifier = Modifier.size(18.dp)
+                                            )
+                                            Text(
+                                                text = stringResource(R.string.nutrition_calorie_target_title),
+                                                style = MaterialTheme.typography.titleMediumEmphasized,
+                                                color = MaterialTheme.colorScheme.onSurface
+                                            )
+                                        }
+                                        val targetBtnInteraction = remember { MutableInteractionSource() }
+                                        FilledTonalButton(
+                                            onClick = { showTargetDialog = true },
+                                            interactionSource = targetBtnInteraction,
+                                            shapes = expressiveButtonShapes(),
+                                            contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
+                                            modifier = Modifier
+
+                                                .expressivePressScale(targetBtnInteraction)
+                                        ) {
+                                            Row(
+                                                verticalAlignment = Alignment.CenterVertically,
+                                                horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                            ) {
+                                                Icon(
+                                                    imageVector = Icons.Rounded.Settings,
+                                                    contentDescription = null,
+                                                    modifier = Modifier.size(14.dp)
+                                                )
+                                                Text(
+                                                    text = state.calorieTarget?.let { stringResource(R.string.calories_value, it) } ?: "---",
+                                                    style = MaterialTheme.typography.labelMediumEmphasized
+                                                )
+                                            }
+                                        }
+                                    }
+                                    Spacer(modifier = Modifier.height(8.dp))
+
+                                    val target = state.calorieTarget
+                                    val progressPct = if (target != null && target > 0) {
+                                        (state.todayCalories / target).toFloat().coerceIn(0f, 1f)
+                                    } else 0f
+                                    val animatedProgressState = animateFloatAsState(
+                                        targetValue = if (animationStarted) progressPct else 0f,
+                                        animationSpec = M3ExpressiveMotion.defaultSpatial(),
+                                        label = "prog"
                                     )
-                                    Text(
-                                        text = state.calorieTarget?.let { stringResource(R.string.calories_value, it) } ?: "---",
-                                        style = MaterialTheme.typography.labelMediumEmphasized
+
+                                    val todayCarbKcal = state.todayCarb * 4
+                                    val todayProtKcal = state.todayProtein * 4
+                                    val todayFatKcal = state.todayFat * 9
+                                    val todayTotalMacroKcal = todayCarbKcal + todayProtKcal + todayFatKcal
+
+                                    val carbColor = recordCategoryColors(RecordCategory.Books).accent
+                                    val protColor = recordCategoryColors(RecordCategory.Nutrition).accent
+                                    val fatColor = ratingColors().accent
+
+                                    val macroSegments = if (todayTotalMacroKcal > 0) {
+                                        listOf(
+                                            (todayCarbKcal / todayTotalMacroKcal).toFloat() to carbColor,
+                                            (todayProtKcal / todayTotalMacroKcal).toFloat() to protColor,
+                                            (todayFatKcal / todayTotalMacroKcal).toFloat() to fatColor
+                                        )
+                                    } else null
+
+                                    val barColor = when {
+                                        progressPct >= 1f -> MaterialTheme.colorScheme.error
+                                        progressPct > 0.85f -> fatColor
+                                        else -> protColor
+                                    }
+
+                                    // MD3 Expressive Segmented Linear Progress Indicator
+                                    SegmentedLinearProgressIndicator(
+                                        progress = { animatedProgressState.value },
+                                        segments = macroSegments,
+                                        modifier = Modifier.fillMaxWidth(),
+                                        barHeight = 8.dp,
+                                        gap = 3.dp,
+                                        trackGap = 4.dp,
+                                        singleColor = barColor,
+                                        trackColor = MaterialTheme.colorScheme.surfaceContainerHighest
                                     )
+                                    Spacer(modifier = Modifier.height(8.dp))
+
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.SpaceBetween
+                                    ) {
+                                        val rem = if (target != null) (target - state.todayCalories).toInt() else 0
+                                        val remText = target?.let {
+                                            if (rem >= 0) stringResource(R.string.nutrition_target_remaining, rem)
+                                            else stringResource(R.string.nutrition_target_exceeded, -rem)
+                                        } ?: ""
+                                        val consumedText = target?.let {
+                                            stringResource(R.string.nutrition_consumed_today, state.todayCalories.toInt(), it, (progressPct * 100).toInt())
+                                        } ?: stringResource(R.string.calories_value, state.todayCalories.toInt())
+                                        Text(
+                                            text = consumedText,
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                        Text(
+                                            text = remText,
+                                            style = MaterialTheme.typography.bodySmallEmphasized,
+                                            color = if (rem >= 0) protColor else MaterialTheme.colorScheme.error
+                                        )
+                                    }
+
+                                    Spacer(modifier = Modifier.height(8.dp))
+
+                                    val todayCarbPct = if (todayTotalMacroKcal > 0) ((todayCarbKcal / todayTotalMacroKcal) * 100).toInt() else 0
+                                    val todayProtPct = if (todayTotalMacroKcal > 0) ((todayProtKcal / todayTotalMacroKcal) * 100).toInt() else 0
+                                    val todayFatPct = if (todayTotalMacroKcal > 0) ((todayFatKcal / todayTotalMacroKcal) * 100).toInt() else 0
+
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.SpaceBetween
+                                    ) {
+                                        MacroLegendItem(
+                                            color = carbColor,
+                                            label = stringResource(R.string.nutrition_label_carb_short),
+                                            grams = state.todayCarb.toInt(),
+                                            pct = todayCarbPct,
+                                            icon = Icons.Rounded.Grain
+                                        )
+                                        MacroLegendItem(
+                                            color = protColor,
+                                            label = stringResource(R.string.nutrition_label_protein_short),
+                                            grams = state.todayProtein.toInt(),
+                                            pct = todayProtPct,
+                                            icon = Icons.Rounded.FitnessCenter
+                                        )
+                                        MacroLegendItem(
+                                            color = fatColor,
+                                            label = stringResource(R.string.nutrition_label_fat_short),
+                                            grams = state.todayFat.toInt(),
+                                            pct = todayFatPct,
+                                            icon = Icons.Rounded.Opacity
+                                        )
+                                    }
                                 }
                             }
                         }
-                        Spacer(modifier = Modifier.height(8.dp))
+                        "nutrition_macros" -> {
+                            Card(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    // Long-press enters edit mode, like the small stat cards.
+                                    .pointerInput(Unit) { detectTapGestures(onLongPress = { isEditMode = true }) },
+                                shape = MaterialTheme.shapes.large,
+                                colors = CardDefaults.cardColors(
+                                    containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+                                ),
+                                elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+                                border = null
+                            ) {
+                                Column(modifier = Modifier.padding(12.dp)) {
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Rounded.PieChart,
+                                            contentDescription = null,
+                                            tint = recordCategoryColors(RecordCategory.Nutrition).accent,
+                                            modifier = Modifier.size(18.dp)
+                                        )
+                                        Text(
+                                            text = stringResource(R.string.nutrition_macro_title),
+                                            style = MaterialTheme.typography.titleMediumEmphasized,
+                                            color = MaterialTheme.colorScheme.onSurface
+                                        )
+                                    }
+                                    Text(
+                                        text = stringResource(R.string.nutrition_macro_subtitle),
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                    Spacer(modifier = Modifier.height(8.dp))
 
-                        val target = state.calorieTarget
-                        val progressPct = if (target != null && target > 0) {
-                            (state.todayCalories / target).toFloat().coerceIn(0f, 1f)
-                        } else 0f
-                        val animatedProgressState = animateFloatAsState(
-                            targetValue = if (animationStarted) progressPct else 0f,
-                            animationSpec = M3ExpressiveMotion.defaultSpatial(),
-                            label = "prog"
-                        )
+                                    val carbKcal = state.totalCarb * 4
+                                    val protKcal = state.totalProtein * 4
+                                    val fatKcal = state.totalFat * 9
+                                    val totalKcal = carbKcal + protKcal + fatKcal
 
-                        val todayCarbKcal = state.todayCarb * 4
-                        val todayProtKcal = state.todayProtein * 4
-                        val todayFatKcal = state.todayFat * 9
-                        val todayTotalMacroKcal = todayCarbKcal + todayProtKcal + todayFatKcal
+                                    val carbPct = if (totalKcal > 0) (carbKcal / totalKcal).toFloat() else 0.33f
+                                    val protPct = if (totalKcal > 0) (protKcal / totalKcal).toFloat() else 0.33f
+                                    val fatPct = if (totalKcal > 0) (fatKcal / totalKcal).toFloat() else 0.34f
 
-                        val carbColor = recordCategoryColors(RecordCategory.Books).accent
-                        val protColor = recordCategoryColors(RecordCategory.Nutrition).accent
-                        val fatColor = ratingColors().accent
+                                    val carbColor = recordCategoryColors(RecordCategory.Books).accent
+                                    val protColor = recordCategoryColors(RecordCategory.Nutrition).accent
+                                    val fatColor = ratingColors().accent
 
-                        val macroSegments = if (todayTotalMacroKcal > 0) {
-                            listOf(
-                                (todayCarbKcal / todayTotalMacroKcal).toFloat() to carbColor,
-                                (todayProtKcal / todayTotalMacroKcal).toFloat() to protColor,
-                                (todayFatKcal / todayTotalMacroKcal).toFloat() to fatColor
-                            )
-                        } else null
+                                    val breakdownSegments = if (totalKcal > 0) {
+                                        listOf(
+                                            carbPct to carbColor,
+                                            protPct to protColor,
+                                            fatPct to fatColor
+                                        )
+                                    } else null
 
-                        val barColor = when {
-                            progressPct >= 1f -> MaterialTheme.colorScheme.error
-                            progressPct > 0.85f -> fatColor
-                            else -> protColor
-                        }
+                                    val animatedBreakdownProgress = animateFloatAsState(
+                                        targetValue = if (animationStarted) 1f else 0f,
+                                        animationSpec = M3ExpressiveMotion.defaultSpatial(),
+                                        label = "breakdown_prog"
+                                    )
 
-                        // MD3 Expressive Segmented Linear Progress Indicator
-                        SegmentedLinearProgressIndicator(
-                            progress = { animatedProgressState.value },
-                            segments = macroSegments,
-                            modifier = Modifier.fillMaxWidth(),
-                            barHeight = 8.dp,
-                            gap = 3.dp,
-                            trackGap = 4.dp,
-                            singleColor = barColor,
-                            trackColor = MaterialTheme.colorScheme.surfaceContainerHighest
-                        )
-                        Spacer(modifier = Modifier.height(8.dp))
+                                    // MD3 Expressive Segmented Linear Progress Indicator
+                                    SegmentedLinearProgressIndicator(
+                                        progress = { animatedBreakdownProgress.value },
+                                        segments = breakdownSegments,
+                                        modifier = Modifier.fillMaxWidth(),
+                                        barHeight = 8.dp,
+                                        gap = 3.dp,
+                                        trackGap = 4.dp,
+                                        trackColor = MaterialTheme.colorScheme.surfaceContainerHighest
+                                    )
+                                    Spacer(modifier = Modifier.height(8.dp))
 
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            val rem = if (target != null) (target - state.todayCalories).toInt() else 0
-                            val remText = target?.let {
-                                if (rem >= 0) stringResource(R.string.nutrition_target_remaining, rem)
-                                else stringResource(R.string.nutrition_target_exceeded, -rem)
-                            } ?: ""
-                            val consumedText = target?.let {
-                                stringResource(R.string.nutrition_consumed_today, state.todayCalories.toInt(), it, (progressPct * 100).toInt())
-                            } ?: stringResource(R.string.calories_value, state.todayCalories.toInt())
-                            Text(
-                                text = consumedText,
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                            Text(
-                                text = remText,
-                                style = MaterialTheme.typography.bodySmallEmphasized,
-                                color = if (rem >= 0) protColor else MaterialTheme.colorScheme.error
-                            )
-                        }
-
-                        Spacer(modifier = Modifier.height(8.dp))
-
-                        val todayCarbPct = if (todayTotalMacroKcal > 0) ((todayCarbKcal / todayTotalMacroKcal) * 100).toInt() else 0
-                        val todayProtPct = if (todayTotalMacroKcal > 0) ((todayProtKcal / todayTotalMacroKcal) * 100).toInt() else 0
-                        val todayFatPct = if (todayTotalMacroKcal > 0) ((todayFatKcal / todayTotalMacroKcal) * 100).toInt() else 0
-
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            MacroLegendItem(
-                                color = carbColor,
-                                label = stringResource(R.string.nutrition_label_carb_short),
-                                grams = state.todayCarb.toInt(),
-                                pct = todayCarbPct,
-                                icon = Icons.Rounded.Grain
-                            )
-                            MacroLegendItem(
-                                color = protColor,
-                                label = stringResource(R.string.nutrition_label_protein_short),
-                                grams = state.todayProtein.toInt(),
-                                pct = todayProtPct,
-                                icon = Icons.Rounded.FitnessCenter
-                            )
-                            MacroLegendItem(
-                                color = fatColor,
-                                label = stringResource(R.string.nutrition_label_fat_short),
-                                grams = state.todayFat.toInt(),
-                                pct = todayFatPct,
-                                icon = Icons.Rounded.Opacity
-                            )
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.SpaceBetween
+                                    ) {
+                                        MacroLegendItem(color = carbColor, label = stringResource(R.string.nutrition_label_carb_short), grams = state.totalCarb.toInt(), pct = (carbPct * 100).toInt(), icon = Icons.Rounded.Grain)
+                                        MacroLegendItem(color = protColor, label = stringResource(R.string.nutrition_label_protein_short), grams = state.totalProtein.toInt(), pct = (protPct * 100).toInt(), icon = Icons.Rounded.FitnessCenter)
+                                        MacroLegendItem(color = fatColor, label = stringResource(R.string.nutrition_label_fat_short), grams = state.totalFat.toInt(), pct = (fatPct * 100).toInt(), icon = Icons.Rounded.Opacity)
+                                    }
+                                }
+                            }
                         }
                     }
                 }
             }
-
-            // Macro Breakdown Card (MD3 Card)
-            item(key = "nutrition_macro_card", span = { GridItemSpan(if (isWideScreen) 1 else maxLineSpan) }, contentType = "macro_card") {
-                Card(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(bottom = 8.dp),
-                    shape = MaterialTheme.shapes.large,
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.surfaceContainerLow
-                    ),
-                    elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
-                    border = null
-                ) {
-                    Column(modifier = Modifier.padding(12.dp)) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Rounded.PieChart,
-                                contentDescription = null,
-                                tint = recordCategoryColors(RecordCategory.Nutrition).accent,
-                                modifier = Modifier.size(18.dp)
-                            )
-                            Text(
-                                text = stringResource(R.string.nutrition_macro_title),
-                                style = MaterialTheme.typography.titleMediumEmphasized,
-                                color = MaterialTheme.colorScheme.onSurface
-                            )
-                        }
-                        Text(
-                            text = stringResource(R.string.nutrition_macro_subtitle),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                        Spacer(modifier = Modifier.height(8.dp))
-
-                        val carbKcal = state.totalCarb * 4
-                        val protKcal = state.totalProtein * 4
-                        val fatKcal = state.totalFat * 9
-                        val totalKcal = carbKcal + protKcal + fatKcal
-
-                        val carbPct = if (totalKcal > 0) (carbKcal / totalKcal).toFloat() else 0.33f
-                        val protPct = if (totalKcal > 0) (protKcal / totalKcal).toFloat() else 0.33f
-                        val fatPct = if (totalKcal > 0) (fatKcal / totalKcal).toFloat() else 0.34f
-
-                        val carbColor = recordCategoryColors(RecordCategory.Books).accent
-                        val protColor = recordCategoryColors(RecordCategory.Nutrition).accent
-                        val fatColor = ratingColors().accent
-
-                        val breakdownSegments = if (totalKcal > 0) {
-                            listOf(
-                                carbPct to carbColor,
-                                protPct to protColor,
-                                fatPct to fatColor
-                            )
-                        } else null
-
-                        val animatedBreakdownProgress = animateFloatAsState(
-                            targetValue = if (animationStarted) 1f else 0f,
-                            animationSpec = M3ExpressiveMotion.defaultSpatial(),
-                            label = "breakdown_prog"
-                        )
-
-                        // MD3 Expressive Segmented Linear Progress Indicator
-                        SegmentedLinearProgressIndicator(
-                            progress = { animatedBreakdownProgress.value },
-                            segments = breakdownSegments,
-                            modifier = Modifier.fillMaxWidth(),
-                            barHeight = 8.dp,
-                            gap = 3.dp,
-                            trackGap = 4.dp,
-                            trackColor = MaterialTheme.colorScheme.surfaceContainerHighest
-                        )
-                        Spacer(modifier = Modifier.height(8.dp))
-
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            MacroLegendItem(color = carbColor, label = stringResource(R.string.nutrition_label_carb_short), grams = state.totalCarb.toInt(), pct = (carbPct * 100).toInt(), icon = Icons.Rounded.Grain)
-                            MacroLegendItem(color = protColor, label = stringResource(R.string.nutrition_label_protein_short), grams = state.totalProtein.toInt(), pct = (protPct * 100).toInt(), icon = Icons.Rounded.FitnessCenter)
-                            MacroLegendItem(color = fatColor, label = stringResource(R.string.nutrition_label_fat_short), grams = state.totalFat.toInt(), pct = (fatPct * 100).toInt(), icon = Icons.Rounded.Opacity)
-                        }
-                    }
-                }
-            }
-
 
             // Food Entries Log Header & Filters
             stickyHeader(key = "nutrition_sticky_header", contentType = "sticky_header") {
