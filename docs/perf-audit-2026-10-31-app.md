@@ -8,7 +8,7 @@ Audit of cold start and list scrolling, following the Measure → Diagnose → F
 - **Release builds crashed on launch.** R8 removed the constructor Room uses to create the database (`NoSuchMethodException: PersonalRecordsDatabase_Impl.<init>`). The APK published on GitHub (v1.1.0, rebuilt on 2026-10-21) is affected. Fixed with a keep rule.
 - **The release workflow had been failing** on new Compose lint checks (19 errors), so no fixed APK could be published. All fixed; `lintRelease` passes.
 - **A Baseline Profile now ships with the app.** Cold start to content: 652 ms → 508 ms (−22%) compared with no compiled code.
-- **The Worker was spending most of each request on schema setup.** `/api/dashboard` ran about 30 `CREATE TABLE` / `ALTER TABLE` statements before reading data; `/api/activity` read nine tables one after another. Both are fixed in code but **not deployed yet**.
+- **The Worker was spending most of each request on schema setup.** `/api/dashboard` ran about 30 `CREATE TABLE` / `ALTER TABLE` statements before reading data, and `/api/activity` read nine tables one after another. After the fix the dashboard answers in about 0.4 s instead of 2.4 s, and activity in about 0.3 s instead of 1.8 s.
 - Lists are already in good shape: stable `key` and `contentType` everywhere, and every restartable composable is skippable (Strong Skipping).
 
 ## Environment
@@ -80,8 +80,8 @@ From the phone the same screen showed content in about 0.65 s, so the network pa
 | R8 / Room | Keep the Room database constructor | `app/proguard-rules.pro` | Release builds start instead of crashing |
 | Measurement | `ReportDrawnWhen` when Overview shows data | `OverviewScreen.kt` | Enables time to full display |
 | Baseline Profile | Generated from startup, Timeline, Music and Notifications journeys (31,104 rules, 3,749 in app code); `profileinstaller` added | `app/src/release/generated/baselineProfiles/`, `baselineprofile/` | See Verification |
-| Worker | Schema setup runs once per isolate (`ensureSchemaOnce`) | `worker/src/index.ts` | Removes about 30 D1 round trips per dashboard request; responses identical on the demo database. **Not deployed** |
-| Worker | `/api/activity` reads all nine sources in one `db.batch()`; dashboard settings queries run in parallel | `worker/src/index.ts` | One round trip instead of nine. **Not deployed** |
+| Worker | Schema setup runs once per isolate (`ensureSchemaOnce`) | `worker/src/index.ts` | Removes about 30 D1 round trips per dashboard request; responses identical on the demo database |
+| Worker | `/api/activity` reads all nine sources in one `db.batch()`; dashboard settings queries run in parallel | `worker/src/index.ts` | One round trip instead of nine |
 | Lint / CI | `LocalResources` for strings in callbacks, `LocalActivity`, locale from `LocalConfiguration` | `MainActivity.kt`, `OverviewScreen.kt`, settings pages, catalog, music | `lintRelease` passes; in-app language switching still works |
 
 ## Verification (Phase 4)
@@ -107,16 +107,26 @@ Against a fresh install that is −17% to first frame and −22% to content. Aga
 
 Warm-start scrolling barely changes, as expected: the code is already JIT-compiled by the time the list scrolls. The differences in Music and Notifications are within run-to-run noise at P99. The profile mainly helps the first launch and the first scroll after install or update.
 
+### Server response times (after deploying, same laptop, median of five)
+
+| Endpoint | Before | After |
+| :--- | ---: | ---: |
+| `/api/dashboard` | 2.4 s | 0.41 s |
+| `/api/activity?days=14&limit=20` | 1.8 s | 0.31 s |
+| `/api/letterboxd/films?limit=100` | 1.2 s | 0.14 s |
+| `/api/music/stats` | 0.7 s | 0.16 s |
+
+The first dashboard request on a new Worker isolate takes about 1.1 s, because it runs the schema setup once.
+
 - Baseline Profile in the APK: yes (`assets/dexopt/baseline.prof`, 12.9 KB)
 - CI stability gate: no (see open items)
 
 ## Open items
 
-1. **Deploy the Worker** and re-time `/api/dashboard` and `/api/activity`.
-2. **Republish the release APK.** The one on GitHub crashes on launch; the release workflow should now pass.
-3. **Show Overview progressively.** Render the dashboard as soon as it arrives instead of waiting for all nine requests, and replace the 350-record and 200-notification downloads with server-side counts.
-4. **CI stability gate.** Strong Skipping makes this low priority; add `compose-stability-analyzer` with `stabilityDump` / `stabilityCheck` if unstable types start showing up in list rows.
-5. **Regenerate the Baseline Profile** after large UI changes (see below).
+1. **Republish the release APK.** The one on GitHub crashes on launch; the release workflow should now pass.
+2. **Show Overview progressively.** Render the dashboard as soon as it arrives instead of waiting for all nine requests, and replace the 350-record and 200-notification downloads with server-side counts.
+3. **CI stability gate.** Strong Skipping makes this low priority; add `compose-stability-analyzer` with `stabilityDump` / `stabilityCheck` if unstable types start showing up in list rows.
+4. **Regenerate the Baseline Profile** after large UI changes (see below).
 
 ## How to re-run
 
