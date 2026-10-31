@@ -24,7 +24,10 @@
 -dontwarn retrofit2.KotlinExtensions$*
 
 # Room
--keep class * extends androidx.room.RoomDatabase
+# Room creates the generated *_Impl class by reflection through its no-arg constructor.
+# R8 full mode (default since AGP 8) drops constructors unless they are kept explicitly,
+# which crashed release builds in Application.onCreate.
+-keep class * extends androidx.room.RoomDatabase { <init>(); }
 -keep @androidx.room.Entity class * { *; }
 -keep @androidx.room.Dao interface * { *; }
 -dontwarn androidx.room.paging.**
