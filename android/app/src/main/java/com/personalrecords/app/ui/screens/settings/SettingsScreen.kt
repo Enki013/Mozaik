@@ -38,6 +38,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.style.TextOverflow
@@ -81,6 +82,7 @@ fun SettingsScreen(
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
     val context = LocalContext.current
+    val resources = LocalResources.current
     val coroutineScope = rememberCoroutineScope()
 
 
@@ -97,7 +99,7 @@ fun SettingsScreen(
 
     fun triggerDownload(url: String, filename: String) {
         coroutineScope.launch {
-            snackbarHostState.showSnackbar(context.getString(R.string.toast_downloading, filename))
+            snackbarHostState.showSnackbar(resources.getString(R.string.toast_downloading, filename))
             val success = withContext(Dispatchers.IO) {
                 try {
                     val client = OkHttpClient.Builder()
@@ -139,14 +141,14 @@ fun SettingsScreen(
             }
 
             if (success) {
-                snackbarHostState.showSnackbar(context.getString(R.string.toast_downloaded, filename))
+                snackbarHostState.showSnackbar(resources.getString(R.string.toast_downloaded, filename))
             } else {
                 try {
                     val intent = Intent(Intent.ACTION_VIEW, url.toUri())
                     context.startActivity(intent)
-                    snackbarHostState.showSnackbar(context.getString(R.string.toast_download_browser))
+                    snackbarHostState.showSnackbar(resources.getString(R.string.toast_download_browser))
                 } catch (_: Exception) {
-                    snackbarHostState.showSnackbar(context.getString(R.string.toast_download_failed))
+                    snackbarHostState.showSnackbar(resources.getString(R.string.toast_download_failed))
                 }
             }
         }
@@ -252,7 +254,7 @@ fun SettingsScreen(
                             val baseUrl = state.serverUrl.trim().trimEnd('/')
                             if (baseUrl.isBlank()) {
                                 coroutineScope.launch {
-                                    snackbarHostState.showSnackbar(context.getString(R.string.settings_save_server_first))
+                                    snackbarHostState.showSnackbar(resources.getString(R.string.settings_save_server_first))
                                 }
                             } else {
                                 val timestamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
@@ -1061,6 +1063,7 @@ private fun GenericPluginSettingsCard(
     onShowToast: (String) -> Unit
 ) {
     val context = LocalContext.current
+    val resources = LocalResources.current
     val clipboardManager = LocalClipboardManager.current
     val cleanBaseUrl = serverUrl.trim().trimEnd('/')
     val webhookUrl = remember(cleanBaseUrl, plugin.webhookPath) {
@@ -1168,7 +1171,7 @@ private fun GenericPluginSettingsCard(
                 shapes = expressiveButtonShapes(),
                 onClick = {
                     clipboardManager.setText(AnnotatedString(webhookUrl))
-                    onShowToast(context.getString(R.string.toast_webhook_copied))
+                    onShowToast(resources.getString(R.string.toast_webhook_copied))
                 },
                 modifier = Modifier
                     .fillMaxWidth()

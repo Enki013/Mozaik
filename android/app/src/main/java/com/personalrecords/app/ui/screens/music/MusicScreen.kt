@@ -37,6 +37,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -780,6 +781,7 @@ fun MusicDetailContent(
     onShowSnackbar: ((String) -> Unit)? = null
 ) {
     val context = LocalContext.current
+    val resources = LocalResources.current
     val notify = { message: String ->
         if (onShowSnackbar != null) {
             onShowSnackbar(message)
@@ -899,7 +901,7 @@ fun MusicDetailContent(
                     clipboard.setPrimaryClip(clip)
                     // Without a snackbar host, Android 13+ already confirms the copy itself.
                     if (onShowSnackbar != null || android.os.Build.VERSION.SDK_INT < android.os.Build.VERSION_CODES.TIRAMISU) {
-                        notify(context.getString(R.string.music_copied, "${scrobble.artist} - ${scrobble.track}"))
+                        notify(resources.getString(R.string.music_copied, "${scrobble.artist} - ${scrobble.track}"))
                     }
                 },
                 shapes = expressiveButtonShapes(),
@@ -917,7 +919,7 @@ fun MusicDetailContent(
                             val intent = Intent(Intent.ACTION_VIEW, Uri.parse(scrobble.originUrl))
                             context.startActivity(intent)
                         } catch (e: Exception) {
-                            notify(context.getString(R.string.music_open_failed))
+                            notify(resources.getString(R.string.music_open_failed))
                         }
                     },
                     shapes = expressiveButtonShapes(),

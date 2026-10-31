@@ -15,6 +15,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -33,6 +34,7 @@ internal fun FatSecretSettingsPage(
     snackbarHostState: SnackbarHostState
 ) {
     val context = LocalContext.current
+    val resources = LocalResources.current
     val coroutineScope = rememberCoroutineScope()
     val clipboardManager = LocalClipboardManager.current
     var showKeyEditor by remember { mutableStateOf(false) }
@@ -279,7 +281,7 @@ internal fun FatSecretSettingsPage(
                                 val baseUrl = state.serverUrl.trim().trimEnd('/')
                                 if (baseUrl.isBlank()) {
                                     coroutineScope.launch {
-                                        snackbarHostState.showSnackbar(context.getString(R.string.settings_save_server_first))
+                                        snackbarHostState.showSnackbar(resources.getString(R.string.settings_save_server_first))
                                     }
                                 } else {
                                     val intent = Intent(

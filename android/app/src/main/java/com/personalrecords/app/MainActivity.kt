@@ -118,14 +118,17 @@ fun ProvideLocalizedApp(
     content: @Composable () -> Unit
 ) {
     val context = androidx.compose.ui.platform.LocalContext.current
-    val localizedContext = remember(language, context) {
+    // Read the configuration through the composition so a change (theme, size, density)
+    // rebuilds the localized context instead of keeping a stale copy.
+    val baseConfiguration = androidx.compose.ui.platform.LocalConfiguration.current
+    val localizedContext = remember(language, context, baseConfiguration) {
         val locale = if (language == "system") {
             android.content.res.Resources.getSystem().configuration.locales[0]
         } else {
             java.util.Locale.forLanguageTag(language)
         }
         java.util.Locale.setDefault(locale)
-        val config = android.content.res.Configuration(context.resources.configuration).apply {
+        val config = android.content.res.Configuration(baseConfiguration).apply {
             setLocale(locale)
             setLayoutDirection(locale)
         }
@@ -139,7 +142,8 @@ fun ProvideLocalizedApp(
 
     CompositionLocalProvider(
         androidx.compose.ui.platform.LocalContext provides localizedContext,
-        androidx.compose.ui.platform.LocalConfiguration provides localizedContext.resources.configuration
+        androidx.compose.ui.platform.LocalConfiguration provides localizedContext.resources.configuration,
+        androidx.compose.ui.platform.LocalResources provides localizedContext.resources
     ) {
         content()
     }
@@ -179,7 +183,7 @@ private fun Any?.toScreen(): Screen? {
 
 @Composable
 fun MainAppHost() {
-    val activity = LocalContext.current as? ComponentActivity
+    val activity = androidx.activity.compose.LocalActivity.current as? ComponentActivity
     val navigationState = rememberAppNavigationState(
         startRoute = Screen.Overview,
         topLevelRoutes = topLevelScreens

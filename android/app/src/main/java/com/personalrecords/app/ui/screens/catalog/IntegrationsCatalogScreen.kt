@@ -39,6 +39,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -455,6 +456,7 @@ private fun PluginWebhookBottomSheet(
         enabledValues = setOf(SheetValue.Hidden, SheetValue.Expanded)
     )
     val context = LocalContext.current
+    val resources = LocalResources.current
     val clipboardManager = remember {
         context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
     }
@@ -568,7 +570,7 @@ private fun PluginWebhookBottomSheet(
                     onClick = {
                         val clip = ClipData.newPlainText("Webhook URL", effectiveWebhookUrl)
                         clipboardManager.setPrimaryClip(clip)
-                        onShowSnackbar(context.getString(R.string.toast_webhook_copied))
+                        onShowSnackbar(resources.getString(R.string.toast_webhook_copied))
                     },
                     shapes = expressiveButtonShapes(),
                     modifier = Modifier.weight(1f)
@@ -595,7 +597,7 @@ private fun PluginWebhookBottomSheet(
                                 val intent = Intent(Intent.ACTION_VIEW, Uri.parse(plugin.officialUrl))
                                 context.startActivity(intent)
                             } catch (_: Exception) {
-                                onShowSnackbar(context.getString(R.string.music_open_failed))
+                                onShowSnackbar(resources.getString(R.string.music_open_failed))
                             }
                         },
                         shapes = expressiveButtonShapes(),
@@ -625,7 +627,7 @@ private fun PluginWebhookBottomSheet(
                     onCopy = {
                         val clip = ClipData.newPlainText("Webhook URL", "$effectiveWebhookUrl?api_key=$serverApiKey")
                         clipboardManager.setPrimaryClip(clip)
-                        onShowSnackbar(context.getString(R.string.toast_webhook_auth_copied))
+                        onShowSnackbar(resources.getString(R.string.toast_webhook_auth_copied))
                     }
                 )
             }

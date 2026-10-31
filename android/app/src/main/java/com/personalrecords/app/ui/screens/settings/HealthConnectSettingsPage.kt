@@ -14,6 +14,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.style.TextOverflow
@@ -33,6 +34,7 @@ internal fun HealthConnectSettingsPage(
     snackbarHostState: SnackbarHostState
 ) {
     val context = LocalContext.current
+    val resources = LocalResources.current
     val coroutineScope = rememberCoroutineScope()
     val clipboardManager = LocalClipboardManager.current
 
@@ -105,7 +107,7 @@ internal fun HealthConnectSettingsPage(
                 onClick = {
                     clipboardManager.setText(AnnotatedString(healthWebhookUrl))
                     coroutineScope.launch {
-                        snackbarHostState.showSnackbar(context.getString(R.string.toast_webhook_copied))
+                        snackbarHostState.showSnackbar(resources.getString(R.string.toast_webhook_copied))
                     }
                 },
                 modifier = Modifier
@@ -171,7 +173,7 @@ internal fun HealthConnectSettingsPage(
                 onCopy = {
                     clipboardManager.setText(AnnotatedString(authWebhookUrl))
                     coroutineScope.launch {
-                        snackbarHostState.showSnackbar(context.getString(R.string.toast_webhook_auth_copied))
+                        snackbarHostState.showSnackbar(resources.getString(R.string.toast_webhook_auth_copied))
                     }
                 }
             )
