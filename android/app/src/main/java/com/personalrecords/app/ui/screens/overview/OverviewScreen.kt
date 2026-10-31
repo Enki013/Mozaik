@@ -12,8 +12,9 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.carousel.CarouselDefaults
-import androidx.compose.material3.carousel.HorizontalUncontainedCarousel
+import androidx.compose.material3.carousel.HorizontalMultiBrowseCarousel
 import androidx.compose.material3.carousel.rememberCarouselState
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -608,21 +609,33 @@ fun OverviewScreen(
                                     }
                                 }
                             } else {
-                                // M3 carousel: the next card peeks in at the edge and cards are
-                                // masked by the carousel as they scroll in and out.
+                                // M3 multi-browse carousel: cards morph their width as they move
+                                // between the hero slot and the small slot at the edge. Unlike the
+                                // uncontained carousel, it composes the cards next to the visible
+                                // ones ahead of time, so the next card never pops in.
                                 BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
                                     val peek = if (slides.size > 1) HeroCardPeek else 0.dp
                                     val heroItemWidth = (maxWidth - peek).coerceAtMost(840.dp)
-                                    HorizontalUncontainedCarousel(
+                                    HorizontalMultiBrowseCarousel(
                                         state = statsPagerState,
-                                        itemWidth = heroItemWidth,
+                                        preferredItemWidth = heroItemWidth,
                                         itemSpacing = 8.dp,
+                                        minSmallItemWidth = HeroCardPeek,
+                                        maxSmallItemWidth = HeroCardPeek,
                                         flingBehavior = CarouselDefaults.singleAdvanceFlingBehavior(statsPagerState),
                                         modifier = Modifier.fillMaxWidth()
                                     ) { itemIndex ->
                                         OverviewHeroCard(
                                             slide = slides[itemIndex],
-                                            modifier = Modifier.maskClip(MaterialTheme.shapes.extraLargeIncreased)
+                                            modifier = Modifier
+                                                .maskClip(MaterialTheme.shapes.extraLargeIncreased)
+                                                // The carousel centers its mask on the card, so a narrow
+                                                // card would show its middle and reveal the title only
+                                                // as it widens. Pin the card's leading edge to the mask
+                                                // instead; the shift is zero once the card is full size.
+                                                .graphicsLayer {
+                                                    translationX = carouselItemDrawInfo.maskRect.left
+                                                }
                                         )
                                     }
                                 }
