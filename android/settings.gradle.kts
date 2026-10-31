@@ -24,3 +24,4 @@ dependencyResolutionManagement {
 
 rootProject.name = "PersonalRecords"
 include(":app")
+include(":baselineprofile")

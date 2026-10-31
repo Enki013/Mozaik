@@ -1,5 +1,7 @@
 package com.personalrecords.app.ui.screens.overview
 
+import androidx.activity.compose.ReportDrawnWhen
+
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
@@ -67,6 +69,9 @@ fun OverviewScreen(
     onNavigateToIntegrationsCatalog: () -> Unit = {}
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
+    // Tells the system when real content is on screen, so startup benchmarks can measure
+    // time to full display (not just the first frame with a loading indicator).
+    ReportDrawnWhen { state.dashboard != null || state.error != null }
     val preferences = remember { PersonalRecordsApp.instance.preferences }
     val hiddenStatsCards by preferences.hiddenStatsCards.collectAsStateWithLifecycle(initialValue = emptySet())
     val coroutineScope = rememberCoroutineScope()
@@ -352,7 +357,7 @@ fun OverviewScreen(
                         val booksReadingVal = if (state.booksStats.currentlyReadingCount > 0) "${state.booksStats.currentlyReadingCount}" else "0"
                         val booksMiddlePill = if (state.booksStats.totalPages > 0) {
                             val pagesStr = if (state.booksStats.totalPages >= 1000) {
-                                String.format(Locale.getDefault(), "%.1fk", state.booksStats.totalPages / 1000f)
+                                String.format(appLocale, "%.1fk", state.booksStats.totalPages / 1000f)
                             } else {
                                 state.booksStats.totalPages.toString()
                             }
@@ -367,7 +372,7 @@ fun OverviewScreen(
                             )
                         }
                         val booksRatingVal = if (state.booksStats.avgRating > 0.0) {
-                            String.format(Locale.getDefault(), "%.1f", state.booksStats.avgRating)
+                            String.format(appLocale, "%.1f", state.booksStats.avgRating)
                         } else "—"
 
                         val booksPills = listOf(
@@ -410,7 +415,7 @@ fun OverviewScreen(
                         val filmsMonthVal = if (state.filmsStats.thisMonthCount > 0) "${state.filmsStats.thisMonthCount}" else "0"
                         val filmsRewatchVal = if (state.filmsStats.rewatchCount > 0) "${state.filmsStats.rewatchCount}" else "0"
                         val filmsRatingVal = if (state.filmsStats.avgRating > 0.0) {
-                            String.format(Locale.getDefault(), "%.1f", state.filmsStats.avgRating)
+                            String.format(appLocale, "%.1f", state.filmsStats.avgRating)
                         } else "—"
 
                         val moviesPills = listOf(
@@ -507,7 +512,7 @@ fun OverviewScreen(
                         val healthSteps = health.today_steps.toInt().coerceAtLeast(0)
                         val healthHeartRate = health.latest_heart_rate_bpm.toInt().takeIf { it > 0 }?.toString() ?: "—"
                         val healthSleepHours = if (health.last_sleep_seconds > 0) {
-                            String.format(Locale.getDefault(), "%.1f h", health.last_sleep_seconds / 3600.0)
+                            String.format(appLocale, "%.1f h", health.last_sleep_seconds / 3600.0)
                         } else "—"
                         val healthActiveCalories = health.today_active_calories.toInt().takeIf { it > 0 }?.toString() ?: "—"
                         val healthRecord = state.latestHealthRecord
