@@ -59,3 +59,5 @@ stitch_personal_data_hub/
 .gemini/
 skills/
 
+# Release signing (kept out of git; CI uses GitHub Secrets)
+android/app/release-signing.env

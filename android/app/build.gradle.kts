@@ -7,6 +7,34 @@ plugins {
     alias(libs.plugins.baselineprofile)
 }
 
+// Release signing. CI passes the MOZAIK_* values as environment variables
+// (from GitHub Secrets); locally they come from app/release-signing.env, which
+// is gitignored. Without them, release builds fall back to the debug key.
+val releaseSigning: Map<String, String> = buildMap {
+    val envFile = file("release-signing.env")
+    if (envFile.exists()) {
+        envFile.readLines()
+            .map { it.trim() }
+            .filter { it.isNotEmpty() && !it.startsWith("#") && "=" in it }
+            .forEach { line ->
+                val (key, value) = line.split("=", limit = 2)
+                put(key.trim(), value.trim())
+            }
+    }
+    listOf(
+        "MOZAIK_KEYSTORE_FILE",
+        "MOZAIK_KEYSTORE_PASSWORD",
+        "MOZAIK_KEY_ALIAS",
+        "MOZAIK_KEY_PASSWORD",
+    ).forEach { key ->
+        System.getenv(key)?.takeIf { it.isNotBlank() }?.let { put(key, it) }
+    }
+}
+val releaseKeystore = file(releaseSigning["MOZAIK_KEYSTORE_FILE"] ?: "release.jks")
+val hasReleaseKey = releaseKeystore.exists() &&
+    listOf("MOZAIK_KEYSTORE_PASSWORD", "MOZAIK_KEY_ALIAS", "MOZAIK_KEY_PASSWORD")
+        .all { !releaseSigning[it].isNullOrBlank() }
+
 android {
     namespace = "com.personalrecords.app"
     compileSdk = 37
@@ -24,6 +52,17 @@ android {
         }
     }
 
+    signingConfigs {
+        if (hasReleaseKey) {
+            create("release") {
+                storeFile = releaseKeystore
+                storePassword = releaseSigning.getValue("MOZAIK_KEYSTORE_PASSWORD")
+                keyAlias = releaseSigning.getValue("MOZAIK_KEY_ALIAS")
+                keyPassword = releaseSigning.getValue("MOZAIK_KEY_PASSWORD")
+            }
+        }
+    }
+
     buildTypes {
         release {
             isMinifyEnabled = true
@@ -32,7 +71,7 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
-            signingConfig = signingConfigs.getByName("debug")
+            signingConfig = signingConfigs.getByName(if (hasReleaseKey) "release" else "debug")
         }
     }
 

@@ -409,9 +409,22 @@ API_KEY=<your-key> BASE_URL=https://<your-server> ./scripts/test_live_api.sh
 
 The live test checks health, authentication (wrong and right keys, session login and logout), every protected route, webhooks, CORS blocking, security headers and the sync cooldown.
 
+### Continuous integration
+
+The `ci` workflow runs on every push and pull request. It lints, unit-tests and builds the Android app (the signed APK is attached to the run for 14 days), runs `go vet`, `go test` and `go build` for the Go backend, and type-checks the Worker. Changes that only touch Markdown or `docs/` are skipped.
+
 ### Releases
 
-The `android-release` workflow runs lint and unit tests, builds the release APK and AAB, writes SHA-256 checksums, and publishes a GitHub release with a changelog generated from [Conventional Commits](https://www.conventionalcommits.org/). It runs on pushes to `main`, on tags, and on demand.
+Releases are published from version tags. Bump `versionName` and `versionCode` in `android/app/build.gradle.kts`, commit, then push a matching tag:
+
+```bash
+git tag v1.2.0
+git push origin v1.2.0
+```
+
+The `android-release` workflow checks that the tag matches `versionName`, runs lint and unit tests, builds the APK and AAB signed with the release key, writes SHA-256 checksums, and publishes a GitHub release with a changelog generated from [Conventional Commits](https://www.conventionalcommits.org/).
+
+Signing uses four repository secrets: `MOZAIK_KEYSTORE_BASE64`, `MOZAIK_KEYSTORE_PASSWORD`, `MOZAIK_KEY_ALIAS` and `MOZAIK_KEY_PASSWORD`. Locally, Gradle reads the same values from `android/app/release-signing.env` next to `android/app/release.jks` (both gitignored). Without them, release builds are signed with the debug key, which is what forks and pull requests from forks get.
 
 ---
 

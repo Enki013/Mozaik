@@ -409,9 +409,22 @@ API_KEY=<anahtarın> BASE_URL=https://<sunucun> ./scripts/test_live_api.sh
 
 Canlı test şunları kontrol eder: sağlık denetimi, kimlik doğrulama (yanlış ve doğru anahtar, oturum açma ve kapatma), tüm korumalı adresler, webhook'lar, CORS engelleme, güvenlik başlıkları ve eşitleme bekleme süresi.
 
+### Sürekli entegrasyon
+
+`ci` iş akışı her push'ta ve pull request'te çalışır. Android uygulamasında lint, birim testleri ve derlemeyi çalıştırır (imzalı APK 14 gün boyunca çalıştırmaya eklenir), Go backend için `go vet`, `go test` ve `go build` çalıştırır ve Worker'ın tip denetimini yapar. Yalnızca Markdown ya da `docs/` dosyalarını değiştiren commit'ler atlanır.
+
 ### Sürümler
 
-`android-release` iş akışı lint ve birim testlerini çalıştırır, release APK ve AAB dosyalarını derler, SHA-256 özetlerini yazar ve [Conventional Commits](https://www.conventionalcommits.org/) mesajlarından değişiklik listesi oluşturup GitHub sürümü yayınlar. `main`'e her push'ta, etiketlerde ve elle tetiklendiğinde çalışır.
+Sürümler sürüm etiketlerinden yayınlanır. `android/app/build.gradle.kts` içinde `versionName` ve `versionCode` değerlerini artır, commit'le, ardından eşleşen etiketi gönder:
+
+```bash
+git tag v1.2.0
+git push origin v1.2.0
+```
+
+`android-release` iş akışı etiketin `versionName` ile eşleştiğini kontrol eder, lint ve birim testlerini çalıştırır, release anahtarıyla imzalı APK ve AAB dosyalarını derler, SHA-256 özetlerini yazar ve [Conventional Commits](https://www.conventionalcommits.org/) mesajlarından değişiklik listesi oluşturup GitHub sürümü yayınlar.
+
+İmzalama dört depo secret'ı kullanır: `MOZAIK_KEYSTORE_BASE64`, `MOZAIK_KEYSTORE_PASSWORD`, `MOZAIK_KEY_ALIAS` ve `MOZAIK_KEY_PASSWORD`. Yerelde Gradle aynı değerleri `android/app/release.jks` dosyasının yanındaki `android/app/release-signing.env` dosyasından okur (ikisi de git'e eklenmez). Bunlar yoksa release derlemeleri debug anahtarıyla imzalanır; fork'lar ve fork'lardan gelen pull request'ler bu şekilde derlenir.
 
 ---
 

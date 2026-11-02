@@ -161,4 +161,4 @@ cp BaselineProfileGenerator_generate-startup-prof.txt app/src/release/generated/
 ./gradlew :app:compileReleaseKotlin -PcomposeCompilerReports=true
 ```
 
-Keep the phone unlocked with the screen on while the benchmarks run. The release and benchmark builds are signed with the same debug key as local debug builds, so they install over each other without losing data.
+Keep the phone unlocked with the screen on while the benchmarks run. Release and benchmark builds are signed with the release key when `android/app/release-signing.env` is present, and with the debug key otherwise. Android only installs an update signed with the same key, so switching between the two needs an uninstall, which deletes the app data.
